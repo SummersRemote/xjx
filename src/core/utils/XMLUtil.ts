@@ -15,7 +15,7 @@ export class XMLUtil {
     const INDENT = " ".repeat(indent);
 
     try {
-      const doc = DOMAdapter.parseFromString(xmlString, 'text/xml');
+      const doc = DOMAdapter.parseFromString(xmlString, "text/xml");
 
       const serializer = (node: Node, level = 0): string => {
         const pad = INDENT.repeat(level);
@@ -76,7 +76,11 @@ export class XMLUtil {
 
       return serializer(doc).trim();
     } catch (error) {
-      throw new XMLToJSONError(`Failed to pretty print XML: ${error instanceof Error ? error.message : String(error)}`);
+      throw new XMLToJSONError(
+        `Failed to pretty print XML: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
     }
   }
 
@@ -85,18 +89,24 @@ export class XMLUtil {
    * @param xmlString XML string to validate
    * @returns Object with validation result and any error messages
    */
-  static validateXML(xmlString: string): { isValid: boolean; message?: string } {
+  static validateXML(xmlString: string): {
+    isValid: boolean;
+    message?: string;
+  } {
     try {
       const doc = DOMAdapter.parseFromString(xmlString, "text/xml");
       const errors = doc.getElementsByTagName("parsererror");
       if (errors.length > 0) {
-        return { isValid: false, message: errors[0].textContent || "Unknown parsing error" };
+        return {
+          isValid: false,
+          message: errors[0].textContent || "Unknown parsing error",
+        };
       }
       return { isValid: true };
     } catch (error) {
-      return { 
-        isValid: false, 
-        message: error instanceof Error ? error.message : String(error) 
+      return {
+        isValid: false,
+        message: error instanceof Error ? error.message : String(error),
       };
     }
   }
@@ -107,38 +117,66 @@ export class XMLUtil {
    * @returns XML string with declaration
    */
   static ensureXMLDeclaration(xmlString: string): string {
-    if (!xmlString.trim().startsWith('<?xml')) {
+    if (!xmlString.trim().startsWith("<?xml")) {
       return '<?xml version="1.0" encoding="UTF-8"?>\n' + xmlString;
     }
     return xmlString;
   }
 
   /**
-   * Escape special XML characters
-   * @param text Text to escape
-   * @returns Escaped text
+   * Escapes special characters in text for safe XML usage.
+   * @param text Text to escape.
+   * @returns Escaped XML string.
    */
   static escapeXML(text: string): string {
-    return text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
+    if (typeof text !== "string" || text.length === 0) {
+      return "";
+    }
+
+    return text.replace(/[&<>"']/g, (char) => {
+      switch (char) {
+        case "&":
+          return "&amp;";
+        case "<":
+          return "&lt;";
+        case ">":
+          return "&gt;";
+        case '"':
+          return "&quot;";
+        case "'":
+          return "&apos;";
+        default:
+          return char;
+      }
+    });
   }
 
   /**
-   * Unescape XML entities
-   * @param text Text with XML entities
-   * @returns Unescaped text
+   * Unescapes XML entities back to their character equivalents.
+   * @param text Text with XML entities.
+   * @returns Unescaped text.
    */
   static unescapeXML(text: string): string {
-    return text
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&apos;/g, "'");
+    if (typeof text !== "string" || text.length === 0) {
+      return "";
+    }
+
+    return text.replace(/&(amp|lt|gt|quot|apos);/g, (match, entity) => {
+      switch (entity) {
+        case "amp":
+          return "&";
+        case "lt":
+          return "<";
+        case "gt":
+          return ">";
+        case "quot":
+          return '"';
+        case "apos":
+          return "'";
+        default:
+          return match;
+      }
+    });
   }
 
   /**
@@ -147,7 +185,7 @@ export class XMLUtil {
    * @returns Prefix or null if no prefix
    */
   static extractPrefix(qualifiedName: string): string | null {
-    const colonIndex = qualifiedName.indexOf(':');
+    const colonIndex = qualifiedName.indexOf(":");
     return colonIndex > 0 ? qualifiedName.substring(0, colonIndex) : null;
   }
 
@@ -157,8 +195,10 @@ export class XMLUtil {
    * @returns Local name
    */
   static extractLocalName(qualifiedName: string): string {
-    const colonIndex = qualifiedName.indexOf(':');
-    return colonIndex > 0 ? qualifiedName.substring(colonIndex + 1) : qualifiedName;
+    const colonIndex = qualifiedName.indexOf(":");
+    return colonIndex > 0
+      ? qualifiedName.substring(colonIndex + 1)
+      : qualifiedName;
   }
 
   /**

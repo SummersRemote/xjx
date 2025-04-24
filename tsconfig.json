@@ -4,7 +4,8 @@
     "module": "ESNext",
     "moduleResolution": "Node",
     "declaration": true,
-    "outDir": "./dist",
+    "declarationDir": "./dist/dts",
+    "outDir": "./dist/esm",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
@@ -12,5 +13,5 @@
     "lib": ["DOM", "ES2020"]
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
 }

@@ -2,12 +2,12 @@
  * XMLSerializer class for converting JSON to XML with consistent namespace handling
  */
 import { XMLToJSONConfig } from './types';
-import DEFAULT_CONFIG from './config';
+import { DEFAULT_CONFIG } from './config';
 
 /**
  * XML Serializer for converting JSON to XML
  */
-class XMLSerializerUtil {
+export class XMLSerializerUtil {
   private config: XMLToJSONConfig;
   private serializer: XMLSerializer | null = null;
 
@@ -258,5 +258,3 @@ class XMLSerializerUtil {
     return formatted;
   }
 }
-
-export default XMLSerializerUtil;

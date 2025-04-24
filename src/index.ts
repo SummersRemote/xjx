@@ -1,12 +1,12 @@
 /**
  * XMLToJSON Library - Main entry point
  */
-import XMLToJSON from './XMLToJSON';
-import XMLParser from './XMLParser';
-import XMLSerializerUtil from './XMLSerializer';
-import DOMAdapter, { DOMImplementation } from './dom-adapter';
+import { XMLToJSON } from './XMLToJSON';
+import { XMLParser } from './XMLParser';
+import { XMLSerializerUtil } from './XMLSerializer';
+import { DOMAdapter, DOMImplementation } from './dom-adapter';
 import { XMLToJSONConfig } from './types';
-import DEFAULT_CONFIG from './config';
+import { DEFAULT_CONFIG } from './config';
 import * as helpers from './helpers';
 import * as errors from './errors';
 
@@ -22,6 +22,3 @@ export {
   helpers,
   errors
 };
-
-// Default export is the main XMLToJSON class
-export default XMLToJSON;

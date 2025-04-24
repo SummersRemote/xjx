@@ -2,14 +2,14 @@
  * XMLToJSON main class with hybrid DOM implementation support
  */
 import { XMLToJSONConfig } from './types';
-import DEFAULT_CONFIG from './config';
-import DOMAdapter, { DOMImplementation } from './dom-adapter';
+import { DEFAULT_CONFIG } from './config';
+import { DOMAdapter, DOMImplementation } from './dom-adapter';
 
 /**
  * XMLToJSON - Main class for XML to JSON transformation
  * Supports both browser and Node.js environments through a hybrid DOM approach
  */
-class XMLToJSON {
+export class XMLToJSON {
   private config: XMLToJSONConfig;
   private domAdapter: DOMAdapter;
 
@@ -414,5 +414,3 @@ class XMLToJSON {
     this.domAdapter.cleanup();
   }
 }
-
-export default XMLToJSON;

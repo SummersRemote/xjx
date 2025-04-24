@@ -51,11 +51,3 @@ export class XMLToJSONError extends Error {
       this.name = 'ConfigurationError';
     }
   }
-  
-  export default {
-    XMLToJSONError,
-    XMLParseError,
-    XMLSerializeError,
-    EnvironmentError,
-    ConfigurationError
-  };

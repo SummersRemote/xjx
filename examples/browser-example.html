@@ -240,11 +240,13 @@
         </div>
     </div>
     
-    <script type="module">
-        // Import the XMLToJSON library
-        // In a real setup, you would import from your package
-        import XMLToJSON from '../dist/index.js';
+    <!-- Load the UMD bundle -->
+    <script src="../dist/xmltojson.umd.js"></script>
 
+    <script>
+        // Log what's available to help debug
+        console.log('XMLToJSON is:', XMLToJSON);
+        
         // DOM Elements
         const xmlInput = document.getElementById('xmlInput');
         const jsonOutput = document.getElementById('jsonOutput');
@@ -306,12 +308,23 @@
         // Convert XML to JSON
         xmlToJsonBtn.addEventListener('click', () => {
             try {
-                const converter = new XMLToJSON(getConfig());
+                // Check if XMLToJSON is a constructor function (class) or an object with a default property
+                const XMLToJSONClass = typeof XMLToJSON === 'function' ? XMLToJSON : 
+                                       (XMLToJSON.default || XMLToJSON.XMLToJSON || XMLToJSON);
+                                       
+                console.log('Using constructor:', XMLToJSONClass);
+                
+                if (typeof XMLToJSONClass !== 'function') {
+                    throw new Error('XMLToJSON is not available as a constructor. Available as: ' + 
+                                   Object.keys(XMLToJSON).join(', '));
+                }
+                
+                const converter = new XMLToJSONClass(getConfig());
                 const jsonObj = converter.xmlToJson(xmlInput.value);
                 jsonOutput.value = JSON.stringify(jsonObj, null, 2);
             } catch (error) {
                 jsonOutput.value = `Error: ${error.message}`;
-                console.error(error);
+                console.error('Error details:', error);
             }
         });
         
@@ -319,12 +332,22 @@
         jsonToXmlBtn.addEventListener('click', () => {
             try {
                 const jsonObj = JSON.parse(jsonOutput.value);
-                const converter = new XMLToJSON(getConfig());
+                
+                // Check if XMLToJSON is a constructor function (class) or an object with a default property
+                const XMLToJSONClass = typeof XMLToJSON === 'function' ? XMLToJSON : 
+                                       (XMLToJSON.default || XMLToJSON.XMLToJSON || XMLToJSON);
+                
+                if (typeof XMLToJSONClass !== 'function') {
+                    throw new Error('XMLToJSON is not available as a constructor. Available as: ' + 
+                                   Object.keys(XMLToJSON).join(', '));
+                }
+                
+                const converter = new XMLToJSONClass(getConfig());
                 const xmlString = converter.jsonToXml(jsonObj);
                 xmlInput.value = xmlString;
             } catch (error) {
                 xmlInput.value = `Error: ${error.message}`;
-                console.error(error);
+                console.error('Error details:', error);
             }
         });
         
@@ -350,7 +373,10 @@
         
         // Initial conversion on page load
         window.addEventListener('DOMContentLoaded', () => {
-            xmlToJsonBtn.click();
+            // Add a small delay to ensure the DOM is fully processed
+            setTimeout(() => {
+                xmlToJsonBtn.click();
+            }, 100);
         });
     </script>
 </body>

@@ -35,5 +35,3 @@ export const DEFAULT_CONFIG: XMLToJSONConfig = {
     children: "@children",
   },
 };
-
-export default DEFAULT_CONFIG;

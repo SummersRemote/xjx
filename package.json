@@ -4,10 +4,14 @@
   "description": "A modern ESM library for bidirectional XML to JSON conversion with namespace and node type support.",
   "type": "module",
   "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "browser": "./dist/xmltojson.umd.js",
+  "unpkg": "./dist/xmltojson.min.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "import": "./dist/index.js",
+      "require": "./dist/xmltojson.umd.js",
       "types": "./dist/index.d.ts"
     }
   },
@@ -19,7 +23,10 @@
   ],
   "scripts": {
     "clean": "rimraf dist",
-    "build": "npm run clean && tsc",
+    "build": "npm run clean && npm run build:types && npm run build:js",
+    "build:types": "tsc --emitDeclarationOnly --outDir dist/dts",
+    "build:js": "rollup -c",
+    "build:prod": "NODE_ENV=production npm run build:js",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
@@ -27,7 +34,7 @@
     "lint:fix": "eslint ./src --ext .ts --fix",
     "format": "prettier --write \"src/**/*.ts\"",
     "docs": "typedoc --out docs src/index.ts",
-    "prepublishOnly": "npm run build && npm run test",
+    "prepublishOnly": "npm run build:prod && npm run test",
     "preversion": "npm run lint",
     "version": "npm run format && git add -A src",
     "postversion": "git push && git push --tags"
@@ -62,6 +69,10 @@
   },
   "homepage": "https://github.com/yourusername/xmltojson#readme",
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.8",
+    "@rollup/plugin-node-resolve": "^15.3.1",
+    "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-typescript": "^11.1.6",
     "@types/jest": "^29.5.0",
     "@types/node": "^18.15.11",
     "@typescript-eslint/eslint-plugin": "^5.57.1",
@@ -73,6 +84,8 @@
     "jest-environment-jsdom": "^29.6.0",
     "prettier": "^2.8.7",
     "rimraf": "^4.4.1",
+    "rollup": "^3.29.5",
+    "rollup-plugin-dts": "^5.3.1",
     "ts-jest": "^29.1.1",
     "typedoc": "^0.24.1",
     "typescript": "^5.1.6"

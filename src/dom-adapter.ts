@@ -193,5 +193,3 @@ export class DOMAdapter {
     }
   }
 }
-
-export default DOMAdapter;

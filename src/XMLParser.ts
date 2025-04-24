@@ -2,12 +2,12 @@
  * XMLParser class for converting XML to JSON with consistent namespace handling
  */
 import { XMLToJSONConfig } from './types';
-import DEFAULT_CONFIG from './config';
+import { DEFAULT_CONFIG } from './config';
 
 /**
  * XML Parser for converting XML to JSON
  */
-class XMLParser {
+export class XMLParser {
   private config: XMLToJSONConfig;
   private parser: DOMParser | null = null;
 
@@ -192,5 +192,3 @@ class XMLParser {
     return result;
   }
 }
-
-export default XMLParser;

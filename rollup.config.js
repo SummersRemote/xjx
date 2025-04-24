@@ -5,6 +5,9 @@ import terser from '@rollup/plugin-terser';
 import dts from 'rollup-plugin-dts';
 import { readFileSync } from 'fs';
 
+import filesize from 'rollup-plugin-filesize';
+import { visualizer } from 'rollup-plugin-visualizer';
+
 const packageJson = JSON.parse(readFileSync('./package.json', 'utf8'));
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -20,7 +23,15 @@ const baseConfig = {
     typescript({
       tsconfig: './tsconfig.json',
       declaration: true
-    })
+    }),
+    visualizer({
+      filename: 'dist/stats.html',
+      title: 'XMLToJSON Bundle Visualizer',
+      gzipSize: true,
+      brotliSize: true,
+      open: false // set to true to auto-open the report in browser
+    }),
+    filesize()
   ]
 };
 

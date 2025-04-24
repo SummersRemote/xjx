@@ -225,14 +225,11 @@ export class XMLToJSON {
       // Apply compact option - remove empty properties if enabled
       if (this.config.outputOptions.compact) {
         Object.keys(nodeObj).forEach((key) => {
-          if (
-            nodeObj[key] === null ||
-            nodeObj[key] === undefined ||
-            (Array.isArray(nodeObj[key]) && nodeObj[key].length === 0) ||
-            (typeof nodeObj[key] === "object" &&
-              Object.keys(nodeObj[key]).length === 0)
-          ) {
+          const cleaned = this.cleanNode(nodeObj[key]);
+          if (cleaned === undefined) {
             delete nodeObj[key];
+          } else {
+            nodeObj[key] = cleaned;
           }
         });
       }
@@ -241,6 +238,61 @@ export class XMLToJSON {
     }
 
     return result;
+  }
+
+  private cleanNode(node: any): any {
+    if (Array.isArray(node)) {
+      // Clean each item in the array and filter out empty ones
+      const cleanedArray = node
+        .map((item) => this.cleanNode(item))
+        .filter((item) => {
+          return !(
+            item === null ||
+            item === undefined ||
+            (typeof item === "object" && Object.keys(item).length === 0)
+          );
+        });
+      return cleanedArray.length > 0 ? cleanedArray : undefined;
+    } else if (typeof node === "object" && node !== null) {
+      // Clean properties recursively
+      Object.keys(node).forEach((key) => {
+        const cleanedChild = this.cleanNode(node[key]);
+        if (
+          cleanedChild === null ||
+          cleanedChild === undefined ||
+          (Array.isArray(cleanedChild) && cleanedChild.length === 0) ||
+          (typeof cleanedChild === "object" &&
+            Object.keys(cleanedChild).length === 0)
+        ) {
+          delete node[key];
+        } else {
+          node[key] = cleanedChild;
+        }
+      });
+
+      // Handle the special case for nodes with only empty children/attributes
+      const childrenKey = this.config.propNames.children;
+      const attrsKey = this.config.propNames.attributes;
+      const keys = Object.keys(node);
+      if (
+        keys.every((key) => key === childrenKey || key === attrsKey) &&
+        (node[childrenKey] === undefined || this.isEmpty(node[childrenKey])) &&
+        (node[attrsKey] === undefined || this.isEmpty(node[attrsKey]))
+      ) {
+        return undefined;
+      }
+
+      return Object.keys(node).length > 0 ? node : undefined;
+    }
+
+    return node;
+  }
+
+  private isEmpty(value: any): boolean {
+    if (value == null) return true;
+    if (Array.isArray(value)) return value.length === 0;
+    if (typeof value === "object") return Object.keys(value).length === 0;
+    return false;
   }
 
   /**
@@ -360,13 +412,18 @@ export class XMLToJSON {
             );
           }
           // Processing instructions
-          else if (child[this.config.propNames.instruction] !== undefined && this.config.preserveProcessingInstr) {
+          else if (
+            child[this.config.propNames.instruction] !== undefined &&
+            this.config.preserveProcessingInstr
+          ) {
             const piData = child[this.config.propNames.instruction];
             const target = piData[this.config.propNames.target];
-            const data = piData[this.config.propNames.value] || '';
-            
+            const data = piData[this.config.propNames.value] || "";
+
             if (target) {
-              element.appendChild(DOMEnvironment.createProcessingInstruction(target, data));
+              element.appendChild(
+                DOMEnvironment.createProcessingInstruction(target, data)
+              );
             }
           }
           // Element nodes (recursive)

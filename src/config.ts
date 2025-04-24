@@ -26,14 +26,14 @@ export const DEFAULT_CONFIG: XMLToJSONConfig = {
   },
 
   propNames: {
-    namespace: "@ns",
-    prefix: "@prefix",
-    attributes: "@attrs",
-    value: "@val",
-    cdata: "@cdata",
-    comments: "@comments",
-    instruction: "@instruction",  // Renamed from '@processing'
-    target: "@target",            // Added for processing instruction target
-    children: "@children",
+    namespace: "$ns",
+    prefix: "$pre",
+    attributes: "$attr",
+    value: "$val",
+    cdata: "$cdata",
+    comments: "$cmnt",
+    instruction: "$pi", 
+    target: "$trgt",  
+    children: "$children",
   },
 };

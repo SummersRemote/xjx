@@ -34,8 +34,8 @@ export interface XMLToJSONConfig {
     value: string;
     cdata: string;
     comments: string;
-    instruction: string;  // Renamed from 'processing'
-    target: string;       // Added for processing instruction target
+    instruction: string;  
+    target: string; 
     children: string;
   };
 }

@@ -118,6 +118,12 @@
                 </div>
                 <div class="config-item">
                     <label>
+                        <input type="checkbox" id="preserveAttributes" checked>
+                        Preserve Attributes
+                    </label>
+                </div>
+                <div class="config-item">
+                    <label>
                         <input type="checkbox" id="preserveWhitespace">
                         Preserve Whitespace
                     </label>
@@ -260,6 +266,7 @@
         const preserveProcessingInstr = document.getElementById('preserveProcessingInstr');
         const preserveCDATA = document.getElementById('preserveCDATA');
         const preserveTextNodes = document.getElementById('preserveTextNodes');
+        const preserveAttributes = document.getElementById('preserveAttributes');
         const preserveWhitespace = document.getElementById('preserveWhitespace');
         const prettyPrint = document.getElementById('prettyPrint');
         const compact = document.getElementById('compact');
@@ -282,6 +289,7 @@
                 preserveProcessingInstr: preserveProcessingInstr.checked,
                 preserveCDATA: preserveCDATA.checked,
                 preserveTextNodes: preserveTextNodes.checked,
+                preserveAttributes: preserveAttributes.checked,
                 preserveWhitespace: preserveWhitespace.checked,
                 outputOptions: {
                     prettyPrint: prettyPrint.checked,

@@ -13,6 +13,7 @@ export const DEFAULT_CONFIG: XMLToJSONConfig = {
   preserveCDATA: true,
   preserveTextNodes: true,
   preserveWhitespace: false,
+  preserveAttributes: true,  // Added new option with default true
 
   outputOptions: {
     prettyPrint: true,

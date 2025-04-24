@@ -81,8 +81,8 @@ export class XMLParser {
         }
       }
       
-      // Process attributes
-      if (element.attributes.length > 0) {
+      // Process attributes if enabled
+      if (this.config.preserveAttributes && element.attributes.length > 0) {
         const attrs: Array<Record<string, any>> = [];
         
         for (let i = 0; i < element.attributes.length; i++) {
@@ -122,28 +122,20 @@ export class XMLParser {
       if (element.childNodes.length > 0) {
         const children: Array<Record<string, any>> = [];
         
-        let hasNonWhitespaceContent = false;
-        
         for (let i = 0; i < element.childNodes.length; i++) {
           const child = element.childNodes[i];
           
-          // Text nodes
+          // Text nodes - only process if preserveTextNodes is true
           if (child.nodeType === Node.TEXT_NODE) {
-            const text = child.nodeValue || "";
-            
-            // Skip whitespace-only text nodes if whitespace preservation is disabled
-            if (!this.config.preserveWhitespace && text.trim() === "") {
-              continue;
-            }
-            
             if (this.config.preserveTextNodes) {
-              hasNonWhitespaceContent = true;
+              const text = child.nodeValue || "";
+              
+              // Skip whitespace-only text nodes if whitespace preservation is disabled
+              if (!this.config.preserveWhitespace && text.trim() === "") {
+                continue;
+              }
+              
               children.push({ [this.config.propNames.value]: text });
-            } else if (text.trim() !== "") {
-              // If we're not preserving text nodes as separate entities,
-              // but the text isn't just whitespace, use it as the node's value
-              hasNonWhitespaceContent = true;
-              nodeObj[this.config.propNames.value] = text;
             }
           }
           // CDATA sections

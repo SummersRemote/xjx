@@ -112,8 +112,9 @@ export class XMLSerializerUtil {
       element = doc.createElement(nodeName);
     }
 
-    // Process attributes with consistent namespace handling
+    // Process attributes with consistent namespace handling if enabled
     if (
+      this.config.preserveAttributes &&
       nodeData[this.config.propNames.attributes] &&
       Array.isArray(nodeData[this.config.propNames.attributes])
     ) {

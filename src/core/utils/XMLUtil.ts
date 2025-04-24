@@ -3,15 +3,26 @@
  */
 import { XMLToJSONError } from "../types/errors";
 import { DOMAdapter } from "../DOMAdapter";
+import { Configuration } from "../types/types";
 
 export class XMLUtil {
+  private config: Configuration;
+
+  /**
+   * Constructor for XMLUtil
+   * @param config Configuration options
+   */
+  constructor(config: Configuration) {
+    this.config = config;
+  }
+
   /**
    * Pretty print an XML string
    * @param xmlString XML string to format
-   * @param indent Number of spaces for indentation
    * @returns Formatted XML string
    */
-  static prettyPrintXml(xmlString: string, indent: number = 2): string {
+  prettyPrintXml(xmlString: string): string {
+    const indent = this.config.outputOptions.indent;
     const INDENT = " ".repeat(indent);
 
     try {
@@ -89,7 +100,7 @@ export class XMLUtil {
    * @param xmlString XML string to validate
    * @returns Object with validation result and any error messages
    */
-  static validateXML(xmlString: string): {
+  validateXML(xmlString: string): {
     isValid: boolean;
     message?: string;
   } {
@@ -116,7 +127,7 @@ export class XMLUtil {
    * @param xmlString XML string
    * @returns XML string with declaration
    */
-  static ensureXMLDeclaration(xmlString: string): string {
+  ensureXMLDeclaration(xmlString: string): string {
     if (!xmlString.trim().startsWith("<?xml")) {
       return '<?xml version="1.0" encoding="UTF-8"?>\n' + xmlString;
     }
@@ -128,7 +139,7 @@ export class XMLUtil {
    * @param text Text to escape.
    * @returns Escaped XML string.
    */
-  static escapeXML(text: string): string {
+  escapeXML(text: string): string {
     if (typeof text !== "string" || text.length === 0) {
       return "";
     }
@@ -156,7 +167,7 @@ export class XMLUtil {
    * @param text Text with XML entities.
    * @returns Unescaped text.
    */
-  static unescapeXML(text: string): string {
+  unescapeXML(text: string): string {
     if (typeof text !== "string" || text.length === 0) {
       return "";
     }
@@ -184,7 +195,7 @@ export class XMLUtil {
    * @param qualifiedName Qualified name (e.g., "ns:element")
    * @returns Prefix or null if no prefix
    */
-  static extractPrefix(qualifiedName: string): string | null {
+  extractPrefix(qualifiedName: string): string | null {
     const colonIndex = qualifiedName.indexOf(":");
     return colonIndex > 0 ? qualifiedName.substring(0, colonIndex) : null;
   }
@@ -194,7 +205,7 @@ export class XMLUtil {
    * @param qualifiedName Qualified name (e.g., "ns:element")
    * @returns Local name
    */
-  static extractLocalName(qualifiedName: string): string {
+  extractLocalName(qualifiedName: string): string {
     const colonIndex = qualifiedName.indexOf(":");
     return colonIndex > 0
       ? qualifiedName.substring(colonIndex + 1)
@@ -207,7 +218,7 @@ export class XMLUtil {
    * @param localName Local name
    * @returns Qualified name
    */
-  static createQualifiedName(prefix: string | null, localName: string): string {
+  createQualifiedName(prefix: string | null, localName: string): string {
     return prefix ? `${prefix}:${localName}` : localName;
   }
 }

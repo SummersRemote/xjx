@@ -1,12 +1,12 @@
 /**
  * Default configuration for the XJX library
  */
-import { XMLToJSONConfig } from '../types/types';
+import { Configuration } from '../types/types';
 
 /**
  * Default configuration
  */
-export const DEFAULT_CONFIG: XMLToJSONConfig = {
+export const DEFAULT_CONFIG: Configuration = {
   preserveNamespaces: true,
   preserveComments: true,
   preserveProcessingInstr: true,

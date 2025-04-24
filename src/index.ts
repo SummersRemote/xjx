@@ -5,7 +5,7 @@ import { XJX } from "./XJX";
 import { XMLToJSON } from "./core/XMLToJSON";
 import { JSONToXML } from "./core/JSONToXML";
 import { DOMAdapter } from "./core/DOMAdapter";
-import { XMLToJSONConfig } from "./core/types/types";
+import { Configuration } from "./core/types/types";
 import { DEFAULT_CONFIG } from "./core/config/config";
 import { JSONUtil } from "./core/utils/JSONUtil";
 import { XMLUtil } from "./core/utils/XMLUtil";
@@ -18,7 +18,7 @@ export {
   XMLToJSON,
   JSONToXML,
   DOMAdapter,
-  XMLToJSONConfig,
+  Configuration as XMLToJSONConfig,
   DEFAULT_CONFIG,
   JSONUtil,
   XMLUtil,

@@ -1,17 +1,29 @@
 /**
  * JSONUtil - Utility functions for JSON processing
  */
+import { Configuration } from "../types/types";
+
 export class JSONUtil {
+  private config: Configuration;
+
+  /**
+   * Constructor for JSONUtil
+   * @param config Configuration options
+   */
+  constructor(config: Configuration) {
+    this.config = config;
+  }
+
   /**
    * Safely retrieves a value from a JSON object using a dot-separated path.
-   * Automatically traverses into $children arrays and flattens results.
+   * Automatically traverses into children arrays and flattens results.
    *
    * @param obj The input JSON object
    * @param path The dot-separated path string (e.g., "root.item.description.$val")
    * @param fallback Value to return if the path does not resolve
    * @returns Retrieved value or fallback
    */
-  static getPath(
+  getPath(
     obj: Record<string, any>,
     path: string,
     fallback: any = undefined
@@ -44,21 +56,41 @@ export class JSONUtil {
 
   /**
    * Resolves a single path segment in the context of a JSON object.
-   * Falls back to searching $children for matching keys.
+   * Falls back to searching children for matching keys.
    *
    * @param obj The current object
    * @param segment The path segment to resolve
    * @returns Resolved value or undefined
    */
-  private static resolveSegment(obj: any, segment: string): any {
+  private resolveSegment(obj: any, segment: string): any {
     if (obj == null || typeof obj !== "object") return undefined;
 
+    // Direct property access
     if (segment in obj) {
       return obj[segment];
     }
 
-    // Check $children for objects that contain the segment
-    const children = obj["$children"];
+    // Check if this is a special property name that matches the config
+    if (segment === this.config.propNames.value ||
+        segment === this.config.propNames.children ||
+        segment === this.config.propNames.attributes ||
+        segment === this.config.propNames.namespace ||
+        segment === this.config.propNames.prefix ||
+        segment === this.config.propNames.cdata ||
+        segment === this.config.propNames.comments ||
+        segment === this.config.propNames.instruction ||
+        segment === this.config.propNames.target) {
+      const configKey = Object.entries(this.config.propNames)
+        .find(([_, value]) => value === segment)?.[0];
+      
+      if (configKey && obj[segment] !== undefined) {
+        return obj[segment];
+      }
+    }
+
+    // Check children for objects that contain the segment
+    const childrenKey = this.config.propNames.children;
+    const children = obj[childrenKey];
     if (Array.isArray(children)) {
       const matches = children
         .map((child) => (segment in child ? child[segment] : undefined))
@@ -77,7 +109,7 @@ export class JSONUtil {
    * @param root Optional root element configuration (either a string or object with $ keys)
    * @returns XML-like JSON object
    */
-  static fromJSONObject(obj: any, root?: any): any {
+  fromJSONObject(obj: any, root?: any): any {
     const wrappedObject = this.wrapObject(obj);
 
     if (typeof root === "string") {
@@ -86,34 +118,37 @@ export class JSONUtil {
     }
 
     if (root && typeof root === "object") {
-      // Handle root with $ keys like $ns, $pre, $attrs
+      // Handle root with config-based keys
       const elementName = root.name || "root"; // Default to "root" if no name is provided
-      const prefix = root.$pre || "";
+      const prefix = root[this.config.propNames.prefix] || "";
       const qualifiedName = prefix ? `${prefix}:${elementName}` : elementName;
 
       const result: any = {
         [qualifiedName]: {},
       };
 
-      // Add $attrs to the root element if defined
-      if (root.$attrs && Array.isArray(root.$attrs)) {
-        result[qualifiedName].$attrs = root.$attrs;
+      // Add attributes to the root element if defined
+      const attrsKey = this.config.propNames.attributes;
+      if (root[attrsKey] && Array.isArray(root[attrsKey])) {
+        result[qualifiedName][attrsKey] = root[attrsKey];
       }
 
-      // Merge existing $children with the new generated children
-      const children = root.$children ? root.$children : [];
-      result[qualifiedName].$children = [
+      // Merge existing children with the new generated children
+      const childrenKey = this.config.propNames.children;
+      const children = root[childrenKey] ? root[childrenKey] : [];
+      result[qualifiedName][childrenKey] = [
         ...children,
         { [elementName]: wrappedObject },
       ];
 
       // Add namespace and prefix if defined
-      if (root.$ns) {
-        result[qualifiedName].$ns = root.$ns;
+      const nsKey = this.config.propNames.namespace;
+      if (root[nsKey]) {
+        result[qualifiedName][nsKey] = root[nsKey];
       }
 
-      if (prefix && root.$ns) {
-        result[qualifiedName][`xmlns:${prefix}`] = root.$ns;
+      if (prefix && root[nsKey]) {
+        result[qualifiedName][`xmlns:${prefix}`] = root[nsKey];
       }
 
       return result;
@@ -128,32 +163,35 @@ export class JSONUtil {
    * @param value Value to wrap
    * @returns Wrapped value
    */
-  private static wrapObject(value: any): any {
+  private wrapObject(value: any): any {
+    const valKey = this.config.propNames.value;
+    const childrenKey = this.config.propNames.children;
+
     if (
       value === null ||
       typeof value === "string" ||
       typeof value === "number" ||
       typeof value === "boolean"
     ) {
-      return { $val: value };
+      return { [valKey]: value };
     }
 
     if (Array.isArray(value)) {
-      // For arrays, wrap each item and return as a $children-style array of repeated elements
+      // For arrays, wrap each item and return as a children-style array of repeated elements
       return {
-        $children: value.map((item) => {
+        [childrenKey]: value.map((item) => {
           return this.wrapObject(item);
         }),
       };
     }
 
     if (typeof value === "object") {
-      // It's an object: wrap its properties in $children
+      // It's an object: wrap its properties in children
       const children = Object.entries(value).map(([key, val]) => ({
         [key]: this.wrapObject(val),
       }));
 
-      return { $children: children };
+      return { [childrenKey]: children };
     }
 
     return undefined; // Fallback for unhandled types
@@ -164,7 +202,7 @@ export class JSONUtil {
    * @param value Value to check
    * @returns true if empty
    */
-  static isEmpty(value: any): boolean {
+  isEmpty(value: any): boolean {
     if (value == null) return true;
     if (Array.isArray(value)) return value.length === 0;
     if (typeof value === 'object') return Object.keys(value).length === 0;
@@ -177,7 +215,7 @@ export class JSONUtil {
    * @param indent Optional indentation level
    * @returns JSON string representation
    */
-  static safeStringify(obj: any, indent: number = 2): string {
+  safeStringify(obj: any, indent: number = 2): string {
     try {
       return JSON.stringify(obj, null, indent);
     } catch (error) {
@@ -190,7 +228,7 @@ export class JSONUtil {
    * @param obj Object to clone
    * @returns Cloned object
    */
-  static deepClone(obj: any): any {
+  deepClone(obj: any): any {
     try {
       return JSON.parse(JSON.stringify(obj));
     } catch (error) {
@@ -204,7 +242,7 @@ export class JSONUtil {
    * @param source Source object
    * @returns Merged object (target is modified)
    */
-  static deepMerge(target: any, source: any): any {
+  deepMerge(target: any, source: any): any {
     if (typeof source !== 'object' || source === null) {
       return target;
     }

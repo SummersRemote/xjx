@@ -1,7 +1,7 @@
 /**
  * JSONToXML class for converting JSON to XML with consistent namespace handling
  */
-import { XMLToJSONConfig } from "./types/types";
+import { Configuration } from "./types/types";
 import { XMLToJSONError } from "./types/errors";
 import { DOMAdapter } from "./DOMAdapter";
 import { XMLUtil } from "./utils/XMLUtil";
@@ -10,14 +10,16 @@ import { XMLUtil } from "./utils/XMLUtil";
  * JSONToXML for converting JSON to XML
  */
 export class JSONToXML {
-  private config: XMLToJSONConfig;
+  private config: Configuration;
+  private xmlUtil: XMLUtil;
 
   /**
    * Constructor for JSONToXML
    * @param config Configuration options
    */
-  constructor(config: XMLToJSONConfig) {
+  constructor(config: Configuration) {
     this.config = config;
+    this.xmlUtil = new XMLUtil(this.config);
   }
 
   /**
@@ -42,12 +44,12 @@ export class JSONToXML {
       // Add XML declaration if specified
       let xmlString = DOMAdapter.serializeToString(doc);
       if (this.config.outputOptions.xml.declaration) {
-        xmlString = XMLUtil.ensureXMLDeclaration(xmlString);
+        xmlString = this.xmlUtil.ensureXMLDeclaration(xmlString);
       }
 
       // Apply pretty printing if enabled
       if (this.config.outputOptions.prettyPrint) {
-        xmlString = XMLUtil.prettyPrintXml(xmlString, this.config.outputOptions.indent);
+        xmlString = this.xmlUtil.prettyPrintXml(xmlString);
       }
 
       return xmlString;
@@ -60,6 +62,12 @@ export class JSONToXML {
     }
   }
 
+  /**
+   * Convert JSON object to DOM node
+   * @param jsonObj JSON object to convert
+   * @param doc Document for creating elements
+   * @returns DOM Element
+   */
   /**
    * Convert JSON object to DOM node
    * @param jsonObj JSON object to convert
@@ -84,8 +92,10 @@ export class JSONToXML {
 
     // Create element with namespace if available
     let element: Element;
-    const ns = nodeData[this.config.propNames.namespace];
-    const prefix = nodeData[this.config.propNames.prefix];
+    const namespaceKey = this.config.propNames.namespace;
+    const prefixKey = this.config.propNames.prefix;
+    const ns = nodeData[namespaceKey];
+    const prefix = nodeData[prefixKey];
 
     if (ns && this.config.preserveNamespaces) {
       if (prefix) {
@@ -101,20 +111,22 @@ export class JSONToXML {
     }
 
     // Process attributes if enabled
+    const attributesKey = this.config.propNames.attributes;
+    const valueKey = this.config.propNames.value;
     if (
       this.config.preserveAttributes &&
-      nodeData[this.config.propNames.attributes] &&
-      Array.isArray(nodeData[this.config.propNames.attributes])
+      nodeData[attributesKey] &&
+      Array.isArray(nodeData[attributesKey])
     ) {
-      nodeData[this.config.propNames.attributes].forEach(
+      nodeData[attributesKey].forEach(
         (attrObj: Record<string, any>) => {
           const attrName = Object.keys(attrObj)[0];
           if (!attrName) return;
 
           const attrData = attrObj[attrName];
-          const attrValue = attrData[this.config.propNames.value] || "";
-          const attrNs = attrData[this.config.propNames.namespace];
-          const attrPrefix = attrData[this.config.propNames.prefix];
+          const attrValue = attrData[valueKey] || "";
+          const attrNs = attrData[namespaceKey];
+          const attrPrefix = attrData[prefixKey];
 
           // Form qualified name for attribute if it has a prefix
           let qualifiedName = attrName;
@@ -133,56 +145,62 @@ export class JSONToXML {
     }
 
     // Process simple text value
-    if (nodeData[this.config.propNames.value] !== undefined) {
-      element.textContent = nodeData[this.config.propNames.value];
+    if (nodeData[valueKey] !== undefined) {
+      element.textContent = nodeData[valueKey];
     }
 
     // Process children
+    const childrenKey = this.config.propNames.children;
+    const cdataKey = this.config.propNames.cdata;
+    const commentsKey = this.config.propNames.comments;
+    const instructionKey = this.config.propNames.instruction;
+    const targetKey = this.config.propNames.target;
+
     if (
-      nodeData[this.config.propNames.children] &&
-      Array.isArray(nodeData[this.config.propNames.children])
+      nodeData[childrenKey] &&
+      Array.isArray(nodeData[childrenKey])
     ) {
-      nodeData[this.config.propNames.children].forEach(
+      nodeData[childrenKey].forEach(
         (child: Record<string, any>) => {
           // Text nodes
           if (
-            child[this.config.propNames.value] !== undefined &&
+            child[valueKey] !== undefined &&
             this.config.preserveTextNodes
           ) {
             element.appendChild(
-              DOMAdapter.createTextNode(child[this.config.propNames.value])
+              DOMAdapter.createTextNode(child[valueKey])
             );
           }
           // CDATA sections
           else if (
-            child[this.config.propNames.cdata] !== undefined &&
+            child[cdataKey] !== undefined &&
             this.config.preserveCDATA
           ) {
             element.appendChild(
               DOMAdapter.createCDATASection(
-                child[this.config.propNames.cdata]
+                child[cdataKey]
               )
             );
           }
           // Comments
           else if (
-            child[this.config.propNames.comments] !== undefined &&
+            child[commentsKey] !== undefined &&
             this.config.preserveComments
           ) {
             element.appendChild(
               DOMAdapter.createComment(
-                child[this.config.propNames.comments]
+                child[commentsKey]
               )
             );
           }
           // Processing instructions
           else if (
-            child[this.config.propNames.instruction] !== undefined &&
+            child[instructionKey] !== undefined &&
             this.config.preserveProcessingInstr
           ) {
-            const piData = child[this.config.propNames.instruction];
-            const target = piData[this.config.propNames.target];
-            const data = piData[this.config.propNames.value] || "";
+            const piData = child[instructionKey];
+            const target = piData[targetKey];
+            const data = piData[valueKey] || "";
 
             if (target) {
               element.appendChild(

@@ -5,7 +5,7 @@
 /**
  * Configuration interface for the library
  */
-export interface XMLToJSONConfig {
+export interface Configuration {
   // Features to preserve during transformation
   preserveNamespaces: boolean;
   preserveComments: boolean;
@@ -40,4 +40,4 @@ export interface XMLToJSONConfig {
   };
 }
 
-export default XMLToJSONConfig;
+export default Configuration;

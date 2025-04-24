@@ -3,25 +3,31 @@
  */
 import { XMLToJSON } from "./core/XMLToJSON";
 import { JSONToXML } from "./core/JSONToXML";
-import { XMLToJSONConfig } from "./core/types/types";
+import { Configuration } from "./core/types/types";
 import { DEFAULT_CONFIG } from "./core/config/config";
 import { DOMAdapter } from "./core/DOMAdapter";
 import { XMLUtil } from "./core/utils/XMLUtil";
 import { JSONUtil } from "./core/utils/JSONUtil";
 
 export class XJX {
-  private parser: XMLToJSON;
-  private serializer: JSONToXML;
-  private config: XMLToJSONConfig;
+  private config: Configuration;
+  private xmltojson: XMLToJSON;
+  private jsontoxml: JSONToXML;
+  private jsonUtil: JSONUtil;
+  private xmlUtil: XMLUtil;
 
   /**
    * Constructor for XJX utility
    * @param config Configuration options
    */
-  constructor(config: Partial<XMLToJSONConfig> = {}) {
+  constructor(config: Partial<Configuration> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
-    this.parser = new XMLToJSON(this.config);
-    this.serializer = new JSONToXML(this.config);
+    
+    // Initialize all components with config
+    this.jsonUtil = new JSONUtil(this.config);
+    this.xmlUtil = new XMLUtil(this.config);
+    this.xmltojson = new XMLToJSON(this.config);
+    this.jsontoxml = new JSONToXML(this.config);
   }
 
   /**
@@ -30,7 +36,7 @@ export class XJX {
    * @returns JSON object representing the XML content
    */
   public xmlToJson(xmlString: string): Record<string, any> {
-    return this.parser.parse(xmlString);
+    return this.xmltojson.parse(xmlString);
   }
 
   /**
@@ -39,7 +45,7 @@ export class XJX {
    * @returns XML string
    */
   public jsonToXml(jsonObj: Record<string, any>): string {
-    return this.serializer.serialize(jsonObj);
+    return this.jsontoxml.serialize(jsonObj);
   }
 
   /**
@@ -48,7 +54,7 @@ export class XJX {
    * @returns Formatted XML string
    */
   public prettyPrintXml(xmlString: string): string {
-    return XMLUtil.prettyPrintXml(xmlString, this.config.outputOptions.indent);
+    return this.xmlUtil.prettyPrintXml(xmlString);
   }
 
   /**
@@ -63,7 +69,7 @@ export class XJX {
     path: string,
     fallback: any = undefined
   ): any {
-    return JSONUtil.getPath(obj, path, fallback);
+    return this.jsonUtil.getPath(obj, path, fallback);
   }
 
   /**
@@ -72,7 +78,7 @@ export class XJX {
    * @returns Validation result
    */
   public validateXML(xmlString: string): { isValid: boolean; message?: string } {
-    return XMLUtil.validateXML(xmlString);
+    return this.xmlUtil.validateXML(xmlString);
   }
 
   /**

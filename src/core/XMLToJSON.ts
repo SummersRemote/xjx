@@ -1,7 +1,7 @@
 /**
  * XMLToJSON class for converting XML to JSON with consistent namespace handling
  */
-import { XMLToJSONConfig } from "./types/types";
+import { Configuration } from "./types/types";
 import { XMLToJSONError } from "./types/errors";
 import { DOMAdapter } from "./DOMAdapter";
 import { JSONUtil } from "./utils/JSONUtil";
@@ -10,14 +10,16 @@ import { JSONUtil } from "./utils/JSONUtil";
  * XMLToJSON Parser for converting XML to JSON
  */
 export class XMLToJSON {
-  private config: XMLToJSONConfig;
+  private config: Configuration;
+  private jsonUtil: JSONUtil;
 
   /**
    * Constructor for XMLToJSON
    * @param config Configuration options
    */
-  constructor(config: XMLToJSONConfig) {
+  constructor(config: Configuration) {
     this.config = config;
+    this.jsonUtil = new JSONUtil(this.config);
   }
 
   /**
@@ -120,6 +122,12 @@ export class XMLToJSON {
       // Process child nodes
       if (element.childNodes.length > 0) {
         const children: Array<Record<string, any>> = [];
+        const childrenKey = this.config.propNames.children;
+        const valueKey = this.config.propNames.value;
+        const cdataKey = this.config.propNames.cdata;
+        const commentsKey = this.config.propNames.comments;
+        const instructionKey = this.config.propNames.instruction;
+        const targetKey = this.config.propNames.target;
 
         for (let i = 0; i < element.childNodes.length; i++) {
           const child = element.childNodes[i];
@@ -134,7 +142,7 @@ export class XMLToJSON {
                 continue;
               }
 
-              children.push({ [this.config.propNames.value]: text });
+              children.push({ [valueKey]: text });
             }
           }
           // CDATA sections
@@ -143,7 +151,7 @@ export class XMLToJSON {
             this.config.preserveCDATA
           ) {
             children.push({
-              [this.config.propNames.cdata]: child.nodeValue || "",
+              [cdataKey]: child.nodeValue || "",
             });
           }
           // Comments
@@ -152,7 +160,7 @@ export class XMLToJSON {
             this.config.preserveComments
           ) {
             children.push({
-              [this.config.propNames.comments]: child.nodeValue || "",
+              [commentsKey]: child.nodeValue || "",
             });
           }
           // Processing instructions
@@ -162,9 +170,9 @@ export class XMLToJSON {
             this.config.preserveProcessingInstr
           ) {
             children.push({
-              [this.config.propNames.instruction]: {
-                [this.config.propNames.target]: child.nodeName,
-                [this.config.propNames.value]: child.nodeValue || "",
+              [instructionKey]: {
+                [targetKey]: child.nodeName,
+                [valueKey]: child.nodeValue || "",
               },
             });
           }
@@ -175,7 +183,7 @@ export class XMLToJSON {
         }
 
         if (children.length > 0) {
-          nodeObj[this.config.propNames.children] = children;
+          nodeObj[childrenKey] = children;
         }
       }
 
@@ -233,8 +241,8 @@ export class XMLToJSON {
       const keys = Object.keys(node);
       if (
         keys.every((key) => key === childrenKey || key === attrsKey) &&
-        (node[childrenKey] === undefined || JSONUtil.isEmpty(node[childrenKey])) &&
-        (node[attrsKey] === undefined || JSONUtil.isEmpty(node[attrsKey]))
+        (node[childrenKey] === undefined || this.jsonUtil.isEmpty(node[childrenKey])) &&
+        (node[attrsKey] === undefined || this.jsonUtil.isEmpty(node[attrsKey]))
       ) {
         return undefined;
       }

@@ -90,7 +90,8 @@ export class XMLToJSON {
     // Handle element nodes
     if (node.nodeType === Node.ELEMENT_NODE) {
       const element = node as Element;
-      const nodeName = element.nodeName;
+      // Use localName instead of nodeName to strip namespace prefix
+      const nodeName = element.localName || element.nodeName.split(':').pop() || element.nodeName;
       
       const nodeObj: Record<string, any> = {};
       
@@ -113,8 +114,11 @@ export class XMLToJSON {
         
         for (let i = 0; i < element.attributes.length; i++) {
           const attr = element.attributes[i];
+          // Strip namespace prefix from attribute name
+          const attrLocalName = attr.localName || attr.name.split(':').pop() || attr.name;
+          
           const attrObj: Record<string, any> = {
-            [attr.name]: {
+            [attrLocalName]: {
               [this.config.propNames.value]: attr.value
             }
           };
@@ -122,10 +126,10 @@ export class XMLToJSON {
           // Add namespace info for attribute if present and enabled
           if (this.config.preserveNamespaces) {
             if (attr.namespaceURI) {
-              attrObj[attr.name][this.config.propNames.namespace] = attr.namespaceURI;
+              attrObj[attrLocalName][this.config.propNames.namespace] = attr.namespaceURI;
             }
             if (attr.prefix) {
-              attrObj[attr.name][this.config.propNames.prefix] = attr.prefix;
+              attrObj[attrLocalName][this.config.propNames.prefix] = attr.prefix;
             }
           }
           
@@ -239,11 +243,14 @@ export class XMLToJSON {
     
     if (ns && this.config.preserveNamespaces) {
       if (prefix) {
+        // Create element with namespace and prefix
         element = this.domAdapter.createElementNS(ns, `${prefix}:${nodeName}`);
       } else {
+        // Create element with namespace but no prefix
         element = this.domAdapter.createElementNS(ns, nodeName);
       }
     } else {
+      // Create element without namespace
       element = this.domAdapter.createElement(nodeName);
     }
     
@@ -258,14 +265,18 @@ export class XMLToJSON {
         const attrNs = attrData[this.config.propNames.namespace];
         const attrPrefix = attrData[this.config.propNames.prefix];
         
+        // Form qualified name for attribute if it has a prefix
+        let qualifiedName = attrName;
+        if (attrPrefix && this.config.preserveNamespaces) {
+          qualifiedName = `${attrPrefix}:${attrName}`;
+        }
+        
         if (attrNs && this.config.preserveNamespaces) {
-          if (attrPrefix) {
-            element.setAttributeNS(attrNs, `${attrPrefix}:${attrName}`, attrValue);
-          } else {
-            element.setAttributeNS(attrNs, attrName, attrValue);
-          }
+          // Set attribute with namespace
+          element.setAttributeNS(attrNs, qualifiedName, attrValue);
         } else {
-          element.setAttribute(attrName, attrValue);
+          // Set attribute without namespace
+          element.setAttribute(qualifiedName, attrValue);
         }
       });
     }

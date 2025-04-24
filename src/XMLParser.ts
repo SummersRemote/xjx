@@ -63,7 +63,8 @@ export class XMLParser {
     // Handle element nodes
     if (node.nodeType === Node.ELEMENT_NODE) {
       const element = node as Element;
-      const nodeName = element.localName || element.nodeName;
+      // Use localName instead of nodeName to strip namespace prefix
+      const nodeName = element.localName || element.nodeName.split(':').pop() || element.nodeName;
       
       const nodeObj: Record<string, any> = {};
       
@@ -86,7 +87,8 @@ export class XMLParser {
         
         for (let i = 0; i < element.attributes.length; i++) {
           const attr = element.attributes[i];
-          const attrLocalName = attr.localName || attr.name;
+          // Strip namespace prefix from attribute name
+          const attrLocalName = attr.localName || attr.name.split(':').pop() || attr.name;
           
           // Create attribute object with consistent structure
           const attrObj: Record<string, any> = {

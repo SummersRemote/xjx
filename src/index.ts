@@ -22,3 +22,5 @@ export {
   helpers,
   errors
 };
+
+export default XMLToJSON;

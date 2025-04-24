@@ -88,11 +88,14 @@ export class XMLSerializerUtil {
     
     if (ns && this.config.preserveNamespaces) {
       if (prefix) {
+        // Create element with namespace and prefix
         element = doc.createElementNS(ns, `${prefix}:${nodeName}`);
       } else {
+        // Create element with namespace but no prefix
         element = doc.createElementNS(ns, nodeName);
       }
     } else {
+      // Create element without namespace
       element = doc.createElement(nodeName);
     }
     
@@ -107,15 +110,17 @@ export class XMLSerializerUtil {
         const attrNs = attrData[this.config.propNames.namespace];
         const attrPrefix = attrData[this.config.propNames.prefix];
         
-        // Handle namespaced attributes consistently
+        // Form qualified name for attribute if it has a prefix
         let qualifiedName = attrName;
-        if (attrPrefix) {
+        if (attrPrefix && this.config.preserveNamespaces) {
           qualifiedName = `${attrPrefix}:${attrName}`;
         }
         
         if (attrNs && this.config.preserveNamespaces) {
+          // Set attribute with namespace
           element.setAttributeNS(attrNs, qualifiedName, attrValue);
         } else {
+          // Set attribute without namespace
           element.setAttribute(qualifiedName, attrValue);
         }
       });

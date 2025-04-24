@@ -1,17 +1,17 @@
 {
-  "name": "xmltojson",
+  "name": "xjx",
   "version": "3.0.0",
   "description": "A modern ESM library for bidirectional XML to JSON conversion with namespace and node type support.",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
-  "browser": "./dist/xmltojson.umd.js",
-  "unpkg": "./dist/xmltojson.min.js",
+  "browser": "./dist/xjx.umd.js",
+  "unpkg": "./dist/xjx.min.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "import": "./dist/index.js",
-      "require": "./dist/xmltojson.umd.js",
+      "require": "./dist/xjx.umd.js",
       "types": "./dist/index.d.ts"
     }
   },
@@ -21,7 +21,7 @@
     "README.md",
     "package.json"
   ],
-  "scripts": {
+"scripts": {
     "clean": "rimraf dist",
     "build": "npm run clean && npm run build:types && npm run build:js",
     "build:types": "tsc --emitDeclarationOnly --outDir dist/dts",
@@ -30,9 +30,10 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:ci": "jest --ci --coverage --reporters=default --reporters=jest-junit",
     "lint": "eslint ./src --ext .ts",
     "lint:fix": "eslint ./src --ext .ts --fix",
-    "format": "prettier --write \"src/**/*.ts\"",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "docs": "typedoc --out docs src/index.ts",
     "prepublishOnly": "npm run build:prod && npm run test",
     "preversion": "npm run lint",
@@ -62,12 +63,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/xmltojson.git"
+    "url": "git+https://github.com/yourusername/xjx.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/xmltojson/issues"
+    "url": "https://github.com/yourusername/xjx/issues"
   },
-  "homepage": "https://github.com/yourusername/xmltojson#readme",
+  "homepage": "https://github.com/yourusername/xjx#readme",
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.8",
     "@rollup/plugin-node-resolve": "^15.3.1",

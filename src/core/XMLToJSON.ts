@@ -1,32 +1,23 @@
 /**
- * XMLParser class for converting XML to JSON with consistent namespace handling
+ * XMLToJSON class for converting XML to JSON with consistent namespace handling
  */
-import { XMLToJSONConfig } from "./types";
-import { DEFAULT_CONFIG } from "./config";
+import { XMLToJSONConfig } from "./types/types";
+import { XMLToJSONError } from "./types/errors";
+import { DOMAdapter } from "./DOMAdapter";
+import { JSONUtil } from "./utils/JSONUtil";
 
 /**
- * XML Parser for converting XML to JSON
+ * XMLToJSON Parser for converting XML to JSON
  */
-export class XMLParser {
+export class XMLToJSON {
   private config: XMLToJSONConfig;
-  private parser: DOMParser | null = null;
 
   /**
-   * Constructor for XMLParser
+   * Constructor for XMLToJSON
    * @param config Configuration options
    */
-  constructor(config: Partial<XMLToJSONConfig> = {}) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
-
-    // Initialize parser for browser environment
-    if (typeof window !== "undefined") {
-      this.parser = new DOMParser();
-    } else {
-      // Node.js environment - dynamically import would be needed
-      throw new Error(
-        "Node.js environment detected. You need to use a Node-compatible XML parser."
-      );
-    }
+  constructor(config: XMLToJSONConfig) {
+    this.config = config;
   }
 
   /**
@@ -35,22 +26,18 @@ export class XMLParser {
    * @returns JSON object representing the XML content
    */
   public parse(xmlString: string): Record<string, any> {
-    if (!this.parser) {
-      throw new Error("XML parser not initialized");
-    }
-
     try {
-      const xmlDoc = this.parser.parseFromString(xmlString, "text/xml");
+      const xmlDoc = DOMAdapter.parseFromString(xmlString, "text/xml");
 
       // Check for parsing errors
-      const parserError = xmlDoc.querySelector("parsererror");
-      if (parserError) {
-        throw new Error(`XML parsing error: ${parserError.textContent}`);
+      const errors = xmlDoc.getElementsByTagName("parsererror");
+      if (errors.length > 0) {
+        throw new XMLToJSONError(`XML parsing error: ${errors[0].textContent}`);
       }
 
       return this.nodeToJson(xmlDoc.documentElement);
     } catch (error) {
-      throw new Error(
+      throw new XMLToJSONError(
         `Failed to convert XML to JSON: ${
           error instanceof Error ? error.message : String(error)
         }`
@@ -67,7 +54,7 @@ export class XMLParser {
     const result: Record<string, any> = {};
 
     // Handle element nodes
-    if (node.nodeType === Node.ELEMENT_NODE) {
+    if (node.nodeType === DOMAdapter.nodeTypes.ELEMENT_NODE) {
       const element = node as Element;
       // Use localName instead of nodeName to strip namespace prefix
       const nodeName =
@@ -138,7 +125,7 @@ export class XMLParser {
           const child = element.childNodes[i];
 
           // Text nodes - only process if preserveTextNodes is true
-          if (child.nodeType === Node.TEXT_NODE) {
+          if (child.nodeType === DOMAdapter.nodeTypes.TEXT_NODE) {
             if (this.config.preserveTextNodes) {
               const text = child.nodeValue || "";
 
@@ -152,7 +139,7 @@ export class XMLParser {
           }
           // CDATA sections
           else if (
-            child.nodeType === Node.CDATA_SECTION_NODE &&
+            child.nodeType === DOMAdapter.nodeTypes.CDATA_SECTION_NODE &&
             this.config.preserveCDATA
           ) {
             children.push({
@@ -161,7 +148,7 @@ export class XMLParser {
           }
           // Comments
           else if (
-            child.nodeType === Node.COMMENT_NODE &&
+            child.nodeType === DOMAdapter.nodeTypes.COMMENT_NODE &&
             this.config.preserveComments
           ) {
             children.push({
@@ -170,7 +157,8 @@ export class XMLParser {
           }
           // Processing instructions
           else if (
-            child.nodeType === Node.PROCESSING_INSTRUCTION_NODE &&
+            child.nodeType ===
+              DOMAdapter.nodeTypes.PROCESSING_INSTRUCTION_NODE &&
             this.config.preserveProcessingInstr
           ) {
             children.push({
@@ -181,7 +169,7 @@ export class XMLParser {
             });
           }
           // Element nodes (recursive)
-          else if (child.nodeType === Node.ELEMENT_NODE) {
+          else if (child.nodeType === DOMAdapter.nodeTypes.ELEMENT_NODE) {
             children.push(this.nodeToJson(child));
           }
         }
@@ -245,8 +233,8 @@ export class XMLParser {
       const keys = Object.keys(node);
       if (
         keys.every((key) => key === childrenKey || key === attrsKey) &&
-        (node[childrenKey] === undefined || this.isEmpty(node[childrenKey])) &&
-        (node[attrsKey] === undefined || this.isEmpty(node[attrsKey]))
+        (node[childrenKey] === undefined || JSONUtil.isEmpty(node[childrenKey])) &&
+        (node[attrsKey] === undefined || JSONUtil.isEmpty(node[attrsKey]))
       ) {
         return undefined;
       }
@@ -255,12 +243,5 @@ export class XMLParser {
     }
 
     return node;
-  }
-
-  private isEmpty(value: any): boolean {
-    if (value == null) return true;
-    if (Array.isArray(value)) return value.length === 0;
-    if (typeof value === "object") return Object.keys(value).length === 0;
-    return false;
   }
 }

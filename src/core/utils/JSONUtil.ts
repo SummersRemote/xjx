@@ -1,3 +1,6 @@
+/**
+ * JSONUtil - Utility functions for JSON processing
+ */
 export class JSONUtil {
   /**
    * Safely retrieves a value from a JSON object using a dot-separated path.
@@ -6,6 +9,7 @@ export class JSONUtil {
    * @param obj The input JSON object
    * @param path The dot-separated path string (e.g., "root.item.description.$val")
    * @param fallback Value to return if the path does not resolve
+   * @returns Retrieved value or fallback
    */
   static getPath(
     obj: Record<string, any>,
@@ -44,6 +48,7 @@ export class JSONUtil {
    *
    * @param obj The current object
    * @param segment The path segment to resolve
+   * @returns Resolved value or undefined
    */
   private static resolveSegment(obj: any, segment: string): any {
     if (obj == null || typeof obj !== "object") return undefined;
@@ -118,6 +123,11 @@ export class JSONUtil {
     return wrappedObject;
   }
 
+  /**
+   * Wraps a standard JSON value in the XML-like JSON structure
+   * @param value Value to wrap
+   * @returns Wrapped value
+   */
   private static wrapObject(value: any): any {
     if (
       value === null ||
@@ -147,5 +157,70 @@ export class JSONUtil {
     }
 
     return undefined; // Fallback for unhandled types
+  }
+
+  /**
+   * Check if an object is empty
+   * @param value Value to check
+   * @returns true if empty
+   */
+  static isEmpty(value: any): boolean {
+    if (value == null) return true;
+    if (Array.isArray(value)) return value.length === 0;
+    if (typeof value === 'object') return Object.keys(value).length === 0;
+    return false;
+  }
+
+  /**
+   * Safely stringify JSON for debugging
+   * @param obj Object to stringify
+   * @param indent Optional indentation level
+   * @returns JSON string representation
+   */
+  static safeStringify(obj: any, indent: number = 2): string {
+    try {
+      return JSON.stringify(obj, null, indent);
+    } catch (error) {
+      return '[Cannot stringify object]';
+    }
+  }
+
+  /**
+   * Deep clone an object
+   * @param obj Object to clone
+   * @returns Cloned object
+   */
+  static deepClone(obj: any): any {
+    try {
+      return JSON.parse(JSON.stringify(obj));
+    } catch (error) {
+      throw new Error(`Failed to deep clone object: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Deep merge two objects
+   * @param target Target object
+   * @param source Source object
+   * @returns Merged object (target is modified)
+   */
+  static deepMerge(target: any, source: any): any {
+    if (typeof source !== 'object' || source === null) {
+      return target;
+    }
+
+    if (typeof target !== 'object' || target === null) {
+      return this.deepClone(source);
+    }
+
+    Object.keys(source).forEach(key => {
+      if (source[key] instanceof Object && key in target && target[key] instanceof Object) {
+        this.deepMerge(target[key], source[key]);
+      } else {
+        target[key] = this.deepClone(source[key]);
+      }
+    });
+
+    return target;
   }
 }

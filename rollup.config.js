@@ -26,7 +26,7 @@ const baseConfig = {
     }),
     visualizer({
       filename: 'dist/stats.html',
-      title: 'XMLToJSON Bundle Visualizer',
+      title: 'XJX Bundle Visualizer',
       gzipSize: true,
       brotliSize: true,
       open: false // set to true to auto-open the report in browser
@@ -50,9 +50,9 @@ export default [
   {
     ...baseConfig,
     output: {
-      file: 'dist/xmltojson.umd.js',
+      file: 'dist/xjx.umd.js',
       format: 'umd',
-      name: 'XMLToJSON',
+      name: 'XJX',
       sourcemap: !isProd,
       exports: 'named',
       globals: {
@@ -70,9 +70,9 @@ export default [
   {
     ...baseConfig,
     output: {
-      file: 'dist/xmltojson.min.js',
+      file: 'dist/xjx.min.js',
       format: 'iife',
-      name: 'XMLToJSON',
+      name: 'XJX',
       sourcemap: !isProd,
       exports: 'named'
     },

@@ -1,28 +1,29 @@
 /**
- * XMLToJSON Library - Main entry point
+ * XJX Library - Main entry point
  */
-import { XMLToJSON } from "./XMLToJSON";
-import { XMLParser } from "./XMLParser";
-import { XMLSerializerUtil } from "./XMLSerializer";
-import { DOMEnvironment } from "./DOMAdapter";
-import { XMLToJSONConfig } from "./types";
-import { DEFAULT_CONFIG } from "./config";
-import { JSONUtil } from "./JSONUtil";
+import { XJX } from "./XJX";
+import { XMLToJSON } from "./core/XMLToJSON";
+import { JSONToXML } from "./core/JSONToXML";
+import { DOMAdapter } from "./core/DOMAdapter";
+import { XMLToJSONConfig } from "./core/types/types";
+import { DEFAULT_CONFIG } from "./core/config/config";
+import { JSONUtil } from "./core/utils/JSONUtil";
+import { XMLUtil } from "./core/utils/XMLUtil";
 
-import * as helpers from "./helpers";
-import * as errors from "./errors";
+import * as errors from "./core/types/errors";
 
 // Re-export all classes and types
 export {
+  XJX,
   XMLToJSON,
-  XMLParser,
-  XMLSerializerUtil,
-  DOMEnvironment,
+  JSONToXML,
+  DOMAdapter,
   XMLToJSONConfig,
   DEFAULT_CONFIG,
   JSONUtil,
-  helpers,
+  XMLUtil,
   errors,
 };
 
-export default XMLToJSON;
+// Default export for easier importing
+export default XJX;

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>XMLToJSON Browser Example</title>
+    <title>XJX Browser Example</title>
     <style>
       body {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -81,7 +81,7 @@
     </style>
   </head>
   <body>
-    <h1>XMLToJSON Browser Example</h1>
+    <h1>XJX Browser Example</h1>
 
     <div class="settings">
       <h2>Configuration</h2>
@@ -177,7 +177,7 @@
           <div class="config-item">
             <label>
               Attributes:
-              <input type="text" id="attributesProp" value="$attrs" />
+              <input type="text" id="attributesProp" value="$attr" />
             </label>
           </div>
           <div class="config-item">
@@ -245,8 +245,7 @@
     </tags>
   </ns:item>
 </root>
-            </textarea
-        >
+        </textarea>
       </div>
 
       <div>
@@ -256,11 +255,11 @@
     </div>
 
     <!-- Load the UMD bundle -->
-    <script src="../dist/xmltojson.umd.js"></script>
+    <script src="../dist/xjx.umd.js"></script>
 
     <script>
       // Log what's available to help debug
-      console.log("XMLToJSON is:", XMLToJSON);
+      console.log("XJX is:", XJX);
 
       // DOM Elements
       const xmlInput = document.getElementById("xmlInput");
@@ -272,9 +271,7 @@
       // Config elements
       const preserveNamespaces = document.getElementById("preserveNamespaces");
       const preserveComments = document.getElementById("preserveComments");
-      const preserveProcessingInstr = document.getElementById(
-        "preserveProcessingInstr"
-      );
+      const preserveProcessingInstr = document.getElementById("preserveProcessingInstr");
       const preserveCDATA = document.getElementById("preserveCDATA");
       const preserveTextNodes = document.getElementById("preserveTextNodes");
       const preserveAttributes = document.getElementById("preserveAttributes");
@@ -289,8 +286,8 @@
       const valueProp = document.getElementById("valueProp");
       const cdataProp = document.getElementById("cdataProp");
       const commentsProp = document.getElementById("commentsProp");
-      const instructionProp = document.getElementById("instructionProp"); // Updated
-      const targetProp = document.getElementById("targetProp"); // Added new property
+      const instructionProp = document.getElementById("instructionProp");
+      const targetProp = document.getElementById("targetProp");
       const childrenProp = document.getElementById("childrenProp");
 
       // Get current config from UI
@@ -319,8 +316,8 @@
             value: valueProp.value,
             cdata: cdataProp.value,
             comments: commentsProp.value,
-            instruction: instructionProp.value, // Updated from processingProp
-            target: targetProp.value, // Added new property
+            instruction: instructionProp.value,
+            target: targetProp.value,
             children: childrenProp.value,
           },
         };
@@ -329,22 +326,22 @@
       // Convert XML to JSON
       xmlToJsonBtn.addEventListener("click", () => {
         try {
-          // Check if XMLToJSON is a constructor function (class) or an object with a default property
-          const XMLToJSONClass =
-            typeof XMLToJSON === "function"
-              ? XMLToJSON
-              : XMLToJSON.default || XMLToJSON.XMLToJSON || XMLToJSON;
+          // Check if XJX is a constructor function (class) or an object with a default property
+          const XJXClass =
+            typeof XJX === "function"
+              ? XJX
+              : XJX.default || XJX.XJX || XJX;
 
-          console.log("Using constructor:", XMLToJSONClass);
+          console.log("Using constructor:", XJXClass);
 
-          if (typeof XMLToJSONClass !== "function") {
+          if (typeof XJXClass !== "function") {
             throw new Error(
-              "XMLToJSON is not available as a constructor. Available as: " +
-                Object.keys(XMLToJSON).join(", ")
+              "XJX is not available as a constructor. Available as: " +
+                Object.keys(XJX).join(", ")
             );
           }
 
-          const converter = new XMLToJSONClass(getConfig());
+          const converter = new XJXClass(getConfig());
           const jsonObj = converter.xmlToJson(xmlInput.value);
           jsonOutput.value = JSON.stringify(jsonObj, null, 2);
         } catch (error) {
@@ -358,20 +355,20 @@
         try {
           const jsonObj = JSON.parse(jsonOutput.value);
 
-          // Check if XMLToJSON is a constructor function (class) or an object with a default property
-          const XMLToJSONClass =
-            typeof XMLToJSON === "function"
-              ? XMLToJSON
-              : XMLToJSON.default || XMLToJSON.XMLToJSON || XMLToJSON;
+          // Check if XJX is a constructor function (class) or an object with a default property
+          const XJXClass =
+            typeof XJX === "function"
+              ? XJX
+              : XJX.default || XJX.XJX || XJX;
 
-          if (typeof XMLToJSONClass !== "function") {
+          if (typeof XJXClass !== "function") {
             throw new Error(
-              "XMLToJSON is not available as a constructor. Available as: " +
-                Object.keys(XMLToJSON).join(", ")
+              "XJX is not available as a constructor. Available as: " +
+                Object.keys(XJX).join(", ")
             );
           }
 
-          const converter = new XMLToJSONClass(getConfig());
+          const converter = new XJXClass(getConfig());
           const xmlString = converter.jsonToXml(jsonObj);
           xmlInput.value = xmlString;
         } catch (error) {

@@ -1,9 +1,9 @@
 /**
- * Type definitions for XMLToJSON
+ * Type definitions for the XJX library
  */
 
 /**
- * Configuration interface for XMLToJSON
+ * Configuration interface for the library
  */
 export interface XMLToJSONConfig {
   // Features to preserve during transformation

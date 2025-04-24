@@ -1,7 +1,7 @@
 /**
  * DOM Environment provider with unified interface for browser and Node.js
  */
-import { XMLToJSONError } from './errors';
+import { XMLToJSONError } from './types/errors';
 
 interface NodeTypes {
   ELEMENT_NODE: number;
@@ -29,7 +29,7 @@ interface JSDOMInstance {
   window: DOMWindow;
 }
 
-export const DOMEnvironment = (() => {
+export const DOMAdapter = (() => {
   // Environment-specific DOM implementation
   let domParser: any;
   let xmlSerializer: any;
@@ -231,6 +231,60 @@ export const DOMEnvironment = (() => {
       } catch (error) {
         throw new XMLToJSONError(`Failed to create processing instruction: ${error instanceof Error ? error.message : String(error)}`);
       }
+    },
+    
+    // New helper methods
+    
+    /**
+     * Creates a proper namespace qualified attribute
+     */
+    setNamespacedAttribute: (element: Element, namespaceURI: string | null, qualifiedName: string, value: string): void => {
+      try {
+        if (namespaceURI) {
+          element.setAttributeNS(namespaceURI, qualifiedName, value);
+        } else {
+          element.setAttribute(qualifiedName, value);
+        }
+      } catch (error) {
+        throw new XMLToJSONError(`Failed to set attribute: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    },
+    
+    /**
+     * Check if an object is a DOM node
+     */
+    isNode: (obj: any): boolean => {
+      try {
+        return obj && typeof obj === 'object' && typeof obj.nodeType === 'number';
+      } catch (error) {
+        return false;
+      }
+    },
+    
+    /**
+     * Get DOM node type as string for debugging
+     */
+    getNodeTypeName: (nodeType: number): string => {
+      switch (nodeType) {
+        case nodeTypes.ELEMENT_NODE: return 'ELEMENT_NODE';
+        case nodeTypes.TEXT_NODE: return 'TEXT_NODE';
+        case nodeTypes.CDATA_SECTION_NODE: return 'CDATA_SECTION_NODE';
+        case nodeTypes.COMMENT_NODE: return 'COMMENT_NODE';
+        case nodeTypes.PROCESSING_INSTRUCTION_NODE: return 'PROCESSING_INSTRUCTION_NODE';
+        default: return `UNKNOWN_NODE_TYPE(${nodeType})`;
+      }
+    },
+    
+    /**
+     * Get all node attributes as an object
+     */
+    getNodeAttributes: (node: Element): Record<string, string> => {
+      const result: Record<string, string> = {};
+      for (let i = 0; i < node.attributes.length; i++) {
+        const attr = node.attributes[i];
+        result[attr.name] = attr.value;
+      }
+      return result;
     },
     
     // Cleanup method (mainly for JSDOM)

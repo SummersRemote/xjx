@@ -1,7 +1,7 @@
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 const config = {
   preset: 'ts-jest/presets/default-esm',
-  testEnvironment: 'jsdom',
+  testEnvironment: 'jsdom', // Use jsdom for browser-like environment
   extensionsToTreatAsEsm: ['.ts'],
   moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1',
@@ -21,7 +21,7 @@ const config = {
     '!src/**/index.ts',
   ],
   testMatch: [
-    '**/__tests__/**/*.ts?(x)',
+    '**/test/**/*.ts?(x)', // Look for tests in the test directory
     '**/?(*.)+(spec|test).ts?(x)'
   ],
   testPathIgnorePatterns: [
@@ -29,7 +29,7 @@ const config = {
     '/dist/'
   ],
   setupFilesAfterEnv: [
-    '<rootDir>/jest.setup.js'
+    '<rootDir>/test/jest.setup.js'
   ]
 };
 

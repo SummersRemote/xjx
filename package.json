@@ -1,21 +1,94 @@
 {
   "name": "xmltojson",
   "version": "3.0.0",
-  "description": "A modern ESM library for Node and browser use.",
+  "description": "A modern ESM library for bidirectional XML to JSON conversion with namespace and node type support.",
   "type": "module",
   "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
     }
   },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md",
+    "package.json"
+  ],
   "scripts": {
-    "build": "tsc",
-    "test": "jest"
+    "clean": "rimraf dist",
+    "build": "npm run clean && tsc",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint ./src --ext .ts",
+    "lint:fix": "eslint ./src --ext .ts --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "docs": "typedoc --out docs src/index.ts",
+    "prepublishOnly": "npm run build && npm run test",
+    "preversion": "npm run lint",
+    "version": "npm run format && git add -A src",
+    "postversion": "git push && git push --tags"
   },
+  "keywords": [
+    "xml",
+    "json",
+    "convert",
+    "transform",
+    "parser",
+    "serializer",
+    "namespace",
+    "cdata",
+    "comment",
+    "processing-instruction",
+    "esm",
+    "browser",
+    "node"
+  ],
+  "author": {
+    "name": "Your Name",
+    "email": "your.email@example.com",
+    "url": "https://your-website.com"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/xmltojson.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/xmltojson/issues"
+  },
+  "homepage": "https://github.com/yourusername/xmltojson#readme",
   "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "@types/node": "^18.15.11",
+    "@typescript-eslint/eslint-plugin": "^5.57.1",
+    "@typescript-eslint/parser": "^5.57.1",
+    "eslint": "^8.37.0",
+    "eslint-config-prettier": "^8.8.0",
+    "eslint-plugin-prettier": "^4.2.1",
     "jest": "^29.6.0",
+    "jest-environment-jsdom": "^29.6.0",
+    "prettier": "^2.8.7",
+    "rimraf": "^4.4.1",
     "ts-jest": "^29.1.1",
-    "typescript": "^5.3.3"
+    "typedoc": "^0.24.1",
+    "typescript": "^5.1.6"
+  },
+  "peerDependencies": {
+    "jsdom": "^21.1.1"
+  },
+  "peerDependenciesMeta": {
+    "jsdom": {
+      "optional": true
+    },
+    "@xmldom/xmldom": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=14.16.0"
   }
 }

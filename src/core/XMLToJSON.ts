@@ -135,11 +135,15 @@ export class XMLToJSON {
           // Text nodes - only process if preserveTextNodes is true
           if (child.nodeType === DOMAdapter.nodeTypes.TEXT_NODE) {
             if (this.config.preserveTextNodes) {
-              const text = child.nodeValue || "";
+              let text = child.nodeValue || "";
 
               // Skip whitespace-only text nodes if whitespace preservation is disabled
-              if (!this.config.preserveWhitespace && text.trim() === "") {
-                continue;
+              if (!this.config.preserveWhitespace) {
+                if (text.trim() === "") {
+                  continue;
+                }
+                // Trim the text when preserveWhitespace is false
+                text = text.trim();
               }
 
               children.push({ [valueKey]: text });
@@ -241,7 +245,8 @@ export class XMLToJSON {
       const keys = Object.keys(node);
       if (
         keys.every((key) => key === childrenKey || key === attrsKey) &&
-        (node[childrenKey] === undefined || this.jsonUtil.isEmpty(node[childrenKey])) &&
+        (node[childrenKey] === undefined ||
+          this.jsonUtil.isEmpty(node[childrenKey])) &&
         (node[attrsKey] === undefined || this.jsonUtil.isEmpty(node[attrsKey]))
       ) {
         return undefined;

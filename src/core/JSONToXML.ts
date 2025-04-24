@@ -168,7 +168,7 @@ export class JSONToXML {
             this.config.preserveTextNodes
           ) {
             element.appendChild(
-              DOMAdapter.createTextNode(child[valueKey])
+              DOMAdapter.createTextNode(this.xmlUtil.escapeXML(child[valueKey]))
             );
           }
           // CDATA sections

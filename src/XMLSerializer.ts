@@ -186,16 +186,16 @@ export class XMLSerializerUtil {
           }
           // Processing instructions
           else if (
-            child[this.config.propNames.processing] !== undefined &&
+            child[this.config.propNames.instruction] !== undefined &&
             this.config.preserveProcessingInstr
           ) {
-            const piData = child[this.config.propNames.processing];
-            if (piData.target) {
+            const piData = child[this.config.propNames.instruction];
+            const target = piData[this.config.propNames.target];
+            const data = piData[this.config.propNames.value] || '';
+            
+            if (target) {
               element.appendChild(
-                doc.createProcessingInstruction(
-                  piData.target,
-                  piData.data || ""
-                )
+                doc.createProcessingInstruction(target, data)
               );
             }
           }

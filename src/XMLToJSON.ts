@@ -205,9 +205,9 @@ export class XMLToJSON {
             this.config.preserveProcessingInstr
           ) {
             children.push({
-              [this.config.propNames.processing]: {
-                target: child.nodeName,
-                data: child.nodeValue || "",
+              [this.config.propNames.instruction]: {
+                [this.config.propNames.target]: child.nodeName,
+                [this.config.propNames.value]: child.nodeValue || "",
               },
             });
           }
@@ -360,18 +360,13 @@ export class XMLToJSON {
             );
           }
           // Processing instructions
-          else if (
-            child[this.config.propNames.processing] !== undefined &&
-            this.config.preserveProcessingInstr
-          ) {
-            const piData = child[this.config.propNames.processing];
-            if (piData.target) {
-              element.appendChild(
-                DOMEnvironment.createProcessingInstruction(
-                  piData.target,
-                  piData.data || ""
-                )
-              );
+          else if (child[this.config.propNames.instruction] !== undefined && this.config.preserveProcessingInstr) {
+            const piData = child[this.config.propNames.instruction];
+            const target = piData[this.config.propNames.target];
+            const data = piData[this.config.propNames.value] || '';
+            
+            if (target) {
+              element.appendChild(DOMEnvironment.createProcessingInstruction(target, data));
             }
           }
           // Element nodes (recursive)

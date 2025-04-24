@@ -13,7 +13,7 @@ export interface XMLToJSONConfig {
   preserveCDATA: boolean;
   preserveTextNodes: boolean;
   preserveWhitespace: boolean;
-  preserveAttributes: boolean;  // Added new option
+  preserveAttributes: boolean;
 
   // Output options
   outputOptions: {
@@ -34,9 +34,10 @@ export interface XMLToJSONConfig {
     value: string;
     cdata: string;
     comments: string;
-    processing: string;
+    instruction: string;  // Renamed from 'processing'
+    target: string;       // Added for processing instruction target
     children: string;
   };
 }
 
-// export default XMLToJSONConfig;
+export default XMLToJSONConfig;

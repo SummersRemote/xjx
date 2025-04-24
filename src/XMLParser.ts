@@ -149,9 +149,9 @@ export class XMLParser {
           // Processing instructions
           else if (child.nodeType === Node.PROCESSING_INSTRUCTION_NODE && this.config.preserveProcessingInstr) {
             children.push({ 
-              [this.config.propNames.processing]: {
-                target: child.nodeName,
-                data: child.nodeValue || ""
+              [this.config.propNames.instruction]: {
+                [this.config.propNames.target]: child.nodeName,
+                [this.config.propNames.value]: child.nodeValue || ""
               }
             });
           }

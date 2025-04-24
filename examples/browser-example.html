@@ -1,227 +1,235 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>XMLToJSON Browser Example</title>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-            line-height: 1.6;
-        }
-        .container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-        textarea {
-            width: 100%;
-            height: 400px;
-            font-family: monospace;
-            font-size: 14px;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            resize: vertical;
-        }
-        .btn-container {
-            margin: 20px 0;
-            text-align: center;
-        }
-        button {
-            padding: 10px 15px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            margin: 0 5px;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
-        h1, h2 {
-            text-align: center;
-        }
-        .settings {
-            margin: 20px 0;
-            padding: 15px;
-            background-color: #f9f9f9;
-            border-radius: 4px;
-        }
-        .config-container {
-            margin-top: 20px;
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-        }
-        .config-group {
-            margin-bottom: 15px;
-        }
-        .config-item {
-            margin-bottom: 8px;
-        }
-        .config-item label {
-            display: flex;
-            align-items: center;
-        }
-        .config-item input[type="checkbox"] {
-            margin-right: 8px;
-        }
-        .config-item input[type="number"] {
-            width: 60px;
-            padding: 4px;
-        }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+        line-height: 1.6;
+      }
+      .container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+      }
+      textarea {
+        width: 100%;
+        height: 400px;
+        font-family: monospace;
+        font-size: 14px;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        resize: vertical;
+      }
+      .btn-container {
+        margin: 20px 0;
+        text-align: center;
+      }
+      button {
+        padding: 10px 15px;
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 16px;
+        margin: 0 5px;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+      h1,
+      h2 {
+        text-align: center;
+      }
+      .settings {
+        margin: 20px 0;
+        padding: 15px;
+        background-color: #f9f9f9;
+        border-radius: 4px;
+      }
+      .config-container {
+        margin-top: 20px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+      .config-group {
+        margin-bottom: 15px;
+      }
+      .config-item {
+        margin-bottom: 8px;
+      }
+      .config-item label {
+        display: flex;
+        align-items: center;
+      }
+      .config-item input[type="checkbox"] {
+        margin-right: 8px;
+      }
+      .config-item input[type="number"] {
+        width: 60px;
+        padding: 4px;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <h1>XMLToJSON Browser Example</h1>
-    
+
     <div class="settings">
-        <h2>Configuration</h2>
-        <div class="config-container">
-            <div class="config-group">
-                <h3>Preservation Options</h3>
-                <div class="config-item">
-                    <label>
-                        <input type="checkbox" id="preserveNamespaces" checked>
-                        Preserve Namespaces
-                    </label>
-                </div>
-                <div class="config-item">
-                    <label>
-                        <input type="checkbox" id="preserveComments" checked>
-                        Preserve Comments
-                    </label>
-                </div>
-                <div class="config-item">
-                    <label>
-                        <input type="checkbox" id="preserveProcessingInstr" checked>
-                        Preserve Processing Instructions
-                    </label>
-                </div>
-                <div class="config-item">
-                    <label>
-                        <input type="checkbox" id="preserveCDATA" checked>
-                        Preserve CDATA
-                    </label>
-                </div>
-                <div class="config-item">
-                    <label>
-                        <input type="checkbox" id="preserveTextNodes" checked>
-                        Preserve Text Nodes
-                    </label>
-                </div>
-                <div class="config-item">
-                    <label>
-                        <input type="checkbox" id="preserveAttributes" checked>
-                        Preserve Attributes
-                    </label>
-                </div>
-                <div class="config-item">
-                    <label>
-                        <input type="checkbox" id="preserveWhitespace">
-                        Preserve Whitespace
-                    </label>
-                </div>
-            </div>
-            
-            <div class="config-group">
-                <h3>Output Options</h3>
-                <div class="config-item">
-                    <label>
-                        <input type="checkbox" id="prettyPrint" checked>
-                        Pretty Print
-                    </label>
-                </div>
-                <div class="config-item">
-                    <label>
-                        <input type="checkbox" id="compact" checked>
-                        Compact
-                    </label>
-                </div>
-                <div class="config-item">
-                    <label>
-                        <input type="checkbox" id="declaration" checked>
-                        XML Declaration
-                    </label>
-                </div>
-                <div class="config-item">
-                    <label>
-                        Indent:
-                        <input type="number" id="indent" value="2" min="0" max="10">
-                    </label>
-                </div>
-            </div>
-            
-            <div class="config-group">
-                <h3>Property Names</h3>
-                <div class="config-item">
-                    <label>
-                        Namespace:
-                        <input type="text" id="namespaceProp" value="@ns">
-                    </label>
-                </div>
-                <div class="config-item">
-                    <label>
-                        Prefix:
-                        <input type="text" id="prefixProp" value="@prefix">
-                    </label>
-                </div>
-                <div class="config-item">
-                    <label>
-                        Attributes:
-                        <input type="text" id="attributesProp" value="@attrs">
-                    </label>
-                </div>
-                <div class="config-item">
-                    <label>
-                        Value:
-                        <input type="text" id="valueProp" value="@val">
-                    </label>
-                </div>
-                <div class="config-item">
-                    <label>
-                        CDATA:
-                        <input type="text" id="cdataProp" value="@cdata">
-                    </label>
-                </div>
-                <div class="config-item">
-                    <label>
-                        Comments:
-                        <input type="text" id="commentsProp" value="@comments">
-                    </label>
-                </div>
-                <div class="config-item">
-                    <label>
-                        Processing:
-                        <input type="text" id="processingProp" value="@processing">
-                    </label>
-                </div>
-                <div class="config-item">
-                    <label>
-                        Children:
-                        <input type="text" id="childrenProp" value="@children">
-                    </label>
-                </div>
-            </div>
+      <h2>Configuration</h2>
+      <div class="config-container">
+        <div class="config-group">
+          <h3>Preservation Options</h3>
+          <div class="config-item">
+            <label>
+              <input type="checkbox" id="preserveNamespaces" checked />
+              Preserve Namespaces
+            </label>
+          </div>
+          <div class="config-item">
+            <label>
+              <input type="checkbox" id="preserveComments" checked />
+              Preserve Comments
+            </label>
+          </div>
+          <div class="config-item">
+            <label>
+              <input type="checkbox" id="preserveProcessingInstr" checked />
+              Preserve Processing Instructions
+            </label>
+          </div>
+          <div class="config-item">
+            <label>
+              <input type="checkbox" id="preserveCDATA" checked />
+              Preserve CDATA
+            </label>
+          </div>
+          <div class="config-item">
+            <label>
+              <input type="checkbox" id="preserveTextNodes" checked />
+              Preserve Text Nodes
+            </label>
+          </div>
+          <div class="config-item">
+            <label>
+              <input type="checkbox" id="preserveAttributes" checked />
+              Preserve Attributes
+            </label>
+          </div>
+          <div class="config-item">
+            <label>
+              <input type="checkbox" id="preserveWhitespace" />
+              Preserve Whitespace
+            </label>
+          </div>
         </div>
+
+        <div class="config-group">
+          <h3>Output Options</h3>
+          <div class="config-item">
+            <label>
+              <input type="checkbox" id="prettyPrint" checked />
+              Pretty Print
+            </label>
+          </div>
+          <div class="config-item">
+            <label>
+              <input type="checkbox" id="compact" checked />
+              Compact
+            </label>
+          </div>
+          <div class="config-item">
+            <label>
+              <input type="checkbox" id="declaration" checked />
+              XML Declaration
+            </label>
+          </div>
+          <div class="config-item">
+            <label>
+              Indent:
+              <input type="number" id="indent" value="2" min="0" max="10" />
+            </label>
+          </div>
+        </div>
+
+        <div class="config-group">
+          <h3>Property Names</h3>
+          <div class="config-item">
+            <label>
+              Namespace:
+              <input type="text" id="namespaceProp" value="@ns" />
+            </label>
+          </div>
+          <div class="config-item">
+            <label>
+              Prefix:
+              <input type="text" id="prefixProp" value="@prefix" />
+            </label>
+          </div>
+          <div class="config-item">
+            <label>
+              Attributes:
+              <input type="text" id="attributesProp" value="@attrs" />
+            </label>
+          </div>
+          <div class="config-item">
+            <label>
+              Value:
+              <input type="text" id="valueProp" value="@val" />
+            </label>
+          </div>
+          <div class="config-item">
+            <label>
+              CDATA:
+              <input type="text" id="cdataProp" value="@cdata" />
+            </label>
+          </div>
+          <div class="config-item">
+            <label>
+              Comments:
+              <input type="text" id="commentsProp" value="@comments" />
+            </label>
+          </div>
+          <div class="config-item">
+            <label>
+              Instruction:
+              <input type="text" id="instructionProp" value="@instruction" />
+            </label>
+          </div>
+          <div class="config-item">
+            <label>
+              Target:
+              <input type="text" id="targetProp" value="@target" />
+            </label>
+          </div>
+          <div class="config-item">
+            <label>
+              Children:
+              <input type="text" id="childrenProp" value="@children" />
+            </label>
+          </div>
+        </div>
+      </div>
     </div>
-    
+
     <div class="btn-container">
-        <button id="xmlToJsonBtn">Convert XML to JSON</button>
-        <button id="jsonToXmlBtn">Convert JSON to XML</button>
-        <button id="resetBtn">Reset</button>
+      <button id="xmlToJsonBtn">Convert XML to JSON</button>
+      <button id="jsonToXmlBtn">Convert JSON to XML</button>
+      <button id="resetBtn">Reset</button>
     </div>
-    
+
     <div class="container">
-        <div>
-            <h2>XML</h2>
-            <textarea id="xmlInput">
+      <div>
+        <h2>XML</h2>
+        <textarea id="xmlInput">
 <?xml version="1.0" encoding="UTF-8"?>
 <root xmlns:ns="http://example.org" id="root-id">
   <ns:item id="123">
@@ -237,131 +245,144 @@
     </tags>
   </ns:item>
 </root>
-            </textarea>
-        </div>
-        
-        <div>
-            <h2>JSON</h2>
-            <textarea id="jsonOutput"></textarea>
-        </div>
+            </textarea
+        >
+      </div>
+
+      <div>
+        <h2>JSON</h2>
+        <textarea id="jsonOutput"></textarea>
+      </div>
     </div>
-    
+
     <!-- Load the UMD bundle -->
     <script src="../dist/xmltojson.umd.js"></script>
 
     <script>
-        // Log what's available to help debug
-        console.log('XMLToJSON is:', XMLToJSON);
-        
-        // DOM Elements
-        const xmlInput = document.getElementById('xmlInput');
-        const jsonOutput = document.getElementById('jsonOutput');
-        const xmlToJsonBtn = document.getElementById('xmlToJsonBtn');
-        const jsonToXmlBtn = document.getElementById('jsonToXmlBtn');
-        const resetBtn = document.getElementById('resetBtn');
-        
-        // Config elements
-        const preserveNamespaces = document.getElementById('preserveNamespaces');
-        const preserveComments = document.getElementById('preserveComments');
-        const preserveProcessingInstr = document.getElementById('preserveProcessingInstr');
-        const preserveCDATA = document.getElementById('preserveCDATA');
-        const preserveTextNodes = document.getElementById('preserveTextNodes');
-        const preserveAttributes = document.getElementById('preserveAttributes');
-        const preserveWhitespace = document.getElementById('preserveWhitespace');
-        const prettyPrint = document.getElementById('prettyPrint');
-        const compact = document.getElementById('compact');
-        const declaration = document.getElementById('declaration');
-        const indent = document.getElementById('indent');
-        const namespaceProp = document.getElementById('namespaceProp');
-        const prefixProp = document.getElementById('prefixProp');
-        const attributesProp = document.getElementById('attributesProp');
-        const valueProp = document.getElementById('valueProp');
-        const cdataProp = document.getElementById('cdataProp');
-        const commentsProp = document.getElementById('commentsProp');
-        const processingProp = document.getElementById('processingProp');
-        const childrenProp = document.getElementById('childrenProp');
-        
-        // Get current config from UI
-        function getConfig() {
-            return {
-                preserveNamespaces: preserveNamespaces.checked,
-                preserveComments: preserveComments.checked,
-                preserveProcessingInstr: preserveProcessingInstr.checked,
-                preserveCDATA: preserveCDATA.checked,
-                preserveTextNodes: preserveTextNodes.checked,
-                preserveAttributes: preserveAttributes.checked,
-                preserveWhitespace: preserveWhitespace.checked,
-                outputOptions: {
-                    prettyPrint: prettyPrint.checked,
-                    indent: parseInt(indent.value) || 2,
-                    compact: compact.checked,
-                    json: {},
-                    xml: {
-                        declaration: declaration.checked,
-                    },
-                },
-                propNames: {
-                    namespace: namespaceProp.value,
-                    prefix: prefixProp.value,
-                    attributes: attributesProp.value,
-                    value: valueProp.value,
-                    cdata: cdataProp.value,
-                    comments: commentsProp.value,
-                    processing: processingProp.value,
-                    children: childrenProp.value,
-                },
-            };
+      // Log what's available to help debug
+      console.log("XMLToJSON is:", XMLToJSON);
+
+      // DOM Elements
+      const xmlInput = document.getElementById("xmlInput");
+      const jsonOutput = document.getElementById("jsonOutput");
+      const xmlToJsonBtn = document.getElementById("xmlToJsonBtn");
+      const jsonToXmlBtn = document.getElementById("jsonToXmlBtn");
+      const resetBtn = document.getElementById("resetBtn");
+
+      // Config elements
+      const preserveNamespaces = document.getElementById("preserveNamespaces");
+      const preserveComments = document.getElementById("preserveComments");
+      const preserveProcessingInstr = document.getElementById(
+        "preserveProcessingInstr"
+      );
+      const preserveCDATA = document.getElementById("preserveCDATA");
+      const preserveTextNodes = document.getElementById("preserveTextNodes");
+      const preserveAttributes = document.getElementById("preserveAttributes");
+      const preserveWhitespace = document.getElementById("preserveWhitespace");
+      const prettyPrint = document.getElementById("prettyPrint");
+      const compact = document.getElementById("compact");
+      const declaration = document.getElementById("declaration");
+      const indent = document.getElementById("indent");
+      const namespaceProp = document.getElementById("namespaceProp");
+      const prefixProp = document.getElementById("prefixProp");
+      const attributesProp = document.getElementById("attributesProp");
+      const valueProp = document.getElementById("valueProp");
+      const cdataProp = document.getElementById("cdataProp");
+      const commentsProp = document.getElementById("commentsProp");
+      const instructionProp = document.getElementById("instructionProp"); // Updated
+      const targetProp = document.getElementById("targetProp"); // Added new property
+      const childrenProp = document.getElementById("childrenProp");
+
+      // Get current config from UI
+      function getConfig() {
+        return {
+          preserveNamespaces: preserveNamespaces.checked,
+          preserveComments: preserveComments.checked,
+          preserveProcessingInstr: preserveProcessingInstr.checked,
+          preserveCDATA: preserveCDATA.checked,
+          preserveTextNodes: preserveTextNodes.checked,
+          preserveAttributes: preserveAttributes.checked,
+          preserveWhitespace: preserveWhitespace.checked,
+          outputOptions: {
+            prettyPrint: prettyPrint.checked,
+            indent: parseInt(indent.value) || 2,
+            compact: compact.checked,
+            json: {},
+            xml: {
+              declaration: declaration.checked,
+            },
+          },
+          propNames: {
+            namespace: namespaceProp.value,
+            prefix: prefixProp.value,
+            attributes: attributesProp.value,
+            value: valueProp.value,
+            cdata: cdataProp.value,
+            comments: commentsProp.value,
+            instruction: instructionProp.value, // Updated from processingProp
+            target: targetProp.value, // Added new property
+            children: childrenProp.value,
+          },
+        };
+      }
+
+      // Convert XML to JSON
+      xmlToJsonBtn.addEventListener("click", () => {
+        try {
+          // Check if XMLToJSON is a constructor function (class) or an object with a default property
+          const XMLToJSONClass =
+            typeof XMLToJSON === "function"
+              ? XMLToJSON
+              : XMLToJSON.default || XMLToJSON.XMLToJSON || XMLToJSON;
+
+          console.log("Using constructor:", XMLToJSONClass);
+
+          if (typeof XMLToJSONClass !== "function") {
+            throw new Error(
+              "XMLToJSON is not available as a constructor. Available as: " +
+                Object.keys(XMLToJSON).join(", ")
+            );
+          }
+
+          const converter = new XMLToJSONClass(getConfig());
+          const jsonObj = converter.xmlToJson(xmlInput.value);
+          jsonOutput.value = JSON.stringify(jsonObj, null, 2);
+        } catch (error) {
+          jsonOutput.value = `Error: ${error.message}`;
+          console.error("Error details:", error);
         }
-        
-        // Convert XML to JSON
-        xmlToJsonBtn.addEventListener('click', () => {
-            try {
-                // Check if XMLToJSON is a constructor function (class) or an object with a default property
-                const XMLToJSONClass = typeof XMLToJSON === 'function' ? XMLToJSON : 
-                                       (XMLToJSON.default || XMLToJSON.XMLToJSON || XMLToJSON);
-                                       
-                console.log('Using constructor:', XMLToJSONClass);
-                
-                if (typeof XMLToJSONClass !== 'function') {
-                    throw new Error('XMLToJSON is not available as a constructor. Available as: ' + 
-                                   Object.keys(XMLToJSON).join(', '));
-                }
-                
-                const converter = new XMLToJSONClass(getConfig());
-                const jsonObj = converter.xmlToJson(xmlInput.value);
-                jsonOutput.value = JSON.stringify(jsonObj, null, 2);
-            } catch (error) {
-                jsonOutput.value = `Error: ${error.message}`;
-                console.error('Error details:', error);
-            }
-        });
-        
-        // Convert JSON to XML
-        jsonToXmlBtn.addEventListener('click', () => {
-            try {
-                const jsonObj = JSON.parse(jsonOutput.value);
-                
-                // Check if XMLToJSON is a constructor function (class) or an object with a default property
-                const XMLToJSONClass = typeof XMLToJSON === 'function' ? XMLToJSON : 
-                                       (XMLToJSON.default || XMLToJSON.XMLToJSON || XMLToJSON);
-                
-                if (typeof XMLToJSONClass !== 'function') {
-                    throw new Error('XMLToJSON is not available as a constructor. Available as: ' + 
-                                   Object.keys(XMLToJSON).join(', '));
-                }
-                
-                const converter = new XMLToJSONClass(getConfig());
-                const xmlString = converter.jsonToXml(jsonObj);
-                xmlInput.value = xmlString;
-            } catch (error) {
-                xmlInput.value = `Error: ${error.message}`;
-                console.error('Error details:', error);
-            }
-        });
-        
-        // Reset inputs
-        resetBtn.addEventListener('click', () => {
-            xmlInput.value = `<?xml version="1.0" encoding="UTF-8"?>
+      });
+
+      // Convert JSON to XML
+      jsonToXmlBtn.addEventListener("click", () => {
+        try {
+          const jsonObj = JSON.parse(jsonOutput.value);
+
+          // Check if XMLToJSON is a constructor function (class) or an object with a default property
+          const XMLToJSONClass =
+            typeof XMLToJSON === "function"
+              ? XMLToJSON
+              : XMLToJSON.default || XMLToJSON.XMLToJSON || XMLToJSON;
+
+          if (typeof XMLToJSONClass !== "function") {
+            throw new Error(
+              "XMLToJSON is not available as a constructor. Available as: " +
+                Object.keys(XMLToJSON).join(", ")
+            );
+          }
+
+          const converter = new XMLToJSONClass(getConfig());
+          const xmlString = converter.jsonToXml(jsonObj);
+          xmlInput.value = xmlString;
+        } catch (error) {
+          xmlInput.value = `Error: ${error.message}`;
+          console.error("Error details:", error);
+        }
+      });
+
+      // Reset inputs
+      resetBtn.addEventListener("click", () => {
+        xmlInput.value = `<?xml version="1.0" encoding="UTF-8"?>
 <root xmlns:ns="http://example.org" id="root-id">
   <ns:item id="123">
     <title>Example Item</title>
@@ -376,16 +397,16 @@
     </tags>
   </ns:item>
 </root>`;
-            jsonOutput.value = '';
-        });
-        
-        // Initial conversion on page load
-        window.addEventListener('DOMContentLoaded', () => {
-            // Add a small delay to ensure the DOM is fully processed
-            setTimeout(() => {
-                xmlToJsonBtn.click();
-            }, 100);
-        });
+        jsonOutput.value = "";
+      });
+
+      // Initial conversion on page load
+      window.addEventListener("DOMContentLoaded", () => {
+        // Add a small delay to ensure the DOM is fully processed
+        setTimeout(() => {
+          xmlToJsonBtn.click();
+        }, 100);
+      });
     </script>
-</body>
+  </body>
 </html>

@@ -13,7 +13,7 @@ export const DEFAULT_CONFIG: XMLToJSONConfig = {
   preserveCDATA: true,
   preserveTextNodes: true,
   preserveWhitespace: false,
-  preserveAttributes: true,  // Added new option with default true
+  preserveAttributes: true,
 
   outputOptions: {
     prettyPrint: true,
@@ -32,7 +32,8 @@ export const DEFAULT_CONFIG: XMLToJSONConfig = {
     value: "@val",
     cdata: "@cdata",
     comments: "@comments",
-    processing: "@processing",
+    instruction: "@instruction",  // Renamed from '@processing'
+    target: "@target",            // Added for processing instruction target
     children: "@children",
   },
 };

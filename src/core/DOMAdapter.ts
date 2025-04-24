@@ -9,6 +9,7 @@ interface NodeTypes {
   CDATA_SECTION_NODE: number;
   COMMENT_NODE: number;
   PROCESSING_INSTRUCTION_NODE: number;
+  DOCUMENT_NODE: number; 
 }
 
 interface DOMWindow {
@@ -20,9 +21,10 @@ interface DOMWindow {
     CDATA_SECTION_NODE: number;
     COMMENT_NODE: number;
     PROCESSING_INSTRUCTION_NODE: number;
+    DOCUMENT_NODE: number; 
   };
   document: Document;
-  close?: () => void; // Added close method as optional
+  close?: () => void; 
 }
 
 interface JSDOMInstance {
@@ -54,6 +56,7 @@ export const DOMAdapter = (() => {
           CDATA_SECTION_NODE: jsdomInstance.window.Node.CDATA_SECTION_NODE,
           COMMENT_NODE: jsdomInstance.window.Node.COMMENT_NODE,
           PROCESSING_INSTRUCTION_NODE: jsdomInstance.window.Node.PROCESSING_INSTRUCTION_NODE,
+          DOCUMENT_NODE: jsdomInstance.window.Node.DOCUMENT_NODE, // Add this line
         };
         docImplementation = jsdomInstance.window.document.implementation;
       } catch (jsdomError) {
@@ -69,6 +72,7 @@ export const DOMAdapter = (() => {
             CDATA_SECTION_NODE: 4,
             COMMENT_NODE: 8,
             PROCESSING_INSTRUCTION_NODE: 7,
+            DOCUMENT_NODE: 9, 
           };
           const implementation = new DOMImplementation();
           docImplementation = implementation;
@@ -94,6 +98,7 @@ export const DOMAdapter = (() => {
         CDATA_SECTION_NODE: Node.CDATA_SECTION_NODE,
         COMMENT_NODE: Node.COMMENT_NODE,
         PROCESSING_INSTRUCTION_NODE: Node.PROCESSING_INSTRUCTION_NODE,
+        DOCUMENT_NODE: Node.DOCUMENT_NODE, 
       };
       docImplementation = document.implementation;
     }

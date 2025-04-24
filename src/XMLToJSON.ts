@@ -3,27 +3,21 @@
  */
 import { XMLToJSONConfig } from './types';
 import { DEFAULT_CONFIG } from './config';
-import { DOMAdapter, DOMImplementation } from './dom-adapter';
+import { DOMEnvironment } from './DOMAdapter';
 
 /**
  * XMLToJSON - Main class for XML to JSON transformation
- * Supports both browser and Node.js environments through a hybrid DOM approach
+ * Supports both browser and Node.js environments
  */
 export class XMLToJSON {
   private config: XMLToJSONConfig;
-  private domAdapter: DOMAdapter;
 
   /**
    * Constructor for XMLToJSON utility
    * @param config Configuration options
-   * @param customDOMImplementation Optional custom DOM implementation
    */
-  constructor(
-    config: Partial<XMLToJSONConfig> = {}, 
-    customDOMImplementation?: DOMImplementation
-  ) {
+  constructor(config: Partial<XMLToJSONConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
-    this.domAdapter = new DOMAdapter(customDOMImplementation);
   }
 
   /**
@@ -33,10 +27,9 @@ export class XMLToJSON {
    */
   public xmlToJson(xmlString: string): Record<string, any> {
     try {
-      const xmlDoc = this.domAdapter.parseFromString(xmlString, 'text/xml');
+      const xmlDoc = DOMEnvironment.parseFromString(xmlString, 'text/xml');
       
-      // Check for parsing errors - the approach differs between browser and Node.js
-      // This is a simplified check that works in most environments
+      // Check for parsing errors
       const errors = xmlDoc.getElementsByTagName('parsererror');
       if (errors.length > 0) {
         throw new Error(`XML parsing error: ${errors[0].textContent}`);
@@ -55,15 +48,20 @@ export class XMLToJSON {
    */
   public jsonToXml(jsonObj: Record<string, any>): string {
     try {
-      const doc = this.domAdapter.createDocument();
+      const doc = DOMEnvironment.createDocument();
       const rootElement = this.jsonToNode(jsonObj, doc);
       
       if (rootElement) {
-        doc.appendChild(rootElement);
+        // Handle the temporary root element if it exists
+        if (doc.documentElement && doc.documentElement.nodeName === 'temp') {
+          doc.replaceChild(rootElement, doc.documentElement);
+        } else {
+          doc.appendChild(rootElement);
+        }
       }
       
       // Add XML declaration if specified
-      let xmlString = this.domAdapter.serializeToString(doc);
+      let xmlString = DOMEnvironment.serializeToString(doc);
       if (this.config.outputOptions.xml.declaration && !xmlString.startsWith('<?xml')) {
         xmlString = '<?xml version="1.0" encoding="UTF-8"?>\n' + xmlString;
       }
@@ -88,7 +86,7 @@ export class XMLToJSON {
     const result: Record<string, any> = {};
     
     // Handle element nodes
-    if (node.nodeType === Node.ELEMENT_NODE) {
+    if (node.nodeType === DOMEnvironment.nodeTypes.ELEMENT_NODE) {
       const element = node as Element;
       // Use localName instead of nodeName to strip namespace prefix
       const nodeName = element.localName || element.nodeName.split(':').pop() || element.nodeName;
@@ -117,6 +115,7 @@ export class XMLToJSON {
           // Strip namespace prefix from attribute name
           const attrLocalName = attr.localName || attr.name.split(':').pop() || attr.name;
           
+          // Create attribute object with consistent structure
           const attrObj: Record<string, any> = {
             [attrLocalName]: {
               [this.config.propNames.value]: attr.value
@@ -125,9 +124,12 @@ export class XMLToJSON {
           
           // Add namespace info for attribute if present and enabled
           if (this.config.preserveNamespaces) {
+            // Handle attribute namespace
             if (attr.namespaceURI) {
               attrObj[attrLocalName][this.config.propNames.namespace] = attr.namespaceURI;
             }
+            
+            // Handle attribute prefix
             if (attr.prefix) {
               attrObj[attrLocalName][this.config.propNames.prefix] = attr.prefix;
             }
@@ -151,7 +153,7 @@ export class XMLToJSON {
           const child = element.childNodes[i];
           
           // Text nodes
-          if (child.nodeType === Node.TEXT_NODE) {
+          if (child.nodeType === DOMEnvironment.nodeTypes.TEXT_NODE) {
             const text = child.nodeValue || "";
             
             // Skip whitespace-only text nodes if whitespace preservation is disabled
@@ -170,15 +172,15 @@ export class XMLToJSON {
             }
           }
           // CDATA sections
-          else if (child.nodeType === Node.CDATA_SECTION_NODE && this.config.preserveCDATA) {
+          else if (child.nodeType === DOMEnvironment.nodeTypes.CDATA_SECTION_NODE && this.config.preserveCDATA) {
             children.push({ [this.config.propNames.cdata]: child.nodeValue || "" });
           }
           // Comments
-          else if (child.nodeType === Node.COMMENT_NODE && this.config.preserveComments) {
+          else if (child.nodeType === DOMEnvironment.nodeTypes.COMMENT_NODE && this.config.preserveComments) {
             children.push({ [this.config.propNames.comments]: child.nodeValue || "" });
           }
           // Processing instructions
-          else if (child.nodeType === Node.PROCESSING_INSTRUCTION_NODE && this.config.preserveProcessingInstr) {
+          else if (child.nodeType === DOMEnvironment.nodeTypes.PROCESSING_INSTRUCTION_NODE && this.config.preserveProcessingInstr) {
             children.push({ 
               [this.config.propNames.processing]: {
                 target: child.nodeName,
@@ -187,7 +189,7 @@ export class XMLToJSON {
             });
           }
           // Element nodes (recursive)
-          else if (child.nodeType === Node.ELEMENT_NODE) {
+          else if (child.nodeType === DOMEnvironment.nodeTypes.ELEMENT_NODE) {
             children.push(this.nodeToJson(child));
           }
         }
@@ -244,14 +246,14 @@ export class XMLToJSON {
     if (ns && this.config.preserveNamespaces) {
       if (prefix) {
         // Create element with namespace and prefix
-        element = this.domAdapter.createElementNS(ns, `${prefix}:${nodeName}`);
+        element = DOMEnvironment.createElementNS(ns, `${prefix}:${nodeName}`);
       } else {
         // Create element with namespace but no prefix
-        element = this.domAdapter.createElementNS(ns, nodeName);
+        element = DOMEnvironment.createElementNS(ns, nodeName);
       }
     } else {
       // Create element without namespace
-      element = this.domAdapter.createElement(nodeName);
+      element = DOMEnvironment.createElement(nodeName);
     }
     
     // Process attributes
@@ -291,21 +293,21 @@ export class XMLToJSON {
       nodeData[this.config.propNames.children].forEach((child: Record<string, any>) => {
         // Text nodes
         if (child[this.config.propNames.value] !== undefined && this.config.preserveTextNodes) {
-          element.appendChild(this.domAdapter.createTextNode(child[this.config.propNames.value]));
+          element.appendChild(DOMEnvironment.createTextNode(child[this.config.propNames.value]));
         }
         // CDATA sections
         else if (child[this.config.propNames.cdata] !== undefined && this.config.preserveCDATA) {
-          element.appendChild(this.domAdapter.createCDATASection(child[this.config.propNames.cdata]));
+          element.appendChild(DOMEnvironment.createCDATASection(child[this.config.propNames.cdata]));
         }
         // Comments
         else if (child[this.config.propNames.comments] !== undefined && this.config.preserveComments) {
-          element.appendChild(this.domAdapter.createComment(child[this.config.propNames.comments]));
+          element.appendChild(DOMEnvironment.createComment(child[this.config.propNames.comments]));
         }
         // Processing instructions
         else if (child[this.config.propNames.processing] !== undefined && this.config.preserveProcessingInstr) {
           const piData = child[this.config.propNames.processing];
           if (piData.target) {
-            element.appendChild(this.domAdapter.createProcessingInstruction(piData.target, piData.data || ''));
+            element.appendChild(DOMEnvironment.createProcessingInstruction(piData.target, piData.data || ''));
           }
         }
         // Element nodes (recursive)
@@ -419,9 +421,9 @@ export class XMLToJSON {
   }
 
   /**
-   * Clean up any resources (especially for JSDOM)
+   * Clean up any resources
    */
   public cleanup(): void {
-    this.domAdapter.cleanup();
+    DOMEnvironment.cleanup();
   }
 }

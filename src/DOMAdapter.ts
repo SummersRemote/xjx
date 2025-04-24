@@ -1,0 +1,243 @@
+/**
+ * DOM Environment provider with unified interface for browser and Node.js
+ */
+import { XMLToJSONError } from './errors';
+
+interface NodeTypes {
+  ELEMENT_NODE: number;
+  TEXT_NODE: number;
+  CDATA_SECTION_NODE: number;
+  COMMENT_NODE: number;
+  PROCESSING_INSTRUCTION_NODE: number;
+}
+
+interface DOMWindow {
+  DOMParser: any;
+  XMLSerializer: any;
+  Node: {
+    ELEMENT_NODE: number;
+    TEXT_NODE: number;
+    CDATA_SECTION_NODE: number;
+    COMMENT_NODE: number;
+    PROCESSING_INSTRUCTION_NODE: number;
+  };
+  document: Document;
+  close?: () => void; // Added close method as optional
+}
+
+interface JSDOMInstance {
+  window: DOMWindow;
+}
+
+export const DOMEnvironment = (() => {
+  // Environment-specific DOM implementation
+  let domParser: any;
+  let xmlSerializer: any;
+  let nodeTypes: NodeTypes;
+  let docImplementation: any;
+  let jsdomInstance: JSDOMInstance | null = null;
+
+  try {
+    if (typeof window === "undefined") {
+      // Node.js environment - try JSDOM first
+      try {
+        const { JSDOM } = require("jsdom");
+        jsdomInstance = new JSDOM("<!DOCTYPE html><html><body></body></html>", {
+          contentType: "text/xml",
+        }) as JSDOMInstance;
+
+        domParser = jsdomInstance.window.DOMParser;
+        xmlSerializer = jsdomInstance.window.XMLSerializer;
+        nodeTypes = {
+          ELEMENT_NODE: jsdomInstance.window.Node.ELEMENT_NODE,
+          TEXT_NODE: jsdomInstance.window.Node.TEXT_NODE,
+          CDATA_SECTION_NODE: jsdomInstance.window.Node.CDATA_SECTION_NODE,
+          COMMENT_NODE: jsdomInstance.window.Node.COMMENT_NODE,
+          PROCESSING_INSTRUCTION_NODE: jsdomInstance.window.Node.PROCESSING_INSTRUCTION_NODE,
+        };
+        docImplementation = jsdomInstance.window.document.implementation;
+      } catch (jsdomError) {
+        // Fall back to xmldom if JSDOM isn't available
+        try {
+          const { DOMParser, XMLSerializer, DOMImplementation } = require('@xmldom/xmldom');
+          domParser = DOMParser;
+          xmlSerializer = XMLSerializer;
+          // Standard DOM node types
+          nodeTypes = {
+            ELEMENT_NODE: 1,
+            TEXT_NODE: 3,
+            CDATA_SECTION_NODE: 4,
+            COMMENT_NODE: 8,
+            PROCESSING_INSTRUCTION_NODE: 7,
+          };
+          const implementation = new DOMImplementation();
+          docImplementation = implementation;
+        } catch (xmldomError) {
+          throw new XMLToJSONError(`Node.js environment detected but neither 'jsdom' nor '@xmldom/xmldom' are available.`);
+        }
+      }
+    } else {
+      // Browser environment
+      if (!window.DOMParser) {
+        throw new XMLToJSONError("DOMParser is not available in this environment");
+      }
+
+      if (!window.XMLSerializer) {
+        throw new XMLToJSONError("XMLSerializer is not available in this environment");
+      }
+
+      domParser = window.DOMParser;
+      xmlSerializer = window.XMLSerializer;
+      nodeTypes = {
+        ELEMENT_NODE: Node.ELEMENT_NODE,
+        TEXT_NODE: Node.TEXT_NODE,
+        CDATA_SECTION_NODE: Node.CDATA_SECTION_NODE,
+        COMMENT_NODE: Node.COMMENT_NODE,
+        PROCESSING_INSTRUCTION_NODE: Node.PROCESSING_INSTRUCTION_NODE,
+      };
+      docImplementation = document.implementation;
+    }
+  } catch (error) {
+    throw new XMLToJSONError(`DOM environment initialization failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  return {
+    createParser: () => {
+      try {
+        return new domParser();
+      } catch (error) {
+        throw new XMLToJSONError(`Failed to create DOM parser: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    },
+    
+    createSerializer: () => {
+      try {
+        return new xmlSerializer();
+      } catch (error) {
+        throw new XMLToJSONError(`Failed to create XML serializer: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    },
+    
+    nodeTypes,
+    
+    parseFromString: (xmlString: string, contentType: string = 'text/xml') => {
+      try {
+        const parser = new domParser();
+        return parser.parseFromString(xmlString, contentType);
+      } catch (error) {
+        throw new XMLToJSONError(`Failed to parse XML: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    },
+    
+    serializeToString: (node: Node) => {
+      try {
+        const serializer = new xmlSerializer();
+        return serializer.serializeToString(node);
+      } catch (error) {
+        throw new XMLToJSONError(`Failed to serialize XML: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    },
+    
+    createDocument: () => {
+      try {
+        // For browsers, create a document with a root element to avoid issues
+        if (typeof window !== "undefined") {
+          const parser = new domParser();
+          return parser.parseFromString('<temp></temp>', 'text/xml');
+        } else {
+          return docImplementation.createDocument(null, null, null);
+        }
+      } catch (error) {
+        throw new XMLToJSONError(`Failed to create document: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    },
+    
+    createElement: (tagName: string) => {
+      try {
+        if (typeof window !== "undefined") {
+          return document.createElement(tagName);
+        } else {
+          const doc = docImplementation.createDocument(null, null, null);
+          return doc.createElement(tagName);
+        }
+      } catch (error) {
+        throw new XMLToJSONError(`Failed to create element: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    },
+    
+    createElementNS: (namespaceURI: string, qualifiedName: string) => {
+      try {
+        if (typeof window !== "undefined") {
+          return document.createElementNS(namespaceURI, qualifiedName);
+        } else {
+          const doc = docImplementation.createDocument(null, null, null);
+          return doc.createElementNS(namespaceURI, qualifiedName);
+        }
+      } catch (error) {
+        throw new XMLToJSONError(`Failed to create element with namespace: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    },
+    
+    createTextNode: (data: string) => {
+      try {
+        if (typeof window !== "undefined") {
+          return document.createTextNode(data);
+        } else {
+          const doc = docImplementation.createDocument(null, null, null);
+          return doc.createTextNode(data);
+        }
+      } catch (error) {
+        throw new XMLToJSONError(`Failed to create text node: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    },
+    
+    createCDATASection: (data: string) => {
+      try {
+        // For browser compatibility, use document.implementation to create CDATA
+        if (typeof window !== "undefined") {
+          const doc = document.implementation.createDocument(null, null, null);
+          return doc.createCDATASection(data);
+        } else {
+          const doc = docImplementation.createDocument(null, null, null);
+          return doc.createCDATASection(data);
+        }
+      } catch (error) {
+        throw new XMLToJSONError(`Failed to create CDATA section: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    },
+    
+    createComment: (data: string) => {
+      try {
+        if (typeof window !== "undefined") {
+          return document.createComment(data);
+        } else {
+          const doc = docImplementation.createDocument(null, null, null);
+          return doc.createComment(data);
+        }
+      } catch (error) {
+        throw new XMLToJSONError(`Failed to create comment: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    },
+    
+    createProcessingInstruction: (target: string, data: string) => {
+      try {
+        if (typeof window !== "undefined") {
+          const doc = document.implementation.createDocument(null, null, null);
+          return doc.createProcessingInstruction(target, data);
+        } else {
+          const doc = docImplementation.createDocument(null, null, null);
+          return doc.createProcessingInstruction(target, data);
+        }
+      } catch (error) {
+        throw new XMLToJSONError(`Failed to create processing instruction: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    },
+    
+    // Cleanup method (mainly for JSDOM)
+    cleanup: () => {
+      if (jsdomInstance && typeof jsdomInstance.window.close === 'function') {
+        jsdomInstance.window.close();
+      }
+    }
+  };
+})();

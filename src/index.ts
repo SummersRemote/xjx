@@ -4,7 +4,7 @@
 import { XMLToJSON } from './XMLToJSON';
 import { XMLParser } from './XMLParser';
 import { XMLSerializerUtil } from './XMLSerializer';
-import { DOMAdapter, DOMImplementation } from './dom-adapter';
+import { DOMEnvironment } from './DOMAdapter';
 import { XMLToJSONConfig } from './types';
 import { DEFAULT_CONFIG } from './config';
 import * as helpers from './helpers';
@@ -15,8 +15,7 @@ export {
   XMLToJSON,
   XMLParser,
   XMLSerializerUtil,
-  DOMAdapter,
-  DOMImplementation,
+  DOMEnvironment,
   XMLToJSONConfig,
   DEFAULT_CONFIG,
   helpers,

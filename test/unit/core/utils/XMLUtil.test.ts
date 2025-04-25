@@ -4,7 +4,7 @@
 import { XMLUtil } from '../../../../src/core/utils/XMLUtil';
 import { DOMAdapter } from '../../../../src/core/DOMAdapter';
 import { Configuration } from '../../../../src/core/types/types';
-import { createTestConfig, cloneConfig } from '../../../utils/testConfig';
+import { createTestConfig, cloneConfig } from '../../../utils/testUtils';
 
 describe('XMLUtil', () => {
   let xmlUtil: XMLUtil;

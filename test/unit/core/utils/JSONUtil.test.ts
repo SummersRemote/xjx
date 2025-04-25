@@ -3,7 +3,7 @@
  */
 import { JSONUtil } from '../../../../src/core/utils/JSONUtil';
 import { Configuration } from '../../../../src/core/types/types'; 
-import { createTestConfig, cloneConfig } from '../../../utils/testConfig';
+import { createTestConfig, cloneConfig } from '../../../utils/testUtils';
 
 describe('JSONUtil', () => {
   let jsonUtil: JSONUtil;
@@ -252,8 +252,9 @@ describe('JSONUtil', () => {
     });
     
     it('should handle null and undefined values', () => {
-      expect(jsonUtil.deepMerge({ name: "John" }, null)).toEqual({ name: "John" });
-      expect(jsonUtil.deepMerge(null, { name: "John" })).toEqual({ name: "John" });
+      // Fix: Use an empty object instead of null to match TypeScript constraints
+      expect(jsonUtil.deepMerge({ name: "John" }, {} as Partial<{name: string}>)).toEqual({ name: "John" });
+      expect(jsonUtil.deepMerge({} as {name: string}, { name: "John" })).toEqual({ name: "John" });
     });
   });
 });

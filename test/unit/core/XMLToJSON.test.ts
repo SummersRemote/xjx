@@ -3,7 +3,7 @@
  */
 import { XMLToJSON } from '../../../src/core/XMLToJSON';
 import { Configuration } from '../../../src/core/types/types';
-import { createTestConfig, cloneConfig } from '../../utils/testConfig';
+import { createTestConfig, cloneConfig } from '../../utils/testUtils';
 
 describe('XMLToJSON', () => {
   let xmlToJSON: XMLToJSON;

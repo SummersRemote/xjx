@@ -3,7 +3,7 @@
  */
 import { DOMAdapter } from '../../../src/core/DOMAdapter';
 import { XMLToJSONError } from '../../../src/core/types/errors';
-import { createTestConfig } from '../../utils/testConfig';
+import { createTestConfig } from '../../utils/testUtils';
 
 describe('DOMAdapter', () => {
   // We don't directly pass the config to DOMAdapter,

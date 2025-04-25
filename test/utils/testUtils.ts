@@ -1,11 +1,9 @@
+/**
+ * Combined test utilities for the XJX library
+ */
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
-import { Configuration } from '../src/core/types/types';
-
-// Get directory information for ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { Configuration } from '../../src/core/types/types';
 
 /**
  * Creates a standard test configuration to use across all tests
@@ -59,6 +57,7 @@ export const cloneConfig = (config: Configuration): Configuration => {
  * @returns File contents as string (XML) or parsed object (JSON)
  */
 export function loadFixture(type: 'xml' | 'json', name: string): string | Record<string, any> {
+  // Fixed path resolution that doesn't rely on import.meta
   const fixturePath = path.resolve(__dirname, '..', 'fixtures', type, `${name}.${type}`);
 
   try {

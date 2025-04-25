@@ -4,7 +4,7 @@
 import { JSONToXML } from '../../../src/core/JSONToXML';
 import { XMLToJSON } from '../../../src/core/XMLToJSON';
 import { Configuration } from '../../../src/core/types/types';
-import { createTestConfig, cloneConfig } from '../../utils/testConfig';
+import { createTestConfig, cloneConfig } from '../../utils/testUtils';
 import { DOMAdapter } from '../../../src/core/DOMAdapter';
 
 describe('JSONToXML', () => {

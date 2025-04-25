@@ -43,6 +43,10 @@ export class JSONToXML {
 
       // Add XML declaration if specified
       let xmlString = DOMAdapter.serializeToString(doc);
+
+      // remove xhtml decl inserted by dom
+      xmlString = xmlString.replace(' xmlns="http://www.w3.org/1999/xhtml"', '');
+
       if (this.config.outputOptions.xml.declaration) {
         xmlString = this.xmlUtil.ensureXMLDeclaration(xmlString);
       }

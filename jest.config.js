@@ -30,6 +30,16 @@ const config = {
   ],
   setupFilesAfterEnv: [
     '<rootDir>/test/jest.setup.ts'
+  ],
+  reporters: [
+    'default',
+    ['jest-html-reporters', {
+      publicPath: 'reports/',
+      filename: 'test-report.html',
+      expand: false, // expands test case results
+      includeFailureMsg: true,
+      includeConsoleLog: true
+    }]
   ]
 };
 

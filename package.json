@@ -21,7 +21,7 @@
     "README.md",
     "package.json"
   ],
-"scripts": {
+  "scripts": {
     "clean": "rimraf dist",
     "build": "npm run clean && npm run build:types && npm run build:js",
     "build:types": "tsc --emitDeclarationOnly --outDir dist/dts",
@@ -83,6 +83,7 @@
     "eslint-plugin-prettier": "^4.2.1",
     "jest": "^29.6.0",
     "jest-environment-jsdom": "^29.6.0",
+    "jest-html-reporters": "^3.1.7",
     "prettier": "^2.8.7",
     "rimraf": "^4.4.1",
     "rollup": "^3.29.5",

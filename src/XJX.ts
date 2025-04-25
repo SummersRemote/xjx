@@ -95,6 +95,33 @@ export class XJX {
   }
 
   /**
+   * Generate a JSON schema based on the current configuration
+   * @returns JSON schema object for validating XML-JSON documents
+   */
+  public generateJsonSchema(): Record<string, any> {
+    return this.jsonUtil.generateJsonSchema();
+  }
+
+  /**
+   * Convert a standard JSON object to the XML-like JSON structure
+   * @param obj Standard JSON object
+   * @param root Optional root element configuration (string or object with properties)
+   * @returns XML-like JSON object ready for conversion to XML
+   */
+  public objectToXJX(obj: any, root?: string | Record<string, any>): Record<string, any> {
+    return this.jsonUtil.objectToXJX(obj, root);
+  }
+
+  /**
+   * Generate an example JSON object that matches the current configuration
+   * @param rootName Name of the root element
+   * @returns Example JSON object
+   */
+  public generateJsonExample(rootName: string = "root"): Record<string, any> {
+    return this.jsonUtil.generateExample(rootName);
+  }
+
+  /**
    * Add a value transformer to the configuration
    * @param transformer Value transformer to add
    * @returns This XJX instance for chaining

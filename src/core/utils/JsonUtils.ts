@@ -112,7 +112,7 @@ export class JSONUtil {
    * @param root Optional root element configuration (either a string or object with $ keys)
    * @returns XML-like JSON object
    */
-  fromJsonObject(obj: any, root?: any): any {
+  objectToXJX(obj: any, root?: any): any {
     const wrappedObject = this.wrapObject(obj);
 
     if (typeof root === "string") {

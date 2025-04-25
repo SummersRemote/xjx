@@ -78,6 +78,62 @@
         width: 60px;
         padding: 4px;
       }
+
+      .path-container {
+    margin: 20px 0;
+    padding: 15px;
+    background-color: #f9f9f9;
+    border-radius: 4px;
+  }
+  
+  .input-group {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+  }
+  
+  .input-group label {
+    margin-right: 10px;
+    font-weight: bold;
+  }
+  
+  .path-input {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: monospace;
+  }
+  
+  .output-group {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .output-group label {
+    margin-bottom: 5px;
+    font-weight: bold;
+  }
+  
+  .output-group textarea {
+    width: 100%;
+    height: 120px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: monospace;
+    resize: vertical;
+    background-color: #f5f5f5;
+  }
+  
+  .section {
+    margin: 30px 0;
+  }
+  
+  .btn {
+    margin-left: 10px;
+  }
+
     </style>
   </head>
   <body>
@@ -254,6 +310,30 @@
       </div>
     </div>
 
+    <div class="section">
+      <h2>Path Navigation</h2>
+      <p>Use dot notation to navigate the JSON structure and extract specific values</p>
+      
+      <div class="path-container">
+        <div class="input-group">
+          <label for="pathInput">Path:</label>
+          <input 
+            type="text" 
+            id="pathInput" 
+            placeholder="e.g. root.item.title.$val"
+            class="path-input" 
+          />
+          <button id="getPathBtn" class="btn">Get Value</button>
+          <button id="clearPathBtn" class="btn">Clear</button>
+        </div>
+        
+        <div class="output-group">
+          <label for="pathResult">Result:</label>
+          <textarea id="pathResult" readonly></textarea>
+        </div>
+      </div>
+    </div>
+
     <!-- Load the UMD bundle -->
     <script src="../dist/xjx.umd.js"></script>
 
@@ -404,6 +484,62 @@
           xmlToJsonBtn.click();
         }, 100);
       });
+
+
+        // DOM Elements for path navigation
+  const pathInput = document.getElementById("pathInput");
+  const pathResult = document.getElementById("pathResult");
+  const getPathBtn = document.getElementById("getPathBtn");
+  const clearPathBtn = document.getElementById("clearPathBtn");
+  
+  // Get Path functionality
+  getPathBtn.addEventListener("click", () => {
+    try {
+      // First make sure we have a JSON object to navigate
+      if (!jsonOutput.value) {
+        throw new Error("Please convert XML to JSON first before using getPath");
+      }
+      
+      const jsonObj = JSON.parse(jsonOutput.value);
+      const path = pathInput.value.trim();
+      
+      if (!path) {
+        throw new Error("Please enter a path to navigate");
+      }
+      
+      // Check if XJX is a constructor function (class) or an object with a default property
+      const XJXClass = typeof XJX === "function" ? XJX : XJX.default || XJX.XJX || XJX;
+      
+      if (typeof XJXClass !== "function") {
+        throw new Error(
+          "XJX is not available as a constructor. Available as: " +
+          Object.keys(XJX).join(", ")
+        );
+      }
+      
+      const converter = new XJXClass(getConfig());
+      const result = converter.getPath(jsonObj, path);
+      
+      // Format the result for display
+      if (result === undefined) {
+        pathResult.value = "Path not found";
+      } else if (typeof result === "object") {
+        pathResult.value = JSON.stringify(result, null, 2);
+      } else {
+        pathResult.value = String(result);
+      }
+    } catch (error) {
+      pathResult.value = `Error: ${error.message}`;
+      console.error("Error details:", error);
+    }
+  });
+  
+  // Clear path navigation fields
+  clearPathBtn.addEventListener("click", () => {
+    pathInput.value = "";
+    pathResult.value = "";
+  });
+  
     </script>
   </body>
 </html>

@@ -2,13 +2,16 @@
  * XJX library tests
  */
 import { XJX } from '../src/XJX';
+import { createTestConfig, cloneConfig } from './utils/testConfig';
 
 describe('XJX', () => {
   let xjx: XJX;
+  let testConfig = createTestConfig();
   
   beforeEach(() => {
-    // Create a fresh XJX instance before each test
-    xjx = new XJX();
+    // Create a fresh XJX instance before each test with a clone of our test config
+    // This ensures no test can modify the config and affect other tests
+    xjx = new XJX(cloneConfig(testConfig));
   });
   
   afterEach(() => {
@@ -58,6 +61,24 @@ describe('XJX', () => {
       
       expect(result.root.$children[0]).toHaveProperty('$cmnt', ' This is a comment ');
     });
+
+    it('should disable namespace handling when configured', () => {
+      // Create special instance for this test with modified config
+      const customConfig = cloneConfig(testConfig);
+      customConfig.preserveNamespaces = false;
+      const customXjx = new XJX(customConfig);
+
+      const xml = '<root xmlns:ns="http://example.org"><ns:item>Test</ns:item></root>';
+      const result = customXjx.xmlToJson(xml);
+      
+      // The namespace and prefix properties should not be present
+      expect(result.root).not.toHaveProperty('$ns');
+      expect(result.root.$children[0].item).not.toHaveProperty('$ns');
+      expect(result.root.$children[0].item).not.toHaveProperty('$pre');
+
+      // Clean up
+      customXjx.cleanup();
+    });
   });
   
   describe('jsonToXml', () => {
@@ -105,6 +126,21 @@ describe('XJX', () => {
       
       const result = xjx.jsonToXml(json);
       expect(result).toContain('<item id="123">Test</item>');
+    });
+
+    it('should exclude XML declaration when configured', () => {
+      // Create special instance for this test with modified config
+      const customConfig = cloneConfig(testConfig);
+      customConfig.outputOptions.xml.declaration = false;
+      const customXjx = new XJX(customConfig);
+
+      const json = { root: { $val: 'Test' } };
+      const result = customXjx.jsonToXml(json);
+      
+      expect(result).not.toMatch(/^<\?xml version="1\.0" encoding="UTF-8"\?>/);
+      
+      // Clean up
+      customXjx.cleanup();
     });
   });
   
@@ -165,6 +201,35 @@ describe('XJX', () => {
       
       expect(result.isValid).toBe(false);
       expect(result.message).toBeDefined();
+    });
+  });
+
+  describe('configuration with custom property names', () => {
+    it('should work with custom property names for XML tokens', () => {
+      // Create special instance for this test with custom property names
+      const customConfig = cloneConfig(testConfig);
+      customConfig.propNames = {
+        namespace: "_namespace",
+        prefix: "_prefix",
+        attributes: "_attrs",
+        value: "_value",
+        cdata: "_cdata",
+        comments: "_comment",
+        instruction: "_pi",
+        target: "_target",
+        children: "_children"
+      };
+      const customXjx = new XJX(customConfig);
+
+      // Test XML to JSON with custom properties
+      const xml = '<root><item id="123">Test</item></root>';
+      const result = customXjx.xmlToJson(xml);
+      
+      expect(result.root._children[0].item).toHaveProperty('_attrs');
+      expect(result.root._children[0].item._attrs[0].id).toHaveProperty('_value', '123');
+
+      // Clean up
+      customXjx.cleanup();
     });
   });
 });

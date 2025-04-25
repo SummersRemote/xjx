@@ -3,8 +3,13 @@
  */
 import { DOMAdapter } from '../../src/core/DOMAdapter';
 import { XMLToJSONError } from '../../src/errors';
+import { createTestConfig } from '../utils/testConfig';
 
 describe('DOMAdapter', () => {
+  // We don't directly pass the config to DOMAdapter,
+  // but creating it ensures consistent test environment
+  const testConfig = createTestConfig();
+
   afterEach(() => {
     // Clean up after each test to prevent memory leaks
     DOMAdapter.cleanup();
@@ -44,7 +49,7 @@ describe('DOMAdapter', () => {
 
     it('should create new documents', () => {
       const doc = DOMAdapter.createDocument();
-      expect(doc.nodeType).toBe(document.DOCUMENT_NODE);
+      expect(doc.nodeType).toBe(DOMAdapter.nodeTypes.DOCUMENT_NODE);
     });
 
     it('should create elements', () => {
@@ -163,7 +168,7 @@ describe('DOMAdapter', () => {
         fail('Should have thrown an error');
       } catch (error) {
         expect(error).toBeInstanceOf(XMLToJSONError);
-        expect((error as Error).message).toContain('Failed to parse XML');
+        expect(error.message).toContain('Failed to parse XML');
       }
     });
   });

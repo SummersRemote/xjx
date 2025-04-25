@@ -3,7 +3,7 @@
  */
 import { XMLToJSON } from '../../../src/core/XMLToJSON';
 import { Configuration } from '../../../src/core/types/types';
-import { createTestConfig, cloneConfig } from '../../utils/testUtils';
+import { createTestConfig, cloneConfig, normalizeXML } from '../../utils/testUtils';
 
 describe('XMLToJSON', () => {
   let xmlToJSON: XMLToJSON;
@@ -16,7 +16,7 @@ describe('XMLToJSON', () => {
 
   describe('parse', () => {
     it('should convert a simple XML string to JSON', () => {
-      const xml = '<root><item>Test</item></root>';
+      const xml = normalizeXML('<root><item>Test</item></root>');
       const result = xmlToJSON.parse(xml);
       
       expect(result).toHaveProperty('root');
@@ -26,7 +26,7 @@ describe('XMLToJSON', () => {
     });
     
     it('should handle XML attributes', () => {
-      const xml = '<root><item id="123" active="true">Test</item></root>';
+      const xml = normalizeXML('<root><item id="123" active="true">Test</item></root>');
       const result = xmlToJSON.parse(xml);
       
       expect(result.root[testConfig.propNames.children][0].item).toHaveProperty(testConfig.propNames.attributes);
@@ -40,7 +40,7 @@ describe('XMLToJSON', () => {
     });
     
     it('should handle namespaces when enabled', () => {
-      const xml = '<root xmlns:ns="http://example.org"><ns:item>Test</ns:item></root>';
+      const xml = normalizeXML('<root xmlns:ns="http://example.org"><ns:item>Test</ns:item></root>');
       const result = xmlToJSON.parse(xml);
       
       expect(result.root).toHaveProperty(testConfig.propNames.namespace);
@@ -49,7 +49,7 @@ describe('XMLToJSON', () => {
     });
     
     it('should handle CDATA sections', () => {
-      const xml = '<root><item><![CDATA[<b>bold text</b>]]></item></root>';
+      const xml = normalizeXML('<root><item><![CDATA[<b>bold text</b>]]></item></root>');
       const result = xmlToJSON.parse(xml);
       
       expect(result.root[testConfig.propNames.children][0].item[testConfig.propNames.children][0]).toHaveProperty(
@@ -59,7 +59,7 @@ describe('XMLToJSON', () => {
     });
     
     it('should handle comments when enabled', () => {
-      const xml = '<root><!-- This is a comment --><item>Test</item></root>';
+      const xml = normalizeXML('<root><!-- This is a comment --><item>Test</item></root>');
       const result = xmlToJSON.parse(xml);
       
       expect(result.root[testConfig.propNames.children][0]).toHaveProperty(
@@ -69,7 +69,7 @@ describe('XMLToJSON', () => {
     });
     
     it('should handle processing instructions when enabled', () => {
-      const xml = '<?xml version="1.0"?><root><?xml-stylesheet type="text/css" href="style.css"?><item>Test</item></root>';
+      const xml = normalizeXML('<?xml version="1.0"?><root><?xml-stylesheet type="text/css" href="style.css"?><item>Test</item></root>');
       const result = xmlToJSON.parse(xml);
       
       const piElement = result.root[testConfig.propNames.children].find(
@@ -82,7 +82,7 @@ describe('XMLToJSON', () => {
     });
     
     it('should handle nested elements', () => {
-      const xml = '<root><parent><child>Child Text</child></parent></root>';
+      const xml = normalizeXML('<root><parent><child>Child Text</child></parent></root>');
       const result = xmlToJSON.parse(xml);
       
       expect(result.root[testConfig.propNames.children][0].parent[testConfig.propNames.children][0].child)
@@ -90,7 +90,7 @@ describe('XMLToJSON', () => {
     });
     
     it('should handle empty elements', () => {
-      const xml = '<root><empty></empty><self-closing/></root>';
+      const xml = normalizeXML('<root><empty></empty><self-closing/></root>');
       const result = xmlToJSON.parse(xml);
       
       const children = result.root[testConfig.propNames.children];
@@ -108,7 +108,7 @@ describe('XMLToJSON', () => {
       customConfig.preserveNamespaces = false;
       const customXmlToJSON = new XMLToJSON(customConfig);
       
-      const xml = '<root xmlns:ns="http://example.org"><ns:item>Test</ns:item></root>';
+      const xml = normalizeXML('<root xmlns:ns="http://example.org"><ns:item>Test</ns:item></root>');
       const result = customXmlToJSON.parse(xml);
       
       expect(result.root).not.toHaveProperty(testConfig.propNames.namespace);
@@ -121,7 +121,7 @@ describe('XMLToJSON', () => {
       customConfig.preserveComments = false;
       const customXmlToJSON = new XMLToJSON(customConfig);
       
-      const xml = '<root><!-- This is a comment --><item>Test</item></root>';
+      const xml = normalizeXML('<root><!-- This is a comment --><item>Test</item></root>');
       const result = customXmlToJSON.parse(xml);
       
       const hasComment = result.root[testConfig.propNames.children].some(
@@ -136,7 +136,7 @@ describe('XMLToJSON', () => {
       customConfig.preserveCDATA = false;
       const customXmlToJSON = new XMLToJSON(customConfig);
       
-      const xml = '<root><item><![CDATA[<b>bold text</b>]]></item></root>';
+      const xml = normalizeXML('<root><item><![CDATA[<b>bold text</b>]]></item></root>');
       const result = customXmlToJSON.parse(xml);
       
       const hasCDATA = result.root[testConfig.propNames.children][0].item[testConfig.propNames.children]?.some(
@@ -162,7 +162,7 @@ describe('XMLToJSON', () => {
       
       const customXmlToJSON = new XMLToJSON(customConfig);
       
-      const xml = '<root><item id="123">Test</item></root>';
+      const xml = normalizeXML('<root><item id="123">Test</item></root>');
       const result = customXmlToJSON.parse(xml);
       
       expect(result.root).toHaveProperty('_children');

@@ -3,7 +3,7 @@
  */
 import { DOMAdapter } from '../../../src/core/DOMAdapter';
 import { XMLToJSONError } from '../../../src/core/types/errors';
-import { createTestConfig } from '../../utils/testUtils';
+import { createTestConfig, normalizeXML } from '../../utils/testUtils';
 
 describe('DOMAdapter', () => {
   // We don't directly pass the config to DOMAdapter,
@@ -29,7 +29,7 @@ describe('DOMAdapter', () => {
     });
 
     it('should parse XML strings', () => {
-      const xml = '<root><item>Test</item></root>';
+      const xml = normalizeXML('<root><item>Test</item></root>');
       const doc = DOMAdapter.parseFromString(xml);
       
       expect(doc.documentElement.nodeName).toBe('root');
@@ -39,7 +39,7 @@ describe('DOMAdapter', () => {
     it('should serialize DOM nodes to XML strings', () => {
       const xml = '<root><item>Test</item></root>';
       const doc = DOMAdapter.parseFromString(xml);
-      const serialized = DOMAdapter.serializeToString(doc);
+      const serialized = normalizeXML(DOMAdapter.serializeToString(doc));
       
       // JSDOM serialization may add XML declaration and namespace
       expect(serialized).toContain('<root>');

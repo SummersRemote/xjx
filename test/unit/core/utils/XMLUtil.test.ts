@@ -4,7 +4,7 @@
 import { XMLUtil } from '../../../../src/core/utils/XMLUtil';
 import { DOMAdapter } from '../../../../src/core/DOMAdapter';
 import { Configuration } from '../../../../src/core/types/types';
-import { createTestConfig, cloneConfig } from '../../../utils/testUtils';
+import { createTestConfig, cloneConfig, normalizeXML } from '../../../utils/testUtils';
 
 describe('XMLUtil', () => {
   let xmlUtil: XMLUtil;
@@ -32,14 +32,14 @@ describe('XMLUtil', () => {
     
     it('should handle XML with attributes', () => {
       const xml = '<root><item id="123" active="true"><name>Test</name></item></root>';
-      const result = xmlUtil.prettyPrintXml(xml);
+      const result = normalizeXML(xmlUtil.prettyPrintXml(xml));
       
       expect(result).toContain('<item id="123" active="true">');
     });
     
     it('should handle empty elements correctly', () => {
       const xml = '<root><item/><empty></empty></root>';
-      const result = xmlUtil.prettyPrintXml(xml);
+      const result = normalizeXML(xmlUtil.prettyPrintXml(xml));
       
       expect(result).toContain('<item />');
       expect(result).toContain('<empty />');

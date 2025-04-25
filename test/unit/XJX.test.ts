@@ -3,7 +3,7 @@
  */
 import { XJX } from '../../src/XJX';
 import { Configuration } from '../../src/core/types/types';
-import { createTestConfig, cloneConfig } from '../utils/testConfig';
+import { createTestConfig, cloneConfig, normalizeXML } from '../utils/testUtils';
 
 describe('XJX', () => {
   let xjx: XJX;
@@ -96,7 +96,7 @@ describe('XJX', () => {
         }
       };
       
-      const result = xjx.jsonToXml(json);
+      const result = normalizeXML(xjx.jsonToXml(json));
       expect(result).toContain('<root>');
       expect(result).toContain('<item>Test</item>');
       expect(result).toContain('</root>');
@@ -104,7 +104,7 @@ describe('XJX', () => {
     
     it('should include XML declaration when enabled', () => {
       const json = { root: { $val: 'Test' } };
-      const result = xjx.jsonToXml(json);
+      const result = normalizeXML(xjx.jsonToXml(json));
       
       expect(result).toMatch(/^<\?xml version="1\.0" encoding="UTF-8"\?>/);
     });
@@ -125,7 +125,7 @@ describe('XJX', () => {
         }
       };
       
-      const result = xjx.jsonToXml(json);
+      const result = normalizeXML(xjx.jsonToXml(json));
       expect(result).toContain('<item id="123">Test</item>');
     });
 
@@ -136,7 +136,7 @@ describe('XJX', () => {
       const customXjx = new XJX(customConfig);
 
       const json = { root: { $val: 'Test' } };
-      const result = customXjx.jsonToXml(json);
+      const result = normalizeXML(customXjx.jsonToXml(json));
       
       expect(result).not.toMatch(/^<\?xml version="1\.0" encoding="UTF-8"\?>/);
       
@@ -202,6 +202,38 @@ describe('XJX', () => {
       
       expect(result.isValid).toBe(false);
       expect(result.message).toBeDefined();
+    });
+  });
+
+  describe('round-trip XML conversion', () => {
+    it('should preserve XML content in round-trip conversion', () => {
+      const originalXml = `
+        <library>
+          <book id="123" available="true">
+            <title>The Great Gatsby</title>
+            <author>F. Scott Fitzgerald</author>
+            <year>1925</year>
+            <!-- Classic American literature -->
+            <![CDATA[Contains <markup> that should be preserved]]>
+          </book>
+        </library>
+      `;
+      
+      // Convert to JSON and back to XML
+      const json = xjx.xmlToJson(originalXml);
+      const resultXml = xjx.jsonToXml(json);
+      
+      // Normalize both the original and the result to compare
+      const normalizedOriginal = normalizeXML(originalXml);
+      const normalizedResult = normalizeXML(resultXml);
+      
+      // Check for key elements
+      expect(normalizedResult).toContain('<book id="123" available="true">');
+      expect(normalizedResult).toContain('<title>The Great Gatsby</title>');
+      expect(normalizedResult).toContain('<author>F. Scott Fitzgerald</author>');
+      expect(normalizedResult).toContain('<year>1925</year>');
+      expect(normalizedResult).toContain('<!-- Classic American literature -->');
+      expect(normalizedResult).toContain('<![CDATA[Contains <markup> that should be preserved]]>');
     });
   });
 

@@ -4,7 +4,7 @@
 import { JSONToXML } from '../../../src/core/JSONToXML';
 import { XMLToJSON } from '../../../src/core/XMLToJSON';
 import { Configuration } from '../../../src/core/types/types';
-import { createTestConfig, cloneConfig } from '../../utils/testUtils';
+import { createTestConfig, cloneConfig, normalizeXML } from '../../utils/testUtils';
 import { DOMAdapter } from '../../../src/core/DOMAdapter';
 
 describe('JSONToXML', () => {
@@ -37,7 +37,7 @@ describe('JSONToXML', () => {
         }
       };
       
-      const result = jsonToXML.serialize(json);
+      const result = normalizeXML(jsonToXML.serialize(json));
       
       expect(result).toContain('<root>');
       expect(result).toContain('<item>Test</item>');
@@ -46,7 +46,7 @@ describe('JSONToXML', () => {
     
     it('should include XML declaration when enabled', () => {
       const json = { root: { [testConfig.propNames.value]: 'Test' } };
-      const result = jsonToXML.serialize(json);
+      const result = normalizeXML(jsonToXML.serialize(json));
       
       expect(result).toMatch(/^<\?xml version="1\.0" encoding="UTF-8"\?>/);
     });
@@ -67,7 +67,7 @@ describe('JSONToXML', () => {
         }
       };
       
-      const result = jsonToXML.serialize(json);
+      const result = normalizeXML(jsonToXML.serialize(json));
       expect(result).toContain('<item id="123">Test</item>');
     });
     
@@ -87,7 +87,7 @@ describe('JSONToXML', () => {
         }
       };
       
-      const result = jsonToXML.serialize(json);
+      const result = normalizeXML(jsonToXML.serialize(json));
       
       expect(result).toContain('xmlns="http://example.org"');
       expect(result).toContain('<ns:item');
@@ -108,7 +108,7 @@ describe('JSONToXML', () => {
         }
       };
       
-      const result = jsonToXML.serialize(json);
+      const result = normalizeXML(jsonToXML.serialize(json));
       
       expect(result).toContain('<![CDATA[<b>bold text</b>]]>');
     });
@@ -127,7 +127,7 @@ describe('JSONToXML', () => {
         }
       };
       
-      const result = jsonToXML.serialize(json);
+      const result = normalizeXML(jsonToXML.serialize(json));
       
       expect(result).toContain('<!-- This is a comment -->');
     });
@@ -151,7 +151,7 @@ describe('JSONToXML', () => {
         }
       };
       
-      const result = jsonToXML.serialize(json);
+      const result = normalizeXML(jsonToXML.serialize(json));
       
       expect(result).toContain('<?xml-stylesheet type="text/css" href="style.css"?>');
     });
@@ -175,7 +175,7 @@ describe('JSONToXML', () => {
         }
       };
       
-      const result = jsonToXML.serialize(json);
+      const result = normalizeXML(jsonToXML.serialize(json));
       
       expect(result).toContain('<parent>');
       expect(result).toContain('<child>Child Text</child>');
@@ -197,7 +197,7 @@ describe('JSONToXML', () => {
       
       // XML -> JSON -> XML round trip
       const json = xmlToJSON.parse(originalXml);
-      const resultXml = jsonToXML.serialize(json);
+      const resultXml = normalizeXML(jsonToXML.serialize(json));
       
       // The resulting XML should have the same structure and content
       expect(resultXml).toContain('<library>');
@@ -217,7 +217,7 @@ describe('JSONToXML', () => {
       const customJsonToXML = new JSONToXML(customConfig);
       
       const json = { root: { [testConfig.propNames.value]: 'Test' } };
-      const result = customJsonToXML.serialize(json);
+      const result = normalizeXML(customJsonToXML.serialize(json));
       
       expect(result).not.toMatch(/^<\?xml version="1\.0" encoding="UTF-8"\?>/);
     });
@@ -272,7 +272,7 @@ describe('JSONToXML', () => {
         }
       };
       
-      const result = customJsonToXML.serialize(json);
+      const result = normalizeXML(customJsonToXML.serialize(json));
       
       // Namespaces should be ignored
       expect(result).not.toContain('xmlns="http://example.org"');
@@ -311,7 +311,7 @@ describe('JSONToXML', () => {
         }
       };
       
-      const result = customJsonToXML.serialize(json);
+      const result = normalizeXML(customJsonToXML.serialize(json));
       
       expect(result).toContain('<item id="123">Test</item>');
     });

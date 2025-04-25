@@ -2,7 +2,7 @@
  * XMLToJSON class for converting XML to JSON with consistent namespace handling
  */
 import { Configuration } from "./types/types";
-import { XMLToJSONError } from "./types/Errors";
+import { XJXError } from "./types/errors";
 import { DOMAdapter } from "./DOMAdapter";
 import { JSONUtil } from "./utils/JsonUtils";
 import { TransformUtil } from "./transforms/TransformUtil";
@@ -38,12 +38,12 @@ export class XMLToJSON {
       // Check for parsing errors
       const errors = xmlDoc.getElementsByTagName("parsererror");
       if (errors.length > 0) {
-        throw new XMLToJSONError(`XML parsing error: ${errors[0].textContent}`);
+        throw new XJXError(`XML parsing error: ${errors[0].textContent}`);
       }
 
       return this.nodeToJson(xmlDoc.documentElement);
     } catch (error) {
-      throw new XMLToJSONError(
+      throw new XJXError(
         `Failed to convert XML to JSON: ${
           error instanceof Error ? error.message : String(error)
         }`

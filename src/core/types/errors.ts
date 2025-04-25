@@ -5,7 +5,7 @@
 /**
  * Base error class
  */
-export class XMLToJSONError extends Error {
+export class XJXError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'XMLToJSONError';
@@ -15,7 +15,7 @@ export class XMLToJSONError extends Error {
 /**
  * Error for XML parsing issues
  */
-export class XMLParseError extends XMLToJSONError {
+export class XMLParseError extends XJXError {
   constructor(message: string) {
     super(`XML parse error: ${message}`);
     this.name = 'XMLParseError';
@@ -25,7 +25,7 @@ export class XMLParseError extends XMLToJSONError {
 /**
  * Error for XML serialization issues
  */
-export class XMLSerializeError extends XMLToJSONError {
+export class XMLSerializeError extends XJXError {
   constructor(message: string) {
     super(`XML serialize error: ${message}`);
     this.name = 'XMLSerializeError';
@@ -35,7 +35,7 @@ export class XMLSerializeError extends XMLToJSONError {
 /**
  * Error for environment incompatibility
  */
-export class EnvironmentError extends XMLToJSONError {
+export class EnvironmentError extends XJXError {
   constructor(message: string) {
     super(`Environment error: ${message}`);
     this.name = 'EnvironmentError';
@@ -45,7 +45,7 @@ export class EnvironmentError extends XMLToJSONError {
 /**
  * Error for invalid configuration
  */
-export class ConfigurationError extends XMLToJSONError {
+export class ConfigurationError extends XJXError {
   constructor(message: string) {
     super(`Configuration error: ${message}`);
     this.name = 'ConfigurationError';

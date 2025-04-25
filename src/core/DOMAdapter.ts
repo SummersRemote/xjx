@@ -1,7 +1,7 @@
 /**
  * DOM Environment provider with unified interface for browser and Node.js
  */
-import { XMLToJSONError } from './types/Errors';
+import { XJXError } from './types/errors';
 
 interface NodeTypes {
   ELEMENT_NODE: number;
@@ -77,17 +77,17 @@ export const DOMAdapter = (() => {
           const implementation = new DOMImplementation();
           docImplementation = implementation;
         } catch (xmldomError) {
-          throw new XMLToJSONError(`Node.js environment detected but neither 'jsdom' nor '@xmldom/xmldom' are available.`);
+          throw new XJXError(`Node.js environment detected but neither 'jsdom' nor '@xmldom/xmldom' are available.`);
         }
       }
     } else {
       // Browser environment
       if (!window.DOMParser) {
-        throw new XMLToJSONError("DOMParser is not available in this environment");
+        throw new XJXError("DOMParser is not available in this environment");
       }
 
       if (!window.XMLSerializer) {
-        throw new XMLToJSONError("XMLSerializer is not available in this environment");
+        throw new XJXError("XMLSerializer is not available in this environment");
       }
 
       domParser = window.DOMParser;
@@ -103,7 +103,7 @@ export const DOMAdapter = (() => {
       docImplementation = document.implementation;
     }
   } catch (error) {
-    throw new XMLToJSONError(`DOM environment initialization failed: ${error instanceof Error ? error.message : String(error)}`);
+    throw new XJXError(`DOM environment initialization failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 
   return {
@@ -111,7 +111,7 @@ export const DOMAdapter = (() => {
       try {
         return new domParser();
       } catch (error) {
-        throw new XMLToJSONError(`Failed to create DOM parser: ${error instanceof Error ? error.message : String(error)}`);
+        throw new XJXError(`Failed to create DOM parser: ${error instanceof Error ? error.message : String(error)}`);
       }
     },
     
@@ -119,7 +119,7 @@ export const DOMAdapter = (() => {
       try {
         return new xmlSerializer();
       } catch (error) {
-        throw new XMLToJSONError(`Failed to create XML serializer: ${error instanceof Error ? error.message : String(error)}`);
+        throw new XJXError(`Failed to create XML serializer: ${error instanceof Error ? error.message : String(error)}`);
       }
     },
     
@@ -130,7 +130,7 @@ export const DOMAdapter = (() => {
         const parser = new domParser();
         return parser.parseFromString(xmlString, contentType);
       } catch (error) {
-        throw new XMLToJSONError(`Failed to parse XML: ${error instanceof Error ? error.message : String(error)}`);
+        throw new XJXError(`Failed to parse XML: ${error instanceof Error ? error.message : String(error)}`);
       }
     },
     
@@ -139,7 +139,7 @@ export const DOMAdapter = (() => {
         const serializer = new xmlSerializer();
         return serializer.serializeToString(node);
       } catch (error) {
-        throw new XMLToJSONError(`Failed to serialize XML: ${error instanceof Error ? error.message : String(error)}`);
+        throw new XJXError(`Failed to serialize XML: ${error instanceof Error ? error.message : String(error)}`);
       }
     },
     
@@ -153,7 +153,7 @@ export const DOMAdapter = (() => {
           return docImplementation.createDocument(null, null, null);
         }
       } catch (error) {
-        throw new XMLToJSONError(`Failed to create document: ${error instanceof Error ? error.message : String(error)}`);
+        throw new XJXError(`Failed to create document: ${error instanceof Error ? error.message : String(error)}`);
       }
     },
     
@@ -166,7 +166,7 @@ export const DOMAdapter = (() => {
           return doc.createElement(tagName);
         }
       } catch (error) {
-        throw new XMLToJSONError(`Failed to create element: ${error instanceof Error ? error.message : String(error)}`);
+        throw new XJXError(`Failed to create element: ${error instanceof Error ? error.message : String(error)}`);
       }
     },
     
@@ -179,7 +179,7 @@ export const DOMAdapter = (() => {
           return doc.createElementNS(namespaceURI, qualifiedName);
         }
       } catch (error) {
-        throw new XMLToJSONError(`Failed to create element with namespace: ${error instanceof Error ? error.message : String(error)}`);
+        throw new XJXError(`Failed to create element with namespace: ${error instanceof Error ? error.message : String(error)}`);
       }
     },
     
@@ -192,7 +192,7 @@ export const DOMAdapter = (() => {
           return doc.createTextNode(data);
         }
       } catch (error) {
-        throw new XMLToJSONError(`Failed to create text node: ${error instanceof Error ? error.message : String(error)}`);
+        throw new XJXError(`Failed to create text node: ${error instanceof Error ? error.message : String(error)}`);
       }
     },
     
@@ -207,7 +207,7 @@ export const DOMAdapter = (() => {
           return doc.createCDATASection(data);
         }
       } catch (error) {
-        throw new XMLToJSONError(`Failed to create CDATA section: ${error instanceof Error ? error.message : String(error)}`);
+        throw new XJXError(`Failed to create CDATA section: ${error instanceof Error ? error.message : String(error)}`);
       }
     },
     
@@ -220,7 +220,7 @@ export const DOMAdapter = (() => {
           return doc.createComment(data);
         }
       } catch (error) {
-        throw new XMLToJSONError(`Failed to create comment: ${error instanceof Error ? error.message : String(error)}`);
+        throw new XJXError(`Failed to create comment: ${error instanceof Error ? error.message : String(error)}`);
       }
     },
     
@@ -234,7 +234,7 @@ export const DOMAdapter = (() => {
           return doc.createProcessingInstruction(target, data);
         }
       } catch (error) {
-        throw new XMLToJSONError(`Failed to create processing instruction: ${error instanceof Error ? error.message : String(error)}`);
+        throw new XJXError(`Failed to create processing instruction: ${error instanceof Error ? error.message : String(error)}`);
       }
     },
     
@@ -251,7 +251,7 @@ export const DOMAdapter = (() => {
           element.setAttribute(qualifiedName, value);
         }
       } catch (error) {
-        throw new XMLToJSONError(`Failed to set attribute: ${error instanceof Error ? error.message : String(error)}`);
+        throw new XJXError(`Failed to set attribute: ${error instanceof Error ? error.message : String(error)}`);
       }
     },
     

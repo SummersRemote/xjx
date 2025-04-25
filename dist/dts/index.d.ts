@@ -1,16 +1,7 @@
-// Import locally so you can use it below
 import { XJX } from './XJX';
-
-// Core components
 export { XJX };
 export { Configuration } from './core/types/types';
 export { DEFAULT_CONFIG } from './core/config/config';
-
-// Error handling
 export { XJXError } from './core/types/errors';
-
-// Allow custom transformers
 export { ValueTransformer } from './core/transforms/ValueTransformer';
-
-// Default export
 export default XJX;

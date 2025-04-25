@@ -2,10 +2,11 @@
 node_modules/
 
 # Build output
-dist/
+# dist/
 build/
 lib/
 out/
+reports/
 
 # TypeScript cache
 *.tsbuildinfo

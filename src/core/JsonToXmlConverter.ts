@@ -2,7 +2,7 @@
  * JSONToXML class for converting JSON to XML with consistent namespace handling
  */
 import { Configuration } from "./types/types";
-import { XMLToJSONError } from "./types/Errors";
+import { XJXError } from "./types/errors";
 import { DOMAdapter } from "./DOMAdapter";
 import { XMLUtil } from "./utils/XmlUtils";
 import { TransformUtil } from "./transforms/TransformUtil";
@@ -62,7 +62,7 @@ export class JSONToXML {
 
       return xmlString;
     } catch (error) {
-      throw new XMLToJSONError(
+      throw new XJXError(
         `Failed to convert JSON to XML: ${
           error instanceof Error ? error.message : String(error)
         }`

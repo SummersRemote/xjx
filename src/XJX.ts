@@ -8,10 +8,7 @@ import { DEFAULT_CONFIG } from "./core/config/config";
 import { DOMAdapter } from "./core/DOMAdapter";
 import { XMLUtil } from "./core/utils/XmlUtils";
 import { JSONUtil } from "./core/utils/JsonUtils";
-import { ValueTransformer } from "./core/transforms/ValueTransformer";
-import { BooleanTransformer } from "./core/transforms/BooleanTransformer";
-import { NumberTransformer } from "./core/transforms/NumberTransformer";
-import { StringReplaceTransformer } from "./core/transforms/StringReplaceTransformer";
+import { ValueTransformer } from "./core/transforms";
 
 export class XJX {
   private config: Configuration;
@@ -117,39 +114,6 @@ export class XJX {
   public clearTransformers(): XJX {
     this.config.valueTransforms = [];
     return this;
-  }
-
-  /**
-   * Create a new boolean transformer and add it to the configuration
-   * @param options Options for the transformer
-   * @returns The created transformer instance
-   */
-  public createBooleanTransformer(options = {}): BooleanTransformer {
-    const transformer = new BooleanTransformer(options);
-    this.addTransformer(transformer);
-    return transformer;
-  }
-
-  /**
-   * Create a new number transformer and add it to the configuration
-   * @param options Options for the transformer
-   * @returns The created transformer instance
-   */
-  public createNumberTransformer(options = {}): NumberTransformer {
-    const transformer = new NumberTransformer(options);
-    this.addTransformer(transformer);
-    return transformer;
-  }
-
-  /**
-   * Create a new string replace transformer and add it to the configuration
-   * @param options Options for the transformer
-   * @returns The created transformer instance
-   */
-  public createStringReplaceTransformer(options = {}): StringReplaceTransformer {
-    const transformer = new StringReplaceTransformer(options);
-    this.addTransformer(transformer);
-    return transformer;
   }
 
   /**

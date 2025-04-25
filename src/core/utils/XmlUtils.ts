@@ -1,7 +1,7 @@
 /**
  * XMLUtil - Utility functions for XML processing
  */
-import { XMLToJSONError } from "../types/Errors";
+import { XJXError } from "../types/errors";
 import { DOMAdapter } from "../DOMAdapter";
 import { Configuration } from "../types/types";
 
@@ -90,7 +90,7 @@ export class XMLUtil {
 
       return serializer(doc).trim();
     } catch (error) {
-      throw new XMLToJSONError(
+      throw new XJXError(
         `Failed to pretty print XML: ${
           error instanceof Error ? error.message : String(error)
         }`

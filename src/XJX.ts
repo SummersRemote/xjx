@@ -21,10 +21,19 @@ export class XJX {
    * @param config Configuration options
    */
   constructor(config: Partial<Configuration> = {}) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
-    
-    // Initialize all components with config
+    // First create a jsonUtil instance with default config to use its methods
+    this.jsonUtil = new JSONUtil(DEFAULT_CONFIG);
+
+    // Create a deep clone of the default config
+    const defaultClone = this.jsonUtil.deepClone(DEFAULT_CONFIG);
+
+    // Deep merge with the provided config
+    this.config = this.jsonUtil.deepMerge<Configuration>(defaultClone, config);
+
+    // Re-initialize jsonUtil with the merged config
     this.jsonUtil = new JSONUtil(this.config);
+
+    // Initialize other components
     this.xmlUtil = new XMLUtil(this.config);
     this.xmltojson = new XMLToJSON(this.config);
     this.jsontoxml = new JSONToXML(this.config);
@@ -77,7 +86,10 @@ export class XJX {
    * @param xmlString XML string to validate
    * @returns Validation result
    */
-  public validateXML(xmlString: string): { isValid: boolean; message?: string } {
+  public validateXML(xmlString: string): {
+    isValid: boolean;
+    message?: string;
+  } {
     return this.xmlUtil.validateXML(xmlString);
   }
 

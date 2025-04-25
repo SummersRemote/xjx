@@ -71,18 +71,21 @@ export class JSONUtil {
     }
 
     // Check if this is a special property name that matches the config
-    if (segment === this.config.propNames.value ||
-        segment === this.config.propNames.children ||
-        segment === this.config.propNames.attributes ||
-        segment === this.config.propNames.namespace ||
-        segment === this.config.propNames.prefix ||
-        segment === this.config.propNames.cdata ||
-        segment === this.config.propNames.comments ||
-        segment === this.config.propNames.instruction ||
-        segment === this.config.propNames.target) {
-      const configKey = Object.entries(this.config.propNames)
-        .find(([_, value]) => value === segment)?.[0];
-      
+    if (
+      segment === this.config.propNames.value ||
+      segment === this.config.propNames.children ||
+      segment === this.config.propNames.attributes ||
+      segment === this.config.propNames.namespace ||
+      segment === this.config.propNames.prefix ||
+      segment === this.config.propNames.cdata ||
+      segment === this.config.propNames.comments ||
+      segment === this.config.propNames.instruction ||
+      segment === this.config.propNames.target
+    ) {
+      const configKey = Object.entries(this.config.propNames).find(
+        ([_, value]) => value === segment
+      )?.[0];
+
       if (configKey && obj[segment] !== undefined) {
         return obj[segment];
       }
@@ -205,7 +208,7 @@ export class JSONUtil {
   isEmpty(value: any): boolean {
     if (value == null) return true;
     if (Array.isArray(value)) return value.length === 0;
-    if (typeof value === 'object') return Object.keys(value).length === 0;
+    if (typeof value === "object") return Object.keys(value).length === 0;
     return false;
   }
 
@@ -219,7 +222,7 @@ export class JSONUtil {
     try {
       return JSON.stringify(obj, null, indent);
     } catch (error) {
-      return '[Cannot stringify object]';
+      return "[Cannot stringify object]";
     }
   }
 
@@ -232,30 +235,47 @@ export class JSONUtil {
     try {
       return JSON.parse(JSON.stringify(obj));
     } catch (error) {
-      throw new Error(`Failed to deep clone object: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Failed to deep clone object: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
     }
   }
 
   /**
-   * Deep merge two objects
+   * Deep merge two objects with proper type handling
    * @param target Target object
    * @param source Source object
    * @returns Merged object (target is modified)
    */
-  deepMerge(target: any, source: any): any {
-    if (typeof source !== 'object' || source === null) {
+  deepMerge<T>(target: T, source: Partial<T>): T {
+    if (!source || typeof source !== "object" || source === null) {
       return target;
     }
 
-    if (typeof target !== 'object' || target === null) {
-      return this.deepClone(source);
+    if (!target || typeof target !== "object" || target === null) {
+      return source as unknown as T;
     }
 
-    Object.keys(source).forEach(key => {
-      if (source[key] instanceof Object && key in target && target[key] instanceof Object) {
-        this.deepMerge(target[key], source[key]);
+    Object.keys(source).forEach((key) => {
+      const sourceValue = source[key as keyof Partial<T>];
+      const targetValue = target[key as keyof T];
+
+      // If both source and target values are objects, recursively merge them
+      if (
+        sourceValue !== null &&
+        targetValue !== null &&
+        typeof sourceValue === "object" &&
+        typeof targetValue === "object" &&
+        !Array.isArray(sourceValue) &&
+        !Array.isArray(targetValue)
+      ) {
+        // Recursively merge the nested objects
+        (target as any)[key] = this.deepMerge(targetValue, sourceValue as any);
       } else {
-        target[key] = this.deepClone(source[key]);
+        // Otherwise just replace the value
+        (target as any)[key] = sourceValue;
       }
     });
 

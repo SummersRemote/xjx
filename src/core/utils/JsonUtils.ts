@@ -112,7 +112,7 @@ export class JSONUtil {
    * @param root Optional root element configuration (either a string or object with $ keys)
    * @returns XML-like JSON object
    */
-  fromJSONObject(obj: any, root?: any): any {
+  fromJsonObject(obj: any, root?: any): any {
     const wrappedObject = this.wrapObject(obj);
 
     if (typeof root === "string") {
@@ -280,5 +280,284 @@ export class JSONUtil {
     });
 
     return target;
+  }
+
+  /**
+   * Generates a JSON schema that matches the current configuration
+   * @returns JSON schema object
+   */
+  generateJsonSchema(): Record<string, any> {
+    try {
+      const propNames = this.config.propNames;
+      const compact = this.config.outputOptions.compact || false;
+      const preserveNamespaces = this.config.preserveNamespaces;
+      const preserveComments = this.config.preserveComments;
+      const preserveCDATA = this.config.preserveCDATA;
+      const preserveProcessingInstr = this.config.preserveProcessingInstr;
+      const preserveTextNodes = this.config.preserveTextNodes;
+      const preserveWhitespace = this.config.preserveWhitespace;
+      const preserveAttributes = this.config.preserveAttributes;
+
+      // Determine which properties are required based on the configuration
+      const requiredProps: string[] = [];
+
+      if (!compact) {
+        // Only add collections as required if they're preserved in the config
+        if (preserveAttributes) requiredProps.push(propNames.attributes);
+
+        if (preserveCDATA) requiredProps.push(propNames.cdata);
+        if (preserveComments) requiredProps.push(propNames.comments);
+        if (preserveProcessingInstr) requiredProps.push(propNames.instruction);
+        requiredProps.push(propNames.children);
+
+        if (preserveTextNodes) {
+          requiredProps.push(propNames.value);
+
+          if (preserveNamespaces) {
+            requiredProps.push(propNames.namespace);
+            // Note: prefix is not required as it may not be present for all elements
+          }
+        }
+      }
+
+      // Create schema for element properties
+      const elementProperties: Record<string, any> = {};
+
+      // Add namespace property if preserving namespaces
+      if (preserveNamespaces) {
+        elementProperties[propNames.namespace] = {
+          description: "Namespace URI of the element",
+          type: "string",
+        };
+
+        // Add prefix property if preserving namespaces
+        elementProperties[propNames.prefix] = {
+          description: "Namespace prefix of the element",
+          type: "string",
+        };
+      }
+
+      // Add value property if preserving text nodes
+      if (preserveTextNodes) {
+        elementProperties[propNames.value] = {
+          description: "Text content of the element",
+          type: "string",
+        };
+      }
+
+      // Add attributes property
+      if (preserveAttributes) {
+        elementProperties[propNames.attributes] = {
+          description: "Element attributes",
+          type: "array",
+          items: {
+            type: "object",
+            patternProperties: {
+              "^.*$": {
+                type: "object",
+                properties: {
+                  [propNames.value]: {
+                    description: "Attribute value",
+                    type: "string",
+                  },
+                },
+                required: [propNames.value],
+              },
+            },
+            additionalProperties: false,
+          },
+        };
+
+        // If preserving namespaces, add namespace properties to attribute schema
+        if (preserveNamespaces) {
+          const attrProps =
+            elementProperties[propNames.attributes].items.patternProperties[
+              "^.*$"
+            ].properties;
+
+          attrProps[propNames.namespace] = {
+            description: "Namespace URI of the attribute",
+            type: "string",
+          };
+
+          attrProps[propNames.prefix] = {
+            description: "Namespace prefix of the attribute",
+            type: "string",
+          };
+        }
+      }
+
+      // Add CDATA property if preserving CDATA
+      if (preserveCDATA) {
+        elementProperties[propNames.cdata] = {
+          description: "CDATA section content",
+          type: "string",
+        };
+      }
+
+      // Add comments property if preserving comments
+      if (preserveComments) {
+        elementProperties[propNames.comments] = {
+          description: "Comment content",
+          type: "string",
+        };
+      }
+
+      // Add processing instructions property if preserving them
+      if (preserveProcessingInstr) {
+        elementProperties[propNames.instruction] = {
+          description: "Processing instruction",
+          type: "object",
+          properties: {
+            [propNames.target]: {
+              description: "Processing instruction target",
+              type: "string",
+            },
+            [propNames.value]: {
+              description: "Processing instruction content",
+              type: "string",
+            },
+          },
+          required: [propNames.target],
+        };
+      }
+
+      // Add children property with recursive schema
+      elementProperties[propNames.children] = {
+        description: "Child elements",
+        type: "array",
+        items: {
+          type: "object",
+          patternProperties: {
+            "^.*$": {
+              $ref: "#/definitions/element",
+            },
+          },
+          additionalProperties: false,
+        },
+      };
+
+      // Create element definition (will be referenced recursively)
+      const elementDefinition = {
+        type: "object",
+        properties: elementProperties,
+        required: requiredProps,
+        additionalProperties: false,
+      };
+
+      // Build the complete schema
+      const schema = {
+        $schema: "https://json-schema.org/draft/2020-12/schema",
+        title: "XJX JSON Schema",
+        description:
+          "Schema for JSON representation of XML documents using the XJX library",
+        type: "object",
+        patternProperties: {
+          "^.*$": {
+            $ref: "#/definitions/element",
+          },
+        },
+        additionalProperties: false,
+        definitions: {
+          element: elementDefinition,
+        },
+      };
+
+      return schema;
+    } catch (error) {
+      throw new Error(
+        `Schema generation failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  }
+
+  /**
+   * Generate an example JSON object based on the schema
+   * @param {string} rootName - Name of the root element
+   * @returns {Record<string, any>} - Example JSON object
+   */
+  generateExample(rootName: string = "root"): Record<string, any> {
+    const propNames = this.config.propNames;
+    const preserveNamespaces = this.config.preserveNamespaces;
+    const preserveComments = this.config.preserveComments;
+    const preserveCDATA = this.config.preserveCDATA;
+    const preserveProcessingInstr = this.config.preserveProcessingInstr;
+    const preserveAttributes = this.config.preserveAttributes;
+
+    // Simple example with common features
+    const example: Record<string, any> = {
+      [rootName]: {
+        [propNames.value]: "Root content",
+        [propNames.children]: [
+          {
+            child: {
+              [propNames.value]: "Child content",
+            },
+          },
+        ],
+      },
+    };
+
+    // Add namespace properties if enabled
+    if (preserveNamespaces) {
+      example[rootName][propNames.namespace] = "http://example.org/ns";
+      example[rootName][propNames.prefix] = "ex";
+      example[rootName][propNames.children][0].child[propNames.namespace] =
+        "http://example.org/ns";
+      example[rootName][propNames.children][0].child[propNames.prefix] = "ex";
+    }
+
+    // Add attributes if enabled
+    if (preserveAttributes) {
+      example[rootName][propNames.attributes] = [
+        { id: { [propNames.value]: "root-1" } },
+        { lang: { [propNames.value]: "en" } },
+      ];
+
+      if (preserveNamespaces) {
+        example[rootName][propNames.attributes][1].lang[propNames.prefix] =
+          "xml";
+      }
+
+      example[rootName][propNames.children][0].child[propNames.attributes] = [
+        { id: { [propNames.value]: "child-1" } },
+      ];
+    }
+
+    // Add CDATA if enabled
+    if (preserveCDATA) {
+      example[rootName][propNames.children][0].child[propNames.children] = [
+        { [propNames.cdata]: "<data>Raw content</data>" },
+      ];
+    }
+
+    // Add comments if enabled
+    if (preserveComments) {
+      if (!example[rootName][propNames.children][0].child[propNames.children]) {
+        example[rootName][propNames.children][0].child[propNames.children] = [];
+      }
+
+      example[rootName][propNames.children][0].child[propNames.children].push({
+        [propNames.comments]: "Comment about the child",
+      });
+    }
+
+    // Add processing instruction if enabled
+    if (preserveProcessingInstr) {
+      if (!example[rootName][propNames.children]) {
+        example[rootName][propNames.children] = [];
+      }
+
+      example[rootName][propNames.children].unshift({
+        [propNames.instruction]: {
+          [propNames.target]: "xml-stylesheet",
+          [propNames.value]: 'type="text/css" href="style.css"',
+        },
+      });
+    }
+
+    return example;
   }
 }

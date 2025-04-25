@@ -1,6 +1,24 @@
 <template>
+  <div>
+    <!-- Schema Viewer Dialog -->
+    <schema-viewer v-model="showSchemaViewer" />
+    
     <v-card-text>
       <v-container fluid>
+        <v-row align="center" class="mb-4">
+          <v-col cols="12" class="d-flex justify-end">
+            <v-btn
+              color="primary"
+              variant="outlined"
+              prepend-icon="mdi-code-json"
+              size="small"
+              @click="showSchemaViewer = true"
+            >
+              View JSON Schema
+            </v-btn>
+          </v-col>
+        </v-row>
+        
         <v-row>
           <!-- Preservation Options -->
           <v-col cols="12" md="4">
@@ -214,11 +232,17 @@
         </v-row>
       </v-container>
     </v-card-text>
-  </template>
-  
-  <script setup>
-  import { useXjxStore } from '../stores/xjxStore';
-  
-  // Get the store
-  const store = useXjxStore();
-  </script>
+  </div>
+</template>
+
+<script setup>
+import { ref } from 'vue';
+import { useXjxStore } from '../stores/xjxStore';
+import SchemaViewer from './SchemaViewer.vue';
+
+// Get the store
+const store = useXjxStore();
+
+// State for schema viewer
+const showSchemaViewer = ref(false);
+</script>

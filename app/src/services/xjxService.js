@@ -126,4 +126,19 @@ export default class XjxService {
       return { isValid: false, message: error.message };
     }
   }
+  
+  /**
+   * Generate a JSON schema based on the current configuration
+   * @param {Object} config - XJX configuration options
+   * @returns {Object} JSON schema object for validating XML-JSON documents
+   */
+  static generateJsonSchema(config) {
+    const xjx = this.createInstance(config);
+    try {
+      const schema = xjx.generateJsonSchema();
+      return schema;
+    } finally {
+      xjx.cleanup();
+    }
+  }
 }

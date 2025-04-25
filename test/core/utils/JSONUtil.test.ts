@@ -2,11 +2,12 @@
  * Tests for JSONUtil class
  */
 import { JSONUtil } from '../../../src/core/utils/JSONUtil';
+import { Configuration } from '../../../src/core/types/types'; 
 import { createTestConfig, cloneConfig } from '../../utils/testConfig';
 
 describe('JSONUtil', () => {
-  let jsonUtil;
-  const testConfig = createTestConfig();
+  let jsonUtil: JSONUtil;
+  const testConfig: Configuration = createTestConfig();
   
   beforeEach(() => {
     // Create a fresh JSONUtil instance with a clone of our test config
@@ -176,7 +177,7 @@ describe('JSONUtil', () => {
     });
     
     it('should handle circular references gracefully', () => {
-      const obj = { name: "John" };
+      const obj: Record<string, any> = { name: "John" };
       obj.self = obj; // Create circular reference
       
       const result = jsonUtil.safeStringify(obj);
@@ -210,7 +211,7 @@ describe('JSONUtil', () => {
     });
     
     it('should deep merge two objects', () => {
-      const target = {
+      const target: Record<string, any> = {
         name: "John",
         contact: {
           email: "john@example.com"
@@ -242,7 +243,7 @@ describe('JSONUtil', () => {
     });
     
     it('should handle arrays during merge', () => {
-      const target = { tags: ["user"] };
+      const target: Record<string, any> = { tags: ["user"] };
       const source = { tags: ["admin"] };
       
       const result = jsonUtil.deepMerge(target, source);

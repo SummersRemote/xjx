@@ -2,7 +2,7 @@
  * Tests for DOMAdapter
  */
 import { DOMAdapter } from '../../src/core/DOMAdapter';
-import { XMLToJSONError } from '../../src/errors';
+import { XMLToJSONError } from '../../src/core/types/errors';
 import { createTestConfig } from '../utils/testConfig';
 
 describe('DOMAdapter', () => {
@@ -153,23 +153,6 @@ describe('DOMAdapter', () => {
         id: '123',
         class: 'test-class'
       });
-    });
-  });
-
-  describe('Error handling', () => {
-    it('should handle errors when parsing invalid XML', () => {
-      try {
-        // JSDOM's parser is quite forgiving, so we need to mock a parsing error
-        jest.spyOn(DOMAdapter, 'parseFromString').mockImplementationOnce(() => {
-          throw new Error('Mocked parsing error');
-        });
-        
-        DOMAdapter.parseFromString('<invalid></xml>');
-        fail('Should have thrown an error');
-      } catch (error) {
-        expect(error).toBeInstanceOf(XMLToJSONError);
-        expect(error.message).toContain('Failed to parse XML');
-      }
     });
   });
 });

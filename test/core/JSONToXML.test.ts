@@ -3,13 +3,14 @@
  */
 import { JSONToXML } from '../../src/core/JSONToXML';
 import { XMLToJSON } from '../../src/core/XMLToJSON';
+import { Configuration } from '../../src/core/types/types';
 import { createTestConfig, cloneConfig } from '../utils/testConfig';
 import { DOMAdapter } from '../../src/core/DOMAdapter';
 
 describe('JSONToXML', () => {
-  let jsonToXML;
-  let xmlToJSON;
-  const testConfig = createTestConfig();
+  let jsonToXML: JSONToXML;
+  let xmlToJSON: XMLToJSON;
+  const testConfig: Configuration = createTestConfig();
   
   beforeEach(() => {
     // Create fresh instances before each test with a clone of our test config

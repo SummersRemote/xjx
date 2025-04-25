@@ -29,7 +29,7 @@ const config = {
     '/dist/'
   ],
   setupFilesAfterEnv: [
-    '<rootDir>/test/jest.setup.js'
+    '<rootDir>/test/jest.setup.ts'
   ]
 };
 

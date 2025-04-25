@@ -41,17 +41,20 @@ export class XMLUtil {
             const openTag = attrs ? `<${tagName} ${attrs}>` : `<${tagName}>`;
 
             const children = Array.from(el.childNodes);
+
             if (children.length === 0) {
               return `${pad}${openTag.replace(/>$/, " />")}\n`;
             }
 
             // Single text node: print inline
             if (
-              children.length === 1 &&
-              children[0].nodeType === DOMAdapter.nodeTypes.TEXT_NODE &&
-              children[0].textContent?.trim() !== ""
+              children.length === 0 ||
+              (children.length === 1 &&
+                children[0].nodeType === DOMAdapter.nodeTypes.TEXT_NODE &&
+                children[0].textContent?.trim() === "")
             ) {
-              return `${pad}${openTag}${children[0].textContent}</${tagName}>\n`;
+              // Empty or whitespace-only
+              return `${pad}<${tagName}${attrs ? " " + attrs : ""}></${tagName}>\n`;
             }
 
             const inner = children

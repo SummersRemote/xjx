@@ -2,11 +2,12 @@
  * Tests for XMLToJSON class
  */
 import { XMLToJSON } from '../../src/core/XMLToJSON';
+import { Configuration } from '../../src/core/types/types';
 import { createTestConfig, cloneConfig } from '../utils/testConfig';
 
 describe('XMLToJSON', () => {
-  let xmlToJSON;
-  const testConfig = createTestConfig();
+  let xmlToJSON: XMLToJSON;
+  const testConfig: Configuration = createTestConfig();
   
   beforeEach(() => {
     // Create a fresh XMLToJSON instance before each test with a clone of our test config
@@ -31,8 +32,8 @@ describe('XMLToJSON', () => {
       expect(result.root[testConfig.propNames.children][0].item).toHaveProperty(testConfig.propNames.attributes);
       
       const attrs = result.root[testConfig.propNames.children][0].item[testConfig.propNames.attributes];
-      const idAttr = attrs.find(attr => attr.id);
-      const activeAttr = attrs.find(attr => attr.active);
+      const idAttr = attrs.find((attr: Record<string, any>) => attr.id);
+      const activeAttr = attrs.find((attr: Record<string, any>) => attr.active);
       
       expect(idAttr.id[testConfig.propNames.value]).toBe('123');
       expect(activeAttr.active[testConfig.propNames.value]).toBe('true');
@@ -72,7 +73,7 @@ describe('XMLToJSON', () => {
       const result = xmlToJSON.parse(xml);
       
       const piElement = result.root[testConfig.propNames.children].find(
-        child => child[testConfig.propNames.instruction]
+        (child: Record<string, any>) => child[testConfig.propNames.instruction]
       );
       
       expect(piElement).toBeDefined();
@@ -93,8 +94,8 @@ describe('XMLToJSON', () => {
       const result = xmlToJSON.parse(xml);
       
       const children = result.root[testConfig.propNames.children];
-      const emptyElement = children.find(child => child.empty);
-      const selfClosingElement = children.find(child => child['self-closing']);
+      const emptyElement = children.find((child: Record<string, any>) => child.empty);
+      const selfClosingElement = children.find((child: Record<string, any>) => child['self-closing']);
       
       expect(emptyElement).toBeDefined();
       expect(selfClosingElement).toBeDefined();
@@ -124,7 +125,7 @@ describe('XMLToJSON', () => {
       const result = customXmlToJSON.parse(xml);
       
       const hasComment = result.root[testConfig.propNames.children].some(
-        child => child[testConfig.propNames.comments]
+        (child: Record<string, any>) => child[testConfig.propNames.comments]
       );
       
       expect(hasComment).toBe(false);
@@ -139,7 +140,7 @@ describe('XMLToJSON', () => {
       const result = customXmlToJSON.parse(xml);
       
       const hasCDATA = result.root[testConfig.propNames.children][0].item[testConfig.propNames.children]?.some(
-        child => child[testConfig.propNames.cdata]
+        (child: Record<string, any>) => child[testConfig.propNames.cdata]
       );
       
       expect(hasCDATA).toBeFalsy();

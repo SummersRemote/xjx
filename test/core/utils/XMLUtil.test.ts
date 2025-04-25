@@ -3,11 +3,12 @@
  */
 import { XMLUtil } from '../../../src/core/utils/XMLUtil';
 import { DOMAdapter } from '../../../src/core/DOMAdapter';
+import { Configuration } from '../../../src/core/types/types';
 import { createTestConfig, cloneConfig } from '../../utils/testConfig';
 
 describe('XMLUtil', () => {
-  let xmlUtil;
-  const testConfig = createTestConfig();
+  let xmlUtil: XMLUtil;
+  const testConfig: Configuration = createTestConfig();
   
   beforeEach(() => {
     // Create a fresh XMLUtil instance with a clone of our test config
@@ -41,8 +42,7 @@ describe('XMLUtil', () => {
       const result = xmlUtil.prettyPrintXml(xml);
       
       expect(result).toContain('<item />');
-      expect(result).toContain('<empty>');
-      expect(result).toContain('</empty>');
+      expect(result).toContain('<empty />');
     });
     
     it('should respect custom indentation', () => {

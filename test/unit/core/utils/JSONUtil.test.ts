@@ -1,9 +1,9 @@
 /**
  * Tests for JSONUtil class
  */
-import { JSONUtil } from '../../../src/core/utils/JSONUtil';
-import { Configuration } from '../../../src/core/types/types'; 
-import { createTestConfig, cloneConfig } from '../../utils/testConfig';
+import { JSONUtil } from '../../../../src/core/utils/JSONUtil';
+import { Configuration } from '../../../../src/core/types/types'; 
+import { createTestConfig, cloneConfig } from '../../../utils/testConfig';
 
 describe('JSONUtil', () => {
   let jsonUtil: JSONUtil;

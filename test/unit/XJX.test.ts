@@ -1,9 +1,9 @@
 /**
  * XJX library tests
  */
-import { XJX } from '../src/XJX';
-import { Configuration } from '../src/core/types/types';
-import { createTestConfig, cloneConfig } from './utils/testConfig';
+import { XJX } from '../../src/XJX';
+import { Configuration } from '../../src/core/types/types';
+import { createTestConfig, cloneConfig } from '../utils/testConfig';
 
 describe('XJX', () => {
   let xjx: XJX;

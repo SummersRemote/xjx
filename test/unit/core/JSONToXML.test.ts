@@ -1,11 +1,11 @@
 /**
  * Tests for JSONToXML class
  */
-import { JSONToXML } from '../../src/core/JSONToXML';
-import { XMLToJSON } from '../../src/core/XMLToJSON';
-import { Configuration } from '../../src/core/types/types';
-import { createTestConfig, cloneConfig } from '../utils/testConfig';
-import { DOMAdapter } from '../../src/core/DOMAdapter';
+import { JSONToXML } from '../../../src/core/JSONToXML';
+import { XMLToJSON } from '../../../src/core/XMLToJSON';
+import { Configuration } from '../../../src/core/types/types';
+import { createTestConfig, cloneConfig } from '../../utils/testConfig';
+import { DOMAdapter } from '../../../src/core/DOMAdapter';
 
 describe('JSONToXML', () => {
   let jsonToXML: JSONToXML;

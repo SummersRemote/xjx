@@ -1,10 +1,10 @@
 /**
  * Tests for XMLUtil class
  */
-import { XMLUtil } from '../../../src/core/utils/XMLUtil';
-import { DOMAdapter } from '../../../src/core/DOMAdapter';
-import { Configuration } from '../../../src/core/types/types';
-import { createTestConfig, cloneConfig } from '../../utils/testConfig';
+import { XMLUtil } from '../../../../src/core/utils/XMLUtil';
+import { DOMAdapter } from '../../../../src/core/DOMAdapter';
+import { Configuration } from '../../../../src/core/types/types';
+import { createTestConfig, cloneConfig } from '../../../utils/testConfig';
 
 describe('XMLUtil', () => {
   let xmlUtil: XMLUtil;

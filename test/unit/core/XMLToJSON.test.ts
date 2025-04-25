@@ -1,9 +1,9 @@
 /**
  * Tests for XMLToJSON class
  */
-import { XMLToJSON } from '../../src/core/XMLToJSON';
-import { Configuration } from '../../src/core/types/types';
-import { createTestConfig, cloneConfig } from '../utils/testConfig';
+import { XMLToJSON } from '../../../src/core/XMLToJSON';
+import { Configuration } from '../../../src/core/types/types';
+import { createTestConfig, cloneConfig } from '../../utils/testConfig';
 
 describe('XMLToJSON', () => {
   let xmlToJSON: XMLToJSON;

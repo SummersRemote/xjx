@@ -1,9 +1,9 @@
 /**
  * Tests for DOMAdapter
  */
-import { DOMAdapter } from '../../src/core/DOMAdapter';
-import { XMLToJSONError } from '../../src/core/types/errors';
-import { createTestConfig } from '../utils/testConfig';
+import { DOMAdapter } from '../../../src/core/DOMAdapter';
+import { XMLToJSONError } from '../../../src/core/types/errors';
+import { createTestConfig } from '../../utils/testConfig';
 
 describe('DOMAdapter', () => {
   // We don't directly pass the config to DOMAdapter,

@@ -15,20 +15,20 @@ export class XJXError extends Error {
 /**
  * Error for XML parsing issues
  */
-export class XMLParseError extends XJXError {
+export class XmlToJsonError extends XJXError {
   constructor(message: string) {
     super(`XML parse error: ${message}`);
-    this.name = 'XMLParseError';
+    this.name = 'XmlToJsonError';
   }
 }
 
 /**
  * Error for XML serialization issues
  */
-export class XMLSerializeError extends XJXError {
+export class JsonToXmlError extends XJXError {
   constructor(message: string) {
-    super(`XML serialize error: ${message}`);
-    this.name = 'XMLSerializeError';
+    super(`XML serialization error: ${message}`);
+    this.name = 'JsonToXmlError';
   }
 }
 

@@ -1,353 +1,192 @@
-# XMLToJSON version 1
+# XJX
 
-A simple javascript module for converting XML into JSON within the browser.
+A modern ESM library for bidirectional XML to JSON conversion with comprehensive support for namespaces, CDATA sections, comments, processing instructions, and more.
 
-Features
-* no external dependencies
-* small (~3kb minified)
-* simple parsing.  pass either a string or xml node and get back a javascipt object ( use JSON.stringify(obj) to get the string representation )
-* supports atrributes, text, cdata, namespaces, default namespaces, attributes with namespaces... you get the idea
-* lots of rendering of options
-* consistent, predictable output
-* browser support - it works on IE 9+, and nearly every version of Chrome, Safari, and Firefox as well as iOS, Android, and Blackberry.  (xmlToJSON will work for IE 7/8 as well if you set the xmlns option to false)
-
-Parsing XML (esp. with namespaces) with javascript remains one of the great frustrations of writing web applications.
-Most methods are limited by such things as poor browser support, poor or non-existent namespace support, poor attribute handling, incomplete representation, and bloated dependencies.
-
-xmlToJSON may not solve all of your woes, but it solved some of mine :)
-
-Usage
------
-Include the src
-```
-<script type="text/javascript" src="path/xmlToJSON.js"></script>
- ```
-and enjoy!  xmlToJSON is packaged as a simple module, so use it like this
- ```javascript
-  testString = '<xml><a>It Works!</a></xml>';  	// get some xml (string or document/node)
-  result = xmlToJSON.parseString(testString);	// parse
- ```
- The (prettified) result of the above code is
- ```javascript
-{
-    "xml": {
-        "a": [
-            {
-                "text": "It Works!"
-            }
-        ]
-    }
-}
-```
-
-Node Usage
-----------
-While this library does not officialy support use in the NodeJS environment; several users have reported good results by requiring the xmldom package.
-
-User [sethb0](https://github.com/sethb0) has suggested the following workaround example.
-
-```
-const { DOMParser } = require('xmldom');
-const xmlToJSON = require('xmlToJSON');
-xmlToJSON.stringToXML = (string) => new DOMParser().parseFromString(string, 'text/xml');
-```
- 
-
-Options
--------
-```javascript
-// These are the option defaults
-var options = { 
-	mergeCDATA: true,	// extract cdata and merge with text nodes
-	grokAttr: true,		// convert truthy attributes to boolean, etc
-	grokText: true,		// convert truthy text/attr to boolean, etc
-	normalize: true,	// collapse multiple spaces to single space
-	xmlns: true, 		// include namespaces as attributes in output
-	namespaceKey: '_ns', 	// tag name for namespace objects
-	textKey: '_text', 	// tag name for text nodes
-	valueKey: '_value', 	// tag name for attribute values
-	attrKey: '_attr', 	// tag for attr groups
-	cdataKey: '_cdata',	// tag for cdata nodes (ignored if mergeCDATA is true)
-	attrsAsObject: true, 	// if false, key is used as prefix to name, set prefix to '' to merge children and attrs.
-	stripAttrPrefix: true, 	// remove namespace prefixes from attributes
-	stripElemPrefix: true, 	// for elements of same name in diff namespaces, you can enable namespaces and access the nskey property
-	childrenAsArray: true 	// force children into arrays
-};	
-
-// you can change the defaults by passing the parser an options object of your own
-var myOptions = {
-	mergeCDATA: false,
-	xmlns: false,
-	attrsAsObject: false
-}
-
-result = xmlToJSON.parseString(xmlString, myOptions);
-```
-
-A more complicated example (with xmlns: true)
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<xml xmlns="http://default.namespace.uri">
-    <a>
-        <b id="1">one</b>
-        <b id="2"><![CDATA[some <cdata>]]>two</b>
-        <ns:c xmlns:ns="http://another.namespace" ns:id="3">three</ns:c>
-    </a>
-</xml>
-```
-
-results in
-```javascript
-{
-        "xml": [{
-                "attr": {
-                        "xmlns": {
-                                "value": "http://default.namespace.uri"
-                        }
-                },
-                "a": [{
-                        "b": [{
-                                "attr": {
-                                        "id": {
-                                                "value": 1
-                                        }
-                                },
-                                "text": "one"
-                        }, {
-                                "attr": {
-                                        "id": {
-                                                "value": 2
-                                        }
-                                },
-                                "text": "some <cdata>two"
-                        }],
-                        "c": [{
-                                "attr": {
-                                        "xmlns:ns": {
-                                                "value": "http://another.namespace"
-                                        },
-                                        "id": {
-                                                "value": 3
-                                        }
-                                },
-                                "text": "three"
-                        }]
-                }]
-        }]
-}
-```
-
-
-# XMLToJSON version 3
-
-A modern ESM library for converting between XML and JSON with support for namespaces, attributes, and various node types. Works in both browser and Node.js environments through a hybrid DOM implementation approach.
-
-[![npm version](https://img.shields.io/npm/v/xmltojson.svg)](https://www.npmjs.com/package/xmltojson)
-[![License](https://img.shields.io/npm/l/xmltojson.svg)](https://github.com/yourusername/xmltojson/blob/main/LICENSE)
-[![Build Status](https://img.shields.io/github/workflow/status/yourusername/xmltojson/CI)](https://github.com/yourusername/xmltojson/actions)
-[![Coverage Status](https://img.shields.io/codecov/c/github/yourusername/xmltojson)](https://codecov.io/gh/yourusername/xmltojson)
+[![npm version](https://img.shields.io/npm/v/xjx.svg)](https://www.npmjs.com/package/xjx)
+[![Downloads](https://img.shields.io/npm/dm/xjx.svg)](https://www.npmjs.com/package/xjx)
+[![License](https://img.shields.io/npm/l/xjx.svg)](https://github.com/yourusername/xjx/blob/main/LICENSE)
 
 ## Features
 
-- **Symmetric Conversion**: Transform XML to JSON and back with no data loss
-- **Namespace Support**: Preserve namespaces in both XML and JSON
-- **Node Type Preservation**: Support for CDATA, comments, processing instructions, and text nodes
-- **Highly Configurable**: Customize property names, output format, and preservation options
-- **TypeScript Support**: Full TypeScript definitions for better development experience
-- **ESM Compatible**: Modern module system for both Node.js and browser environments
-- **Hybrid DOM Support**: Flexible DOM implementation with support for browsers, JSDOM, and xmldom
+- **Bidirectional Conversion**: Convert XML to JSON and back with high fidelity
+- **Complete Node Type Support**:
+  - Elements with text content
+  - Attributes
+  - Namespaces and prefixes
+  - CDATA sections
+  - Comments
+  - Processing instructions
+- **Configurable Output**: Customize JSON property names and output options
+- **Value Transformers**: Apply type conversions (string → number, boolean, etc.)
+- **Path Navigation**: Extract values using simple dot-notation paths
+- **Cross-Platform**: Works in both browser and Node.js environments
+- **No Dependencies**: Zero production dependencies by default
+- **TypeScript**: Full TypeScript support with comprehensive type definitions
+- **ESM & UMD**: Modern ESM modules with UMD fallback for wider compatibility
 
 ## Installation
 
-```bash
-npm install xmltojson
-```
+### Browser Installation
 
-### Node.js Dependencies
-
-For Node.js environments, you'll need to install one of these DOM implementations:
+You can install XJX via npm and bundle it with your application:
 
 ```bash
-# Option 1: JSDOM (recommended, more complete DOM implementation)
-npm install jsdom
-
-# Option 2: xmldom (lightweight alternative)
-npm install @xmldom/xmldom
+npm install xjx
 ```
 
-## Usage
+Or use a CDN for direct browser usage:
 
-### Basic Usage
+```html
+<!-- UMD build (for browsers with global XJX variable) -->
+<script src="https://unpkg.com/xjx@3.0.0/dist/xjx.umd.js"></script>
+
+<!-- Or minified version -->
+<script src="https://unpkg.com/xjx@3.0.0/dist/xjx.min.js"></script>
+```
+
+### Node.js Installation (with JSDOM)
+
+XJX uses DOM APIs and requires a DOM implementation in Node.js environments. By default, it uses JSDOM:
+
+```bash
+npm install xjx jsdom
+```
+
+JSDOM is a peer dependency that is marked as optional. You'll need to install it separately for Node.js usage.
+
+### Custom DOM Configuration with Node
+
+If you prefer to use an alternative DOM implementation, you can use `@xmldom/xmldom`:
+
+```bash
+npm install xjx @xmldom/xmldom
+```
+
+XJX will automatically detect and use one of these DOM implementations in Node.js environments.
+
+## Basic Usage Example
+
+Converting between XML and JSON is straightforward:
 
 ```javascript
-import XMLToJSON from 'xmltojson';
+import { XJX } from 'xjx';
 
-// Create a converter with default settings
-const converter = new XMLToJSON();
+// Create an instance of XJX with default configuration
+const xjx = new XJX();
+
+// Sample XML string
+const xmlString = `
+<library>
+  <book id="b1" available="true">
+    <title>The Great Gatsby</title>
+    <author>F. Scott Fitzgerald</author>
+    <year>1925</year>
+    <description><![CDATA[A novel set in the Jazz Age]]></description>
+  </book>
+</library>`;
 
 // Convert XML to JSON
-const xmlString = `
-<root xmlns:ns="http://example.org">
-  <ns:item id="123">
-    <title>Example</title>
-    <ns:description>This is a <![CDATA[CDATA section]]> with comments</ns:description>
-    <!-- This is a comment -->
-    <?xml-stylesheet type="text/css" href="style.css"?>
-  </ns:item>
-</root>
-`;
-
-const jsonObj = converter.xmlToJson(xmlString);
+const jsonObj = xjx.xmlToJson(xmlString);
 console.log(JSON.stringify(jsonObj, null, 2));
 
-// Convert back to XML
-const xmlResult = converter.jsonToXml(jsonObj);
-console.log(xmlResult);
+// Extract specific values using path navigation
+const bookTitle = xjx.getPath(jsonObj, 'library.book.title.$val');
+console.log(`Book title: ${bookTitle}`); // "The Great Gatsby"
 
-// Clean up resources when done (especially important when using JSDOM)
-converter.cleanup();
+// Convert JSON back to XML
+const newXml = xjx.jsonToXml(jsonObj);
+console.log(newXml);
+
+// Clean up when done (important for Node.js environments)
+xjx.cleanup();
 ```
 
-### Custom Configuration
+## Configuration Options
+
+XJX is highly configurable. Here's an overview of the available configuration options:
 
 ```javascript
-import XMLToJSON from 'xmltojson';
-
-// Create a converter with custom settings
-const converter = new XMLToJSON({
+const config = {
   // Features to preserve during transformation
-  preserveNamespaces: true,
-  preserveComments: true,
-  preserveProcessingInstr: true,
-  preserveCDATA: true,
-  preserveTextNodes: true,
-  preserveWhitespace: false,
+  preserveNamespaces: true,      // Preserve namespace information
+  preserveComments: true,        // Preserve XML comments
+  preserveProcessingInstr: true, // Preserve processing instructions
+  preserveCDATA: true,           // Preserve CDATA sections
+  preserveTextNodes: true,       // Preserve text nodes
+  preserveWhitespace: false,     // Preserve whitespace-only text nodes
+  preserveAttributes: true,      // Preserve element attributes
 
   // Output options
   outputOptions: {
-    prettyPrint: true,
-    indent: 3,
-    compact: true,  // removes empty or null nodes and elements
-    // JSON-specific options
-    json: {
-      // Additional JSON options can be added here
-    },
-    // XML-specific options
+    prettyPrint: true,          // Format XML output with indentation
+    indent: 2,                  // Indentation spaces for pretty printing
+    compact: true,              // Remove empty/undefined properties
+    json: {},                   // Custom JSON serialization options
     xml: {
-      declaration: true,  // include the declaration if not present
+      declaration: true,        // Include XML declaration in output
     },
   },
 
   // Property names in the JSON representation
   propNames: {
-    namespace: "@ns",
-    prefix: "@prefix",
-    attributes: "@attrs",
-    value: "@val",
-    cdata: "@cdata",
-    comments: "@comments",
-    processing: "@processing",
-    children: "@children",
+    namespace: "$ns",           // Namespace URI property
+    prefix: "$pre",             // Namespace prefix property
+    attributes: "$attr",        // Attributes collection property
+    value: "$val",              // Text value property
+    cdata: "$cdata",            // CDATA content property
+    comments: "$cmnt",          // Comments property
+    instruction: "$pi",         // Processing instruction property
+    target: "$trgt",            // PI target property
+    children: "$children",      // Child nodes collection property
   },
-});
 
-// Use the converter with custom settings
-const jsonObj = converter.xmlToJson(xmlString);
-```
-
-### Using a Custom DOM Implementation
-
-The library allows you to provide your own DOM implementation, which is useful for specialized environments or testing:
-
-```javascript
-import XMLToJSON from 'xmltojson';
-import { DOMImplementation } from 'xmltojson';
-
-// Node.js example with xmldom
-const { DOMParser, XMLSerializer, DOMImplementation: XmlDomImpl } = require('@xmldom/xmldom');
-
-// Create custom DOM implementation
-const domImpl = new XmlDomImpl();
-const customDOM = {
-  parser: new DOMParser(),
-  serializer: new XMLSerializer(),
-  document: domImpl.createDocument(null, null, null),
-  createDocument: () => domImpl.createDocument(null, null, null)
+  // Optional value transformers
+  valueTransforms: [
+    // Array of transformer instances (see Value Transformers section)
+  ]
 };
 
-// Create converter with custom DOM implementation
-const converter = new XMLToJSON({}, customDOM);
-
-// Use the converter
-const json = converter.xmlToJson(xmlString);
-
-// Clean up resources when done
-converter.cleanup();
+// Create an instance with custom configuration
+const xjx = new XJX(config);
 ```
 
-### Node.js Usage with JSDOM
+You can pass a partial configuration to override just the options you need:
 
 ```javascript
-import XMLToJSON from 'xmltojson';
-import { JSDOM } from 'jsdom';
-
-// Create a converter (will auto-detect JSDOM if installed)
-const converter = new XMLToJSON();
-
-// ... use as normal ...
-
-// Clean up resources when done
-converter.cleanup();
+// Override only specific options
+const xjx = new XJX({
+  preserveWhitespace: true,
+  outputOptions: {
+    prettyPrint: false,
+  }
+});
 ```
 
-## JSON Structure
+## Namespace Handling
 
-The library uses a consistent structure for representing XML in JSON:
+XJX provides comprehensive support for XML namespaces:
 
-```json
+```xml
+<root xmlns="http://default-ns.com" xmlns:ns="http://example.org">
+  <ns:item id="123">Content</ns:item>
+</root>
+```
+
+The resulting JSON maintains namespace information:
+
+```javascript
 {
-  "Root_node": {
-    "@attrs": [
+  "root": {
+    "$ns": "http://default-ns.com",
+    "$children": [
       {
-        "attr": {
-          "@ns": "",
-          "@prefix": "",
-          "@val": ""
-        }
-      }
-    ],
-    "@ns": "",
-    "@prefix": "",
-    "@children": [
-      {
-        "node_name": {
-          "@attrs": [
-            {
-              "attr": {
-                "@ns": "",
-                "@prefix": "",
-                "@val": ""
-              }
-            }
+        "item": {
+          "$ns": "http://example.org",
+          "$pre": "ns",
+          "$attr": [
+            { "id": { "$val": "123" } }
           ],
-          "@ns": "",
-          "@children": [
-            {
-              "@processing": {
-                "target": "target",
-                "data": "data"
-              }
-            },
-            {
-              "@comments": "comment text"
-            },
-            {
-              "@cdata": "cdata text"
-            },
-            {
-              "@val": "text content"
-            }
-          ]
+          "$val": "Content"
         }
       }
     ]
@@ -355,212 +194,283 @@ The library uses a consistent structure for representing XML in JSON:
 }
 ```
 
-## Browser Support
+When converting back to XML, namespace declarations and prefixes are preserved.
 
-This library works in all modern browsers that support the DOM and ES modules.
+## Value Transformers
 
-## Node.js Support
+Value transformers allow automatic conversion between string values in XML and typed values in JSON. For example, you can convert numeric strings to actual numbers or boolean strings to boolean values.
 
-For Node.js environments, you need to install either:
+### Included Transformers
 
-- `jsdom` (recommended, more complete DOM implementation)
-- `@xmldom/xmldom` (lightweight alternative)
+XJX comes with several built-in transformers:
 
-The library will automatically detect which one is available.
+#### BooleanTransformer
 
-## API Reference
+Converts strings like "true" and "false" to actual boolean values.
 
-### Class: XMLToJSON
+```javascript
+import { XJX, BooleanTransformer } from 'xjx';
 
-The main class for XML to JSON conversion.
-
-#### Constructor
-
-```typescript
-constructor(
-  config?: Partial<Configuration>,
-  customDOMImplementation?: DOMImplementation
-)
+const xjx = new XJX();
+xjx.addTransformer(new BooleanTransformer({
+  trueValues: ['true', 'yes', '1'],
+  falseValues: ['false', 'no', '0']
+}));
 ```
 
-Creates a new converter instance with optional configuration and DOM implementation.
+#### NumberTransformer
 
-#### Methods
+Converts numeric strings to actual number values.
 
-##### `xmlToJson(xmlString: string): Record<string, any>`
+```javascript
+import { XJX, NumberTransformer } from 'xjx';
+
+const xjx = new XJX();
+xjx.addTransformer(new NumberTransformer({
+  parseIntegers: true,
+  parseFloats: true,
+  integerFormat: /^-?\d+$/,
+  floatFormat: /^-?\d*\.\d+$/
+}));
+```
+
+#### StringReplaceTransformer
+
+Applies regex-based string replacements.
+
+```javascript
+import { XJX, StringReplaceTransformer } from 'xjx';
+
+const xjx = new XJX();
+xjx.addTransformer(new StringReplaceTransformer({
+  pattern: '/\\s+/g', // Remove whitespace
+  replacement: ''
+}));
+```
+
+### Creating Custom Transformers
+
+You can create custom transformers by extending the `ValueTransformer` base class:
+
+```javascript
+import { XJX, ValueTransformer, TransformContext } from 'xjx';
+
+class DateTransformer extends ValueTransformer {
+  // XML to JSON transformation
+  protected xmlToJson(value, context) {
+    if (typeof value !== 'string') return value;
+    
+    // Convert ISO date strings to Date objects
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      return new Date(value);
+    }
+    
+    return value;
+  }
+  
+  // JSON to XML transformation
+  protected jsonToXml(value, context) {
+    if (value instanceof Date) {
+      // Format date as ISO string
+      return value.toISOString().split('T')[0];
+    }
+    
+    return value;
+  }
+}
+
+const xjx = new XJX();
+xjx.addTransformer(new DateTransformer());
+```
+
+## XJX API Reference
+
+### Constructor
+
+```javascript
+const xjx = new XJX(config);
+```
+
+Creates a new XJX instance with optional configuration.
+
+### Core Methods
+
+#### xmlToJson(xmlString)
 
 Converts an XML string to a JSON object.
 
-- **Parameters**:
-  - `xmlString`: The XML content to convert
-- **Returns**: A JSON object representing the XML content
+```javascript
+const jsonObj = xjx.xmlToJson(xmlString);
+```
 
-##### `jsonToXml(jsonObj: Record<string, any>): string`
+#### jsonToXml(jsonObj)
 
-Converts a JSON object to an XML string.
+Converts a JSON object (in XJX format) to an XML string.
 
-- **Parameters**:
-  - `jsonObj`: The JSON object to convert
-- **Returns**: XML string
+```javascript
+const xmlString = xjx.jsonToXml(jsonObj);
+```
 
-##### `cleanup(): void`
+#### getPath(obj, path, fallback)
 
-Cleans up any resources, especially important when using JSDOM.
+Retrieves a value from a JSON object using dot notation path.
 
-### Interface: Configuration
+```javascript
+const value = xjx.getPath(jsonObj, 'root.item.title.$val', 'Default');
+```
 
-Configuration interface for XMLToJSON.
+#### prettyPrintXml(xmlString)
 
-```typescript
-interface Configuration {
-  // Features to preserve during transformation
-  preserveNamespaces: boolean;
-  preserveComments: boolean;
-  preserveProcessingInstr: boolean;
-  preserveCDATA: boolean;
-  preserveTextNodes: boolean;
-  preserveWhitespace: boolean;
+Formats an XML string with proper indentation.
 
-  // Output options
-  outputOptions: {
-    prettyPrint: boolean;
-    indent: number;
-    compact: boolean;
-    json: Record<string, any>;
-    xml: {
-      declaration: boolean;
-    };
-  };
+```javascript
+const formattedXml = xjx.prettyPrintXml(xmlString);
+```
 
-  // Property names in the JSON representation
-  propNames: {
-    namespace: string;
-    prefix: string;
-    attributes: string;
-    value: string;
-    cdata: string;
-    comments: string;
-    processing: string;
-    children: string;
-  };
+#### validateXML(xmlString)
+
+Checks if an XML string is well-formed.
+
+```javascript
+const result = xjx.validateXML(xmlString);
+if (result.isValid) {
+  console.log('XML is valid');
+} else {
+  console.error(`XML is invalid: ${result.message}`);
 }
 ```
 
-### Class: DOMAdapter
+### Transformer Methods
 
-Provides a unified interface for DOM operations across different environments.
+#### addTransformer(transformer)
 
-#### Constructor
+Adds a value transformer to the configuration.
 
-```typescript
-constructor(customImplementation?: DOMImplementation)
+```javascript
+xjx.addTransformer(new NumberTransformer());
 ```
 
-Creates a new DOMAdapter with an optional custom implementation.
+#### clearTransformers()
 
-### Interface: DOMImplementation
+Removes all value transformers from the configuration.
 
-Interface for custom DOM implementations.
+```javascript
+xjx.clearTransformers();
+```
 
-```typescript
-interface DOMImplementation {
-  parser: any;
-  serializer: any;
-  document: any;
-  createDocument: () => Document;
+### Cleanup
+
+#### cleanup()
+
+Releases any resources, especially important in Node.js environments.
+
+```javascript
+xjx.cleanup();
+```
+
+## Detailed Method Explanations
+
+### getPath Method
+
+The `getPath` method provides a powerful way to extract values from the XML-JSON structure using dot notation. It handles array traversal and special XML structures automatically:
+
+```javascript
+xjx.getPath(jsonObj, 'path.to.value', defaultValue);
+```
+
+Key features:
+
+1. **Dot Notation**: Navigate through nested objects using dot notation (e.g., `library.book.title.$val`)
+2. **Array Traversal**: Automatically traverses arrays and collects matching values
+3. **Index Access**: Access specific array elements with numeric indices (e.g., `library.book.0.title.$val`)
+4. **Special XML Properties**: Access XML-specific properties using configured property names (`$val`, `$attr`, etc.)
+5. **Default Values**: Specify a fallback value if the path doesn't exist
+
+Examples:
+
+```javascript
+// Get a simple text value
+const title = xjx.getPath(jsonObj, 'library.book.title.$val');
+
+// Get an attribute value
+const id = xjx.getPath(jsonObj, 'library.book.$attr.0.id.$val');
+
+// Get values from all books in an array
+const authors = xjx.getPath(jsonObj, 'library.book.author.$val');
+// Result: ['F. Scott Fitzgerald', 'Harper Lee', ...]
+
+// Get a specific book by index
+const secondBook = xjx.getPath(jsonObj, 'library.book.1');
+
+// Provide a default value if path doesn't exist
+const publisher = xjx.getPath(jsonObj, 'library.book.publisher.$val', 'Unknown');
+```
+
+### generateSchema Method
+
+The JSONUtil class includes a `generateJsonSchema` method that creates a JSON Schema for the XJX JSON format based on the current configuration:
+
+```javascript
+const jsonUtil = new JSONUtil(config);
+const schema = jsonUtil.generateJsonSchema();
+```
+
+The generated schema:
+
+1. Reflects current configuration settings (property names, preserved features)
+2. Includes proper type information for all properties
+3. Supports recursive element structures
+4. Documents the purpose of each property
+5. Can be used for validation with standard JSON Schema validators
+
+This is useful for:
+- Validating XJX JSON structures
+- Generating documentation
+- Providing hints in IDEs that support JSON Schema
+- Data validation in applications
+
+### jsonToXJX Method
+
+The library provides a utility method to convert standard JSON objects to the XJX format:
+
+```javascript
+const jsonUtil = new JSONUtil(config);
+const xjxJson = jsonUtil.fromJsonObject(standardJson, rootElementName);
+```
+
+This transforms a standard JSON object:
+
+```javascript
+{
+  "name": "John",
+  "age": 30,
+  "roles": ["admin", "user"]
 }
 ```
 
-## Examples
+Into the XJX format:
 
-See the [examples](./examples) directory for detailed usage examples:
-
-- [Browser Usage](./examples/browser-example.html)
-- [Node.js with JSDOM](./examples/node-example.js)
-- [Custom DOM Implementation](./examples/custom-dom-example.ts)
-
-## Configuration Options
-
-### Preservation Options
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `preserveNamespaces` | Preserve XML namespaces in JSON | `true` |
-| `preserveComments` | Preserve XML comments in JSON | `true` |
-| `preserveProcessingInstr` | Preserve XML processing instructions in JSON | `true` |
-| `preserveCDATA` | Preserve CDATA sections in JSON | `true` |
-| `preserveTextNodes` | Preserve text nodes separately in JSON | `true` |
-| `preserveWhitespace` | Preserve whitespace-only text nodes | `false` |
-
-### Output Options
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `prettyPrint` | Format XML output with indentation | `true` |
-| `indent` | Number of spaces for indentation | `2` |
-| `compact` | Remove empty/null properties | `true` |
-| `declaration` | Include XML declaration | `true` |
-
-### Property Names
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `namespace` | Property name for namespace URI | `"@ns"` |
-| `prefix` | Property name for namespace prefix | `"@prefix"` |
-| `attributes` | Property name for attributes | `"@attrs"` |
-| `value` | Property name for text content | `"@val"` |
-| `cdata` | Property name for CDATA sections | `"@cdata"` |
-| `comments` | Property name for comments | `"@comments"` |
-| `processing` | Property name for processing instructions | `"@processing"` |
-| `children` | Property name for child nodes | `"@children"` |
-
-## Performance Considerations
-
-- For large XML documents, consider using the lightweight `@xmldom/xmldom` in Node.js
-- The `compact` option removes empty properties, reducing JSON size
-- Disable unneeded preservation options for better performance
-
-## Troubleshooting
-
-- **DOM implementation not found in Node.js**: Install either `jsdom` or `@xmldom/xmldom`
-- **Memory leaks with JSDOM**: Always call `converter.cleanup()` when done
-- **XML parsing errors**: Ensure the XML is well-formed
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## Development
-
-```bash
-# Install dependencies
-npm install
-
-# Build the library
-npm run build
-
-# Run tests
-npm test
-
-# Run tests with coverage
-npm run test:coverage
-
-# Lint code
-npm run lint
-
-# Format code
-npm run format
-
-# Generate documentation
-npm run docs
+```javascript
+{
+  "user": {
+    "$children": [
+      { "name": { "$val": "John" } },
+      { "age": { "$val": 30 } },
+      { 
+        "roles": { 
+          "$children": [
+            { "$val": "admin" },
+            { "$val": "user" }
+          ]
+        } 
+      }
+    ]
+  }
+}
 ```
+
+This is useful when you want to convert arbitrary JSON data to XML. The second parameter allows you to specify the root element name (in this example, "user").
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](./LICENSE) file for details.
+MIT

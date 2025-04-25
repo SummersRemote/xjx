@@ -36,7 +36,7 @@ export declare class JSONUtil {
      * @param root Optional root element configuration (either a string or object with $ keys)
      * @returns XML-like JSON object
      */
-    fromJSONObject(obj: any, root?: any): any;
+    objectToXJX(obj: any, root?: any): any;
     /**
      * Wraps a standard JSON value in the XML-like JSON structure
      * @param value Value to wrap
@@ -69,4 +69,15 @@ export declare class JSONUtil {
      * @returns Merged object (target is modified)
      */
     deepMerge<T>(target: T, source: Partial<T>): T;
+    /**
+     * Generates a JSON schema that matches the current configuration
+     * @returns JSON schema object
+     */
+    generateJsonSchema(): Record<string, any>;
+    /**
+     * Generate an example JSON object based on the schema
+     * @param {string} rootName - Name of the root element
+     * @returns {Record<string, any>} - Example JSON object
+     */
+    generateExample(rootName?: string): Record<string, any>;
 }

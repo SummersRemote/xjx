@@ -10,13 +10,13 @@ export declare class XJXError extends Error {
 /**
  * Error for XML parsing issues
  */
-export declare class XMLParseError extends XJXError {
+export declare class XmlToJsonError extends XJXError {
     constructor(message: string);
 }
 /**
  * Error for XML serialization issues
  */
-export declare class XMLSerializeError extends XJXError {
+export declare class JsonToXmlError extends XJXError {
     constructor(message: string);
 }
 /**

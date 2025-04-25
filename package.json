@@ -1,7 +1,7 @@
 {
   "name": "xjx",
-  "version": "3.0.0",
-  "description": "A modern ESM library for bidirectional XML to JSON conversion with namespace and node type support.",
+  "version": "1.0.0",
+  "description": "A modern, confgurable ESM library for converting XML to JSON and back again! (support for namespaces, attributes, processing instructions, comments, mixed-content, and more!)",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

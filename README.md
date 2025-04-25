@@ -378,7 +378,7 @@ The main class for XML to JSON conversion.
 
 ```typescript
 constructor(
-  config?: Partial<XMLToJSONConfig>,
+  config?: Partial<Configuration>,
   customDOMImplementation?: DOMImplementation
 )
 ```
@@ -407,12 +407,12 @@ Converts a JSON object to an XML string.
 
 Cleans up any resources, especially important when using JSDOM.
 
-### Interface: XMLToJSONConfig
+### Interface: Configuration
 
 Configuration interface for XMLToJSON.
 
 ```typescript
-interface XMLToJSONConfig {
+interface Configuration {
   // Features to preserve during transformation
   preserveNamespaces: boolean;
   preserveComments: boolean;

@@ -2,9 +2,11 @@
  * XMLToJSON class for converting XML to JSON with consistent namespace handling
  */
 import { Configuration } from "./types/types";
-import { XMLToJSONError } from "./types/errors";
+import { XMLToJSONError } from "./types/Errors";
 import { DOMAdapter } from "./DOMAdapter";
-import { JSONUtil } from "./utils/JSONUtil";
+import { JSONUtil } from "./utils/JsonUtils";
+import { TransformUtil } from "./transforms/TransformUtil";
+import { TransformContext } from "./transforms/ValueTransformer";
 
 /**
  * XMLToJSON Parser for converting XML to JSON
@@ -12,6 +14,7 @@ import { JSONUtil } from "./utils/JSONUtil";
 export class XMLToJSON {
   private config: Configuration;
   private jsonUtil: JSONUtil;
+  private transformUtil: TransformUtil;
 
   /**
    * Constructor for XMLToJSON
@@ -20,6 +23,7 @@ export class XMLToJSON {
   constructor(config: Configuration) {
     this.config = config;
     this.jsonUtil = new JSONUtil(this.config);
+    this.transformUtil = new TransformUtil(this.config);
   }
 
   /**
@@ -50,9 +54,11 @@ export class XMLToJSON {
   /**
    * Convert a DOM node to JSON representation
    * @param node DOM node to convert
+   * @param parentContext Optional parent context for transformation chain
+   * @param path Current path in the XML tree
    * @returns JSON representation of the node
    */
-  private nodeToJson(node: Node): Record<string, any> {
+  private nodeToJson(node: Node, parentContext?: TransformContext, path: string = ""): Record<string, any> {
     const result: Record<string, any> = {};
 
     // Handle element nodes
@@ -64,7 +70,23 @@ export class XMLToJSON {
         element.nodeName.split(":").pop() ||
         element.nodeName;
 
+      // Update the current path
+      const currentPath = path ? `${path}.${nodeName}` : nodeName;
+
       const nodeObj: Record<string, any> = {};
+
+      // Create context for this node
+      const context = this.transformUtil.createContext(
+        'xml-to-json',
+        nodeName,
+        node.nodeType,
+        {
+          path: currentPath,
+          namespace: element.namespaceURI || undefined,
+          prefix: element.prefix || undefined,
+          parent: parentContext
+        }
+      );
 
       // Process namespaces if enabled
       if (this.config.preserveNamespaces) {
@@ -89,10 +111,31 @@ export class XMLToJSON {
           const attrLocalName =
             attr.localName || attr.name.split(":").pop() || attr.name;
 
+          // Create attribute context
+          const attrContext = this.transformUtil.createContext(
+            'xml-to-json',
+            nodeName,
+            node.nodeType,
+            {
+              path: `${currentPath}.${attrLocalName}`,
+              namespace: attr.namespaceURI || undefined,
+              prefix: attr.prefix || undefined,
+              isAttribute: true,
+              attributeName: attrLocalName,
+              parent: context
+            }
+          );
+
+          // Apply transformations to attribute value
+          const transformedValue = this.transformUtil.applyTransforms(
+            attr.value,
+            attrContext
+          );
+
           // Create attribute object with consistent structure
           const attrObj: Record<string, any> = {
             [attrLocalName]: {
-              [this.config.propNames.value]: attr.value,
+              [this.config.propNames.value]: transformedValue,
             },
           };
 
@@ -146,7 +189,24 @@ export class XMLToJSON {
                 text = text.trim();
               }
 
-              children.push({ [valueKey]: text });
+              // Create text node context
+              const textContext = this.transformUtil.createContext(
+                'xml-to-json',
+                '#text',
+                child.nodeType,
+                {
+                  path: `${currentPath}.#text`,
+                  parent: context
+                }
+              );
+
+              // Apply transformations to text value
+              const transformedText = this.transformUtil.applyTransforms(
+                text,
+                textContext
+              );
+
+              children.push({ [valueKey]: transformedText });
             }
           }
           // CDATA sections
@@ -154,8 +214,25 @@ export class XMLToJSON {
             child.nodeType === DOMAdapter.nodeTypes.CDATA_SECTION_NODE &&
             this.config.preserveCDATA
           ) {
+            // Create CDATA context
+            const cdataContext = this.transformUtil.createContext(
+              'xml-to-json',
+              '#cdata',
+              child.nodeType,
+              {
+                path: `${currentPath}.#cdata`,
+                parent: context
+              }
+            );
+
+            // Apply transformations to CDATA value
+            const transformedCData = this.transformUtil.applyTransforms(
+              child.nodeValue || "",
+              cdataContext
+            );
+
             children.push({
-              [cdataKey]: child.nodeValue || "",
+              [cdataKey]: transformedCData,
             });
           }
           // Comments
@@ -182,7 +259,7 @@ export class XMLToJSON {
           }
           // Element nodes (recursive)
           else if (child.nodeType === DOMAdapter.nodeTypes.ELEMENT_NODE) {
-            children.push(this.nodeToJson(child));
+            children.push(this.nodeToJson(child, context, currentPath));
           }
         }
 

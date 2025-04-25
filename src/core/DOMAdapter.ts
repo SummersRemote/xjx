@@ -1,7 +1,7 @@
 /**
  * DOM Environment provider with unified interface for browser and Node.js
  */
-import { XMLToJSONError } from './types/errors';
+import { XMLToJSONError } from './types/Errors';
 
 interface NodeTypes {
   ELEMENT_NODE: number;

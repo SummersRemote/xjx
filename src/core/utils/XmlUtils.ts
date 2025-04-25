@@ -1,7 +1,7 @@
 /**
  * XMLUtil - Utility functions for XML processing
  */
-import { XMLToJSONError } from "../types/errors";
+import { XMLToJSONError } from "../types/Errors";
 import { DOMAdapter } from "../DOMAdapter";
 import { Configuration } from "../types/types";
 

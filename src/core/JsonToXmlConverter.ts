@@ -2,9 +2,11 @@
  * JSONToXML class for converting JSON to XML with consistent namespace handling
  */
 import { Configuration } from "./types/types";
-import { XMLToJSONError } from "./types/errors";
+import { XMLToJSONError } from "./types/Errors";
 import { DOMAdapter } from "./DOMAdapter";
-import { XMLUtil } from "./utils/XMLUtil";
+import { XMLUtil } from "./utils/XmlUtils";
+import { TransformUtil } from "./transforms/TransformUtil";
+import { TransformContext } from "./transforms/ValueTransformer";
 
 /**
  * JSONToXML for converting JSON to XML
@@ -12,6 +14,7 @@ import { XMLUtil } from "./utils/XMLUtil";
 export class JSONToXML {
   private config: Configuration;
   private xmlUtil: XMLUtil;
+  private transformUtil: TransformUtil;
 
   /**
    * Constructor for JSONToXML
@@ -20,6 +23,7 @@ export class JSONToXML {
   constructor(config: Configuration) {
     this.config = config;
     this.xmlUtil = new XMLUtil(this.config);
+    this.transformUtil = new TransformUtil(this.config);
   }
 
   /**
@@ -70,17 +74,15 @@ export class JSONToXML {
    * Convert JSON object to DOM node
    * @param jsonObj JSON object to convert
    * @param doc Document for creating elements
-   * @returns DOM Element
-   */
-  /**
-   * Convert JSON object to DOM node
-   * @param jsonObj JSON object to convert
-   * @param doc Document for creating elements
+   * @param parentContext Optional parent context for transformation chain
+   * @param path Current path in the JSON object
    * @returns DOM Element
    */
   private jsonToNode(
     jsonObj: Record<string, any>,
-    doc: Document
+    doc: Document,
+    parentContext?: TransformContext,
+    path: string = ""
   ): Element | null {
     if (!jsonObj || typeof jsonObj !== "object") {
       return null;
@@ -93,6 +95,9 @@ export class JSONToXML {
     }
 
     const nodeData = jsonObj[nodeName];
+    
+    // Update the current path
+    const currentPath = path ? `${path}.${nodeName}` : nodeName;
 
     // Create element with namespace if available
     let element: Element;
@@ -100,6 +105,19 @@ export class JSONToXML {
     const prefixKey = this.config.propNames.prefix;
     const ns = nodeData[namespaceKey];
     const prefix = nodeData[prefixKey];
+
+    // Create context for this node
+    const context = this.transformUtil.createContext(
+      'json-to-xml',
+      nodeName,
+      DOMAdapter.nodeTypes.ELEMENT_NODE,
+      {
+        path: currentPath,
+        namespace: ns,
+        prefix: prefix,
+        parent: parentContext
+      }
+    );
 
     if (ns && this.config.preserveNamespaces) {
       if (prefix) {
@@ -128,7 +146,28 @@ export class JSONToXML {
           if (!attrName) return;
 
           const attrData = attrObj[attrName];
-          const attrValue = attrData[valueKey] || "";
+          
+          // Create attribute context
+          const attrContext = this.transformUtil.createContext(
+            'json-to-xml',
+            nodeName,
+            DOMAdapter.nodeTypes.ELEMENT_NODE,
+            {
+              path: `${currentPath}.${attrName}`,
+              namespace: attrData[namespaceKey],
+              prefix: attrData[prefixKey],
+              isAttribute: true,
+              attributeName: attrName,
+              parent: context
+            }
+          );
+          
+          // Apply transformations to attribute value
+          const transformedValue = this.transformUtil.applyTransforms(
+            attrData[valueKey] || "",
+            attrContext
+          );
+          
           const attrNs = attrData[namespaceKey];
           const attrPrefix = attrData[prefixKey];
 
@@ -142,7 +181,7 @@ export class JSONToXML {
             element, 
             (attrNs && this.config.preserveNamespaces) ? attrNs : null, 
             qualifiedName, 
-            attrValue
+            transformedValue
           );
         }
       );
@@ -150,7 +189,25 @@ export class JSONToXML {
 
     // Process simple text value
     if (nodeData[valueKey] !== undefined) {
-      element.textContent = nodeData[valueKey];
+      // Apply transformations to text value
+      const textContext = this.transformUtil.createContext(
+        'json-to-xml',
+        nodeName,
+        DOMAdapter.nodeTypes.TEXT_NODE,
+        {
+          path: `${currentPath}.#text`,
+          namespace: ns,
+          prefix: prefix,
+          parent: context
+        }
+      );
+      
+      const transformedValue = this.transformUtil.applyTransforms(
+        nodeData[valueKey],
+        textContext
+      );
+      
+      element.textContent = transformedValue;
     }
 
     // Process children
@@ -171,8 +228,24 @@ export class JSONToXML {
             child[valueKey] !== undefined &&
             this.config.preserveTextNodes
           ) {
+            // Apply transformations to text node
+            const textContext = this.transformUtil.createContext(
+              'json-to-xml',
+              '#text',
+              DOMAdapter.nodeTypes.TEXT_NODE,
+              {
+                path: `${currentPath}.#text`,
+                parent: context
+              }
+            );
+            
+            const transformedText = this.transformUtil.applyTransforms(
+              child[valueKey],
+              textContext
+            );
+            
             element.appendChild(
-              DOMAdapter.createTextNode(this.xmlUtil.escapeXML(child[valueKey]))
+              DOMAdapter.createTextNode(this.xmlUtil.escapeXML(transformedText))
             );
           }
           // CDATA sections
@@ -180,9 +253,25 @@ export class JSONToXML {
             child[cdataKey] !== undefined &&
             this.config.preserveCDATA
           ) {
+            // Apply transformations to CDATA
+            const cdataContext = this.transformUtil.createContext(
+              'json-to-xml',
+              '#cdata',
+              DOMAdapter.nodeTypes.CDATA_SECTION_NODE,
+              {
+                path: `${currentPath}.#cdata`,
+                parent: context
+              }
+            );
+            
+            const transformedCData = this.transformUtil.applyTransforms(
+              child[cdataKey],
+              cdataContext
+            );
+            
             element.appendChild(
               DOMAdapter.createCDATASection(
-                child[cdataKey]
+                transformedCData
               )
             );
           }
@@ -214,7 +303,7 @@ export class JSONToXML {
           }
           // Element nodes (recursive)
           else {
-            const childElement = this.jsonToNode(child, doc);
+            const childElement = this.jsonToNode(child, doc, context, currentPath);
             if (childElement) {
               element.appendChild(childElement);
             }

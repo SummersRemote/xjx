@@ -2,27 +2,38 @@
  * XJX Library - Main entry point
  */
 import { XJX } from "./XJX";
-import { XMLToJSON } from "./core/XMLToJSON";
-import { JSONToXML } from "./core/JSONToXML";
+import { XMLToJSON } from "./core/XmlToJsonConverter";
+import { JSONToXML } from "./core/JsonToXmlConverter";
 import { DOMAdapter } from "./core/DOMAdapter";
 import { Configuration } from "./core/types/types";
 import { DEFAULT_CONFIG } from "./core/config/config";
-import { JSONUtil } from "./core/utils/JSONUtil";
-import { XMLUtil } from "./core/utils/XMLUtil";
+import { JSONUtil } from "./core/utils/JsonUtils";
+import { XMLUtil } from "./core/utils/XmlUtils";
 
-import * as errors from "./core/types/errors";
+// Import transformers
+import { ValueTransformer } from "./core/transforms/ValueTransformer";
+import { BooleanTransformer } from "./core/transforms/BooleanTransformer";
+import { NumberTransformer } from "./core/transforms/NumberTransformer";
+import { StringReplaceTransformer } from "./core/transforms/StringReplaceTransformer";
 
-// Re-export all classes and types
+import * as errors from "./core/types/Errors";
+
+// Re-export all classes and types (minimal approach)
 export {
   XJX,
   XMLToJSON,
   JSONToXML,
   DOMAdapter,
-  Configuration as XMLToJSONConfig,
+  Configuration,
   DEFAULT_CONFIG,
   JSONUtil,
   XMLUtil,
   errors,
+  // Export only ValueTransformer and concrete transformers
+  ValueTransformer,
+  BooleanTransformer,
+  NumberTransformer,
+  StringReplaceTransformer
 };
 
 // Default export for easier importing

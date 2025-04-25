@@ -1,13 +1,17 @@
 /**
  * XJX - Facade class for XML-JSON conversion operations
  */
-import { XMLToJSON } from "./core/XMLToJSON";
-import { JSONToXML } from "./core/JSONToXML";
+import { XMLToJSON } from "./core/XmlToJsonConverter";
+import { JSONToXML } from "./core/JsonToXmlConverter";
 import { Configuration } from "./core/types/types";
 import { DEFAULT_CONFIG } from "./core/config/config";
 import { DOMAdapter } from "./core/DOMAdapter";
-import { XMLUtil } from "./core/utils/XMLUtil";
-import { JSONUtil } from "./core/utils/JSONUtil";
+import { XMLUtil } from "./core/utils/XmlUtils";
+import { JSONUtil } from "./core/utils/JsonUtils";
+import { ValueTransformer } from "./core/transforms/ValueTransformer";
+import { BooleanTransformer } from "./core/transforms/BooleanTransformer";
+import { NumberTransformer } from "./core/transforms/NumberTransformer";
+import { StringReplaceTransformer } from "./core/transforms/StringReplaceTransformer";
 
 export class XJX {
   private config: Configuration;
@@ -91,6 +95,61 @@ export class XJX {
     message?: string;
   } {
     return this.xmlUtil.validateXML(xmlString);
+  }
+
+  /**
+   * Add a value transformer to the configuration
+   * @param transformer Value transformer to add
+   * @returns This XJX instance for chaining
+   */
+  public addTransformer(transformer: ValueTransformer): XJX {
+    if (!this.config.valueTransforms) {
+      this.config.valueTransforms = [];
+    }
+    this.config.valueTransforms.push(transformer);
+    return this;
+  }
+
+  /**
+   * Removes all value transformers from the configuration
+   * @returns This XJX instance for chaining
+   */
+  public clearTransformers(): XJX {
+    this.config.valueTransforms = [];
+    return this;
+  }
+
+  /**
+   * Create a new boolean transformer and add it to the configuration
+   * @param options Options for the transformer
+   * @returns The created transformer instance
+   */
+  public createBooleanTransformer(options = {}): BooleanTransformer {
+    const transformer = new BooleanTransformer(options);
+    this.addTransformer(transformer);
+    return transformer;
+  }
+
+  /**
+   * Create a new number transformer and add it to the configuration
+   * @param options Options for the transformer
+   * @returns The created transformer instance
+   */
+  public createNumberTransformer(options = {}): NumberTransformer {
+    const transformer = new NumberTransformer(options);
+    this.addTransformer(transformer);
+    return transformer;
+  }
+
+  /**
+   * Create a new string replace transformer and add it to the configuration
+   * @param options Options for the transformer
+   * @returns The created transformer instance
+   */
+  public createStringReplaceTransformer(options = {}): StringReplaceTransformer {
+    const transformer = new StringReplaceTransformer(options);
+    this.addTransformer(transformer);
+    return transformer;
   }
 
   /**

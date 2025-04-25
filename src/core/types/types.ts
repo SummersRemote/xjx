@@ -1,6 +1,7 @@
 /**
  * Type definitions for the XJX library
  */
+import { ValueTransformer } from '../transforms/ValueTransformer';
 
 /**
  * Configuration interface for the library
@@ -38,6 +39,9 @@ export interface Configuration {
     target: string; 
     children: string;
   };
+
+  // Value transformers
+  valueTransforms?: ValueTransformer[];
 }
 
 export default Configuration;

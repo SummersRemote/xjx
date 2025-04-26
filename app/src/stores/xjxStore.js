@@ -1,5 +1,5 @@
-import { defineStore } from 'pinia';
-import XjxService from '../services/xjxService';
+import { defineStore } from "pinia";
+import XjxService from "../services/xjxService";
 
 // Default XML example
 const DEFAULT_XML = `<?xml version="1.0" encoding="UTF-8"?>
@@ -19,16 +19,16 @@ const DEFAULT_XML = `<?xml version="1.0" encoding="UTF-8"?>
 </root>`;
 
 // Create and export the store
-export const useXjxStore = defineStore('xjx', {
+export const useXjxStore = defineStore("xjx", {
   state: () => ({
     // XML and JSON content
     xmlContent: DEFAULT_XML,
-    jsonContent: '',
-    
+    jsonContent: "",
+
     // Path navigation
-    pathInput: '',
-    pathResult: '',
-    
+    pathInput: "",
+    pathResult: "",
+
     // Configuration options
     config: {
       preserveNamespaces: true,
@@ -38,7 +38,7 @@ export const useXjxStore = defineStore('xjx', {
       preserveTextNodes: true,
       preserveAttributes: true,
       preserveWhitespace: false,
-      
+
       outputOptions: {
         prettyPrint: true,
         indent: 2,
@@ -48,7 +48,7 @@ export const useXjxStore = defineStore('xjx', {
           declaration: true,
         },
       },
-      
+
       propNames: {
         namespace: "$ns",
         prefix: "$pre",
@@ -60,31 +60,34 @@ export const useXjxStore = defineStore('xjx', {
         target: "$trgt",
         children: "$children",
       },
+
+      // New: Value transformers array (initialized as an empty array)
+      valueTransforms: [],
     },
-    
+
     // Utility state
     isProcessing: false,
     error: null,
-    
+
     // Notification system
     notification: {
       show: false,
-      text: '',
-      color: 'info',
-      timeout: 3000
-    }
+      text: "",
+      color: "info",
+      timeout: 3000,
+    },
   }),
-  
+
   actions: {
     // Convert XML to JSON
     async convertXmlToJson() {
       this.isProcessing = true;
       this.error = null;
-      
+
       try {
         // Use the XjxService to convert XML to JSON
         const jsonObj = XjxService.xmlToJson(this.xmlContent, this.config);
-        
+
         // Format and store the result
         this.jsonContent = JSON.stringify(jsonObj, null, 2);
       } catch (error) {
@@ -94,19 +97,19 @@ export const useXjxStore = defineStore('xjx', {
         this.isProcessing = false;
       }
     },
-    
+
     // Convert JSON to XML
     async convertJsonToXml() {
       this.isProcessing = true;
       this.error = null;
-      
+
       try {
         // Parse JSON content
         const jsonObj = JSON.parse(this.jsonContent);
-        
+
         // Use the XjxService to convert JSON to XML
         const xmlString = XjxService.jsonToXml(jsonObj, this.config);
-        
+
         // Store the result
         this.xmlContent = xmlString;
       } catch (error) {
@@ -116,77 +119,80 @@ export const useXjxStore = defineStore('xjx', {
         this.isProcessing = false;
       }
     },
-    
+
     // Reset to defaults
     resetToDefault() {
       this.xmlContent = DEFAULT_XML;
-      this.jsonContent = '';
-      this.pathInput = '';
-      this.pathResult = '';
+      this.jsonContent = "";
+      this.pathInput = "";
+      this.pathResult = "";
       this.error = null;
-      
+      this.config.valueTransforms = []; // Reset transformers
+
       // Convert the default XML to JSON
       this.convertXmlToJson();
     },
-    
+
     // Get a value using path
     getPath() {
       this.error = null;
-      
+
       try {
         if (!this.jsonContent) {
-          throw new Error('Please convert XML to JSON first before using getPath');
+          throw new Error(
+            "Please convert XML to JSON first before using getPath"
+          );
         }
-        
+
         const jsonObj = JSON.parse(this.jsonContent);
         const path = this.pathInput.trim();
-        
+
         if (!path) {
-          throw new Error('Please enter a path to navigate');
+          throw new Error("Please enter a path to navigate");
         }
-        
+
         // Use the XjxService to get the path
         const result = XjxService.getPath(jsonObj, path, this.config);
-        
+
         // Format the result for display
         if (result === undefined) {
-          this.pathResult = 'Path not found';
-        } else if (typeof result === 'object') {
+          this.pathResult = "Path not found";
+        } else if (typeof result === "object") {
           this.pathResult = JSON.stringify(result, null, 2);
         } else {
           this.pathResult = String(result);
         }
       } catch (error) {
         this.error = `Error getting path: ${error.message}`;
-        this.pathResult = '';
+        this.pathResult = "";
         console.error(error);
       }
     },
-    
+
     // Clear path navigation
     clearPath() {
-      this.pathInput = '';
-      this.pathResult = '';
+      this.pathInput = "";
+      this.pathResult = "";
     },
-    
+
     // Show notification
-    showNotification(text, color = 'info', timeout = 3000) {
+    showNotification(text, color = "info", timeout = 3000) {
       this.notification = {
         show: true,
         text,
         color,
-        timeout
+        timeout,
       };
-      
+
       // Auto-hide notification after timeout
       setTimeout(() => {
         this.hideNotification();
       }, timeout);
     },
-    
+
     // Hide notification
     hideNotification() {
       this.notification.show = false;
-    }
+    },
   }
 });

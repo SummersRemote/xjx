@@ -6,6 +6,7 @@
  */
 import { XJX } from 'xjx';
 
+
 export default class XjxService {
   /**
    * Creates an XJX instance with the provided configuration

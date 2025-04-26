@@ -1,0 +1,246 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Root element with root namespace and common prefixes -->
+<test:root xmlns:test="http://example.org/test" 
+           xmlns:meta="http://example.org/metadata"
+           xmlns:alt="http://example.org/metadata" <!-- Alias for meta namespace (same URI) -->
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns="http://example.org/default"
+           xsi:schemaLocation="http://example.org/test test.xsd"
+           test:id="root-123"
+           meta:created="2025-04-25T14:30:00Z"
+           alt:version="1.0" <!-- Using alias prefix -->
+           status="active">
+           
+  <!-- Section 1: Basic elements with mixed namespaces -->
+  <section xmlns="http://example.org/section1"
+           meta:id="section1" 
+           meta:importance="high">
+    <title>Testing Multiple Namespaces</title>
+    <description>This section demonstrates elements from various namespaces</description>
+    
+    <!-- xsi:type attribute testing -->
+    <typedElement xsi:type="xs:string">String value</typedElement>
+    <typedElement xsi:type="xs:integer">42</typedElement>
+    <typedElement xsi:type="xs:boolean">true</typedElement>
+    
+    <!-- Elements in default namespace for this section -->
+    <element id="test1">Section1 namespace element</element>
+    <meta:element meta:id="meta1">Metadata namespace element</meta:element>
+    <alt:element alt:id="alt1">Using metadata namespace alias</alt:element>
+    
+    <!-- Encoded characters -->
+    <encodedChars>Special characters: &#169; copyright, &#174; registered, &#8364; euro, &#8230; ellipsis</encodedChars>
+    
+    <!-- Element with mixed namespace attributes -->
+    <composite 
+        id="comp1" 
+        meta:source="internal" 
+        meta:lastModified="2025-03-15T09:45:12Z">
+      <name>Composite Element</name>
+      <value>42</value>
+    </composite>
+  </section>
+  
+  <!-- Section 2: Content models -->
+  <section xmlns="http://example.org/section2"
+           meta:id="section2">
+    <title>Content Models</title>
+    
+    <!-- Namespace override - redefining meta prefix to point to a different URI -->
+    <subsection xmlns:meta="http://example.org/overridden-metadata">
+      <item meta:id="item1">This uses the overridden metadata namespace</item>
+      <meta:info>Information in overridden namespace</meta:info>
+      
+      <!-- Encoded entities in attributes -->
+      <specialAttr name="Special &#38; character attribute with &#8220;quotes&#8221; and &#8230;">
+        Testing attribute encoding
+      </specialAttr>
+    </subsection>
+    
+    <!-- Simple content -->
+    <simple>Just a string value</simple>
+    
+    <!-- Complex content -->
+    <complex>
+      <child>First child</child>
+      <child>Second child</child>
+      <child>Third child</child>
+    </complex>
+    
+    <!-- Mixed content -->
+    <mixed>This element contains <emphasis>mixed</emphasis> content with both 
+      <strong>text and elements</strong> intermingled.
+    </mixed>
+    
+    <!-- Empty elements -->
+    <empty reason="demonstration"/>
+    <meta:empty meta:purpose="testing"/>
+  </section>
+  
+  <!-- Section 3: CDATA, Processing Instructions, and Comments -->
+  <section xmlns="http://example.org/section3"
+           meta:id="section3">
+    <title>Special XML Features</title>
+    
+    <!-- CDATA section -->
+    <cdata><![CDATA[
+      This is a CDATA section that can contain characters like < > & " '
+      It can also contain XML markup like <element>text</element> without being parsed
+      <script>
+        function test() {
+          if (x < 10 && y > 20) {
+            return "CDATA works!";
+          }
+        }
+      </script>
+    ]]></cdata>
+    
+    <!-- Encoded characters in CDATA boundary testing -->
+    <specialTest><![CDATA[Contains "almost" a CDATA end marker: ]]]]><![CDATA[>]]></specialTest>
+    
+    <!-- Processing Instruction -->
+    <?xml-stylesheet type="text/css" href="test-style.css"?>
+    <?custom-processor action="validate" mode="strict"?>
+    
+    <!-- Comment with important information -->
+    <!-- 
+      This is a multi-line comment
+      that provides context for testing
+      the XJX library's comment preservation capabilities
+    -->
+  </section>
+  
+  <!-- Section 4: Value types for transformers -->
+  <section xmlns="http://example.org/section4"
+           meta:id="section4"
+           xsi:type="xs:complexType">
+    <title>Value Types for Transformers</title>
+    
+    <!-- Boolean values -->
+    <boolean value="true" xsi:type="xs:boolean">true</boolean>
+    <boolean value="false">false</boolean>
+    <boolean value="1">1</boolean>
+    <boolean value="0">0</boolean>
+    <boolean value="yes">yes</boolean>
+    <boolean value="no">no</boolean>
+    
+    <!-- Numeric values -->
+    <number type="integer" xsi:type="xs:integer">42</number>
+    <number type="negative">-273</number>
+    <number type="float" xsi:type="xs:decimal">3.14159</number>
+    <number type="scientific">6.022e23</number>
+    <number type="percentage">99.44</number>
+    <number type="currency">1299.99</number>
+    
+    <!-- Date and time values -->
+    <date format="ISO" xsi:type="xs:date">2025-04-25</date>
+    <date format="US">04/25/2025</date>
+    <date format="EU">25.04.2025</date>
+    <time format="24h" xsi:type="xs:time">14:30:45</time>
+    <time format="12h">02:30:45 PM</time>
+    <datetime format="ISO" xsi:type="xs:dateTime">2025-04-25T14:30:45Z</datetime>
+    <datetime format="custom">Apr 25, 2025 14:30:45 GMT</datetime>
+    
+    <!-- Comma separated values -->
+    <csv type="location">37.7749,-122.4194</csv>
+    <csv type="coordinates">37.7749,-122.4194,10.5</csv>
+    <csv type="list">apple,orange,banana,grape</csv>
+    <csv type="complex">John Doe,"123 Main St, Apt 4B",San Francisco,CA,94105</csv>
+    <csv type="matrix">1,2,3,4,5;6,7,8,9,10;11,12,13,14,15</csv>
+    
+    <!-- Special string formats -->
+    <string type="email">test@example.com</string>
+    <string type="url">https://example.org/test?param=value</string>
+    <string type="phone">+1-555-123-4567</string>
+    <string type="uuid">550e8400-e29b-41d4-a716-446655440000</string>
+    
+    <!-- Encoded characters in elements -->
+    <encodedMessage>
+      Please note&#8230; this message contains special characters:
+      Copyright &#169; 2025
+      Registered trademark: &#174;
+      Euro symbol: &#8364;
+      Em dash: &#8212;
+      Non-breaking space: &nbsp;between words
+      Quote marks: &#8220;quoted text&#8221;
+      Math symbols: &#177;5 (plus-minus), &#8734; (infinity)
+    </encodedMessage>
+  </section>
+  
+  <!-- Section 5: Deeply nested elements -->
+  <section xmlns="http://example.org/section5"
+           meta:id="section5">
+    <title>Deeply Nested Structure</title>
+    <level1>
+      <level2>
+        <level3>
+          <level4 xmlns:local="http://example.org/local-namespace">
+            <!-- Local namespace only valid in this subtree -->
+            <level5>
+              <local:special>Local namespace element</local:special>
+              <level6>
+                <value>Deeply nested value</value>
+                <encodedValue>Level 6 with &#8230; encoded ellipsis</encodedValue>
+              </level6>
+            </level5>
+          </level4>
+        </level3>
+      </level2>
+    </level1>
+  </section>
+  
+  <!-- Section 6: Attributes with special values -->
+  <section xmlns="http://example.org/section6"
+           meta:id="section6">
+    <title>Attributes with Special Values</title>
+    
+    <attributes 
+        boolean="true"
+        integer="42"
+        float="3.14159"
+        scientific="1.602e-19"
+        date="2025-04-25"
+        time="14:30:45"
+        datetime="2025-04-25T14:30:45Z"
+        csv="red,green,blue"
+        url="https://example.org/test?q=attr"
+        empty=""
+        encoded="Special &#8230; encoded &#8364; characters"
+        meta:lastUpdated="2025-04-20T09:30:00Z"
+        />
+  </section>
+  
+  <!-- Section 7: Large data sets -->
+  <recordset xmlns="http://example.org/section7"
+             xmlns:meta="http://example.org/metadata"
+             meta:id="dataset1" 
+             meta:rows="5">
+    <header>ID,Name,Department,Salary,HireDate</header>
+    <record>1001,John Smith,Engineering,85000,2020-05-12</record>
+    <record>1002,Jane Doe,Marketing,75000,2019-11-03</record>
+    <record>1003,Bob Johnson,Finance,95000,2018-02-28</record>
+    <record>1004,Alice Williams,HR,70000,2021-09-15</record>
+    <record>1005,Charlie Brown,Engineering,82000,2020-07-22</record>
+  </recordset>
+  
+  <!-- Section 8: XML with errors to test error handling -->
+  <section xmlns="http://example.org/section8"
+           xmlns:meta="http://example.org/metadata"
+           meta:id="section8">
+    <title>Error Handling Tests</title>
+    
+    <!-- Valid but unusual structure -->
+    <unusual attr1="value1" attr2="value2" attr3="value3" attr4="value4" attr5="value5" 
+             attr6="value6" attr7="value7" attr8="value8" attr9="value9" attr10="value10"
+             meta:note="Element with many attributes">
+      Unusual element with many attributes
+    </unusual>
+    
+    <!-- Element with special characters -->
+    <special>Element & with <![CDATA[special < > " ' characters & markup]]></special>
+    
+    <!-- Element with encoded characters -->
+    <encoded>Element with encoded characters: copyright&#169; registered&#174; euro&#8364;</encoded>
+  </section>
+</test:root>

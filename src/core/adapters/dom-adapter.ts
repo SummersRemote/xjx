@@ -1,28 +1,21 @@
 /**
  * DOM Environment provider with unified interface for browser and Node.js
  */
-import { XJXError } from './types/errors';
+import { XJXError } from '../types/error-types';
+import { NodeType } from '../types/dom-types';
 
-interface NodeTypes {
-  ELEMENT_NODE: number;
-  TEXT_NODE: number;
-  CDATA_SECTION_NODE: number;
-  COMMENT_NODE: number;
-  PROCESSING_INSTRUCTION_NODE: number;
-  DOCUMENT_NODE: number; 
-}
 
 interface DOMWindow {
   DOMParser: any;
   XMLSerializer: any;
-  Node: {
-    ELEMENT_NODE: number;
-    TEXT_NODE: number;
-    CDATA_SECTION_NODE: number;
-    COMMENT_NODE: number;
-    PROCESSING_INSTRUCTION_NODE: number;
-    DOCUMENT_NODE: number; 
-  };
+  // Node: {
+  //   ELEMENT_NODE: number;
+  //   TEXT_NODE: number;
+  //   CDATA_SECTION_NODE: number;
+  //   COMMENT_NODE: number;
+  //   PROCESSING_INSTRUCTION_NODE: number;
+  //   DOCUMENT_NODE: number; 
+  // };
   document: Document;
   close?: () => void; 
 }
@@ -35,7 +28,7 @@ export const DOMAdapter = (() => {
   // Environment-specific DOM implementation
   let domParser: any;
   let xmlSerializer: any;
-  let nodeTypes: NodeTypes;
+  // let nodeTypes: NodeTypes;
   let docImplementation: any;
   let jsdomInstance: JSDOMInstance | null = null;
 
@@ -50,14 +43,14 @@ export const DOMAdapter = (() => {
 
         domParser = jsdomInstance.window.DOMParser;
         xmlSerializer = jsdomInstance.window.XMLSerializer;
-        nodeTypes = {
-          ELEMENT_NODE: jsdomInstance.window.Node.ELEMENT_NODE,
-          TEXT_NODE: jsdomInstance.window.Node.TEXT_NODE,
-          CDATA_SECTION_NODE: jsdomInstance.window.Node.CDATA_SECTION_NODE,
-          COMMENT_NODE: jsdomInstance.window.Node.COMMENT_NODE,
-          PROCESSING_INSTRUCTION_NODE: jsdomInstance.window.Node.PROCESSING_INSTRUCTION_NODE,
-          DOCUMENT_NODE: jsdomInstance.window.Node.DOCUMENT_NODE, // Add this line
-        };
+        // nodeTypes = {
+        //   ELEMENT_NODE: jsdomInstance.window.Node.ELEMENT_NODE,
+        //   TEXT_NODE: jsdomInstance.window.Node.TEXT_NODE,
+        //   CDATA_SECTION_NODE: jsdomInstance.window.Node.CDATA_SECTION_NODE,
+        //   COMMENT_NODE: jsdomInstance.window.Node.COMMENT_NODE,
+        //   PROCESSING_INSTRUCTION_NODE: jsdomInstance.window.Node.PROCESSING_INSTRUCTION_NODE,
+        //   DOCUMENT_NODE: jsdomInstance.window.Node.DOCUMENT_NODE, // Add this line
+        // };
         docImplementation = jsdomInstance.window.document.implementation;
       } catch (jsdomError) {
         // Fall back to xmldom if JSDOM isn't available
@@ -66,14 +59,14 @@ export const DOMAdapter = (() => {
           domParser = DOMParser;
           xmlSerializer = XMLSerializer;
           // Standard DOM node types
-          nodeTypes = {
-            ELEMENT_NODE: 1,
-            TEXT_NODE: 3,
-            CDATA_SECTION_NODE: 4,
-            COMMENT_NODE: 8,
-            PROCESSING_INSTRUCTION_NODE: 7,
-            DOCUMENT_NODE: 9, 
-          };
+          // nodeTypes = {
+          //   ELEMENT_NODE: 1,
+          //   TEXT_NODE: 3,
+          //   CDATA_SECTION_NODE: 4,
+          //   COMMENT_NODE: 8,
+          //   PROCESSING_INSTRUCTION_NODE: 7,
+          //   DOCUMENT_NODE: 9, 
+          // };
           const implementation = new DOMImplementation();
           docImplementation = implementation;
         } catch (xmldomError) {
@@ -92,14 +85,14 @@ export const DOMAdapter = (() => {
 
       domParser = window.DOMParser;
       xmlSerializer = window.XMLSerializer;
-      nodeTypes = {
-        ELEMENT_NODE: Node.ELEMENT_NODE,
-        TEXT_NODE: Node.TEXT_NODE,
-        CDATA_SECTION_NODE: Node.CDATA_SECTION_NODE,
-        COMMENT_NODE: Node.COMMENT_NODE,
-        PROCESSING_INSTRUCTION_NODE: Node.PROCESSING_INSTRUCTION_NODE,
-        DOCUMENT_NODE: Node.DOCUMENT_NODE, 
-      };
+      // nodeTypes = {
+      //   ELEMENT_NODE: Node.ELEMENT_NODE,
+      //   TEXT_NODE: Node.TEXT_NODE,
+      //   CDATA_SECTION_NODE: Node.CDATA_SECTION_NODE,
+      //   COMMENT_NODE: Node.COMMENT_NODE,
+      //   PROCESSING_INSTRUCTION_NODE: Node.PROCESSING_INSTRUCTION_NODE,
+      //   DOCUMENT_NODE: Node.DOCUMENT_NODE, 
+      // };
       docImplementation = document.implementation;
     }
   } catch (error) {
@@ -123,7 +116,7 @@ export const DOMAdapter = (() => {
       }
     },
     
-    nodeTypes,
+    NodeType,
     
     parseFromString: (xmlString: string, contentType: string = 'text/xml') => {
       try {
@@ -271,11 +264,11 @@ export const DOMAdapter = (() => {
      */
     getNodeTypeName: (nodeType: number): string => {
       switch (nodeType) {
-        case nodeTypes.ELEMENT_NODE: return 'ELEMENT_NODE';
-        case nodeTypes.TEXT_NODE: return 'TEXT_NODE';
-        case nodeTypes.CDATA_SECTION_NODE: return 'CDATA_SECTION_NODE';
-        case nodeTypes.COMMENT_NODE: return 'COMMENT_NODE';
-        case nodeTypes.PROCESSING_INSTRUCTION_NODE: return 'PROCESSING_INSTRUCTION_NODE';
+        case NodeType.ELEMENT_NODE: return 'ELEMENT_NODE';
+        case NodeType.TEXT_NODE: return 'TEXT_NODE';
+        case NodeType.CDATA_SECTION_NODE: return 'CDATA_SECTION_NODE';
+        case NodeType.COMMENT_NODE: return 'COMMENT_NODE';
+        case NodeType.PROCESSING_INSTRUCTION_NODE: return 'PROCESSING_INSTRUCTION_NODE';
         default: return `UNKNOWN_NODE_TYPE(${nodeType})`;
       }
     },

@@ -1,7 +1,7 @@
 /**
  * Value transformation types and base class for the XJX library
  */
-import { Configuration } from '../types/types';
+import { Configuration } from '../types/config-types';
 /**
  * Direction of the transformation
  */

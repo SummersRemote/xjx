@@ -1,21 +1,21 @@
 /**
  * XJX - Facade class for XML-JSON conversion operations
  */
-import { XMLToJSON } from "./core/XmlToJsonConverter";
-import { JSONToXML } from "./core/JsonToXmlConverter";
-import { Configuration } from "./core/types/types";
+import { XmlToJsonConverter } from "./core/converters/xml-to-json-converter";
+import { JsonToXmlConverter } from "./core/converters/json-to-xml-converter";
+import { Configuration } from "./core/types/config-types";
 import { DEFAULT_CONFIG } from "./core/config/config";
-import { DOMAdapter } from "./core/DOMAdapter";
-import { XMLUtil } from "./core/utils/XmlUtils";
-import { JSONUtil } from "./core/utils/JsonUtils";
-import { ValueTransformer } from "./core/transforms";
+import { DOMAdapter } from "./core/adapters/dom-adapter";
+import { XmlUtil } from "./core/utils/xml-utils";
+import { JsonUtil } from "./core/utils/json-utils";
+import { ValueTransformer } from "./core/transformers";
 
 export class XJX {
   private config: Configuration;
-  private xmltojson: XMLToJSON;
-  private jsontoxml: JSONToXML;
-  private jsonUtil: JSONUtil;
-  private xmlUtil: XMLUtil;
+  private xmlToJsonConverter: XmlToJsonConverter;
+  private jsonToXmlConverter: JsonToXmlConverter;
+  private jsonUtil: JsonUtil;
+  private xmlUtil: XmlUtil;
 
   /**
    * Constructor for XJX utility
@@ -23,7 +23,7 @@ export class XJX {
    */
   constructor(config: Partial<Configuration> = {}) {
     // First create a jsonUtil instance with default config to use its methods
-    this.jsonUtil = new JSONUtil(DEFAULT_CONFIG);
+    this.jsonUtil = new JsonUtil(DEFAULT_CONFIG);
 
     // Create a deep clone of the default config
     const defaultClone = this.jsonUtil.deepClone(DEFAULT_CONFIG);
@@ -32,12 +32,12 @@ export class XJX {
     this.config = this.jsonUtil.deepMerge<Configuration>(defaultClone, config);
 
     // Re-initialize jsonUtil with the merged config
-    this.jsonUtil = new JSONUtil(this.config);
+    this.jsonUtil = new JsonUtil(this.config);
 
     // Initialize other components
-    this.xmlUtil = new XMLUtil(this.config);
-    this.xmltojson = new XMLToJSON(this.config);
-    this.jsontoxml = new JSONToXML(this.config);
+    this.xmlUtil = new XmlUtil(this.config);
+    this.xmlToJsonConverter = new XmlToJsonConverter(this.config);
+    this.jsonToXmlConverter = new JsonToXmlConverter(this.config);
   }
 
   /**
@@ -46,7 +46,7 @@ export class XJX {
    * @returns JSON object representing the XML content
    */
   public xmlToJson(xmlString: string): Record<string, any> {
-    return this.xmltojson.parse(xmlString);
+    return this.xmlToJsonConverter.convert(xmlString);
   }
 
   /**
@@ -55,7 +55,7 @@ export class XJX {
    * @returns XML string
    */
   public jsonToXml(jsonObj: Record<string, any>): string {
-    return this.jsontoxml.serialize(jsonObj);
+    return this.jsonToXmlConverter.convert(jsonObj);
   }
 
   /**

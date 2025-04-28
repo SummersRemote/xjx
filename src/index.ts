@@ -3,14 +3,14 @@ import { XJX } from './XJX';
 
 // Core components
 export { XJX };
-export { Configuration } from './core/types/types';
+export { Configuration } from './core/types/config-types';
 export { DEFAULT_CONFIG } from './core/config/config';
 
 // Error handling
-export { XJXError } from './core/types/errors';
+export { XJXError } from './core/types/error-types';
 
 // Allow custom transformers
-export { ValueTransformer } from './core/transforms/ValueTransformer';
+export { ValueTransformer } from './core/transformers/ValueTransformer';
 
 // Default export
 export default XJX;

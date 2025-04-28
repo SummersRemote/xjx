@@ -18,13 +18,27 @@
     }
 
     /**
+     * DOM node types as an enum for better type safety
+     */
+    var NodeType;
+    (function (NodeType) {
+        NodeType[NodeType["ELEMENT_NODE"] = 1] = "ELEMENT_NODE";
+        NodeType[NodeType["ATTRIBUTE_NODE"] = 2] = "ATTRIBUTE_NODE";
+        NodeType[NodeType["TEXT_NODE"] = 3] = "TEXT_NODE";
+        NodeType[NodeType["CDATA_SECTION_NODE"] = 4] = "CDATA_SECTION_NODE";
+        NodeType[NodeType["PROCESSING_INSTRUCTION_NODE"] = 7] = "PROCESSING_INSTRUCTION_NODE";
+        NodeType[NodeType["COMMENT_NODE"] = 8] = "COMMENT_NODE";
+        NodeType[NodeType["DOCUMENT_NODE"] = 9] = "DOCUMENT_NODE";
+    })(NodeType || (NodeType = {}));
+
+    /**
      * DOM Environment provider with unified interface for browser and Node.js
      */
     const DOMAdapter = (() => {
         // Environment-specific DOM implementation
         let domParser;
         let xmlSerializer;
-        let nodeTypes;
+        // let nodeTypes: NodeTypes;
         let docImplementation;
         let jsdomInstance = null;
         try {
@@ -37,14 +51,14 @@
                     });
                     domParser = jsdomInstance.window.DOMParser;
                     xmlSerializer = jsdomInstance.window.XMLSerializer;
-                    nodeTypes = {
-                        ELEMENT_NODE: jsdomInstance.window.Node.ELEMENT_NODE,
-                        TEXT_NODE: jsdomInstance.window.Node.TEXT_NODE,
-                        CDATA_SECTION_NODE: jsdomInstance.window.Node.CDATA_SECTION_NODE,
-                        COMMENT_NODE: jsdomInstance.window.Node.COMMENT_NODE,
-                        PROCESSING_INSTRUCTION_NODE: jsdomInstance.window.Node.PROCESSING_INSTRUCTION_NODE,
-                        DOCUMENT_NODE: jsdomInstance.window.Node.DOCUMENT_NODE, // Add this line
-                    };
+                    // nodeTypes = {
+                    //   ELEMENT_NODE: jsdomInstance.window.Node.ELEMENT_NODE,
+                    //   TEXT_NODE: jsdomInstance.window.Node.TEXT_NODE,
+                    //   CDATA_SECTION_NODE: jsdomInstance.window.Node.CDATA_SECTION_NODE,
+                    //   COMMENT_NODE: jsdomInstance.window.Node.COMMENT_NODE,
+                    //   PROCESSING_INSTRUCTION_NODE: jsdomInstance.window.Node.PROCESSING_INSTRUCTION_NODE,
+                    //   DOCUMENT_NODE: jsdomInstance.window.Node.DOCUMENT_NODE, // Add this line
+                    // };
                     docImplementation = jsdomInstance.window.document.implementation;
                 }
                 catch (jsdomError) {
@@ -54,14 +68,14 @@
                         domParser = DOMParser;
                         xmlSerializer = XMLSerializer;
                         // Standard DOM node types
-                        nodeTypes = {
-                            ELEMENT_NODE: 1,
-                            TEXT_NODE: 3,
-                            CDATA_SECTION_NODE: 4,
-                            COMMENT_NODE: 8,
-                            PROCESSING_INSTRUCTION_NODE: 7,
-                            DOCUMENT_NODE: 9,
-                        };
+                        // nodeTypes = {
+                        //   ELEMENT_NODE: 1,
+                        //   TEXT_NODE: 3,
+                        //   CDATA_SECTION_NODE: 4,
+                        //   COMMENT_NODE: 8,
+                        //   PROCESSING_INSTRUCTION_NODE: 7,
+                        //   DOCUMENT_NODE: 9, 
+                        // };
                         const implementation = new DOMImplementation();
                         docImplementation = implementation;
                     }
@@ -80,14 +94,14 @@
                 }
                 domParser = window.DOMParser;
                 xmlSerializer = window.XMLSerializer;
-                nodeTypes = {
-                    ELEMENT_NODE: Node.ELEMENT_NODE,
-                    TEXT_NODE: Node.TEXT_NODE,
-                    CDATA_SECTION_NODE: Node.CDATA_SECTION_NODE,
-                    COMMENT_NODE: Node.COMMENT_NODE,
-                    PROCESSING_INSTRUCTION_NODE: Node.PROCESSING_INSTRUCTION_NODE,
-                    DOCUMENT_NODE: Node.DOCUMENT_NODE,
-                };
+                // nodeTypes = {
+                //   ELEMENT_NODE: Node.ELEMENT_NODE,
+                //   TEXT_NODE: Node.TEXT_NODE,
+                //   CDATA_SECTION_NODE: Node.CDATA_SECTION_NODE,
+                //   COMMENT_NODE: Node.COMMENT_NODE,
+                //   PROCESSING_INSTRUCTION_NODE: Node.PROCESSING_INSTRUCTION_NODE,
+                //   DOCUMENT_NODE: Node.DOCUMENT_NODE, 
+                // };
                 docImplementation = document.implementation;
             }
         }
@@ -111,7 +125,7 @@
                     throw new XJXError(`Failed to create XML serializer: ${error instanceof Error ? error.message : String(error)}`);
                 }
             },
-            nodeTypes,
+            NodeType,
             parseFromString: (xmlString, contentType = 'text/xml') => {
                 try {
                     const parser = new domParser();
@@ -265,11 +279,11 @@
              */
             getNodeTypeName: (nodeType) => {
                 switch (nodeType) {
-                    case nodeTypes.ELEMENT_NODE: return 'ELEMENT_NODE';
-                    case nodeTypes.TEXT_NODE: return 'TEXT_NODE';
-                    case nodeTypes.CDATA_SECTION_NODE: return 'CDATA_SECTION_NODE';
-                    case nodeTypes.COMMENT_NODE: return 'COMMENT_NODE';
-                    case nodeTypes.PROCESSING_INSTRUCTION_NODE: return 'PROCESSING_INSTRUCTION_NODE';
+                    case NodeType.ELEMENT_NODE: return 'ELEMENT_NODE';
+                    case NodeType.TEXT_NODE: return 'TEXT_NODE';
+                    case NodeType.CDATA_SECTION_NODE: return 'CDATA_SECTION_NODE';
+                    case NodeType.COMMENT_NODE: return 'COMMENT_NODE';
+                    case NodeType.PROCESSING_INSTRUCTION_NODE: return 'PROCESSING_INSTRUCTION_NODE';
                     default: return `UNKNOWN_NODE_TYPE(${nodeType})`;
                 }
             },
@@ -293,7 +307,7 @@
         };
     })();
 
-    class JSONUtil {
+    class JsonUtil {
         /**
          * Constructor for JSONUtil
          * @param config Configuration options
@@ -310,7 +324,7 @@
          * @param fallback Value to return if the path does not resolve
          * @returns Retrieved value or fallback
          */
-        getPath(obj, path, fallback = undefined) {
+        getPath(obj, path, fallback) {
             const segments = path.split(".");
             let current = obj;
             for (const segment of segments) {
@@ -834,16 +848,16 @@
     }
 
     /**
-     * XMLToJSON Parser for converting XML to JSON
+     * XmlToJsonConverter Parser for converting XML to JSON
      */
-    class XMLToJSON {
+    class XmlToJsonConverter {
         /**
-         * Constructor for XMLToJSON
+         * Constructor for XmlToJsonConverter
          * @param config Configuration options
          */
         constructor(config) {
             this.config = config;
-            this.jsonUtil = new JSONUtil(this.config);
+            this.jsonUtil = new JsonUtil(this.config);
             this.transformUtil = new TransformUtil(this.config);
         }
         /**
@@ -851,7 +865,7 @@
          * @param xmlString XML content as string
          * @returns JSON object representing the XML content
          */
-        parse(xmlString) {
+        convert(xmlString) {
             try {
                 const xmlDoc = DOMAdapter.parseFromString(xmlString, "text/xml");
                 // Check for parsing errors
@@ -875,7 +889,7 @@
         nodeToJson(node, parentContext, path = "") {
             const result = {};
             // Handle element nodes
-            if (node.nodeType === DOMAdapter.nodeTypes.ELEMENT_NODE) {
+            if (node.nodeType === DOMAdapter.NodeType.ELEMENT_NODE) {
                 const element = node;
                 // Use localName instead of nodeName to strip namespace prefix
                 const nodeName = element.localName ||
@@ -957,7 +971,7 @@
                     for (let i = 0; i < element.childNodes.length; i++) {
                         const child = element.childNodes[i];
                         // Text nodes - only process if preserveTextNodes is true
-                        if (child.nodeType === DOMAdapter.nodeTypes.TEXT_NODE) {
+                        if (child.nodeType === DOMAdapter.NodeType.TEXT_NODE) {
                             if (this.config.preserveTextNodes) {
                                 let text = child.nodeValue || "";
                                 // Skip whitespace-only text nodes if whitespace preservation is disabled
@@ -979,7 +993,7 @@
                             }
                         }
                         // CDATA sections
-                        else if (child.nodeType === DOMAdapter.nodeTypes.CDATA_SECTION_NODE &&
+                        else if (child.nodeType === DOMAdapter.NodeType.CDATA_SECTION_NODE &&
                             this.config.preserveCDATA) {
                             // Create CDATA context
                             const cdataContext = this.transformUtil.createContext('xml-to-json', '#cdata', child.nodeType, {
@@ -993,7 +1007,7 @@
                             });
                         }
                         // Comments
-                        else if (child.nodeType === DOMAdapter.nodeTypes.COMMENT_NODE &&
+                        else if (child.nodeType === DOMAdapter.NodeType.COMMENT_NODE &&
                             this.config.preserveComments) {
                             children.push({
                                 [commentsKey]: child.nodeValue || "",
@@ -1001,7 +1015,7 @@
                         }
                         // Processing instructions
                         else if (child.nodeType ===
-                            DOMAdapter.nodeTypes.PROCESSING_INSTRUCTION_NODE &&
+                            DOMAdapter.NodeType.PROCESSING_INSTRUCTION_NODE &&
                             this.config.preserveProcessingInstr) {
                             children.push({
                                 [instructionKey]: {
@@ -1011,7 +1025,7 @@
                             });
                         }
                         // Element nodes (recursive)
-                        else if (child.nodeType === DOMAdapter.nodeTypes.ELEMENT_NODE) {
+                        else if (child.nodeType === DOMAdapter.NodeType.ELEMENT_NODE) {
                             children.push(this.nodeToJson(child, context, currentPath));
                         }
                     }
@@ -1081,7 +1095,7 @@
     /**
      * XMLUtil - Utility functions for XML processing
      */
-    class XMLUtil {
+    class XmlUtil {
         /**
          * Constructor for XMLUtil
          * @param config Configuration options
@@ -1102,7 +1116,7 @@
                 const serializer = (node, level = 0) => {
                     const pad = INDENT.repeat(level);
                     switch (node.nodeType) {
-                        case DOMAdapter.nodeTypes.ELEMENT_NODE: {
+                        case DOMAdapter.NodeType.ELEMENT_NODE: {
                             const el = node;
                             const tagName = el.tagName;
                             const attrs = Array.from(el.attributes)
@@ -1116,7 +1130,7 @@
                             // Single text node: print inline
                             if (children.length === 0 ||
                                 (children.length === 1 &&
-                                    children[0].nodeType === DOMAdapter.nodeTypes.TEXT_NODE &&
+                                    children[0].nodeType === DOMAdapter.NodeType.TEXT_NODE &&
                                     children[0].textContent?.trim() === "")) {
                                 // Empty or whitespace-only
                                 return `${pad}<${tagName}${attrs ? " " + attrs : ""}></${tagName}>\n`;
@@ -1126,18 +1140,18 @@
                                 .join("");
                             return `${pad}${openTag}\n${inner}${pad}</${tagName}>\n`;
                         }
-                        case DOMAdapter.nodeTypes.TEXT_NODE: {
+                        case DOMAdapter.NodeType.TEXT_NODE: {
                             const text = node.textContent?.trim();
                             return text ? `${pad}${text}\n` : "";
                         }
-                        case DOMAdapter.nodeTypes.CDATA_SECTION_NODE:
+                        case DOMAdapter.NodeType.CDATA_SECTION_NODE:
                             return `${pad}<![CDATA[${node.nodeValue}]]>\n`;
-                        case DOMAdapter.nodeTypes.COMMENT_NODE:
+                        case DOMAdapter.NodeType.COMMENT_NODE:
                             return `${pad}<!--${node.nodeValue}-->\n`;
-                        case DOMAdapter.nodeTypes.PROCESSING_INSTRUCTION_NODE:
+                        case DOMAdapter.NodeType.PROCESSING_INSTRUCTION_NODE:
                             const pi = node;
                             return `${pad}<?${pi.target} ${pi.data}?>\n`;
-                        case DOMAdapter.nodeTypes.DOCUMENT_NODE:
+                        case DOMAdapter.NodeType.DOCUMENT_NODE:
                             return Array.from(node.childNodes)
                                 .map((child) => serializer(child, level))
                                 .join("");
@@ -1270,16 +1284,16 @@
     }
 
     /**
-     * JSONToXML for converting JSON to XML
+     * JsonToXmlConverter for converting JSON to XML
      */
-    class JSONToXML {
+    class JsonToXmlConverter {
         /**
-         * Constructor for JSONToXML
+         * Constructor for JsonToXmlConverter
          * @param config Configuration options
          */
         constructor(config) {
             this.config = config;
-            this.xmlUtil = new XMLUtil(this.config);
+            this.xmlUtil = new XmlUtil(this.config);
             this.transformUtil = new TransformUtil(this.config);
         }
         /**
@@ -1287,7 +1301,7 @@
          * @param jsonObj JSON object to convert
          * @returns XML string
          */
-        serialize(jsonObj) {
+        convert(jsonObj) {
             try {
                 const doc = DOMAdapter.createDocument();
                 const rootElement = this.jsonToNode(jsonObj, doc);
@@ -1344,7 +1358,7 @@
             const ns = nodeData[namespaceKey];
             const prefix = nodeData[prefixKey];
             // Create context for this node
-            const context = this.transformUtil.createContext('json-to-xml', nodeName, DOMAdapter.nodeTypes.ELEMENT_NODE, {
+            const context = this.transformUtil.createContext('json-to-xml', nodeName, DOMAdapter.NodeType.ELEMENT_NODE, {
                 path: currentPath,
                 namespace: ns,
                 prefix: prefix,
@@ -1376,7 +1390,7 @@
                         return;
                     const attrData = attrObj[attrName];
                     // Create attribute context
-                    const attrContext = this.transformUtil.createContext('json-to-xml', nodeName, DOMAdapter.nodeTypes.ELEMENT_NODE, {
+                    const attrContext = this.transformUtil.createContext('json-to-xml', nodeName, DOMAdapter.NodeType.ELEMENT_NODE, {
                         path: `${currentPath}.${attrName}`,
                         namespace: attrData[namespaceKey],
                         prefix: attrData[prefixKey],
@@ -1399,7 +1413,7 @@
             // Process simple text value
             if (nodeData[valueKey] !== undefined) {
                 // Apply transformations to text value
-                const textContext = this.transformUtil.createContext('json-to-xml', nodeName, DOMAdapter.nodeTypes.TEXT_NODE, {
+                const textContext = this.transformUtil.createContext('json-to-xml', nodeName, DOMAdapter.NodeType.TEXT_NODE, {
                     path: `${currentPath}.#text`,
                     namespace: ns,
                     prefix: prefix,
@@ -1421,7 +1435,7 @@
                     if (child[valueKey] !== undefined &&
                         this.config.preserveTextNodes) {
                         // Apply transformations to text node
-                        const textContext = this.transformUtil.createContext('json-to-xml', '#text', DOMAdapter.nodeTypes.TEXT_NODE, {
+                        const textContext = this.transformUtil.createContext('json-to-xml', '#text', DOMAdapter.NodeType.TEXT_NODE, {
                             path: `${currentPath}.#text`,
                             parent: context
                         });
@@ -1432,7 +1446,7 @@
                     else if (child[cdataKey] !== undefined &&
                         this.config.preserveCDATA) {
                         // Apply transformations to CDATA
-                        const cdataContext = this.transformUtil.createContext('json-to-xml', '#cdata', DOMAdapter.nodeTypes.CDATA_SECTION_NODE, {
+                        const cdataContext = this.transformUtil.createContext('json-to-xml', '#cdata', DOMAdapter.NodeType.CDATA_SECTION_NODE, {
                             path: `${currentPath}.#cdata`,
                             parent: context
                         });
@@ -1510,17 +1524,17 @@
          */
         constructor(config = {}) {
             // First create a jsonUtil instance with default config to use its methods
-            this.jsonUtil = new JSONUtil(DEFAULT_CONFIG);
+            this.jsonUtil = new JsonUtil(DEFAULT_CONFIG);
             // Create a deep clone of the default config
             const defaultClone = this.jsonUtil.deepClone(DEFAULT_CONFIG);
             // Deep merge with the provided config
             this.config = this.jsonUtil.deepMerge(defaultClone, config);
             // Re-initialize jsonUtil with the merged config
-            this.jsonUtil = new JSONUtil(this.config);
+            this.jsonUtil = new JsonUtil(this.config);
             // Initialize other components
-            this.xmlUtil = new XMLUtil(this.config);
-            this.xmltojson = new XMLToJSON(this.config);
-            this.jsontoxml = new JSONToXML(this.config);
+            this.xmlUtil = new XmlUtil(this.config);
+            this.xmlToJsonConverter = new XmlToJsonConverter(this.config);
+            this.jsonToXmlConverter = new JsonToXmlConverter(this.config);
         }
         /**
          * Convert XML string to JSON
@@ -1528,7 +1542,7 @@
          * @returns JSON object representing the XML content
          */
         xmlToJson(xmlString) {
-            return this.xmltojson.parse(xmlString);
+            return this.xmlToJsonConverter.convert(xmlString);
         }
         /**
          * Convert JSON object back to XML string
@@ -1536,7 +1550,7 @@
          * @returns XML string
          */
         jsonToXml(jsonObj) {
-            return this.jsontoxml.serialize(jsonObj);
+            return this.jsonToXmlConverter.convert(jsonObj);
         }
         /**
          * Pretty print an XML string

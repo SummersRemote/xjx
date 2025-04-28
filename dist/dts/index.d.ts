@@ -1,7 +1,7 @@
 import { XJX } from './XJX';
 export { XJX };
-export { Configuration } from './core/types/types';
+export { Configuration } from './core/types/config-types';
 export { DEFAULT_CONFIG } from './core/config/config';
-export { XJXError } from './core/types/errors';
-export { ValueTransformer } from './core/transforms/ValueTransformer';
+export { XJXError } from './core/types/error-types';
+export { ValueTransformer } from './core/transformers/ValueTransformer';
 export default XJX;

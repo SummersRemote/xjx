@@ -1,9 +1,9 @@
 /**
  * Utilities for applying value transformations
  */
-import { Configuration } from '../types/types';
+import { Configuration } from '../types/config-types';
 import { TransformContext, TransformDirection } from './ValueTransformer';
-import { DOMAdapter } from '../DOMAdapter';
+import { DOMAdapter } from '../adapters/dom-adapter';
 
 /**
  * Utility for applying value transformations

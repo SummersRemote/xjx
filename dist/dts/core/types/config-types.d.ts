@@ -1,7 +1,7 @@
 /**
  * Type definitions for the XJX library
  */
-import { ValueTransformer } from '../transforms/ValueTransformer';
+import { ValueTransformer } from '../transformers/ValueTransformer';
 /**
  * Configuration interface for the library
  */

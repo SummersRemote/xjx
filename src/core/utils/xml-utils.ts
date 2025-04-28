@@ -1,11 +1,11 @@
 /**
  * XMLUtil - Utility functions for XML processing
  */
-import { XJXError } from "../types/errors";
-import { DOMAdapter } from "../DOMAdapter";
-import { Configuration } from "../types/types";
+import { XJXError } from "../types/error-types";
+import { DOMAdapter } from "../adapters/dom-adapter";
+import { Configuration } from "../types/config-types";
 
-export class XMLUtil {
+export class XmlUtil {
   private config: Configuration;
 
   /**
@@ -32,7 +32,7 @@ export class XMLUtil {
         const pad = INDENT.repeat(level);
 
         switch (node.nodeType) {
-          case DOMAdapter.nodeTypes.ELEMENT_NODE: {
+          case DOMAdapter.NodeType.ELEMENT_NODE: {
             const el = node as Element;
             const tagName = el.tagName;
             const attrs = Array.from(el.attributes)
@@ -50,7 +50,7 @@ export class XMLUtil {
             if (
               children.length === 0 ||
               (children.length === 1 &&
-                children[0].nodeType === DOMAdapter.nodeTypes.TEXT_NODE &&
+                children[0].nodeType === DOMAdapter.NodeType.TEXT_NODE &&
                 children[0].textContent?.trim() === "")
             ) {
               // Empty or whitespace-only
@@ -63,22 +63,22 @@ export class XMLUtil {
             return `${pad}${openTag}\n${inner}${pad}</${tagName}>\n`;
           }
 
-          case DOMAdapter.nodeTypes.TEXT_NODE: {
+          case DOMAdapter.NodeType.TEXT_NODE: {
             const text = node.textContent?.trim();
             return text ? `${pad}${text}\n` : "";
           }
 
-          case DOMAdapter.nodeTypes.CDATA_SECTION_NODE:
+          case DOMAdapter.NodeType.CDATA_SECTION_NODE:
             return `${pad}<![CDATA[${node.nodeValue}]]>\n`;
 
-          case DOMAdapter.nodeTypes.COMMENT_NODE:
+          case DOMAdapter.NodeType.COMMENT_NODE:
             return `${pad}<!--${node.nodeValue}-->\n`;
 
-          case DOMAdapter.nodeTypes.PROCESSING_INSTRUCTION_NODE:
+          case DOMAdapter.NodeType.PROCESSING_INSTRUCTION_NODE:
             const pi = node as ProcessingInstruction;
             return `${pad}<?${pi.target} ${pi.data}?>\n`;
 
-          case DOMAdapter.nodeTypes.DOCUMENT_NODE:
+          case DOMAdapter.NodeType.DOCUMENT_NODE:
             return Array.from(node.childNodes)
               .map((child) => serializer(child, level))
               .join("");

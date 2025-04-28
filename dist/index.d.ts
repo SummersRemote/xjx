@@ -88,8 +88,8 @@ interface Configuration {
 
 declare class XJX {
     private config;
-    private xmltojson;
-    private jsontoxml;
+    private xmlToJsonConverter;
+    private jsonToXmlConverter;
     private jsonUtil;
     private xmlUtil;
     /**

@@ -1,16 +1,16 @@
 /**
- * XMLToJSON class for converting XML to JSON with consistent namespace handling
+ * XmlToJsonConverter class for converting XML to JSON with consistent namespace handling
  */
-import { Configuration } from "./types/types";
+import { Configuration } from "../types/config-types";
 /**
- * XMLToJSON Parser for converting XML to JSON
+ * XmlToJsonConverter Parser for converting XML to JSON
  */
-export declare class XMLToJSON {
+export declare class XmlToJsonConverter {
     private config;
     private jsonUtil;
     private transformUtil;
     /**
-     * Constructor for XMLToJSON
+     * Constructor for XmlToJsonConverter
      * @param config Configuration options
      */
     constructor(config: Configuration);
@@ -19,7 +19,7 @@ export declare class XMLToJSON {
      * @param xmlString XML content as string
      * @returns JSON object representing the XML content
      */
-    parse(xmlString: string): Record<string, any>;
+    convert(xmlString: string): Record<string, any>;
     /**
      * Convert a DOM node to JSON representation
      * @param node DOM node to convert

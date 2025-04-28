@@ -1,15 +1,8 @@
-interface NodeTypes {
-    ELEMENT_NODE: number;
-    TEXT_NODE: number;
-    CDATA_SECTION_NODE: number;
-    COMMENT_NODE: number;
-    PROCESSING_INSTRUCTION_NODE: number;
-    DOCUMENT_NODE: number;
-}
+import { NodeType } from '../types/dom-types';
 export declare const DOMAdapter: {
     createParser: () => any;
     createSerializer: () => any;
-    nodeTypes: NodeTypes;
+    NodeType: typeof NodeType;
     parseFromString: (xmlString: string, contentType?: string) => any;
     serializeToString: (node: Node) => any;
     createDocument: () => any;
@@ -37,4 +30,3 @@ export declare const DOMAdapter: {
     getNodeAttributes: (node: Element) => Record<string, string>;
     cleanup: () => void;
 };
-export {};

@@ -1,7 +1,7 @@
 /**
  * Utilities for applying value transformations
  */
-import { Configuration } from '../types/types';
+import { Configuration } from '../types/config-types';
 import { TransformContext, TransformDirection } from './ValueTransformer';
 /**
  * Utility for applying value transformations

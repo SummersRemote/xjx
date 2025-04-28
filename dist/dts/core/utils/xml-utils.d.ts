@@ -1,5 +1,5 @@
-import { Configuration } from "../types/types";
-export declare class XMLUtil {
+import { Configuration } from "../types/config-types";
+export declare class XmlUtil {
     private config;
     /**
      * Constructor for XMLUtil

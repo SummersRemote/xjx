@@ -1,28 +1,28 @@
 /**
- * JSONToXML class for converting JSON to XML with consistent namespace handling
+ * JsonToXmlConverter class for converting JSON to XML with consistent namespace handling
  */
-import { Configuration } from "./types/types";
-import { XJXError } from "./types/errors";
-import { DOMAdapter } from "./DOMAdapter";
-import { XMLUtil } from "./utils/XmlUtils";
-import { TransformUtil } from "./transforms/TransformUtil";
-import { TransformContext } from "./transforms/ValueTransformer";
+import { Configuration } from "../types/config-types";
+import { XJXError } from "../types/error-types";
+import { DOMAdapter } from "../adapters/dom-adapter";
+import { XmlUtil } from "../utils/xml-utils";
+import { TransformUtil } from "../transformers/TransformUtil";
+import { TransformContext } from "../transformers/ValueTransformer";
 
 /**
- * JSONToXML for converting JSON to XML
+ * JsonToXmlConverter for converting JSON to XML
  */
-export class JSONToXML {
+export class JsonToXmlConverter {
   private config: Configuration;
-  private xmlUtil: XMLUtil;
+  private xmlUtil: XmlUtil;
   private transformUtil: TransformUtil;
 
   /**
-   * Constructor for JSONToXML
+   * Constructor for JsonToXmlConverter
    * @param config Configuration options
    */
   constructor(config: Configuration) {
     this.config = config;
-    this.xmlUtil = new XMLUtil(this.config);
+    this.xmlUtil = new XmlUtil(this.config);
     this.transformUtil = new TransformUtil(this.config);
   }
 
@@ -31,7 +31,7 @@ export class JSONToXML {
    * @param jsonObj JSON object to convert
    * @returns XML string
    */
-  public serialize(jsonObj: Record<string, any>): string {
+  public convert(jsonObj: Record<string, any>): string {
     try {
       const doc = DOMAdapter.createDocument();
       const rootElement = this.jsonToNode(jsonObj, doc);
@@ -110,7 +110,7 @@ export class JSONToXML {
     const context = this.transformUtil.createContext(
       'json-to-xml',
       nodeName,
-      DOMAdapter.nodeTypes.ELEMENT_NODE,
+      DOMAdapter.NodeType.ELEMENT_NODE,
       {
         path: currentPath,
         namespace: ns,
@@ -151,7 +151,7 @@ export class JSONToXML {
           const attrContext = this.transformUtil.createContext(
             'json-to-xml',
             nodeName,
-            DOMAdapter.nodeTypes.ELEMENT_NODE,
+            DOMAdapter.NodeType.ELEMENT_NODE,
             {
               path: `${currentPath}.${attrName}`,
               namespace: attrData[namespaceKey],
@@ -193,7 +193,7 @@ export class JSONToXML {
       const textContext = this.transformUtil.createContext(
         'json-to-xml',
         nodeName,
-        DOMAdapter.nodeTypes.TEXT_NODE,
+        DOMAdapter.NodeType.TEXT_NODE,
         {
           path: `${currentPath}.#text`,
           namespace: ns,
@@ -232,7 +232,7 @@ export class JSONToXML {
             const textContext = this.transformUtil.createContext(
               'json-to-xml',
               '#text',
-              DOMAdapter.nodeTypes.TEXT_NODE,
+              DOMAdapter.NodeType.TEXT_NODE,
               {
                 path: `${currentPath}.#text`,
                 parent: context
@@ -257,7 +257,7 @@ export class JSONToXML {
             const cdataContext = this.transformUtil.createContext(
               'json-to-xml',
               '#cdata',
-              DOMAdapter.nodeTypes.CDATA_SECTION_NODE,
+              DOMAdapter.NodeType.CDATA_SECTION_NODE,
               {
                 path: `${currentPath}.#cdata`,
                 parent: context

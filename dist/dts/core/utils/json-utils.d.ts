@@ -1,8 +1,9 @@
 /**
  * JSONUtil - Utility functions for JSON processing
  */
-import { Configuration } from "../types/types";
-export declare class JSONUtil {
+import { Configuration } from "../types/config-types";
+import { JSONValue } from "../types/json-types";
+export declare class JsonUtil {
     private config;
     /**
      * Constructor for JSONUtil
@@ -18,7 +19,7 @@ export declare class JSONUtil {
      * @param fallback Value to return if the path does not resolve
      * @returns Retrieved value or fallback
      */
-    getPath(obj: Record<string, any>, path: string, fallback?: any): any;
+    getPath(obj: Record<string, any>, path: string, fallback?: JSONValue): any;
     /**
      * Resolves a single path segment in the context of a JSON object.
      * Falls back to searching children for matching keys.

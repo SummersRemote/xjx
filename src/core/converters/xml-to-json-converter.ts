@@ -1,28 +1,28 @@
 /**
- * XMLToJSON class for converting XML to JSON with consistent namespace handling
+ * XmlToJsonConverter class for converting XML to JSON with consistent namespace handling
  */
-import { Configuration } from "./types/types";
-import { XJXError } from "./types/errors";
-import { DOMAdapter } from "./DOMAdapter";
-import { JSONUtil } from "./utils/JsonUtils";
-import { TransformUtil } from "./transforms/TransformUtil";
-import { TransformContext } from "./transforms/ValueTransformer";
+import { Configuration } from "../types/config-types";
+import { XJXError } from "../types/error-types";
+import { DOMAdapter } from "../adapters/dom-adapter";
+import { JsonUtil } from "../utils/json-utils";
+import { TransformUtil } from "../transformers/TransformUtil";
+import { TransformContext } from "../transformers/ValueTransformer";
 
 /**
- * XMLToJSON Parser for converting XML to JSON
+ * XmlToJsonConverter Parser for converting XML to JSON
  */
-export class XMLToJSON {
+export class XmlToJsonConverter {
   private config: Configuration;
-  private jsonUtil: JSONUtil;
+  private jsonUtil: JsonUtil;
   private transformUtil: TransformUtil;
 
   /**
-   * Constructor for XMLToJSON
+   * Constructor for XmlToJsonConverter
    * @param config Configuration options
    */
   constructor(config: Configuration) {
     this.config = config;
-    this.jsonUtil = new JSONUtil(this.config);
+    this.jsonUtil = new JsonUtil(this.config);
     this.transformUtil = new TransformUtil(this.config);
   }
 
@@ -31,7 +31,7 @@ export class XMLToJSON {
    * @param xmlString XML content as string
    * @returns JSON object representing the XML content
    */
-  public parse(xmlString: string): Record<string, any> {
+  public convert(xmlString: string): Record<string, any> {
     try {
       const xmlDoc = DOMAdapter.parseFromString(xmlString, "text/xml");
 
@@ -62,7 +62,7 @@ export class XMLToJSON {
     const result: Record<string, any> = {};
 
     // Handle element nodes
-    if (node.nodeType === DOMAdapter.nodeTypes.ELEMENT_NODE) {
+    if (node.nodeType === DOMAdapter.NodeType.ELEMENT_NODE) {
       const element = node as Element;
       // Use localName instead of nodeName to strip namespace prefix
       const nodeName =
@@ -176,7 +176,7 @@ export class XMLToJSON {
           const child = element.childNodes[i];
 
           // Text nodes - only process if preserveTextNodes is true
-          if (child.nodeType === DOMAdapter.nodeTypes.TEXT_NODE) {
+          if (child.nodeType === DOMAdapter.NodeType.TEXT_NODE) {
             if (this.config.preserveTextNodes) {
               let text = child.nodeValue || "";
 
@@ -211,7 +211,7 @@ export class XMLToJSON {
           }
           // CDATA sections
           else if (
-            child.nodeType === DOMAdapter.nodeTypes.CDATA_SECTION_NODE &&
+            child.nodeType === DOMAdapter.NodeType.CDATA_SECTION_NODE &&
             this.config.preserveCDATA
           ) {
             // Create CDATA context
@@ -237,7 +237,7 @@ export class XMLToJSON {
           }
           // Comments
           else if (
-            child.nodeType === DOMAdapter.nodeTypes.COMMENT_NODE &&
+            child.nodeType === DOMAdapter.NodeType.COMMENT_NODE &&
             this.config.preserveComments
           ) {
             children.push({
@@ -247,7 +247,7 @@ export class XMLToJSON {
           // Processing instructions
           else if (
             child.nodeType ===
-              DOMAdapter.nodeTypes.PROCESSING_INSTRUCTION_NODE &&
+              DOMAdapter.NodeType.PROCESSING_INSTRUCTION_NODE &&
             this.config.preserveProcessingInstr
           ) {
             children.push({
@@ -258,7 +258,7 @@ export class XMLToJSON {
             });
           }
           // Element nodes (recursive)
-          else if (child.nodeType === DOMAdapter.nodeTypes.ELEMENT_NODE) {
+          else if (child.nodeType === DOMAdapter.NodeType.ELEMENT_NODE) {
             children.push(this.nodeToJson(child, context, currentPath));
           }
         }

@@ -1,7 +1,7 @@
 /**
  * Default configuration for the XJX library
  */
-import { Configuration } from '../types/types';
+import { Configuration } from '../types/config-types';
 
 /**
  * Default configuration

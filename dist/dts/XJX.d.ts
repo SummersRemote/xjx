@@ -1,9 +1,9 @@
-import { Configuration } from "./core/types/types";
-import { ValueTransformer } from "./core/transforms";
+import { Configuration } from "./core/types/config-types";
+import { ValueTransformer } from "./core/transformers";
 export declare class XJX {
     private config;
-    private xmltojson;
-    private jsontoxml;
+    private xmlToJsonConverter;
+    private jsonToXmlConverter;
     private jsonUtil;
     private xmlUtil;
     /**

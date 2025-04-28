@@ -1,9 +1,10 @@
 /**
  * JSONUtil - Utility functions for JSON processing
  */
-import { Configuration } from "../types/types";
+import { Configuration } from "../types/config-types";
+import { JSONValue } from "../types/json-types";
 
-export class JSONUtil {
+export class JsonUtil {
   private config: Configuration;
 
   /**
@@ -26,7 +27,7 @@ export class JSONUtil {
   getPath(
     obj: Record<string, any>,
     path: string,
-    fallback: any = undefined
+    fallback?: JSONValue
   ): any {
     const segments = path.split(".");
     let current: any = obj;

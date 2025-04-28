@@ -1,14 +1,14 @@
 /**
  * XJX - Facade class for XML-JSON conversion operations
  */
-import { XmlToJsonConverter } from "./core/converters/xml-to-json-converter";
-import { JsonToXmlConverter } from "./core/converters/json-to-xml-converter";
-import { Configuration } from "./core/types/config-types";
-import { DEFAULT_CONFIG } from "./core/config/config";
-import { DOMAdapter } from "./core/adapters/dom-adapter";
-import { XmlUtil } from "./core/utils/xml-utils";
-import { JsonUtil } from "./core/utils/json-utils";
-import { ValueTransformer } from "./core/transformers";
+import { XmlToJsonConverter } from "./converters/xml-to-json-converter";
+import { JsonToXmlConverter } from "./converters/json-to-xml-converter";
+import { Configuration } from "./types/config-types";
+import { DEFAULT_CONFIG } from "./config/config";
+import { DOMAdapter } from "./adapters/dom-adapter";
+import { XmlUtil } from "./utils/xml-utils";
+import { JsonUtil } from "./utils/json-utils";
+import { ValueTransformer } from "./transformers";
 
 export class XJX {
   private config: Configuration;
@@ -117,9 +117,9 @@ export class XJX {
    * @param rootName Name of the root element
    * @returns Example JSON object
    */
-  public generateJsonExample(rootName: string = "root"): Record<string, any> {
-    return this.jsonUtil.generateExample(rootName);
-  }
+  // public generateJsonExample(rootName: string = "root"): Record<string, any> {
+  //   return this.jsonUtil.generateExample(rootName);
+  // }
 
   /**
    * Add a value transformer to the configuration

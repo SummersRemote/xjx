@@ -4,90 +4,66 @@ import commonjs from '@rollup/plugin-commonjs';
 import terser from '@rollup/plugin-terser';
 import dts from 'rollup-plugin-dts';
 import { readFileSync } from 'fs';
-
 import filesize from 'rollup-plugin-filesize';
 import { visualizer } from 'rollup-plugin-visualizer';
+import brotli from 'rollup-plugin-brotli'; // ✨ NEW
 
 const packageJson = JSON.parse(readFileSync('./package.json', 'utf8'));
 const isProd = process.env.NODE_ENV === 'production';
 
-const baseConfig = {
-  input: 'src/index.ts',
-  external: [...Object.keys(packageJson.peerDependencies || {})],
-  plugins: [
-    nodeResolve({
-      browser: true,
-      extensions: ['.ts', '.js']
-    }),
-    commonjs(),
-    typescript({
-      tsconfig: './tsconfig.json',
-      declaration: true
-    }),
-    visualizer({
-      filename: 'dist/stats.html',
-      title: 'XJX Bundle Visualizer',
-      gzipSize: true,
-      brotliSize: true,
-      open: false // set to true to auto-open the report in browser
-    }),
-    filesize()
-  ]
-};
+const basePlugins = [
+  nodeResolve({ browser: true, extensions: ['.ts', '.js'] }),
+  commonjs(),
+  typescript({ tsconfig: './tsconfig.json', declaration: true }),
+  filesize(),
+  visualizer({
+    filename: 'dist/stats.html',
+    title: 'XJX Bundle Visualizer',
+    gzipSize: true,
+    brotliSize: true,
+    open: false
+  })
+];
 
 export default [
-  // ESM build
+  // Core bundle (no extensions)
   {
-    ...baseConfig,
-    output: {
-      file: 'dist/index.js',
-      format: 'esm',
-      sourcemap: !isProd,
-      exports: 'named'
-    }
-  },
-  // UMD build (browser-compatible)
-  {
-    ...baseConfig,
-    output: {
-      file: 'dist/xjx.umd.js',
-      format: 'umd',
-      name: 'XJX',
-      sourcemap: !isProd,
-      exports: 'named',
-      globals: {
-        // Define global variable names for external dependencies if any
-        'jsdom': 'JSDOM',
-        '@xmldom/xmldom': 'xmldom'
-      }
-    },
+    input: 'src/index.ts',
+    external: [...Object.keys(packageJson.peerDependencies || {})],
+    output: [
+      { file: 'dist/index.js', format: 'esm', sourcemap: !isProd, exports: 'named' },
+      { file: 'dist/xjx.umd.js', format: 'umd', name: 'XJX', sourcemap: !isProd, exports: 'named', globals: { jsdom: 'JSDOM', '@xmldom/xmldom': 'xmldom' } },
+      { file: 'dist/xjx.min.js', format: 'iife', name: 'XJX', sourcemap: !isProd, exports: 'named', plugins: [terser()] }
+    ],
     plugins: [
-      ...baseConfig.plugins,
-      isProd && terser()
+      ...basePlugins,
+      isProd && brotli({ // ✨ Only compress in production
+        extensions: ['js'],
+        additional: ['dist/index.js', 'dist/xjx.umd.js', 'dist/xjx.min.js']
+      })
     ].filter(Boolean)
   },
-  // Browser-specific IIFE build
+
+  // "Full" bundle (core + extensions)
   {
-    ...baseConfig,
-    output: {
-      file: 'dist/xjx.min.js',
-      format: 'iife',
-      name: 'XJX',
-      sourcemap: !isProd,
-      exports: 'named'
-    },
+    input: 'src/extensions.ts',
+    external: [...Object.keys(packageJson.peerDependencies || {})],
+    output: [
+      { file: 'dist/xjx.full.js', format: 'esm', sourcemap: !isProd, exports: 'named' }
+    ],
     plugins: [
-      ...baseConfig.plugins,
-      terser()
-    ]
+      ...basePlugins,
+      isProd && brotli({
+        extensions: ['js'],
+        additional: ['dist/xjx.full.js']
+      })
+    ].filter(Boolean)
   },
-  // Type definitions
+
+  // Types
   {
     input: 'dist/dts/index.d.ts',
-    output: {
-      file: 'dist/index.d.ts',
-      format: 'es'
-    },
+    output: { file: 'dist/index.d.ts', format: 'es' },
     plugins: [dts()]
   }
 ];

@@ -1,86 +1,83 @@
-import { JSONObject, JSONValue } from "../core/types/json-types";
+// =====================================================================================
+// GetPathExtension.ts
+//
+// Extension that adds a `getPath` method to JsonUtil and exposes it through XJX.
+// =====================================================================================
+
+// --- Imports ---
 import { JsonUtil } from "../core/utils/json-utils";
+import { XJX } from "../core/XJX";
 
-/** @pure */
-export function extendJsonUtilWithGetPath() {
-  // Guard: only patch if not already patched
-  if (!("getPath" in JsonUtil.prototype)) {
-    Object.assign(JsonUtil.prototype, {
-      getPath(this: JsonUtil, obj: JSONObject, path: string, fallback?: JSONValue): JSONValue {
-        const segments = path.split(".");
-        let current: JSONValue = obj;
+// =====================================================================================
+// Main Extension Function
+// =====================================================================================
 
-        for (const segment of segments) {
-          if (Array.isArray(current)) {
-            const results: JSONValue[] = current
-              .map((item) => this.resolveSegment(item, segment))
-              .flat()
-              .filter((v): v is JSONValue => v !== undefined);
+/**
+ * Apply getPath extension to JsonUtil and XJX.
+ */
+export function extendXJXWithGetPath() {
+  patchUtility(JsonUtil.prototype, "jsonUtil");
+}
 
-            if (results.length === 0) {
-              return fallback as JSONValue;
-            }
-            current = results;
-          } else {
-            const resolved = this.resolveSegment(current, segment);
-            if (resolved === undefined) {
-              return fallback as JSONValue;
-            }
-            current = resolved;
-          }
+function patchUtility(proto: any, field: "jsonUtil") {
+  const extensionMethods = {
+    /**
+     * Safely retrieves a value from a JSON object using a dot-separated path.
+     *
+     * @param obj The input JSON object
+     * @param path The dot-separated path string (e.g., "root.item.description.$val")
+     * @param fallback The fallback value if the path does not exist
+     * @returns The value at the specified path or the fallback value
+     */
+    getPath(this: any, obj: Record<string, any>, path: string, fallback: any = undefined): any {
+      if (!obj || typeof obj !== "object") return fallback;
+      const segments = path.split(".");
+      let current: any = obj;
+      for (const segment of segments) {
+        if (current && typeof current === "object" && segment in current) {
+          current = current[segment];
+        } else {
+          return fallback;
         }
-
-        if (Array.isArray(current) && current.length === 1) {
-          return current[0];
-        }
-
-        return current;
-      },
-
-      resolveSegment(this: JsonUtil, obj: JSONValue, segment: string): JSONValue | undefined {
-        if (obj == null || typeof obj !== "object") return undefined;
-        if (Array.isArray(obj)) return undefined;
-
-        const objAsRecord = obj as JSONObject;
-
-        if (segment in objAsRecord) {
-          return objAsRecord[segment];
-        }
-
-        // Access config safely now that it's protected
-        const specialProps = Object.values(this.config.propNames);
-        if (specialProps.includes(segment) && objAsRecord[segment] !== undefined) {
-          return objAsRecord[segment];
-        }
-
-        const childrenKey = this.config.propNames.children;
-        const children = objAsRecord[childrenKey];
-        if (Array.isArray(children)) {
-          const matches = children
-            .map((child) => {
-              if (typeof child === "object" && child !== null && !Array.isArray(child)) {
-                return segment in child ? (child as JSONObject)[segment] : undefined;
-              }
-              return undefined;
-            })
-            .filter((v): v is JSONValue => v !== undefined);
-
-          return matches.length > 0 ? matches : undefined;
-        }
-
-        return undefined;
       }
-    });
+      return current;
+    }
+  };
+
+  for (const [methodName, methodFn] of Object.entries(extensionMethods)) {
+    if (typeof proto[methodName] !== "function") {
+      proto[methodName] = methodFn;
+    }
+    if (typeof (XJX.prototype as any)[methodName] !== "function") {
+      (XJX.prototype as any)[methodName] = function (...args: any[]) {
+        return (this[field] as any)[methodName](...args);
+      };
+    }
   }
 }
 
-// Automatically extend
-extendJsonUtilWithGetPath();
+// =====================================================================================
+// TypeScript Module Augmentation
+// =====================================================================================
 
-// Declare new methods
 declare module "../core/utils/json-utils" {
   interface JsonUtil {
-    getPath(obj: JSONObject, path: string, fallback?: JSONValue): JSONValue;
-    resolveSegment(obj: JSONValue, segment: string): JSONValue | undefined;
+    getPath(obj: Record<string, any>, path: string, fallback?: any): any;
   }
 }
+
+declare module "../core/XJX" {
+  interface XJX {
+    getPath(obj: Record<string, any>, path: string, fallback?: any): any;
+  }
+}
+
+// =====================================================================================
+// Auto-run extension
+// =====================================================================================
+
+extendXJXWithGetPath();
+
+// =====================================================================================
+// END OF FILE
+// =====================================================================================

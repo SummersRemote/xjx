@@ -1,25 +1,34 @@
 {
   "name": "xjx",
   "version": "1.0.0",
-  "description": "A modern, confgurable ESM library for converting XML to JSON and back again! (support for namespaces, attributes, processing instructions, comments, mixed-content, and more!)",
   "type": "module",
-  "main": "./dist/index.js",
+  "main": "./dist/xjx.umd.js",
   "module": "./dist/index.js",
-  "browser": "./dist/xjx.umd.js",
-  "unpkg": "./dist/xjx.min.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "import": "./dist/index.js",
       "require": "./dist/xjx.umd.js",
       "types": "./dist/index.d.ts"
-    }
+    },
+    "./full": {
+      "import": "./dist/xjx.full.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./extensions/GetPathExtension": {
+      "import": "./dist/extensions/GetPathExtension.js",
+      "types": "./dist/extensions/GetPathExtension.d.ts"
+    },
+    "./extensions/GenerateSchemaExtension": {
+      "import": "./dist/extensions/GenerateSchemaExtension.js",
+      "types": "./dist/extensions/GenerateSchemaExtension.d.ts"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",
-    "LICENSE",
-    "README.md",
-    "package.json"
+    "package.json",
+    "README.md"
   ],
   "scripts": {
     "clean": "rimraf dist",
@@ -45,13 +54,10 @@
     "json",
     "convert",
     "transform",
-    "parser",
-    "serializer",
     "namespace",
     "cdata",
     "comment",
     "processing-instruction",
-    "esm",
     "browser",
     "node"
   ],
@@ -87,6 +93,7 @@
     "prettier": "^2.8.7",
     "rimraf": "^4.4.1",
     "rollup": "^3.29.5",
+    "rollup-plugin-brotli": "^3.1.0",
     "rollup-plugin-dts": "^5.3.1",
     "rollup-plugin-filesize": "^10.0.0",
     "rollup-plugin-gzip": "^4.0.1",

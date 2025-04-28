@@ -24,16 +24,16 @@ export class XJX {
   constructor(config: Partial<Configuration> = {}) {
     // First create a jsonUtil instance with default config to use its methods
     this.jsonUtil = new JsonUtil(DEFAULT_CONFIG);
-
+  
     // Create a deep clone of the default config
     const defaultClone = this.jsonUtil.deepClone(DEFAULT_CONFIG);
-
+  
     // Deep merge with the provided config
-    this.config = this.jsonUtil.deepMerge<Configuration>(defaultClone, config);
-
+    this.config = this.jsonUtil.deepMerge(defaultClone, config);
+  
     // Re-initialize jsonUtil with the merged config
     this.jsonUtil = new JsonUtil(this.config);
-
+  
     // Initialize other components
     this.xmlUtil = new XmlUtil(this.config);
     this.xmlToJsonConverter = new XmlToJsonConverter(this.config);

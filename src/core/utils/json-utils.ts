@@ -2,7 +2,7 @@
  * JSONUtil - Utility functions for JSON processing
  */
 import { Configuration } from "../types/config-types";
-import { JSONValue } from "../types/json-types";
+import { JSONValue, JSONObject, JSONArray, XMLJSONNode, XMLJSONElement } from "../types/json-types";
 
 export class JsonUtil {
   private config: Configuration;
@@ -25,26 +25,32 @@ export class JsonUtil {
    * @returns Retrieved value or fallback
    */
   getPath(
-    obj: Record<string, any>,
+    obj: JSONObject,
     path: string,
     fallback?: JSONValue
-  ): any {
+  ): JSONValue {
     const segments = path.split(".");
-    let current: any = obj;
+    let current: JSONValue = obj;
 
     for (const segment of segments) {
       if (Array.isArray(current)) {
         // Apply the segment to each array element and flatten results
-        const results = current
+        const results: JSONValue[] = current
           .map((item) => this.resolveSegment(item, segment))
           .flat()
-          .filter((v) => v !== undefined);
-        current = results.length > 0 ? results : undefined;
+          .filter((v): v is JSONValue => v !== undefined);
+        
+        if (results.length === 0) {
+          return fallback as JSONValue;
+        }
+        current = results;
       } else {
-        current = this.resolveSegment(current, segment);
+        const resolved = this.resolveSegment(current, segment);
+        if (resolved === undefined) {
+          return fallback as JSONValue;
+        }
+        current = resolved;
       }
-
-      if (current === undefined) return fallback;
     }
 
     // Collapse singleton arrays
@@ -52,7 +58,7 @@ export class JsonUtil {
       return current[0];
     }
 
-    return current !== undefined ? current : fallback;
+    return current;
   }
 
   /**
@@ -63,12 +69,19 @@ export class JsonUtil {
    * @param segment The path segment to resolve
    * @returns Resolved value or undefined
    */
-  private resolveSegment(obj: any, segment: string): any {
+  private resolveSegment(obj: JSONValue, segment: string): JSONValue | undefined {
     if (obj == null || typeof obj !== "object") return undefined;
+    
+    // Handle arrays separately
+    if (Array.isArray(obj)) {
+      return undefined; // Already handled in getPath
+    }
+
+    const objAsRecord = obj as JSONObject;
 
     // Direct property access
-    if (segment in obj) {
-      return obj[segment];
+    if (segment in objAsRecord) {
+      return objAsRecord[segment];
     }
 
     // Check if this is a special property name that matches the config
@@ -87,18 +100,24 @@ export class JsonUtil {
         ([_, value]) => value === segment
       )?.[0];
 
-      if (configKey && obj[segment] !== undefined) {
-        return obj[segment];
+      if (configKey && objAsRecord[segment] !== undefined) {
+        return objAsRecord[segment];
       }
     }
 
     // Check children for objects that contain the segment
     const childrenKey = this.config.propNames.children;
-    const children = obj[childrenKey];
+    const children = objAsRecord[childrenKey];
     if (Array.isArray(children)) {
-      const matches = children
-        .map((child) => (segment in child ? child[segment] : undefined))
-        .filter((v) => v !== undefined);
+      const childrenArray = children as JSONArray;
+      const matches = childrenArray
+        .map((child) => {
+          if (typeof child === 'object' && child !== null && !Array.isArray(child)) {
+            return segment in (child as JSONObject) ? (child as JSONObject)[segment] : undefined;
+          }
+          return undefined;
+        })
+        .filter((v): v is JSONValue => v !== undefined);
       return matches.length > 0 ? matches : undefined;
     }
 
@@ -113,53 +132,55 @@ export class JsonUtil {
    * @param root Optional root element configuration (either a string or object with $ keys)
    * @returns XML-like JSON object
    */
-  objectToXJX(obj: any, root?: any): any {
+  objectToXJX(obj: JSONValue, root?: string | JSONObject): XMLJSONNode {
     const wrappedObject = this.wrapObject(obj);
 
     if (typeof root === "string") {
       // Root is a simple string: wrap result with this root tag
-      return { [root]: wrappedObject };
+      return { [root]: wrappedObject as XMLJSONElement };
     }
 
-    if (root && typeof root === "object") {
+    if (root && typeof root === "object" && !Array.isArray(root)) {
       // Handle root with config-based keys
-      const elementName = root.name || "root"; // Default to "root" if no name is provided
-      const prefix = root[this.config.propNames.prefix] || "";
+      const elementName = (root as JSONObject).name as string || "root"; // Default to "root" if no name is provided
+      const prefix = (root as JSONObject)[this.config.propNames.prefix] as string || "";
       const qualifiedName = prefix ? `${prefix}:${elementName}` : elementName;
 
-      const result: any = {
-        [qualifiedName]: {},
+      const result: XMLJSONNode = {
+        [qualifiedName]: {} as XMLJSONElement,
       };
+      
+      const rootElement = result[qualifiedName];
 
       // Add attributes to the root element if defined
       const attrsKey = this.config.propNames.attributes;
       if (root[attrsKey] && Array.isArray(root[attrsKey])) {
-        result[qualifiedName][attrsKey] = root[attrsKey];
+        rootElement[attrsKey] = root[attrsKey] as JSONArray;
       }
 
       // Merge existing children with the new generated children
       const childrenKey = this.config.propNames.children;
-      const children = root[childrenKey] ? root[childrenKey] : [];
-      result[qualifiedName][childrenKey] = [
+      const children = root[childrenKey] ? root[childrenKey] as JSONArray : [];
+      rootElement[childrenKey] = [
         ...children,
-        { [elementName]: wrappedObject },
-      ];
+        { [elementName]: wrappedObject as XMLJSONElement },
+      ] as unknown as XMLJSONNode[];
 
       // Add namespace and prefix if defined
       const nsKey = this.config.propNames.namespace;
       if (root[nsKey]) {
-        result[qualifiedName][nsKey] = root[nsKey];
+        rootElement[nsKey] = root[nsKey] as JSONValue;
       }
 
       if (prefix && root[nsKey]) {
-        result[qualifiedName][`xmlns:${prefix}`] = root[nsKey];
+        rootElement[`xmlns:${prefix}`] = root[nsKey] as JSONValue;
       }
 
       return result;
     }
 
     // Default behavior if no root is provided
-    return wrappedObject;
+    return wrappedObject as unknown as XMLJSONNode;
   }
 
   /**
@@ -167,7 +188,7 @@ export class JsonUtil {
    * @param value Value to wrap
    * @returns Wrapped value
    */
-  private wrapObject(value: any): any {
+  private wrapObject(value: JSONValue): JSONObject {
     const valKey = this.config.propNames.value;
     const childrenKey = this.config.propNames.children;
 
@@ -189,27 +210,27 @@ export class JsonUtil {
       };
     }
 
-    if (typeof value === "object") {
+    if (typeof value === "object" && value !== null) {
       // It's an object: wrap its properties in children
-      const children = Object.entries(value).map(([key, val]) => ({
+      const children = Object.entries(value as JSONObject).map(([key, val]) => ({
         [key]: this.wrapObject(val),
       }));
 
       return { [childrenKey]: children };
     }
 
-    return undefined; // Fallback for unhandled types
+    return { }; // Empty object for unsupported types
   }
 
   /**
-   * Check if an object is empty
+   * Check if a value is empty
    * @param value Value to check
    * @returns true if empty
    */
-  isEmpty(value: any): boolean {
+  isEmpty(value: JSONValue): boolean {
     if (value == null) return true;
     if (Array.isArray(value)) return value.length === 0;
-    if (typeof value === "object") return Object.keys(value).length === 0;
+    if (typeof value === "object") return Object.keys(value as JSONObject).length === 0;
     return false;
   }
 
@@ -219,7 +240,7 @@ export class JsonUtil {
    * @param indent Optional indentation level
    * @returns JSON string representation
    */
-  safeStringify(obj: any, indent: number = 2): string {
+  safeStringify(obj: JSONValue, indent: number = 2): string {
     try {
       return JSON.stringify(obj, null, indent);
     } catch (error) {
@@ -227,67 +248,70 @@ export class JsonUtil {
     }
   }
 
-  /**
-   * Deep clone an object
-   * @param obj Object to clone
-   * @returns Cloned object
-   */
-  deepClone(obj: any): any {
-    try {
-      return JSON.parse(JSON.stringify(obj));
-    } catch (error) {
-      throw new Error(
-        `Failed to deep clone object: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
-    }
+/**
+ * Deep clone an object
+ * @param obj Object to clone
+ * @returns Cloned object
+ */
+deepClone<T>(obj: T): T {
+  try {
+    return JSON.parse(JSON.stringify(obj));
+  } catch (error) {
+    throw new Error(
+      `Failed to deep clone object: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
   }
+}
 
-  /**
-   * Deep merge two objects with proper type handling
-   * @param target Target object
-   * @param source Source object
-   * @returns Merged object (target is modified)
-   */
-  deepMerge<T>(target: T, source: Partial<T>): T {
-    if (!source || typeof source !== "object" || source === null) {
-      return target;
-    }
-
-    if (!target || typeof target !== "object" || target === null) {
-      return source as unknown as T;
-    }
-
-    Object.keys(source).forEach((key) => {
-      const sourceValue = source[key as keyof Partial<T>];
-      const targetValue = target[key as keyof T];
-
-      // If both source and target values are objects, recursively merge them
-      if (
-        sourceValue !== null &&
-        targetValue !== null &&
-        typeof sourceValue === "object" &&
-        typeof targetValue === "object" &&
-        !Array.isArray(sourceValue) &&
-        !Array.isArray(targetValue)
-      ) {
-        // Recursively merge the nested objects
-        (target as any)[key] = this.deepMerge(targetValue, sourceValue as any);
-      } else {
-        // Otherwise just replace the value
-        (target as any)[key] = sourceValue;
-      }
-    });
-
+/**
+ * Deep merge two objects with proper type handling
+ * @param target Target object
+ * @param source Source object
+ * @returns Merged object (target is modified)
+ */
+deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
+  if (!source || typeof source !== "object" || source === null) {
     return target;
   }
+
+  if (!target || typeof target !== "object" || target === null) {
+    return source as T;
+  }
+
+  Object.keys(source).forEach((key) => {
+    const sourceValue = source[key as keyof Partial<T>];
+    const targetValue = target[key as keyof T];
+
+    // If both source and target values are objects, recursively merge them
+    if (
+      sourceValue !== null &&
+      targetValue !== null &&
+      typeof sourceValue === "object" &&
+      typeof targetValue === "object" &&
+      !Array.isArray(sourceValue) &&
+      !Array.isArray(targetValue)
+    ) {
+      // Recursively merge the nested objects
+      (target as Record<string, any>)[key] = this.deepMerge(
+        targetValue as Record<string, any>, 
+        sourceValue as Record<string, any>
+      );
+    } else {
+      // Otherwise just replace the value
+      (target as Record<string, any>)[key] = sourceValue;
+    }
+  });
+
+  return target;
+}
 
   /**
    * Generates a JSON schema that matches the current configuration
    * @returns JSON schema object
    */
-  generateJsonSchema(): Record<string, any> {
+  generateJsonSchema(): JSONObject {
     try {
       const propNames = this.config.propNames;
       const compact = this.config.outputOptions.compact || false;
@@ -322,7 +346,7 @@ export class JsonUtil {
       }
 
       // Create schema for element properties
-      const elementProperties: Record<string, any> = {};
+      const elementProperties: JSONObject = {};
 
       // Add namespace property if preserving namespaces
       if (preserveNamespaces) {
@@ -371,10 +395,10 @@ export class JsonUtil {
 
         // If preserving namespaces, add namespace properties to attribute schema
         if (preserveNamespaces) {
-          const attrProps =
-            elementProperties[propNames.attributes].items.patternProperties[
-              "^.*$"
-            ].properties;
+          const attrPatternProps = (elementProperties[propNames.attributes] as JSONObject)
+            .items as JSONObject;
+          const patternProps = (attrPatternProps.patternProperties as JSONObject)["^.*$"] as JSONObject;
+          const attrProps = patternProps.properties as JSONObject;
 
           attrProps[propNames.namespace] = {
             description: "Namespace URI of the attribute",
@@ -439,7 +463,7 @@ export class JsonUtil {
       };
 
       // Create element definition (will be referenced recursively)
-      const elementDefinition = {
+      const elementDefinition: JSONObject = {
         type: "object",
         properties: elementProperties,
         required: requiredProps,
@@ -447,7 +471,7 @@ export class JsonUtil {
       };
 
       // Build the complete schema
-      const schema = {
+      const schema: JSONObject = {
         $schema: "https://json-schema.org/draft/2020-12/schema",
         title: "XJX JSON Schema",
         description:
@@ -479,7 +503,7 @@ export class JsonUtil {
    * @param {string} rootName - Name of the root element
    * @returns {Record<string, any>} - Example JSON object
    */
-  generateExample(rootName: string = "root"): Record<string, any> {
+  generateExample(rootName: string = "root"): XMLJSONNode {
     const propNames = this.config.propNames;
     const preserveNamespaces = this.config.preserveNamespaces;
     const preserveComments = this.config.preserveComments;
@@ -488,70 +512,88 @@ export class JsonUtil {
     const preserveAttributes = this.config.preserveAttributes;
 
     // Simple example with common features
-    const example: Record<string, any> = {
+    const example: XMLJSONNode = {
       [rootName]: {
         [propNames.value]: "Root content",
         [propNames.children]: [
           {
             child: {
               [propNames.value]: "Child content",
-            },
+            } as XMLJSONElement,
           },
-        ],
-      },
+        ] as unknown as XMLJSONNode[],
+      } as XMLJSONElement,
     };
+
+    const rootElement = example[rootName];
 
     // Add namespace properties if enabled
     if (preserveNamespaces) {
-      example[rootName][propNames.namespace] = "http://example.org/ns";
-      example[rootName][propNames.prefix] = "ex";
-      example[rootName][propNames.children][0].child[propNames.namespace] =
-        "http://example.org/ns";
-      example[rootName][propNames.children][0].child[propNames.prefix] = "ex";
+      rootElement[propNames.namespace] = "http://example.org/ns";
+      rootElement[propNames.prefix] = "ex";
+      
+      const childElement = (rootElement[propNames.children] as unknown as XMLJSONNode[])[0].child;
+      childElement[propNames.namespace] = "http://example.org/ns";
+      childElement[propNames.prefix] = "ex";
     }
 
     // Add attributes if enabled
     if (preserveAttributes) {
-      example[rootName][propNames.attributes] = [
+      rootElement[propNames.attributes] = [
         { id: { [propNames.value]: "root-1" } },
         { lang: { [propNames.value]: "en" } },
-      ];
+      ] as JSONArray;
 
+      // Add XML namespace prefix to lang attribute if namespaces are preserved
       if (preserveNamespaces) {
-        example[rootName][propNames.attributes][1].lang[propNames.prefix] =
-          "xml";
+        const attributesArray = rootElement[propNames.attributes] as JSONArray;
+        if (attributesArray && attributesArray.length > 1) {
+          const langAttrObj = attributesArray[1] as JSONObject;
+          if (langAttrObj && 'lang' in langAttrObj) {
+            const langAttr = langAttrObj['lang'] as JSONObject;
+            if (langAttr) {
+              langAttr[propNames.prefix] = "xml";
+            }
+          }
+        }
       }
 
-      example[rootName][propNames.children][0].child[propNames.attributes] = [
+      const childElement = (rootElement[propNames.children] as unknown as XMLJSONNode[])[0].child;
+      childElement[propNames.attributes] = [
         { id: { [propNames.value]: "child-1" } },
-      ];
+      ] as JSONArray;
     }
 
     // Add CDATA if enabled
     if (preserveCDATA) {
-      example[rootName][propNames.children][0].child[propNames.children] = [
+      const childElement = (rootElement[propNames.children] as unknown as XMLJSONNode[])[0].child;
+      childElement[propNames.children] = [
         { [propNames.cdata]: "<data>Raw content</data>" },
-      ];
+      ] as unknown as XMLJSONNode[];
     }
 
     // Add comments if enabled
     if (preserveComments) {
-      if (!example[rootName][propNames.children][0].child[propNames.children]) {
-        example[rootName][propNames.children][0].child[propNames.children] = [];
+      const childElement = (rootElement[propNames.children] as unknown as XMLJSONNode[])[0].child;
+      
+      if (!childElement[propNames.children]) {
+        childElement[propNames.children] = [] as unknown as XMLJSONNode[];
       }
 
-      example[rootName][propNames.children][0].child[propNames.children].push({
+      const childrenArray = childElement[propNames.children] as unknown as JSONArray;
+      childrenArray.push({
         [propNames.comments]: "Comment about the child",
       });
     }
 
     // Add processing instruction if enabled
     if (preserveProcessingInstr) {
-      if (!example[rootName][propNames.children]) {
-        example[rootName][propNames.children] = [];
+      if (!rootElement[propNames.children]) {
+        rootElement[propNames.children] = [] as unknown as XMLJSONNode[];
       }
 
-      example[rootName][propNames.children].unshift({
+      const childrenArray = rootElement[propNames.children] as unknown as JSONArray;
+      childrenArray.unshift({
         [propNames.instruction]: {
           [propNames.target]: "xml-stylesheet",
           [propNames.value]: 'type="text/css" href="style.css"',

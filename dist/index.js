@@ -328,19 +328,24 @@ class JsonUtil {
                     .map((item) => this.resolveSegment(item, segment))
                     .flat()
                     .filter((v) => v !== undefined);
-                current = results.length > 0 ? results : undefined;
+                if (results.length === 0) {
+                    return fallback;
+                }
+                current = results;
             }
             else {
-                current = this.resolveSegment(current, segment);
+                const resolved = this.resolveSegment(current, segment);
+                if (resolved === undefined) {
+                    return fallback;
+                }
+                current = resolved;
             }
-            if (current === undefined)
-                return fallback;
         }
         // Collapse singleton arrays
         if (Array.isArray(current) && current.length === 1) {
             return current[0];
         }
-        return current !== undefined ? current : fallback;
+        return current;
     }
     /**
      * Resolves a single path segment in the context of a JSON object.
@@ -353,9 +358,14 @@ class JsonUtil {
     resolveSegment(obj, segment) {
         if (obj == null || typeof obj !== "object")
             return undefined;
+        // Handle arrays separately
+        if (Array.isArray(obj)) {
+            return undefined; // Already handled in getPath
+        }
+        const objAsRecord = obj;
         // Direct property access
-        if (segment in obj) {
-            return obj[segment];
+        if (segment in objAsRecord) {
+            return objAsRecord[segment];
         }
         // Check if this is a special property name that matches the config
         if (segment === this.config.propNames.value ||
@@ -368,16 +378,22 @@ class JsonUtil {
             segment === this.config.propNames.instruction ||
             segment === this.config.propNames.target) {
             const configKey = Object.entries(this.config.propNames).find(([_, value]) => value === segment)?.[0];
-            if (configKey && obj[segment] !== undefined) {
-                return obj[segment];
+            if (configKey && objAsRecord[segment] !== undefined) {
+                return objAsRecord[segment];
             }
         }
         // Check children for objects that contain the segment
         const childrenKey = this.config.propNames.children;
-        const children = obj[childrenKey];
+        const children = objAsRecord[childrenKey];
         if (Array.isArray(children)) {
-            const matches = children
-                .map((child) => (segment in child ? child[segment] : undefined))
+            const childrenArray = children;
+            const matches = childrenArray
+                .map((child) => {
+                if (typeof child === 'object' && child !== null && !Array.isArray(child)) {
+                    return segment in child ? child[segment] : undefined;
+                }
+                return undefined;
+            })
                 .filter((v) => v !== undefined);
             return matches.length > 0 ? matches : undefined;
         }
@@ -397,7 +413,7 @@ class JsonUtil {
             // Root is a simple string: wrap result with this root tag
             return { [root]: wrappedObject };
         }
-        if (root && typeof root === "object") {
+        if (root && typeof root === "object" && !Array.isArray(root)) {
             // Handle root with config-based keys
             const elementName = root.name || "root"; // Default to "root" if no name is provided
             const prefix = root[this.config.propNames.prefix] || "";
@@ -405,25 +421,26 @@ class JsonUtil {
             const result = {
                 [qualifiedName]: {},
             };
+            const rootElement = result[qualifiedName];
             // Add attributes to the root element if defined
             const attrsKey = this.config.propNames.attributes;
             if (root[attrsKey] && Array.isArray(root[attrsKey])) {
-                result[qualifiedName][attrsKey] = root[attrsKey];
+                rootElement[attrsKey] = root[attrsKey];
             }
             // Merge existing children with the new generated children
             const childrenKey = this.config.propNames.children;
             const children = root[childrenKey] ? root[childrenKey] : [];
-            result[qualifiedName][childrenKey] = [
+            rootElement[childrenKey] = [
                 ...children,
                 { [elementName]: wrappedObject },
             ];
             // Add namespace and prefix if defined
             const nsKey = this.config.propNames.namespace;
             if (root[nsKey]) {
-                result[qualifiedName][nsKey] = root[nsKey];
+                rootElement[nsKey] = root[nsKey];
             }
             if (prefix && root[nsKey]) {
-                result[qualifiedName][`xmlns:${prefix}`] = root[nsKey];
+                rootElement[`xmlns:${prefix}`] = root[nsKey];
             }
             return result;
         }
@@ -452,17 +469,17 @@ class JsonUtil {
                 }),
             };
         }
-        if (typeof value === "object") {
+        if (typeof value === "object" && value !== null) {
             // It's an object: wrap its properties in children
             const children = Object.entries(value).map(([key, val]) => ({
                 [key]: this.wrapObject(val),
             }));
             return { [childrenKey]: children };
         }
-        return undefined; // Fallback for unhandled types
+        return {}; // Empty object for unsupported types
     }
     /**
-     * Check if an object is empty
+     * Check if a value is empty
      * @param value Value to check
      * @returns true if empty
      */
@@ -616,7 +633,10 @@ class JsonUtil {
                 };
                 // If preserving namespaces, add namespace properties to attribute schema
                 if (preserveNamespaces) {
-                    const attrProps = elementProperties[propNames.attributes].items.patternProperties["^.*$"].properties;
+                    const attrPatternProps = elementProperties[propNames.attributes]
+                        .items;
+                    const patternProps = attrPatternProps.patternProperties["^.*$"];
+                    const attrProps = patternProps.properties;
                     attrProps[propNames.namespace] = {
                         description: "Namespace URI of the attribute",
                         type: "string",
@@ -727,49 +747,64 @@ class JsonUtil {
                 ],
             },
         };
+        const rootElement = example[rootName];
         // Add namespace properties if enabled
         if (preserveNamespaces) {
-            example[rootName][propNames.namespace] = "http://example.org/ns";
-            example[rootName][propNames.prefix] = "ex";
-            example[rootName][propNames.children][0].child[propNames.namespace] =
-                "http://example.org/ns";
-            example[rootName][propNames.children][0].child[propNames.prefix] = "ex";
+            rootElement[propNames.namespace] = "http://example.org/ns";
+            rootElement[propNames.prefix] = "ex";
+            const childElement = rootElement[propNames.children][0].child;
+            childElement[propNames.namespace] = "http://example.org/ns";
+            childElement[propNames.prefix] = "ex";
         }
         // Add attributes if enabled
         if (preserveAttributes) {
-            example[rootName][propNames.attributes] = [
+            rootElement[propNames.attributes] = [
                 { id: { [propNames.value]: "root-1" } },
                 { lang: { [propNames.value]: "en" } },
             ];
+            // Add XML namespace prefix to lang attribute if namespaces are preserved
             if (preserveNamespaces) {
-                example[rootName][propNames.attributes][1].lang[propNames.prefix] =
-                    "xml";
+                const attributesArray = rootElement[propNames.attributes];
+                if (attributesArray && attributesArray.length > 1) {
+                    const langAttrObj = attributesArray[1];
+                    if (langAttrObj && 'lang' in langAttrObj) {
+                        const langAttr = langAttrObj['lang'];
+                        if (langAttr) {
+                            langAttr[propNames.prefix] = "xml";
+                        }
+                    }
+                }
             }
-            example[rootName][propNames.children][0].child[propNames.attributes] = [
+            const childElement = rootElement[propNames.children][0].child;
+            childElement[propNames.attributes] = [
                 { id: { [propNames.value]: "child-1" } },
             ];
         }
         // Add CDATA if enabled
         if (preserveCDATA) {
-            example[rootName][propNames.children][0].child[propNames.children] = [
+            const childElement = rootElement[propNames.children][0].child;
+            childElement[propNames.children] = [
                 { [propNames.cdata]: "<data>Raw content</data>" },
             ];
         }
         // Add comments if enabled
         if (preserveComments) {
-            if (!example[rootName][propNames.children][0].child[propNames.children]) {
-                example[rootName][propNames.children][0].child[propNames.children] = [];
+            const childElement = rootElement[propNames.children][0].child;
+            if (!childElement[propNames.children]) {
+                childElement[propNames.children] = [];
             }
-            example[rootName][propNames.children][0].child[propNames.children].push({
+            const childrenArray = childElement[propNames.children];
+            childrenArray.push({
                 [propNames.comments]: "Comment about the child",
             });
         }
         // Add processing instruction if enabled
         if (preserveProcessingInstr) {
-            if (!example[rootName][propNames.children]) {
-                example[rootName][propNames.children] = [];
+            if (!rootElement[propNames.children]) {
+                rootElement[propNames.children] = [];
             }
-            example[rootName][propNames.children].unshift({
+            const childrenArray = rootElement[propNames.children];
+            childrenArray.unshift({
                 [propNames.instruction]: {
                     [propNames.target]: "xml-stylesheet",
                     [propNames.value]: 'type="text/css" href="style.css"',

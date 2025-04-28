@@ -1,4 +1,11 @@
 import { Configuration } from "../types/config-types";
+/**
+ * Interface for XML validation result
+ */
+export interface ValidationResult {
+    isValid: boolean;
+    message?: string;
+}
 export declare class XmlUtil {
     private config;
     /**
@@ -17,10 +24,7 @@ export declare class XmlUtil {
      * @param xmlString XML string to validate
      * @returns Object with validation result and any error messages
      */
-    validateXML(xmlString: string): {
-        isValid: boolean;
-        message?: string;
-    };
+    validateXML(xmlString: string): ValidationResult;
     /**
      * Add XML declaration to a string if missing
      * @param xmlString XML string

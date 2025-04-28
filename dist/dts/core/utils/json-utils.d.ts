@@ -2,7 +2,7 @@
  * JSONUtil - Utility functions for JSON processing
  */
 import { Configuration } from "../types/config-types";
-import { JSONValue } from "../types/json-types";
+import { JSONValue, JSONObject, XMLJSONNode } from "../types/json-types";
 export declare class JsonUtil {
     private config;
     /**
@@ -19,7 +19,7 @@ export declare class JsonUtil {
      * @param fallback Value to return if the path does not resolve
      * @returns Retrieved value or fallback
      */
-    getPath(obj: Record<string, any>, path: string, fallback?: JSONValue): any;
+    getPath(obj: JSONObject, path: string, fallback?: JSONValue): JSONValue;
     /**
      * Resolves a single path segment in the context of a JSON object.
      * Falls back to searching children for matching keys.
@@ -37,7 +37,7 @@ export declare class JsonUtil {
      * @param root Optional root element configuration (either a string or object with $ keys)
      * @returns XML-like JSON object
      */
-    objectToXJX(obj: any, root?: any): any;
+    objectToXJX(obj: JSONValue, root?: string | JSONObject): XMLJSONNode;
     /**
      * Wraps a standard JSON value in the XML-like JSON structure
      * @param value Value to wrap
@@ -45,40 +45,40 @@ export declare class JsonUtil {
      */
     private wrapObject;
     /**
-     * Check if an object is empty
+     * Check if a value is empty
      * @param value Value to check
      * @returns true if empty
      */
-    isEmpty(value: any): boolean;
+    isEmpty(value: JSONValue): boolean;
     /**
      * Safely stringify JSON for debugging
      * @param obj Object to stringify
      * @param indent Optional indentation level
      * @returns JSON string representation
      */
-    safeStringify(obj: any, indent?: number): string;
+    safeStringify(obj: JSONValue, indent?: number): string;
     /**
      * Deep clone an object
      * @param obj Object to clone
      * @returns Cloned object
      */
-    deepClone(obj: any): any;
+    deepClone<T>(obj: T): T;
     /**
      * Deep merge two objects with proper type handling
      * @param target Target object
      * @param source Source object
      * @returns Merged object (target is modified)
      */
-    deepMerge<T>(target: T, source: Partial<T>): T;
+    deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T;
     /**
      * Generates a JSON schema that matches the current configuration
      * @returns JSON schema object
      */
-    generateJsonSchema(): Record<string, any>;
+    generateJsonSchema(): JSONObject;
     /**
      * Generate an example JSON object based on the schema
      * @param {string} rootName - Name of the root element
      * @returns {Record<string, any>} - Example JSON object
      */
-    generateExample(rootName?: string): Record<string, any>;
+    generateExample(rootName?: string): XMLJSONNode;
 }

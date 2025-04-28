@@ -4,6 +4,15 @@
 import { XJXError } from "../types/error-types";
 import { DOMAdapter } from "../adapters/dom-adapter";
 import { Configuration } from "../types/config-types";
+import { NodeType } from "../types/dom-types";
+
+/**
+ * Interface for XML validation result
+ */
+export interface ValidationResult {
+  isValid: boolean;
+  message?: string;
+}
 
 export class XmlUtil {
   private config: Configuration;
@@ -54,7 +63,9 @@ export class XmlUtil {
                 children[0].textContent?.trim() === "")
             ) {
               // Empty or whitespace-only
-              return `${pad}<${tagName}${attrs ? " " + attrs : ""}></${tagName}>\n`;
+              return `${pad}<${tagName}${
+                attrs ? " " + attrs : ""
+              }></${tagName}>\n`;
             }
 
             const inner = children
@@ -103,10 +114,7 @@ export class XmlUtil {
    * @param xmlString XML string to validate
    * @returns Object with validation result and any error messages
    */
-  validateXML(xmlString: string): {
-    isValid: boolean;
-    message?: string;
-  } {
+  validateXML(xmlString: string): ValidationResult {
     try {
       const doc = DOMAdapter.parseFromString(xmlString, "text/xml");
       const errors = doc.getElementsByTagName("parsererror");

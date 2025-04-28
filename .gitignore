@@ -6,6 +6,7 @@ node_modules/
 build/
 lib/
 out/
+dist/
 reports/
 
 # TypeScript cache

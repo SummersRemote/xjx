@@ -56,19 +56,18 @@
     "node"
   ],
   "author": {
-    "name": "Your Name",
-    "email": "your.email@example.com",
-    "url": "https://your-website.com"
+    "name": "William Summers",
+    "email": "william.summers+xjx@gmail.com",
   },
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/xjx.git"
+    "url": "git+https://github.com/summersremote/xjx.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/xjx/issues"
+    "url": "https://github.com/summersremote/xjx/issues"
   },
-  "homepage": "https://github.com/yourusername/xjx#readme",
+  "homepage": "https://github.com/summersremote/xjx#readme",
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.8",
     "@rollup/plugin-node-resolve": "^15.3.1",

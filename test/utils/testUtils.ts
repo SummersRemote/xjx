@@ -3,7 +3,7 @@
  */
 import path from 'path';
 import fs from 'fs';
-import { Configuration } from '../../src/core/types/types';
+import { Configuration } from '../../src/core/types/config-types';
 
 /**
  * Creates a standard test configuration to use across all tests

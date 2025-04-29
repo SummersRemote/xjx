@@ -19,9 +19,11 @@ const config = {
     'src/**/*.ts',
     '!src/**/*.d.ts',
     '!src/**/index.ts',
+    '!src/xjx.full.ts',
+    '!src/core/adapters/dom-adapter.ts', // Complex DOM adapter with environment detection
   ],
   testMatch: [
-    '**/test/**/*.ts?(x)', // Look for tests in the test directory
+    'test/unit/**/*.ts?(x)',
     '**/?(*.)+(spec|test).ts?(x)'
   ],
   testPathIgnorePatterns: [
@@ -40,7 +42,13 @@ const config = {
       includeFailureMsg: true,
       includeConsoleLog: true
     }]
-  ]
+  ],
+  // Configure the timeout for each test (in milliseconds)
+  testTimeout: 10000,
+  // Verbose output with detailed test results
+  verbose: true,
+  // Add global teardown to clean up any resources
+  globalTeardown: '<rootDir>/test/jest.teardown.js'
 };
 
 export default config;

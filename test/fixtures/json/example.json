@@ -1,0 +1,109 @@
+{
+    "library": {
+      "$children": [
+        {
+          "book": {
+            "$attr": [
+              {
+                "id": {
+                  "$val": "1"
+                }
+              }
+            ],
+            "$children": [
+              {
+                "title": {
+                  "$val": "The Great Gatsby"
+                }
+              },
+              {
+                "author": {
+                  "$val": "F. Scott Fitzgerald"
+                }
+              },
+              {
+                "published": {
+                  "$val": 1925
+                }
+              },
+              {
+                "available": {
+                  "$val": true
+                }
+              },
+              {
+                "rating": {
+                  "$val": 4.5
+                }
+              },
+              {
+                "description": {
+                  "$children": [
+                    {
+                      "$cdata": "<p>A classic novel about the American Dream</p>"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "book": {
+            "$attr": [
+              {
+                "id": {
+                  "$val": "2"
+                }
+              }
+            ],
+            "$children": [
+              {
+                "title": {
+                  "$val": "To Kill a Mockingbird"
+                }
+              },
+              {
+                "author": {
+                  "$val": "Harper Lee"
+                }
+              },
+              {
+                "published": {
+                  "$val": 1960
+                }
+              },
+              {
+                "available": {
+                  "$val": false
+                }
+              },
+              {
+                "rating": {
+                  "$val": 4.8
+                }
+              },
+              {
+                "$cmnt": " This book won the Pulitzer Prize "
+              },
+              {
+                "description": {
+                  "$children": [
+                    {
+                      "$cdata": "<p>A story about racial inequality in the South</p>"
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        {
+          "$pi": {
+            "$trgt": "custom-instruction",
+            "$val": "processing instruction data"
+          }
+        }
+      ]
+    }
+  }

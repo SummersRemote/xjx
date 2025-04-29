@@ -39,3 +39,4 @@ pnpm-debug.log*
 # Windows
 Thumbs.db
 ehthumbs.db
+reports/jest-html-reporters-attach/test-report/result.js

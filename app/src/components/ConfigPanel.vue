@@ -3,6 +3,9 @@
     <!-- Schema Viewer Dialog -->
     <schema-viewer v-model="showSchemaViewer" />
     
+    <!-- Configuration Viewer Dialog -->
+    <configuration-viewer v-model="showConfigViewer" />
+    
     <v-card-text>
       <v-container fluid>
         <v-row align="center" class="mb-4">
@@ -13,8 +16,19 @@
               prepend-icon="mdi-code-json"
               size="small"
               @click="showSchemaViewer = true"
+              class="mx-1"
             >
               View JSON Schema
+            </v-btn>
+            <v-btn
+              color="accent"
+              variant="outlined"
+              prepend-icon="mdi-cog-outline"
+              size="small"
+              @click="showConfigViewer = true"
+              class="mx-1"
+            >
+              View Configuration
             </v-btn>
           </v-col>
         </v-row>
@@ -239,10 +253,12 @@
 import { ref } from 'vue';
 import { useXjxStore } from '../stores/xjxStore';
 import SchemaViewer from './SchemaViewer.vue';
+import ConfigurationViewer from './ConfigurationViewer.vue';
 
 // Get the store
 const store = useXjxStore();
 
-// State for schema viewer
+// State for schema viewer and configuration viewer
 const showSchemaViewer = ref(false);
+const showConfigViewer = ref(false);
 </script>

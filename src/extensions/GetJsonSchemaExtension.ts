@@ -26,7 +26,7 @@ function patchUtility(proto: any, field: "jsonUtil") {
      *
      * @returns A basic JSON schema object
      */
-    getSchema(this: any): Record<string, any> {
+    getJsonSchema(this: any): Record<string, any> {
       // Very simple static schema as example — you can expand this later!
       return {
         $schema: "http://json-schema.org/draft-07/schema#",

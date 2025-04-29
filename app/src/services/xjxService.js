@@ -134,7 +134,7 @@ export default class XjxService {
    * @param {Object} config - XJX configuration options
    * @returns {Object} JSON schema object for validating XML-JSON documents
    */
-  static generateJsonSchema(config) {
+  static getJsonSchema(config) {
     const xjx = this.createInstance(config);
     try {
       const schema = xjx.getJsonSchema();

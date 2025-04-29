@@ -35,6 +35,40 @@ export {
   NodeTransformer
 } from './core/types/transform-types';
 
+// Base transformer classes
+export {
+  BaseTransformer,
+  BaseValueTransformer,
+  BaseAttributeTransformer,
+  BaseChildrenTransformer,
+  BaseNodeTransformer
+} from './core/transformers/transformer-base';
+
+// Value transformers
+export {
+  BooleanTransformer,
+  BooleanTransformerOptions
+} from './core/transformers/boolean-transformer';
+
+export {
+  NumberTransformer,
+  NumberTransformerOptions
+} from './core/transformers/number-transformer';
+
+export {
+  StringReplaceTransformer,
+  StringReplaceOptions
+} from './core/transformers/string-replace-transformer';
+
+// Structural transformers
+export {
+  FilterTransformer,
+  FilterTransformerOptions,
+  FilterPredicate,
+  FilterCondition,
+  FilterOp
+} from './core/transformers/filter-transformer';
+
 // Extension system
 export { ExtensionRegistry } from './core/extensions/registry';
 

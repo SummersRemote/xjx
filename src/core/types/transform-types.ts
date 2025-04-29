@@ -57,10 +57,21 @@ export interface XNode {
   prefix?: string;                    // Namespace prefix
 }
 
+
 /**
  * Base transformer interface
  */
 export interface Transformer {
+  /**
+   * Base transformer method (specific interfaces will override this)
+   */
+  transform: (...args: any[]) => any;
+}
+
+/**
+ * Value transformer interface for primitive values
+ */
+export interface ValueTransformer extends Transformer {
   /**
    * Transform a value
    * @param value The value to transform
@@ -72,14 +83,9 @@ export interface Transformer {
 }
 
 /**
- * Value transformer interface for primitive values
- */
-export interface ValueTransformer extends Transformer {}
-
-/**
  * Attribute transformer interface
  */
-export interface AttributeTransformer {
+export interface AttributeTransformer extends Transformer {
   /**
    * Transform an attribute name and value
    * @param name The attribute name
@@ -94,7 +100,7 @@ export interface AttributeTransformer {
 /**
  * Children transformer interface
  */
-export interface ChildrenTransformer {
+export interface ChildrenTransformer extends Transformer {
   /**
    * Transform child nodes
    * @param children The array of child nodes
@@ -108,7 +114,7 @@ export interface ChildrenTransformer {
 /**
  * Node transformer interface
  */
-export interface NodeTransformer {
+export interface NodeTransformer extends Transformer {
   /**
    * Transform a node
    * @param node The node to transform

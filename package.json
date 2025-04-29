@@ -1,37 +1,38 @@
 {
-  "name": "xjx",
-  "version": "1.0.0",
-  "type": "module",
-  "private": true,
-  "main": "./dist/xjx.umd.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
+    "name": "xjx",
+    "version": "1.0.0",
+    "type": "module",
+    "private": true,
+    "main": "./dist/xjx.umd.js",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
       ".": {
-          "import": "./dist/index.js",
-          "require": "./dist/xjx.umd.js",
-          "types": "./dist/index.d.ts"
+        "import": "./dist/index.js",
+        "require": "./dist/xjx.umd.js",
+        "types": "./dist/index.d.ts"
       },
       "./full": {
-          "import": "./dist/xjx.full.js",
-          "types": "./dist/index.d.ts"
+        "import": "./dist/xjx.full.js",
+        "require": "./dist/xjx.full.umd.js",
+        "types": "./dist/index.d.ts"
       },
       "./extensions/GetPathExtension": {
-          "import": "./dist/extensions/GetPathExtension.js",
-          "types": "./dist/extensions/GetPathExtension.d.ts"
+        "import": "./dist/extensions/GetPathExtension.js",
+        "types": "./dist/extensions/GetPathExtension.d.ts"
       },
-      "./extensions/GenerateSchemaExtension": {
-          "import": "./dist/extensions/GenerateSchemaExtension.js",
-          "types": "./dist/extensions/GenerateSchemaExtension.d.ts"
+      "./extensions/getJsonSchemaExtension": {
+        "import": "./dist/extensions/getJsonSchemaExtension.js",
+        "types": "./dist/extensions/getJsonSchemaExtension.d.ts"
       },
       "./package.json": "./package.json"
-  },
-  "files": [
+    },
+    "files": [
       "dist",
       "package.json",
       "README.md"
-  ],
-  "scripts": {
+    ],
+    "scripts": {
       "clean": "rimraf dist",
       "build": "npm run clean && npm run build:types && npm run build:js",
       "build:types": "tsc --emitDeclarationOnly --outDir dist/dts",
@@ -49,8 +50,8 @@
       "preversion": "npm run lint",
       "version": "npm run format && git add -A src",
       "postversion": "git push && git push --tags"
-  },
-  "keywords": [
+    },
+    "keywords": [
       "xml",
       "json",
       "convert",
@@ -61,21 +62,21 @@
       "processing-instruction",
       "browser",
       "node"
-  ],
-  "author": {
+    ],
+    "author": {
       "name": "William Summers",
       "email": "william.summers+xjx@gmail.com"
-  },
-  "license": "MIT",
-  "repository": {
+    },
+    "license": "MIT",
+    "repository": {
       "type": "git",
       "url": "git+https://github.com/summersremote/xjx.git"
-  },
-  "bugs": {
+    },
+    "bugs": {
       "url": "https://github.com/summersremote/xjx/issues"
-  },
-  "homepage": "https://github.com/summersremote/xjx#readme",
-  "devDependencies": {
+    },
+    "homepage": "https://github.com/summersremote/xjx#readme",
+    "devDependencies": {
       "@rollup/plugin-commonjs": "^25.0.8",
       "@rollup/plugin-node-resolve": "^15.3.1",
       "@rollup/plugin-terser": "^0.4.4",
@@ -102,20 +103,20 @@
       "ts-jest": "^29.1.1",
       "typedoc": "^0.24.1",
       "typescript": "^5.1.6"
-  },
-  "peerDependencies": {
+    },
+    "peerDependencies": {
       "jsdom": "^21.1.1"
-  },
-  "peerDependenciesMeta": {
+    },
+    "peerDependenciesMeta": {
       "jsdom": {
-          "optional": true
+        "optional": true
       },
       "@xmldom/xmldom": {
-          "optional": true
+        "optional": true
       }
-  },
-  "engines": {
+    },
+    "engines": {
       "node": ">=14.16.0"
-  },
-  "sideEffects": false
-}
+    },
+    "sideEffects": false
+  }

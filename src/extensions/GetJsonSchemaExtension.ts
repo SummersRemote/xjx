@@ -1,7 +1,7 @@
 // =====================================================================================
-// GenerateJsonSchemaExtension.ts
+// GetSchemaExtension.ts
 //
-// Extension that adds a `generateJsonSchema` method to JsonUtil and exposes it through XJX.
+// Extension that adds a `getSchema` method to JsonUtil and exposes it through XJX.
 // =====================================================================================
 
 // --- Imports ---
@@ -13,9 +13,9 @@ import { XJX } from "../core/XJX";
 // =====================================================================================
 
 /**
- * Apply generateJsonSchema extension to JsonUtil and XJX.
+ * Apply getSchema extension to JsonUtil and XJX.
  */
-export function extendXJXWithGenerateJsonSchema() {
+export function extendXJXWithgetSchema() {
   patchUtility(JsonUtil.prototype, "jsonUtil");
 }
 
@@ -26,7 +26,7 @@ function patchUtility(proto: any, field: "jsonUtil") {
      *
      * @returns A basic JSON schema object
      */
-    generateJsonSchema(this: any): Record<string, any> {
+    getSchema(this: any): Record<string, any> {
       // Very simple static schema as example — you can expand this later!
       return {
         $schema: "http://json-schema.org/draft-07/schema#",
@@ -60,13 +60,13 @@ function patchUtility(proto: any, field: "jsonUtil") {
 
 declare module "../core/utils/json-utils" {
   interface JsonUtil {
-    generateJsonSchema(): Record<string, any>;
+    getSchema(): Record<string, any>;
   }
 }
 
 declare module "../core/XJX" {
   interface XJX {
-    generateJsonSchema(): Record<string, any>;
+    getSchema(): Record<string, any>;
   }
 }
 
@@ -74,7 +74,7 @@ declare module "../core/XJX" {
 // Auto-run extension
 // =====================================================================================
 
-extendXJXWithGenerateJsonSchema();
+extendXJXWithgetSchema();
 
 // =====================================================================================
 // END OF FILE

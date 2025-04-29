@@ -80,7 +80,7 @@
   const formattedSchema = computed(() => {
     try {
       console.log("Generating schema with config:", store.config);
-      const schema = XjxService.generateJsonSchema(store.config);
+      const schema = XjxService.getJsonSchema(store.config);
       console.log("Schema generated:", schema);
       return JSON.stringify(schema, null, 2);
     } catch (error) {

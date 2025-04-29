@@ -5,6 +5,8 @@
  * of XML/JSON conversion and other operations.
  */
 import { XJX } from 'xjx/full';
+// import 'xjx/extensions/GetPathExtension';
+// import 'xjx/extensions/GetJsonSchemaExtension';
 
 export default class XjxService {
   /**
@@ -135,7 +137,7 @@ export default class XjxService {
   static generateJsonSchema(config) {
     const xjx = this.createInstance(config);
     try {
-      const schema = xjx.generateJsonSchema();
+      const schema = xjx.getJsonSchema();
       return schema;
     } finally {
       xjx.cleanup();

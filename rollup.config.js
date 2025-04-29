@@ -6,7 +6,7 @@ import dts from 'rollup-plugin-dts';
 import { readFileSync } from 'fs';
 import filesize from 'rollup-plugin-filesize';
 import { visualizer } from 'rollup-plugin-visualizer';
-import brotli from 'rollup-plugin-brotli'; // ✨ NEW
+import brotli from 'rollup-plugin-brotli';
 
 const packageJson = JSON.parse(readFileSync('./package.json', 'utf8'));
 const isProd = process.env.NODE_ENV === 'production';
@@ -25,45 +25,129 @@ const basePlugins = [
   })
 ];
 
+const compressionPlugin = isProd && brotli({
+  extensions: ['js'],
+});
+
 export default [
-  // Core bundle (no extensions)
+  // Core bundle
   {
     input: 'src/index.ts',
     external: [...Object.keys(packageJson.peerDependencies || {})],
     output: [
-      { file: 'dist/index.js', format: 'esm', sourcemap: !isProd, exports: 'named' },
-      { file: 'dist/xjx.umd.js', format: 'umd', name: 'XJX', sourcemap: !isProd, exports: 'named', globals: { jsdom: 'JSDOM', '@xmldom/xmldom': 'xmldom' } },
-      { file: 'dist/xjx.min.js', format: 'iife', name: 'XJX', sourcemap: !isProd, exports: 'named', plugins: [terser()] }
+      { 
+        file: 'dist/index.js', 
+        format: 'esm', 
+        sourcemap: !isProd, 
+        exports: 'named' 
+      },
+      { 
+        file: 'dist/xjx.umd.js', 
+        format: 'umd', 
+        name: 'XJX', 
+        sourcemap: !isProd, 
+        exports: 'named', 
+        globals: { jsdom: 'JSDOM', '@xmldom/xmldom': 'xmldom' } 
+      },
+      { 
+        file: 'dist/xjx.min.js', 
+        format: 'iife', 
+        name: 'XJX', 
+        sourcemap: !isProd, 
+        exports: 'named', 
+        plugins: [terser()] 
+      }
     ],
     plugins: [
       ...basePlugins,
-      isProd && brotli({ // ✨ Only compress in production
-        extensions: ['js'],
-        additional: ['dist/index.js', 'dist/xjx.umd.js', 'dist/xjx.min.js']
-      })
+      compressionPlugin
     ].filter(Boolean)
   },
 
-  // "Full" bundle (core + extensions)
+  // Full bundle (core + extensions)
   {
-    input: 'src/extensions.ts',
+    input: 'src/xjx.full.ts',
     external: [...Object.keys(packageJson.peerDependencies || {})],
     output: [
-      { file: 'dist/xjx.full.js', format: 'esm', sourcemap: !isProd, exports: 'named' }
+      { 
+        file: 'dist/xjx.full.js', 
+        format: 'esm', 
+        sourcemap: !isProd, 
+        exports: 'named' 
+      },
+      { 
+        file: 'dist/xjx.full.umd.js', 
+        format: 'umd', 
+        name: 'XJX', 
+        sourcemap: !isProd, 
+        exports: 'named', 
+        globals: { jsdom: 'JSDOM', '@xmldom/xmldom': 'xmldom' } 
+      },
+      { 
+        file: 'dist/xjx.full.min.js', 
+        format: 'iife', 
+        name: 'XJX', 
+        sourcemap: !isProd, 
+        exports: 'named', 
+        plugins: [terser()] 
+      }
     ],
     plugins: [
       ...basePlugins,
-      isProd && brotli({
-        extensions: ['js'],
-        additional: ['dist/xjx.full.js']
-      })
+      compressionPlugin
     ].filter(Boolean)
   },
 
-  // Types
+  // Individual extensions
+  {
+    input: 'src/extensions/GetPathExtension.ts',
+    external: ['../core/utils/json-utils', '../core/XJX'],
+    output: [
+      { 
+        file: 'dist/extensions/GetPathExtension.js', 
+        format: 'esm', 
+        sourcemap: !isProd 
+      }
+    ],
+    plugins: [
+      ...basePlugins,
+      compressionPlugin
+    ].filter(Boolean)
+  },
+
+  {
+    input: 'src/extensions/GetJsonSchemaExtension.ts',
+    external: ['../core/utils/json-utils', '../core/XJX'],
+    output: [
+      { 
+        file: 'dist/extensions/GetJsonSchemaExtension.js', 
+        format: 'esm', 
+        sourcemap: !isProd 
+      }
+    ],
+    plugins: [
+      ...basePlugins,
+      compressionPlugin
+    ].filter(Boolean)
+  },
+
+  // Types bundle
   {
     input: 'dist/dts/index.d.ts',
     output: { file: 'dist/index.d.ts', format: 'es' },
+    plugins: [dts()]
+  },
+  
+  // Extension types
+  {
+    input: 'dist/dts/extensions/GetPathExtension.d.ts',
+    output: { file: 'dist/extensions/GetPathExtension.d.ts', format: 'es' },
+    plugins: [dts()]
+  },
+  
+  {
+    input: 'dist/dts/extensions/GetJsonSchemaExtension.d.ts',
+    output: { file: 'dist/extensions/GetJsonSchemaExtension.d.ts', format: 'es' },
     plugins: [dts()]
   }
 ];

@@ -23,12 +23,21 @@ export {
   ConfigurationError 
 } from './core/types/error-types';
 
-// Allow custom transformers
-export { 
-  ValueTransformer, 
-  TransformContext, 
-  TransformDirection 
-} from './core/transformers/ValueTransformer';
+// Transformation API
+export {
+  XNode,
+  TransformContext,
+  TransformDirection,
+  Transformer,
+  ValueTransformer,
+  AttributeTransformer,
+  ChildrenTransformer,
+  NodeTransformer
+} from './core/types/transform-types';
+
+// Extension system
+export { ExtensionRegistry } from './core/extensions/registry';
 
 // Utilities
 export { ValidationResult } from './core/utils/xml-utils';
+export { TransformUtil } from './core/utils/transform-utils';

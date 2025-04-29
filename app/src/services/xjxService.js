@@ -4,8 +4,7 @@
  * Provides a wrapper around the XJX library for centralized management
  * of XML/JSON conversion and other operations.
  */
-import { XJX } from 'xjx';
-
+import { XJX } from 'xjx/full';
 
 export default class XjxService {
   /**

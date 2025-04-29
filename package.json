@@ -21,9 +21,13 @@
             "import": "./dist/extensions/GetPathExtension.js",
             "types": "./dist/extensions/GetPathExtension.d.ts"
         },
-        "./extensions/getJsonSchemaExtension": {
-            "import": "./dist/extensions/getJsonSchemaExtension.js",
-            "types": "./dist/extensions/getJsonSchemaExtension.d.ts"
+        "./extensions/GetJsonSchemaExtension": {
+            "import": "./dist/extensions/GetJsonSchemaExtension.js",
+            "types": "./dist/extensions/GetJsonSchemaExtension.d.ts"
+        },
+        "./extensions/StringReplaceExtension": {
+            "import": "./dist/extensions/StringReplaceExtension.js",
+            "types": "./dist/extensions/StringReplaceExtension.d.ts"
         },
         "./package.json": "./package.json"
     },

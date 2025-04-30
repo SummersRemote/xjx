@@ -52,23 +52,44 @@ export class XmlUtil {
 
             const children = Array.from(el.childNodes);
 
+            // Self-closing tag for empty elements
             if (children.length === 0) {
               return `${pad}${openTag.replace(/>$/, " />")}\n`;
             }
 
-            // Single text node: print inline
-            if (
-              children.length === 0 ||
-              (children.length === 1 &&
-                children[0].nodeType === DOMAdapter.NodeType.TEXT_NODE &&
-                children[0].textContent?.trim() === "")
-            ) {
-              // Empty or whitespace-only
-              return `${pad}<${tagName}${
-                attrs ? " " + attrs : ""
-              }></${tagName}>\n`;
+            // Handle mixed content and text-only content better
+            const hasElementChildren = children.some(child => 
+              child.nodeType === DOMAdapter.NodeType.ELEMENT_NODE);
+              
+            const hasTextChildren = children.some(child => 
+              child.nodeType === DOMAdapter.NodeType.TEXT_NODE && child.textContent?.trim());
+              
+            // Text-only content (with meaningful text, not just whitespace)
+            if (!hasElementChildren && hasTextChildren) {
+              // Collect all text content, trimming whitespace
+              let text = '';
+              for (const child of children) {
+                if (child.nodeType === DOMAdapter.NodeType.TEXT_NODE) {
+                  text += child.textContent || '';
+                }
+              }
+              
+              // Trim and normalize whitespace for text-only content
+              text = text.trim().replace(/\s+/g, ' ');
+              
+              if (text) {
+                return `${pad}${openTag}${text}</${tagName}>\n`;
+              }
+            }
+            
+            // Empty or whitespace-only
+            if (children.every(child => 
+                child.nodeType !== DOMAdapter.NodeType.ELEMENT_NODE && 
+                (!child.textContent || !child.textContent.trim()))) {
+              return `${pad}<${tagName}${attrs ? " " + attrs : ""}></${tagName}>\n`;
             }
 
+            // Mixed content or element-only content
             const inner = children
               .map((child) => serializer(child, level + 1))
               .join("");
@@ -76,8 +97,19 @@ export class XmlUtil {
           }
 
           case DOMAdapter.NodeType.TEXT_NODE: {
-            const text = node.textContent?.trim();
-            return text ? `${pad}${text}\n` : "";
+            const text = node.textContent || '';
+            // Skip whitespace-only text nodes in indented output
+            const trimmed = text.trim();
+            if (!trimmed) {
+              return '';
+            }
+            
+            // For text nodes, normalize whitespace to make output cleaner
+            const normalized = this.config.preserveWhitespace 
+              ? text
+              : trimmed.replace(/\s+/g, ' ');
+            
+            return `${pad}${normalized}\n`;
           }
 
           case DOMAdapter.NodeType.CDATA_SECTION_NODE:
@@ -265,5 +297,19 @@ export class XmlUtil {
    */
   createQualifiedName(prefix: string | null, localName: string): string {
     return prefix ? `${prefix}:${localName}` : localName;
+  }
+  
+  /**
+   * Normalize whitespace in text content based on configuration
+   * @param text Text to normalize
+   * @returns Normalized text
+   */
+  normalizeTextContent(text: string): string {
+    if (!this.config.preserveWhitespace) {
+      // If preserveWhitespace is false, normalize the whitespace
+      // This trims the text and collapses multiple whitespace to a single space
+      return text.trim().replace(/\s+/g, ' ');
+    }
+    return text;
   }
 }

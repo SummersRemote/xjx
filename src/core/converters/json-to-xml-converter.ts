@@ -1,5 +1,5 @@
 /**
- * JSON to XML converter with transformer support and improved entity handling
+ * JSON to XML converter with transformer support and improved entity and whitespace handling
  */
 import { Configuration } from "../types/config-types";
 import { XJXError } from "../types/error-types";
@@ -218,6 +218,19 @@ export class JsonToXmlConverter {
   }
 
   /**
+   * Normalizes text content according to whitespace settings
+   * @param text Text to normalize
+   * @returns Normalized text
+   */
+  private normalizeTextContent(text: string): string {
+    if (!this.config.preserveWhitespace) {
+      // When preserveWhitespace is false, normalize whitespace
+      return String(text).trim();
+    }
+    return String(text);
+  }
+
+  /**
    * Convert XNode to DOM element
    * @param node XNode to convert
    * @param doc DOM document
@@ -250,16 +263,18 @@ export class JsonToXmlConverter {
     
     // Set text content if this is a simple node with only a value
     if (node.value !== undefined && (!node.children || node.children.length === 0)) {
-      // Safely escape text content
-      element.textContent = safeXmlText(String(node.value));
+      // Normalize and escape text content based on configuration
+      const normalizedText = this.normalizeTextContent(node.value);
+      element.textContent = safeXmlText(normalizedText);
     }
     
     // Add children
     if (node.children) {
       for (const child of node.children) {
         if (child.type === NodeType.TEXT_NODE) {
-          // Text node - safely escape content
-          element.appendChild(doc.createTextNode(safeXmlText(String(child.value))));
+          // Text node - normalize and safely escape content
+          const normalizedText = this.normalizeTextContent(child.value);
+          element.appendChild(doc.createTextNode(safeXmlText(normalizedText)));
         } else if (child.type === NodeType.CDATA_SECTION_NODE) {
           // CDATA section - no escaping needed
           element.appendChild(doc.createCDATASection(String(child.value)));

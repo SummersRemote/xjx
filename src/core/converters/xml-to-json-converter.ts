@@ -1,5 +1,5 @@
 /**
- * XML to JSON converter with transformer support and improved entity handling
+ * XML to JSON converter with transformer support and improved entity and whitespace handling
  */
 import { Configuration } from "../types/config-types";
 import { XJXError } from "../types/error-types";
@@ -139,6 +139,20 @@ export class XmlToJsonConverter {
   }
 
   /**
+   * Normalizes whitespace according to configuration settings
+   * @param text Text to normalize
+   * @returns Normalized text
+   */
+  private normalizeWhitespace(text: string): string {
+    if (!this.config.preserveWhitespace) {
+      // If not preserving whitespace, normalize all whitespace
+      // This trims the text and collapses multiple whitespace to single spaces
+      return text.trim().replace(/\s+/g, ' ');
+    }
+    return text;
+  }
+
+  /**
    * Convert DOM element to XNode
    * @param element DOM element
    * @returns XNode representation
@@ -218,6 +232,9 @@ export class XmlToJsonConverter {
           childNodes.push(this.domToXNode(child as Element));
         }
       }
+      
+      // Normalize text content based on whitespace configuration
+      textContent = this.normalizeWhitespace(textContent);
       
       // If only textContent exists, set as value
       if (childNodes.length === 0 && textContent) {

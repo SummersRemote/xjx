@@ -1,5 +1,5 @@
 /**
- * XML to JSON converter with hybrid transformation support
+ * XML to JSON converter with transformer support
  */
 import { Configuration } from "../types/config-types";
 import { XJXError } from "../types/error-types";

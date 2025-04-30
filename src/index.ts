@@ -25,49 +25,35 @@ export {
 
 // Transformation API
 export {
-  XNode,
-  TransformContext,
   TransformDirection,
-  Transformer,
+  TransformContext,
+  XNode,
+  TransformResult,
   ValueTransformer,
   AttributeTransformer,
   ChildrenTransformer,
-  NodeTransformer
+  NodeTransformer,
+  transformResult
 } from './core/types/transform-types';
 
 // Base transformer classes
 export {
-  BaseTransformer,
+  TransformerOptions,
   BaseValueTransformer,
   BaseAttributeTransformer,
   BaseChildrenTransformer,
   BaseNodeTransformer
 } from './core/transformers/transformer-base';
 
-// Value transformers
+// Transformers
 export {
   BooleanTransformer,
-  BooleanTransformerOptions
-} from './core/transformers/boolean-transformer';
-
-export {
+  BooleanTransformerOptions,
   NumberTransformer,
-  NumberTransformerOptions
-} from './core/transformers/number-transformer';
-
-export {
+  NumberTransformerOptions,
   StringReplaceTransformer,
   StringReplaceOptions
-} from './core/transformers/string-replace-transformer';
-
-// Structural transformers
-export {
-  FilterTransformer,
-  FilterTransformerOptions,
-  FilterPredicate,
-  FilterCondition,
-  FilterOp
-} from './core/transformers/filter-transformer';
+} from './core/transformers';
 
 // Extension system
 export { ExtensionRegistry } from './core/extensions/registry';
@@ -75,3 +61,4 @@ export { ExtensionRegistry } from './core/extensions/registry';
 // Utilities
 export { ValidationResult } from './core/utils/xml-utils';
 export { TransformUtil } from './core/utils/transform-utils';
+export { createPathMatcher } from './core/utils/path-matcher';

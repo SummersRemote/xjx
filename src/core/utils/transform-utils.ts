@@ -8,6 +8,7 @@ import {
   XNode 
 } from '../types/transform-types';
 import { DOMAdapter } from '../adapters/dom-adapter';
+import { createPathMatcher } from './path-matcher';
 
 /**
  * Utility class for working with transformations
@@ -120,43 +121,12 @@ export class TransformUtil {
   }
 
   /**
-   * Match a path against a pattern
-   * Supports:
-   * - Exact matches: "root.items.item"
-   * - Wildcards: "root.*.item"
-   * - Nested wildcards: "root.**.item"
-   * - Attribute access: "root.@id"
-   * - Array indices: "root.items[0].name"
-   * 
-   * @param path Path to test
-   * @param pattern Pattern to match
-   * @returns Whether path matches pattern
-   */
-  public matchPath(path: string, pattern: string): boolean {
-    // Convert pattern to regex
-    const regexPattern = pattern
-      .replace(/\./g, '\\.')            // Escape dots
-      .replace(/\[/g, '\\[')            // Escape opening brackets
-      .replace(/\]/g, '\\]')            // Escape closing brackets
-      .replace(/\*/g, '[^\\.\\[\\]]+')  // * matches anything except dots and brackets
-      .replace(/\*\*/g, '.*')           // ** matches anything
-      .replace(/@/g, '\\@');            // Escape @ for attribute paths
-    
-    const regex = new RegExp(`^${regexPattern}$`);
-    return regex.test(path);
-  }
-
-  /**
    * Create a path matcher function for the given patterns
    * @param patterns Path patterns to match
    * @returns Function that returns true if a path matches any pattern
    */
   public createPathMatcher(patterns: string | string[]): (path: string) => boolean {
-    const patternList = Array.isArray(patterns) ? patterns : [patterns];
-    
-    return (path: string): boolean => {
-      return patternList.some(pattern => this.matchPath(path, pattern));
-    };
+    return createPathMatcher(patterns);
   }
 
   /**

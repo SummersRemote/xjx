@@ -57,69 +57,76 @@ export interface XNode {
   prefix?: string;                    // Namespace prefix
 }
 
-
 /**
- * Base transformer interface
+ * Result of a transformation operation
  */
-export interface Transformer {
-  /**
-   * Base transformer method (specific interfaces will override this)
-   */
-  transform: (...args: any[]) => any;
+export interface TransformResult<T> {
+  // The transformed value/node/etc.
+  value: T;
+  
+  // Whether the value should be removed
+  remove?: boolean;
 }
 
 /**
  * Value transformer interface for primitive values
  */
-export interface ValueTransformer extends Transformer {
+export interface ValueTransformer {
   /**
    * Transform a value
    * @param value The value to transform
    * @param node The node containing the value
    * @param context The transformation context
-   * @returns The transformed value or the original if no transformation applies
+   * @returns Transform result with the transformed value
    */
-  transform(value: any, node: XNode, context: TransformContext): any;
+  transform(value: any, node: XNode, context: TransformContext): TransformResult<any>;
 }
 
 /**
  * Attribute transformer interface
  */
-export interface AttributeTransformer extends Transformer {
+export interface AttributeTransformer {
   /**
    * Transform an attribute name and value
    * @param name The attribute name
    * @param value The attribute value
    * @param node The node containing the attribute
    * @param context The transformation context
-   * @returns A tuple of [name, value] or the originals if no transformation applies
+   * @returns Transform result with the transformed name and value
    */
-  transform(name: string, value: any, node: XNode, context: TransformContext): [string, any];
+  transform(name: string, value: any, node: XNode, context: TransformContext): TransformResult<[string, any]>;
 }
 
 /**
  * Children transformer interface
  */
-export interface ChildrenTransformer extends Transformer {
+export interface ChildrenTransformer {
   /**
    * Transform child nodes
    * @param children The array of child nodes
    * @param node The parent node
    * @param context The transformation context
-   * @returns The transformed children array or the original if no transformation applies
+   * @returns Transform result with the transformed children array
    */
-  transform(children: XNode[], node: XNode, context: TransformContext): XNode[];
+  transform(children: XNode[], node: XNode, context: TransformContext): TransformResult<XNode[]>;
 }
 
 /**
  * Node transformer interface
  */
-export interface NodeTransformer extends Transformer {
+export interface NodeTransformer {
   /**
    * Transform a node
    * @param node The node to transform
    * @param context The transformation context
-   * @returns The transformed node or the original if no transformation applies
+   * @returns Transform result with the transformed node
    */
-  transform(node: XNode, context: TransformContext): XNode;
+  transform(node: XNode, context: TransformContext): TransformResult<XNode>;
+}
+
+/**
+ * Helper function to create a transform result
+ */
+export function transformResult<T>(value: T, remove: boolean = false): TransformResult<T> {
+  return { value, remove };
 }

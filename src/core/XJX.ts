@@ -1,5 +1,5 @@
 /**
- * XJX - Main class for XML-JSON transformation with Hybrid API
+ * XJX - Main class for XML-JSON transformation with improved Transformation API
  */
 import { DOMAdapter } from "./adapters/dom-adapter";
 import { DEFAULT_CONFIG } from "./config/config";
@@ -15,38 +15,34 @@ import {
   XNode,
   TransformContext,
   TransformDirection,
+  TransformResult
 } from "./types/transform-types";
 import { XmlUtil } from "./utils/xml-utils";
 import { JsonUtil } from "./utils/json-utils";
 import { TransformUtil } from "./utils/transform-utils";
 import { ExtensionRegistry } from "./extensions/registry";
-import { NodeType } from './types/dom-types'
+import { NodeType } from './types/dom-types';
+
 export class XJX {
   private config: Configuration;
   private xmlToJsonConverter: XmlToJsonConverter;
   private jsonToXmlConverter: JsonToXmlConverter;
-  private valueTransformers: Map<TransformDirection, ValueTransformer[]> =
-    new Map([
-      [TransformDirection.XML_TO_JSON, []],
-      [TransformDirection.JSON_TO_XML, []],
-    ]);
-  private attributeTransformers: Map<
-    TransformDirection,
-    AttributeTransformer[]
-  > = new Map([
+  private valueTransformers: Map<TransformDirection, ValueTransformer[]> = new Map([
     [TransformDirection.XML_TO_JSON, []],
-    [TransformDirection.JSON_TO_XML, []],
+    [TransformDirection.JSON_TO_XML, []]
   ]);
-  private childrenTransformers: Map<TransformDirection, ChildrenTransformer[]> =
-    new Map([
-      [TransformDirection.XML_TO_JSON, []],
-      [TransformDirection.JSON_TO_XML, []],
-    ]);
-  private nodeTransformers: Map<TransformDirection, NodeTransformer[]> =
-    new Map([
-      [TransformDirection.XML_TO_JSON, []],
-      [TransformDirection.JSON_TO_XML, []],
-    ]);
+  private attributeTransformers: Map<TransformDirection, AttributeTransformer[]> = new Map([
+    [TransformDirection.XML_TO_JSON, []],
+    [TransformDirection.JSON_TO_XML, []]
+  ]);
+  private childrenTransformers: Map<TransformDirection, ChildrenTransformer[]> = new Map([
+    [TransformDirection.XML_TO_JSON, []],
+    [TransformDirection.JSON_TO_XML, []]
+  ]);
+  private nodeTransformers: Map<TransformDirection, NodeTransformer[]> = new Map([
+    [TransformDirection.XML_TO_JSON, []],
+    [TransformDirection.JSON_TO_XML, []]
+  ]);
   private jsonUtil: JsonUtil;
   private xmlUtil: XmlUtil;
   private transformUtil: TransformUtil;
@@ -102,7 +98,7 @@ export class XJX {
    * @param transformer Value transformer
    * @returns This XJX instance for chaining
    */
-  public transformValue(
+  public addValueTransformer(
     direction: TransformDirection,
     transformer: ValueTransformer
   ): this {
@@ -119,7 +115,7 @@ export class XJX {
    * @param transformer Attribute transformer
    * @returns This XJX instance for chaining
    */
-  public transformAttribute(
+  public addAttributeTransformer(
     direction: TransformDirection,
     transformer: AttributeTransformer
   ): this {
@@ -136,7 +132,7 @@ export class XJX {
    * @param transformer Children transformer
    * @returns This XJX instance for chaining
    */
-  public transformChildren(
+  public addChildrenTransformer(
     direction: TransformDirection,
     transformer: ChildrenTransformer
   ): this {
@@ -153,7 +149,7 @@ export class XJX {
    * @param transformer Node transformer
    * @returns This XJX instance for chaining
    */
-  public transform(
+  public addNodeTransformer(
     direction: TransformDirection,
     transformer: NodeTransformer
   ): this {
@@ -262,7 +258,13 @@ export class XJX {
 
     for (const transformer of transformers) {
       const result = transformer.transform(transformedValue, node, context);
-      if (result !== undefined) transformedValue = result;
+      
+      // Check if the value should be removed
+      if (result.remove) {
+        return null;
+      }
+      
+      transformedValue = result.value;
     }
 
     return transformedValue;
@@ -274,7 +276,7 @@ export class XJX {
    * @param value The attribute value
    * @param node The node containing the attribute
    * @param context The transformation context
-   * @returns Transformed [name, value] tuple
+   * @returns Transformed [name, value] tuple or null if removed
    * @internal Used by converters
    */
   public applyAttributeTransformers(
@@ -282,24 +284,22 @@ export class XJX {
     value: any,
     node: XNode,
     context: TransformContext
-  ): [string, any] {
+  ): [string, any] | null {
     let currentName = name;
     let currentValue = value;
 
     // Get transformers for the current direction
-    const transformers =
-      this.attributeTransformers.get(context.direction) || [];
+    const transformers = this.attributeTransformers.get(context.direction) || [];
 
     for (const transformer of transformers) {
-      const result = transformer.transform(
-        currentName,
-        currentValue,
-        node,
-        context
-      );
-      if (result) {
-        [currentName, currentValue] = result;
+      const result = transformer.transform(currentName, currentValue, node, context);
+      
+      // Check if the attribute should be removed
+      if (result.remove) {
+        return null;
       }
+      
+      [currentName, currentValue] = result.value;
     }
 
     return [currentName, currentValue];
@@ -309,10 +309,10 @@ export class XJX {
    * Apply node transformers
    * @param node The node to transform
    * @param context The transformation context
-   * @returns The transformed node
+   * @returns The transformed node or null if removed
    * @internal Used by converters
    */
-  public applyNodeTransformers(node: XNode, context: TransformContext): XNode {
+  public applyNodeTransformers(node: XNode, context: TransformContext): XNode | null {
     let transformedNode = { ...node };
     
     // Get transformers for the current direction
@@ -320,20 +320,13 @@ export class XJX {
     
     for (const transformer of transformers) {
       const result = transformer.transform(transformedNode, context);
-      if (result) {
-        // Check if the node has been marked for removal
-        if ((result as any)._remove === true) {
-          // Create a special marker node that the caller can check
-          const markerNode: XNode = { 
-            name: '_removed', 
-            type: NodeType.ELEMENT_NODE // Use a valid NodeType
-          };
-          // Add the marker flag
-          (markerNode as any)._isRemovalMarker = true;
-          return markerNode;
-        }
-        transformedNode = result;
+      
+      // Check if the node should be removed
+      if (result.remove) {
+        return null;
       }
+      
+      transformedNode = result.value;
     }
     
     return transformedNode;
@@ -344,14 +337,14 @@ export class XJX {
    * @param children The children array
    * @param node The parent node
    * @param context The transformation context
-   * @returns The transformed children array
+   * @returns The transformed children array or null if removed
    * @internal Used by converters
    */
   public applyChildrenTransformers(
     children: XNode[],
     node: XNode,
     context: TransformContext
-  ): XNode[] {
+  ): XNode[] | null {
     let transformedChildren = [...children];
 
     // Get transformers for the current direction
@@ -359,7 +352,13 @@ export class XJX {
 
     for (const transformer of transformers) {
       const result = transformer.transform(transformedChildren, node, context);
-      if (result) transformedChildren = result;
+      
+      // Check if the children should be removed
+      if (result.remove) {
+        return null;
+      }
+      
+      transformedChildren = result.value;
     }
 
     return transformedChildren;
@@ -376,53 +375,58 @@ export class XJX {
     node: XNode,
     context: TransformContext
   ): XNode | null {
-    // 1. Apply value transformers to node's value
-    if (node.value !== undefined) {
+    // 1. Apply node transformers to the node itself
+    const transformedNode = this.applyNodeTransformers(node, context);
+    if (transformedNode === null) {
+      return null;
+    }
+    
+    // 2. Apply value transformers to node's value
+    if (transformedNode.value !== undefined) {
       const transformedValue = this.applyValueTransformers(
-        node.value,
-        node,
+        transformedNode.value,
+        transformedNode,
         context
       );
-      if (transformedValue === null) return null; // Remove node if value becomes null
-      node.value = transformedValue;
+      
+      if (transformedValue === null) {
+        // Value was removed, remove the value property
+        delete transformedNode.value;
+      } else {
+        // Update value
+        transformedNode.value = transformedValue;
+      }
     }
 
-    // 2. Apply attribute transformers to node's attributes
-    if (node.attributes) {
+    // 3. Apply attribute transformers to node's attributes
+    if (transformedNode.attributes) {
       const newAttributes: Record<string, any> = {};
 
-      for (const [name, value] of Object.entries(node.attributes)) {
+      for (const [name, value] of Object.entries(transformedNode.attributes)) {
         // Create attribute-specific context
         const attrContext: TransformContext =
           this.transformUtil.createAttributeContext(context, name);
 
         // Apply value transformers to attribute value
-        let attrValue = this.applyValueTransformers(value, node, attrContext);
+        let attrValue = this.applyValueTransformers(value, transformedNode, attrContext);
         if (attrValue === null) continue; // Skip this attribute if value becomes null
 
         // Apply attribute transformers
-        const [newName, newValue] = this.applyAttributeTransformers(
+        const result = this.applyAttributeTransformers(
           name,
           attrValue,
-          node,
+          transformedNode,
           attrContext
         );
 
         // Add transformed attribute if not null
-        if (newName && newValue !== null) {
+        if (result !== null) {
+          const [newName, newValue] = result;
           newAttributes[newName] = newValue;
         }
       }
 
-      node.attributes = newAttributes;
-    }
-
-    // 3. Apply node transformers to the node itself
-    const transformedNode = this.applyNodeTransformers(node, context);
-    
-    // Check if node is marked for removal
-    if ((transformedNode as any)._isRemovalMarker) {
-      return null;
+      transformedNode.attributes = newAttributes;
     }
 
     // 4. Apply children transformers to node's children
@@ -441,64 +445,23 @@ export class XJX {
 
       // Recursively apply transformations to each child
       if (transformedNode.children.length > 0) {
-        transformedNode.children = transformedNode.children
-          .map((child, index) => {
-            const childContext: TransformContext =
-              this.transformUtil.createChildContext(context, child, index);
-
-            return this.applyTransformations(child, childContext);
-          })
-          .filter((child): child is XNode => child !== null);
+        const newChildren: XNode[] = [];
+        
+        for (let i = 0; i < transformedNode.children.length; i++) {
+          const child = transformedNode.children[i];
+          const childContext = this.transformUtil.createChildContext(context, child, i);
+          
+          const transformedChild = this.applyTransformations(child, childContext);
+          if (transformedChild !== null) {
+            newChildren.push(transformedChild);
+          }
+        }
+        
+        transformedNode.children = newChildren;
       }
     }
 
     return transformedNode;
-  }
-
-  /**
-   * Get transformers for a specific direction
-   * @param direction Transformation direction
-   * @returns All transformers for that direction
-   * @internal For use by converters
-   */
-  public getValueTransformers(
-    direction: TransformDirection
-  ): ValueTransformer[] {
-    return this.valueTransformers.get(direction) || [];
-  }
-
-  /**
-   * Get attribute transformers for a specific direction
-   * @param direction Transformation direction
-   * @returns All attribute transformers for that direction
-   * @internal For use by converters
-   */
-  public getAttributeTransformers(
-    direction: TransformDirection
-  ): AttributeTransformer[] {
-    return this.attributeTransformers.get(direction) || [];
-  }
-
-  /**
-   * Get children transformers for a specific direction
-   * @param direction Transformation direction
-   * @returns All children transformers for that direction
-   * @internal For use by converters
-   */
-  public getChildrenTransformers(
-    direction: TransformDirection
-  ): ChildrenTransformer[] {
-    return this.childrenTransformers.get(direction) || [];
-  }
-
-  /**
-   * Get node transformers for a specific direction
-   * @param direction Transformation direction
-   * @returns All node transformers for that direction
-   * @internal For use by converters
-   */
-  public getNodeTransformers(direction: TransformDirection): NodeTransformer[] {
-    return this.nodeTransformers.get(direction) || [];
   }
 
   /**

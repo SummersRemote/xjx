@@ -1,11 +1,24 @@
 <!DOCTYPE html>
 <html lang="en">
   <body>
-    look in teh console.
+    look in the console.
 
     <!-- Load the UMD bundle -->
     <script type="module">
-      import { XJX, TransformDirection, BooleanTransformer, NumberTransformer, StringReplaceTransformer } from "../../dist/xjx.full.js";
+      /**
+       * Comprehensive Example: Using Boolean, Number, and StringReplace Transformers
+       *
+       * This example demonstrates how to use multiple transformers together:
+       * 1. BooleanTransformer - Convert "true"/"false" strings to boolean values
+       * 2. NumberTransformer - Convert numeric strings to numbers
+       * 3. StringReplaceTransformer - Transform URLs into HTML links
+       */
+      import { XJX, TransformDirection } from "../dist/";
+      import {
+        BooleanTransformer,
+        NumberTransformer,
+        StringReplaceTransformer,
+      } from "../dist/transformers";
 
       // Sample XML with various data types and URLs
       const xml = `
@@ -58,8 +71,8 @@
         // Converts numeric strings to numbers in JSON
         const numberTransformer = new NumberTransformer({
           // Configure which types of numbers to parse
-          parseIntegers: true,
-          parseFloats: true,
+          integers: true,
+          decimals: true,
           // Only apply to specific paths
           paths: [
             "product.id",
@@ -78,22 +91,25 @@
           replacement: '<a href="$1">$1</a>',
           // Only apply in description paragraphs
           paths: ["product.description.paragraph"],
-          // Only transform when converting XML to JSON (not when going back to XML)
-          xmlToJson: true,
-          jsonToXml: false,
         });
 
         // Add all transformers to the XJX instance for XML to JSON direction
         xjx
-          .transformValue(TransformDirection.XML_TO_JSON, boolTransformer)
-          .transformValue(TransformDirection.XML_TO_JSON, numberTransformer)
-          .transformValue(TransformDirection.XML_TO_JSON, urlLinkifier);
+          .addValueTransformer(TransformDirection.XML_TO_JSON, boolTransformer)
+          .addValueTransformer(
+            TransformDirection.XML_TO_JSON,
+            numberTransformer
+          )
+          .addValueTransformer(TransformDirection.XML_TO_JSON, urlLinkifier);
 
         // Add boolean and number transformers for JSON to XML direction
-        // (We don't add the urlLinkifier for this direction as specified in its options)
+        // (We don't add the urlLinkifier for this direction as we don't want to link URLs in XML)
         xjx
-          .transformValue(TransformDirection.JSON_TO_XML, boolTransformer)
-          .transformValue(TransformDirection.JSON_TO_XML, numberTransformer);
+          .addValueTransformer(TransformDirection.JSON_TO_XML, boolTransformer)
+          .addValueTransformer(
+            TransformDirection.JSON_TO_XML,
+            numberTransformer
+          );
 
         // Step 1: Convert XML to JSON with transformations
         console.log("Step 1: Converting XML to JSON with transformations...\n");

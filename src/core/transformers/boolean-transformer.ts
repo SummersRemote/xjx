@@ -1,124 +1,101 @@
 /**
- * Boolean value transformer implementation
- * 
- * Transforms string values to boolean if they match common boolean patterns
+ * Boolean transformer implementation
  */
-import { 
-    BaseValueTransformer
-  } from './transformer-base';
-  import { XNode, TransformContext } from '../types/transform-types';
+import { BaseValueTransformer, TransformerOptions } from './transformer-base';
+import { XNode, TransformContext, TransformDirection, TransformResult, transformResult } from '../types/transform-types';
+
+/**
+ * Options for boolean transformer
+ */
+export interface BooleanTransformerOptions extends TransformerOptions {
+  /**
+   * Values to consider as true (default: ["true", "yes", "1", "on"])
+   */
+  trueValues?: string[];
   
   /**
-   * Options for boolean transformer
+   * Values to consider as false (default: ["false", "no", "0", "off"])
    */
-  export interface BooleanTransformerOptions {
-    /**
-     * Paths to apply this transformer to (optional)
-     * Uses path matching syntax (e.g., "root.items.*.active")
-     */
-    paths?: string | string[];
+  falseValues?: string[];
+  
+  /**
+   * Whether to ignore case when matching (default: true)
+   */
+  ignoreCase?: boolean;
+}
+
+/**
+ * Default boolean values
+ */
+const DEFAULT_TRUE_VALUES = ['true', 'yes', '1', 'on'];
+const DEFAULT_FALSE_VALUES = ['false', 'no', '0', 'off'];
+
+/**
+ * Boolean transformer that converts string values to booleans
+ * 
+ * Example usage:
+ * ```
+ * const booleanTransformer = new BooleanTransformer({
+ *   paths: ['root.items.*.active', 'root.settings.enabled'],
+ *   trueValues: ['true', 'yes', '1', 'on', 'active', 'enabled'],
+ *   falseValues: ['false', 'no', '0', 'off', 'inactive', 'disabled']
+ * });
+ * xjx.addValueTransformer(TransformDirection.XML_TO_JSON, booleanTransformer);
+ * ```
+ */
+export class BooleanTransformer extends BaseValueTransformer {
+  private trueValues: string[];
+  private falseValues: string[];
+  private ignoreCase: boolean;
+  
+  /**
+   * Create a new boolean transformer
+   */
+  constructor(options: BooleanTransformerOptions = {}) {
+    super(options);
     
-    /**
-     * Values to consider as true (default: ["true", "yes", "1", "on"])
-     */
-    trueValues?: string[];
-    
-    /**
-     * Values to consider as false (default: ["false", "no", "0", "off"])
-     */
-    falseValues?: string[];
-    
-    /**
-     * Whether to ignore case when matching (default: true)
-     */
-    ignoreCase?: boolean;
-    
-    /**
-     * Whether to convert only string values (default: true)
-     * If false, will attempt to convert values of any type
-     */
-    stringsOnly?: boolean;
+    this.trueValues = options.trueValues || DEFAULT_TRUE_VALUES;
+    this.falseValues = options.falseValues || DEFAULT_FALSE_VALUES;
+    this.ignoreCase = options.ignoreCase !== false; // Default to true
   }
   
   /**
-   * Default options for boolean transformer
+   * Transform a value to boolean if it matches criteria
    */
-  const DEFAULT_OPTIONS: BooleanTransformerOptions = {
-    trueValues: ['true', 'yes', '1', 'on'],
-    falseValues: ['false', 'no', '0', 'off'],
-    ignoreCase: true,
-    stringsOnly: true
-  };
+  protected transformValue(value: any, node: XNode, context: TransformContext): TransformResult<any> {
+    // Already a boolean, return as is
+    if (typeof value === 'boolean') {
+      return transformResult(value);
+    }
+    
+    // Convert to string for comparison
+    const strValue = String(value);
+    
+    // Check for true values
+    for (const trueVal of this.trueValues) {
+      if (this.compareValues(strValue, trueVal)) {
+        return transformResult(true);
+      }
+    }
+    
+    // Check for false values
+    for (const falseVal of this.falseValues) {
+      if (this.compareValues(strValue, falseVal)) {
+        return transformResult(false);
+      }
+    }
+    
+    // No match, return original value
+    return transformResult(value);
+  }
   
   /**
-   * Boolean transformer that converts string values to booleans
-   * 
-   * Example usage:
-   * ```
-   * const booleanTransformer = new BooleanTransformer({
-   *   paths: ['root.items.*.active', 'root.settings.enabled'],
-   *   trueValues: ['true', 'yes', '1', 'on', 'active', 'enabled'],
-   *   falseValues: ['false', 'no', '0', 'off', 'inactive', 'disabled']
-   * });
-   * xjx.transformValue(TransformDirection.XML_TO_JSON, booleanTransformer);
-   * ```
+   * Compare two values with case sensitivity option
    */
-  export class BooleanTransformer extends BaseValueTransformer {
-    private options: BooleanTransformerOptions;
-    
-    /**
-     * Create a new boolean transformer
-     * @param options Transformer options
-     */
-    constructor(options: BooleanTransformerOptions = {}) {
-      super(options.paths);
-      this.options = { ...DEFAULT_OPTIONS, ...options };
+  private compareValues(a: string, b: string): boolean {
+    if (this.ignoreCase) {
+      return a.toLowerCase() === b.toLowerCase();
     }
-    
-    /**
-     * Transform a value to boolean if it matches criteria
-     * @param value Value to transform
-     * @param node Node containing the value
-     * @param context Transformation context
-     * @returns Boolean value if converted, otherwise original value
-     */
-    protected transformValue(value: any, node: XNode, context: TransformContext): any {
-      // Skip if not a string and stringsOnly is true
-      if (this.options.stringsOnly && typeof value !== 'string') {
-        return value;
-      }
-      
-      // Convert value to string for comparison
-      const strValue = String(value);
-      
-      // Check for true values
-      for (const trueVal of this.options.trueValues || []) {
-        if (this.compareValues(strValue, trueVal)) {
-          return true;
-        }
-      }
-      
-      // Check for false values
-      for (const falseVal of this.options.falseValues || []) {
-        if (this.compareValues(strValue, falseVal)) {
-          return false;
-        }
-      }
-      
-      // No match, return original value
-      return value;
-    }
-    
-    /**
-     * Compare two values with case sensitivity option
-     * @param a First value
-     * @param b Second value
-     * @returns Whether the values are equal
-     */
-    private compareValues(a: string, b: string): boolean {
-      if (this.options.ignoreCase) {
-        return a.toLowerCase() === b.toLowerCase();
-      }
-      return a === b;
-    }
+    return a === b;
   }
+}

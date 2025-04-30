@@ -26,122 +26,149 @@ export class XmlUtil {
     this.config = config;
   }
 
-  /**
-   * Pretty print an XML string
-   * @param xmlString XML string to format
-   * @returns Formatted XML string
-   */
-  prettyPrintXml(xmlString: string): string {
-    const indent = this.config.outputOptions.indent;
-    const INDENT = " ".repeat(indent);
+/**
+ * Improved XML pretty print function that preserves mixed content structure
+ */
+prettyPrintXml(xmlString: string): string {
+  const indent = this.config.outputOptions.indent;
+  const INDENT = " ".repeat(indent);
 
-    try {
-      const doc = DOMAdapter.parseFromString(xmlString, "text/xml");
+  try {
+    const doc = DOMAdapter.parseFromString(xmlString, "text/xml");
 
-      const serializer = (node: Node, level = 0): string => {
-        const pad = INDENT.repeat(level);
+    const serializer = (node: Node, level = 0): string => {
+      const pad = INDENT.repeat(level);
 
-        switch (node.nodeType) {
-          case DOMAdapter.NodeType.ELEMENT_NODE: {
-            const el = node as Element;
-            const tagName = el.tagName;
-            const attrs = Array.from(el.attributes)
-              .map((a) => `${a.name}="${a.value}"`)
-              .join(" ");
-            const openTag = attrs ? `<${tagName} ${attrs}>` : `<${tagName}>`;
+      switch (node.nodeType) {
+        case DOMAdapter.NodeType.ELEMENT_NODE: {
+          const el = node as Element;
+          const tagName = el.tagName;
+          const attrs = Array.from(el.attributes)
+            .map((a) => `${a.name}="${a.value}"`)
+            .join(" ");
+          const openTag = attrs ? `<${tagName} ${attrs}>` : `<${tagName}>`;
 
-            const children = Array.from(el.childNodes);
+          const children = Array.from(el.childNodes);
 
-            // Self-closing tag for empty elements
-            if (children.length === 0) {
-              return `${pad}${openTag.replace(/>$/, " />")}\n`;
-            }
-
-            // Handle mixed content and text-only content better
-            const hasElementChildren = children.some(child => 
-              child.nodeType === DOMAdapter.NodeType.ELEMENT_NODE);
-              
-            const hasTextChildren = children.some(child => 
-              child.nodeType === DOMAdapter.NodeType.TEXT_NODE && child.textContent?.trim());
-              
-            // Text-only content (with meaningful text, not just whitespace)
-            if (!hasElementChildren && hasTextChildren) {
-              // Collect all text content, trimming whitespace
-              let text = '';
-              for (const child of children) {
-                if (child.nodeType === DOMAdapter.NodeType.TEXT_NODE) {
-                  text += child.textContent || '';
-                }
-              }
-              
-              // Trim and normalize whitespace for text-only content
-              text = text.trim().replace(/\s+/g, ' ');
-              
-              if (text) {
-                return `${pad}${openTag}${text}</${tagName}>\n`;
-              }
-            }
-            
-            // Empty or whitespace-only
-            if (children.every(child => 
-                child.nodeType !== DOMAdapter.NodeType.ELEMENT_NODE && 
-                (!child.textContent || !child.textContent.trim()))) {
-              return `${pad}<${tagName}${attrs ? " " + attrs : ""}></${tagName}>\n`;
-            }
-
-            // Mixed content or element-only content
-            const inner = children
-              .map((child) => serializer(child, level + 1))
-              .join("");
-            return `${pad}${openTag}\n${inner}${pad}</${tagName}>\n`;
+          // Empty element - render as self-closing tag
+          if (children.length === 0) {
+            return `${pad}${openTag.replace(/>$/, " />")}\n`;
           }
 
-          case DOMAdapter.NodeType.TEXT_NODE: {
-            const text = node.textContent || '';
-            // Skip whitespace-only text nodes in indented output
-            const trimmed = text.trim();
-            if (!trimmed) {
-              return '';
+          // Check for mixed content - important for whitespace handling
+          const hasElementChildren = children.some(child => 
+            child.nodeType === DOMAdapter.NodeType.ELEMENT_NODE);
+            
+          const hasTextOrCDATA = children.some(child => 
+            (child.nodeType === DOMAdapter.NodeType.TEXT_NODE && child.textContent?.trim()) ||
+            child.nodeType === DOMAdapter.NodeType.CDATA_SECTION_NODE);
+            
+          // Handle mixed content differently to preserve structure
+          if (hasElementChildren && hasTextOrCDATA) {
+            // Mixed content - preserve structure by inlining (no extra indents or line breaks)
+            let inner = '';
+            for (const child of children) {
+              // For elements in mixed content, we still want them indented properly
+              if (child.nodeType === DOMAdapter.NodeType.ELEMENT_NODE) {
+                // Remove newlines from nested element serialization
+                const childSerialized = serializer(child, 0); // no indent for elements in mixed content
+                inner += childSerialized.trim(); // trim to remove newlines
+              } else {
+                // For text and CDATA, just append directly
+                inner += serializeTextOrCDATA(child);
+              }
+            }
+            return `${pad}${openTag}${inner}</${tagName}>\n`;
+          }
+          
+          // Text-only content (with meaningful text, not just whitespace)
+          if (!hasElementChildren && hasTextOrCDATA) {
+            let inner = '';
+            for (const child of children) {
+              inner += serializeTextOrCDATA(child);
             }
             
-            // For text nodes, normalize whitespace to make output cleaner
-            const normalized = this.config.preserveWhitespace 
-              ? text
-              : trimmed.replace(/\s+/g, ' ');
+            // Trim and normalize whitespace for text-only content
+            // but only if preserveWhitespace is false
+            if (!this.config.preserveWhitespace) {
+              inner = inner.trim().replace(/\s+/g, ' ');
+            }
             
-            return `${pad}${normalized}\n`;
+            if (inner) {
+              return `${pad}${openTag}${inner}</${tagName}>\n`;
+            }
+          }
+          
+          // Empty or whitespace-only
+          if (children.every(child => 
+              child.nodeType !== DOMAdapter.NodeType.ELEMENT_NODE && 
+              (!child.textContent || !child.textContent.trim()))) {
+            return `${pad}<${tagName}${attrs ? " " + attrs : ""}></${tagName}>\n`;
           }
 
-          case DOMAdapter.NodeType.CDATA_SECTION_NODE:
-            return `${pad}<![CDATA[${node.nodeValue}]]>\n`;
-
-          case DOMAdapter.NodeType.COMMENT_NODE:
-            return `${pad}<!--${node.nodeValue}-->\n`;
-
-          case DOMAdapter.NodeType.PROCESSING_INSTRUCTION_NODE:
-            const pi = node as ProcessingInstruction;
-            return `${pad}<?${pi.target} ${pi.data}?>\n`;
-
-          case DOMAdapter.NodeType.DOCUMENT_NODE:
-            return Array.from(node.childNodes)
-              .map((child) => serializer(child, level))
-              .join("");
-
-          default:
-            return "";
+          // Regular element with element children - pretty format
+          const inner = children
+            .map((child) => serializer(child, level + 1))
+            .join("");
+          return `${pad}${openTag}\n${inner}${pad}</${tagName}>\n`;
         }
-      };
 
-      return serializer(doc).trim();
-    } catch (error) {
-      throw new XJXError(
-        `Failed to pretty print XML: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
-    }
+        case DOMAdapter.NodeType.TEXT_NODE: {
+          const text = node.textContent || '';
+          // Skip whitespace-only text nodes in indented output unless preserveWhitespace is true
+          const trimmed = text.trim();
+          if (!trimmed && !this.config.preserveWhitespace) {
+            return '';
+          }
+          
+          // For text nodes, normalize whitespace according to configuration
+          const normalized = this.config.preserveWhitespace 
+            ? text
+            : trimmed.replace(/\s+/g, ' ');
+          
+          return `${pad}${normalized}\n`;
+        }
+
+        case DOMAdapter.NodeType.CDATA_SECTION_NODE:
+          // Always preserve CDATA content exactly as is
+          return `${pad}<![CDATA[${node.nodeValue}]]>\n`;
+
+        case DOMAdapter.NodeType.COMMENT_NODE:
+          return `${pad}<!--${node.nodeValue}-->\n`;
+
+        case DOMAdapter.NodeType.PROCESSING_INSTRUCTION_NODE:
+          const pi = node as ProcessingInstruction;
+          return `${pad}<?${pi.target} ${pi.data}?>\n`;
+
+        case DOMAdapter.NodeType.DOCUMENT_NODE:
+          return Array.from(node.childNodes)
+            .map((child) => serializer(child, level))
+            .join("");
+
+        default:
+          return "";
+      }
+    };
+
+    // Helper function to serialize text or CDATA without adding indentation or newlines
+    const serializeTextOrCDATA = (node: Node): string => {
+      if (node.nodeType === DOMAdapter.NodeType.TEXT_NODE) {
+        return node.textContent || '';
+      } else if (node.nodeType === DOMAdapter.NodeType.CDATA_SECTION_NODE) {
+        return `<![CDATA[${node.nodeValue}]]>`;
+      }
+      return '';
+    };
+
+    return serializer(doc).trim();
+  } catch (error) {
+    throw new XJXError(
+      `Failed to pretty print XML: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
   }
-
+}
   /**
    * Check if XML string is well-formed
    * @param xmlString XML string to validate

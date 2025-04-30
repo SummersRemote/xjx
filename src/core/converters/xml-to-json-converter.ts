@@ -1,5 +1,5 @@
 /**
- * XML to JSON converter with transformer support and improved entity and whitespace handling
+ * XML to JSON converter with improved mixed content handling
  */
 import { Configuration } from "../types/config-types";
 import { XJXError } from "../types/error-types";
@@ -40,7 +40,6 @@ export class XmlToJsonConverter {
   public convert(xmlString: string): Record<string, any> {
     try {
       // Pre-process XML string to handle parsing errors due to unescaped characters
-      // This is only a fallback in case the XML wasn't properly escaped before
       const preprocessedXml = this.preprocessXml(xmlString);
 
       // 1. Parse XML to DOM
@@ -80,13 +79,11 @@ export class XmlToJsonConverter {
 
   /**
    * Preprocess XML string to handle common escaping issues
-   * This isn't a complete solution but catches common problems for better user experience
    * @param xmlString Original XML string
    * @returns Preprocessed XML string
    */
   private preprocessXml(xmlString: string): string {
     // Attempt to identify unescaped entities outside of CDATA sections
-    // This is a basic preprocessor and won't catch all cases
     let inCdata = false;
     let result = '';
     let i = 0;
@@ -139,21 +136,68 @@ export class XmlToJsonConverter {
   }
 
   /**
-   * Normalizes whitespace according to configuration settings
+   * Normalize text content according to whitespace settings
+   * This method has been updated to better handle mixed content
    * @param text Text to normalize
+   * @param inMixedContent Whether this text is part of mixed content
    * @returns Normalized text
    */
-  private normalizeWhitespace(text: string): string {
+  private normalizeTextContent(text: string, inMixedContent: boolean = false): string {
+    if (!text) return '';
+    
     if (!this.config.preserveWhitespace) {
-      // If not preserving whitespace, normalize all whitespace
-      // This trims the text and collapses multiple whitespace to single spaces
-      return text.trim().replace(/\s+/g, ' ');
+      if (inMixedContent) {
+        // For mixed content, preserve single spaces between tags
+        // but collapse multiple spaces to single space
+        return text.replace(/\s+/g, ' ');
+      } else {
+        // For standalone text nodes, trim and collapse whitespace
+        return text.trim().replace(/\s+/g, ' ');
+      }
     }
+    
+    // When preserveWhitespace is true, keep everything as is
     return text;
   }
 
   /**
-   * Convert DOM element to XNode
+   * Determine if text contains more than just whitespace
+   * @param text Text to check
+   * @returns True if text contains non-whitespace content
+   */
+  private hasContent(text: string): boolean {
+    return text.trim().length > 0;
+  }
+
+  /**
+   * Check if a node is part of mixed content
+   * @param element Parent element to check
+   * @returns True if element has mixed content
+   */
+  private hasMixedContent(element: Element): boolean {
+    if (element.childNodes.length <= 1) return false;
+    
+    let hasText = false;
+    let hasElement = false;
+    
+    for (let i = 0; i < element.childNodes.length; i++) {
+      const child = element.childNodes[i];
+      if (child.nodeType === NodeType.TEXT_NODE) {
+        if (this.hasContent(child.nodeValue || '')) {
+          hasText = true;
+        }
+      } else if (child.nodeType === NodeType.ELEMENT_NODE) {
+        hasElement = true;
+      }
+      
+      if (hasText && hasElement) return true;
+    }
+    
+    return false;
+  }
+
+  /**
+   * Convert DOM element to XNode with improved mixed content handling
    * @param element DOM element
    * @returns XNode representation
    */
@@ -178,80 +222,85 @@ export class XmlToJsonConverter {
       }
     }
     
+    // Detect if this element has mixed content
+    const hasMixed = this.hasMixedContent(element);
+    
     // Process child nodes
     if (element.childNodes.length > 0) {
-      const childNodes: XNode[] = [];
-      let textContent = '';
-      
-      for (let i = 0; i < element.childNodes.length; i++) {
-        const child = element.childNodes[i];
+      // Single text node handling (optimize common case)
+      if (element.childNodes.length === 1 && 
+          element.childNodes[0].nodeType === NodeType.TEXT_NODE && 
+          !hasMixed) {
+        const text = element.childNodes[0].nodeValue || '';
+        const normalizedText = this.normalizeTextContent(text, false);
+        if (normalizedText) {
+          xnode.value = unescapeXML(normalizedText);
+        }
+      } else {
+        // Mixed content or multiple children handling
+        const childNodes: XNode[] = [];
         
-        // Text nodes
-        if (child.nodeType === NodeType.TEXT_NODE) {
-          const text = child.nodeValue || '';
+        for (let i = 0; i < element.childNodes.length; i++) {
+          const child = element.childNodes[i];
           
-          // Skip whitespace-only text nodes if whitespace preservation is disabled
-          if (!this.config.preserveWhitespace && text.trim() === '') {
-            continue;
+          // Text nodes
+          if (child.nodeType === NodeType.TEXT_NODE) {
+            const text = child.nodeValue || '';
+            
+            // Important: even with preserveWhitespace=false, we'll keep 
+            // non-empty text nodes in mixed content to preserve order
+            if (this.config.preserveWhitespace || hasMixed || this.hasContent(text)) {
+              const normalizedText = this.normalizeTextContent(text, hasMixed);
+              
+              // Only add if we have text (could be empty after normalization)
+              if (normalizedText && this.config.preserveTextNodes) {
+                childNodes.push({
+                  name: '#text',
+                  type: NodeType.TEXT_NODE,
+                  value: unescapeXML(normalizedText)
+                });
+              }
+            }
           }
-          
-          // Properly unescape text content to avoid double escaping
-          textContent += unescapeXML(text);
+          // CDATA sections - Preserve regardless of whitespace setting
+          else if (child.nodeType === NodeType.CDATA_SECTION_NODE && this.config.preserveCDATA) {
+            childNodes.push({
+              name: '#cdata',
+              type: NodeType.CDATA_SECTION_NODE,
+              value: child.nodeValue || ''
+            });
+          }
+          // Comments
+          else if (child.nodeType === NodeType.COMMENT_NODE && this.config.preserveComments) {
+            childNodes.push({
+              name: '#comment',
+              type: NodeType.COMMENT_NODE,
+              value: child.nodeValue || ''
+            });
+          }
+          // Processing instructions
+          else if (
+            child.nodeType === NodeType.PROCESSING_INSTRUCTION_NODE && 
+            this.config.preserveProcessingInstr
+          ) {
+            const pi = child as ProcessingInstruction;
+            childNodes.push({
+              name: '#pi',
+              type: NodeType.PROCESSING_INSTRUCTION_NODE,
+              value: pi.data || '',
+              attributes: { target: pi.target }
+            });
+          }
+          // Element nodes (recursive)
+          else if (child.nodeType === NodeType.ELEMENT_NODE) {
+            childNodes.push(this.domToXNode(child as Element));
+          }
         }
-        // CDATA sections
-        else if (child.nodeType === NodeType.CDATA_SECTION_NODE && this.config.preserveCDATA) {
-          childNodes.push({
-            name: '#cdata',
-            type: NodeType.CDATA_SECTION_NODE,
-            value: child.nodeValue || ''
-          });
+        
+        // Only set children if there are any after filtering
+        if (childNodes.length > 0) {
+          xnode.children = childNodes;
         }
-        // Comments
-        else if (child.nodeType === NodeType.COMMENT_NODE && this.config.preserveComments) {
-          childNodes.push({
-            name: '#comment',
-            type: NodeType.COMMENT_NODE,
-            value: child.nodeValue || ''
-          });
-        }
-        // Processing instructions
-        else if (
-          child.nodeType === NodeType.PROCESSING_INSTRUCTION_NODE && 
-          this.config.preserveProcessingInstr
-        ) {
-          const pi = child as ProcessingInstruction;
-          childNodes.push({
-            name: '#pi',
-            type: NodeType.PROCESSING_INSTRUCTION_NODE,
-            value: pi.data || '',
-            attributes: { target: pi.target }
-          });
-        }
-        // Element nodes (recursive)
-        else if (child.nodeType === NodeType.ELEMENT_NODE) {
-          childNodes.push(this.domToXNode(child as Element));
-        }
-      }
-      
-      // Normalize text content based on whitespace configuration
-      textContent = this.normalizeWhitespace(textContent);
-      
-      // If only textContent exists, set as value
-      if (childNodes.length === 0 && textContent) {
-        xnode.value = textContent;
-      }
-      // Otherwise if textContent exists, add it as a child text node first
-      else if (textContent && this.config.preserveTextNodes) {
-        childNodes.unshift({
-          name: '#text',
-          type: NodeType.TEXT_NODE,
-          value: textContent
-        });
-        xnode.children = childNodes;
-      }
-      // Otherwise just set children if there are any
-      else if (childNodes.length > 0) {
-        xnode.children = childNodes;
       }
     }
     

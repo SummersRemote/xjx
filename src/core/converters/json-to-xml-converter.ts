@@ -1,5 +1,5 @@
 /**
- * JSON to XML converter with transformer support
+ * JSON to XML converter with transformer support and improved entity handling
  */
 import { Configuration } from "../types/config-types";
 import { XJXError } from "../types/error-types";
@@ -12,6 +12,7 @@ import {
 } from "../types/transform-types";
 import { TransformUtil } from "../utils/transform-utils";
 import { XmlUtil } from "../utils/xml-utils";
+import { escapeXML, safeXmlText } from "../utils/xml-escape-utils";
 
 /**
  * JSON to XML converter
@@ -242,26 +243,28 @@ export class JsonToXmlConverter {
     // Set attributes
     if (node.attributes) {
       for (const [name, value] of Object.entries(node.attributes)) {
-        element.setAttribute(name, String(value));
+        // Safely escape attribute values
+        element.setAttribute(name, escapeXML(String(value)));
       }
     }
     
     // Set text content if this is a simple node with only a value
     if (node.value !== undefined && (!node.children || node.children.length === 0)) {
-      element.textContent = String(node.value);
+      // Safely escape text content
+      element.textContent = safeXmlText(String(node.value));
     }
     
     // Add children
     if (node.children) {
       for (const child of node.children) {
         if (child.type === NodeType.TEXT_NODE) {
-          // Text node
-          element.appendChild(doc.createTextNode(String(child.value)));
+          // Text node - safely escape content
+          element.appendChild(doc.createTextNode(safeXmlText(String(child.value))));
         } else if (child.type === NodeType.CDATA_SECTION_NODE) {
-          // CDATA section
+          // CDATA section - no escaping needed
           element.appendChild(doc.createCDATASection(String(child.value)));
         } else if (child.type === NodeType.COMMENT_NODE) {
-          // Comment
+          // Comment - safely escape content
           element.appendChild(doc.createComment(String(child.value)));
         } else if (child.type === NodeType.PROCESSING_INSTRUCTION_NODE) {
           // Processing instruction

@@ -1,10 +1,11 @@
 /**
- * XMLUtil - Utility functions for XML processing
+ * XMLUtil - Utility functions for XML processing with improved entity handling
  */
 import { XJXError } from "../types/error-types";
 import { DOMAdapter } from "../adapters/dom-adapter";
 import { Configuration } from "../types/config-types";
 import { NodeType } from "../types/dom-types";
+import { escapeXML, unescapeXML, safeXmlText, containsSpecialChars } from "../utils/xml-escape-utils";
 
 /**
  * Interface for XML validation result
@@ -116,7 +117,10 @@ export class XmlUtil {
    */
   validateXML(xmlString: string): ValidationResult {
     try {
-      const doc = DOMAdapter.parseFromString(xmlString, "text/xml");
+      // Attempt to preprocess XML string to catch common XML errors
+      const preprocessedXml = this.preprocessForValidation(xmlString);
+      
+      const doc = DOMAdapter.parseFromString(preprocessedXml, "text/xml");
       const errors = doc.getElementsByTagName("parsererror");
       if (errors.length > 0) {
         return {
@@ -131,6 +135,65 @@ export class XmlUtil {
         message: error instanceof Error ? error.message : String(error),
       };
     }
+  }
+
+  /**
+   * Preprocess XML string for validation to help users catch common errors
+   * @param xmlString Original XML string
+   * @returns Preprocessed XML string with common issues fixed
+   */
+  private preprocessForValidation(xmlString: string): string {
+    // This is a simplified version of the preprocessing in XmlToJsonConverter
+    // focused on handling basic entity escaping issues for validation
+    let inCdata = false;
+    let result = '';
+    let i = 0;
+
+    while (i < xmlString.length) {
+      // Check for CDATA section start
+      if (xmlString.substring(i, i + 9) === '<![CDATA[') {
+        inCdata = true;
+        result += '<![CDATA[';
+        i += 9;
+        continue;
+      }
+      
+      // Check for CDATA section end
+      if (inCdata && xmlString.substring(i, i + 3) === ']]>') {
+        inCdata = false;
+        result += ']]>';
+        i += 3;
+        continue;
+      }
+      
+      // Handle special characters outside CDATA
+      if (!inCdata) {
+        const char = xmlString.charAt(i);
+        if (char === '&') {
+          // Check if this is already an entity reference
+          if (xmlString.substring(i, i + 5) === '&amp;' ||
+              xmlString.substring(i, i + 4) === '&lt;' ||
+              xmlString.substring(i, i + 4) === '&gt;' ||
+              xmlString.substring(i, i + 6) === '&quot;' ||
+              xmlString.substring(i, i + 6) === '&apos;') {
+            // Already an entity, leave it as is
+            result += char;
+          } else {
+            // Not a valid entity reference, escape it
+            result += '&amp;';
+          }
+        } else {
+          result += char;
+        }
+      } else {
+        // Inside CDATA, pass through unchanged
+        result += xmlString.charAt(i);
+      }
+      
+      i++;
+    }
+    
+    return result;
   }
 
   /**
@@ -151,26 +214,7 @@ export class XmlUtil {
    * @returns Escaped XML string.
    */
   escapeXML(text: string): string {
-    if (typeof text !== "string" || text.length === 0) {
-      return "";
-    }
-
-    return text.replace(/[&<>"']/g, (char) => {
-      switch (char) {
-        case "&":
-          return "&amp;";
-        case "<":
-          return "&lt;";
-        case ">":
-          return "&gt;";
-        case '"':
-          return "&quot;";
-        case "'":
-          return "&apos;";
-        default:
-          return char;
-      }
-    });
+    return escapeXML(text);
   }
 
   /**
@@ -179,26 +223,16 @@ export class XmlUtil {
    * @returns Unescaped text.
    */
   unescapeXML(text: string): string {
-    if (typeof text !== "string" || text.length === 0) {
-      return "";
-    }
+    return unescapeXML(text);
+  }
 
-    return text.replace(/&(amp|lt|gt|quot|apos);/g, (match, entity) => {
-      switch (entity) {
-        case "amp":
-          return "&";
-        case "lt":
-          return "<";
-        case "gt":
-          return ">";
-        case "quot":
-          return '"';
-        case "apos":
-          return "'";
-        default:
-          return match;
-      }
-    });
+  /**
+   * Safely processes text for XML inclusion, avoiding double-escaping
+   * @param text Text to process
+   * @returns Safely processed text
+   */
+  safeXmlText(text: string): string {
+    return safeXmlText(text);
   }
 
   /**

@@ -1,5 +1,5 @@
 /**
- * XML to JSON converter with transformer support
+ * XML to JSON converter with transformer support and improved entity handling
  */
 import { Configuration } from "../types/config-types";
 import { XJXError } from "../types/error-types";
@@ -11,6 +11,7 @@ import {
   TransformDirection 
 } from "../types/transform-types";
 import { TransformUtil } from "../utils/transform-utils";
+import { escapeXML, unescapeXML } from "../utils/xml-escape-utils";
 
 /**
  * XML to JSON converter
@@ -38,8 +39,12 @@ export class XmlToJsonConverter {
    */
   public convert(xmlString: string): Record<string, any> {
     try {
+      // Pre-process XML string to handle parsing errors due to unescaped characters
+      // This is only a fallback in case the XML wasn't properly escaped before
+      const preprocessedXml = this.preprocessXml(xmlString);
+
       // 1. Parse XML to DOM
-      const xmlDoc = DOMAdapter.parseFromString(xmlString, "text/xml");
+      const xmlDoc = DOMAdapter.parseFromString(preprocessedXml, "text/xml");
       
       // Check for parsing errors
       const errors = xmlDoc.getElementsByTagName("parsererror");
@@ -74,6 +79,66 @@ export class XmlToJsonConverter {
   }
 
   /**
+   * Preprocess XML string to handle common escaping issues
+   * This isn't a complete solution but catches common problems for better user experience
+   * @param xmlString Original XML string
+   * @returns Preprocessed XML string
+   */
+  private preprocessXml(xmlString: string): string {
+    // Attempt to identify unescaped entities outside of CDATA sections
+    // This is a basic preprocessor and won't catch all cases
+    let inCdata = false;
+    let result = '';
+    let i = 0;
+
+    while (i < xmlString.length) {
+      // Check for CDATA section start
+      if (xmlString.substring(i, i + 9) === '<![CDATA[') {
+        inCdata = true;
+        result += '<![CDATA[';
+        i += 9;
+        continue;
+      }
+      
+      // Check for CDATA section end
+      if (inCdata && xmlString.substring(i, i + 3) === ']]>') {
+        inCdata = false;
+        result += ']]>';
+        i += 3;
+        continue;
+      }
+      
+      // Handle special characters outside CDATA
+      if (!inCdata) {
+        const char = xmlString.charAt(i);
+        if (char === '&') {
+          // Check if this is already an entity reference
+          if (xmlString.substring(i, i + 5) === '&amp;' ||
+              xmlString.substring(i, i + 4) === '&lt;' ||
+              xmlString.substring(i, i + 4) === '&gt;' ||
+              xmlString.substring(i, i + 6) === '&quot;' ||
+              xmlString.substring(i, i + 6) === '&apos;') {
+            // Already an entity, leave it as is
+            result += char;
+          } else {
+            // Not a valid entity reference, escape it
+            result += '&amp;';
+          }
+        } else {
+          result += char;
+        }
+      } else {
+        // Inside CDATA, pass through unchanged
+        result += xmlString.charAt(i);
+      }
+      
+      i++;
+    }
+    
+    return result;
+  }
+
+  /**
    * Convert DOM element to XNode
    * @param element DOM element
    * @returns XNode representation
@@ -94,7 +159,8 @@ export class XmlToJsonConverter {
         const attr = element.attributes[i];
         const attrName = attr.localName || attr.name.split(':').pop() || attr.name;
         
-        xnode.attributes[attrName] = attr.value;
+        // Ensure attribute values are properly unescaped
+        xnode.attributes[attrName] = unescapeXML(attr.value);
       }
     }
     
@@ -115,7 +181,8 @@ export class XmlToJsonConverter {
             continue;
           }
           
-          textContent += text;
+          // Properly unescape text content to avoid double escaping
+          textContent += unescapeXML(text);
         }
         // CDATA sections
         else if (child.nodeType === NodeType.CDATA_SECTION_NODE && this.config.preserveCDATA) {

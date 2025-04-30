@@ -23,6 +23,14 @@ export {
   ConfigurationError 
 } from './core/types/error-types';
 
+// XML Entity utilities
+export {
+  escapeXML,
+  unescapeXML,
+  safeXmlText,
+  containsSpecialChars
+} from './core/utils/xml-escape-utils';
+
 // Transformation API
 export {
   TransformDirection,

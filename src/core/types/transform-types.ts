@@ -51,10 +51,15 @@ export interface XNode {
   name: string;                       // Element name
   type: NodeType;                     // Element type (element, text, etc.)
   value?: any;                        // Node value
-  attributes?: Record<string, any>;   // Attributes
+  attributes?: Record<string, any>;   // Regular attributes
   children?: XNode[];                 // Child nodes
   namespace?: string;                 // Namespace URI
   prefix?: string;                    // Namespace prefix
+  
+  // Enhanced namespace handling
+  namespaceDeclarations?: Record<string, string>; // Maps prefix (or '' for default) to namespace URI
+  isDefaultNamespace?: boolean;      // Whether this node declares a default namespace
+  parent?: XNode;                    // Reference to parent node (for namespace resolution)
 }
 
 /**

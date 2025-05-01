@@ -197,28 +197,51 @@ export class XmlToJsonConverter {
   }
 
   /**
-   * Convert DOM element to XNode with improved mixed content handling
+   * Convert DOM element to XNode with improved mixed content and namespace handling
    * @param element DOM element
+   * @param parentNode Optional parent XNode for building the node hierarchy
    * @returns XNode representation
    */
-  private domToXNode(element: Element): XNode {
+  private domToXNode(element: Element, parentNode?: XNode): XNode {
     const xnode: XNode = {
       name: element.localName || element.nodeName.split(':').pop() || element.nodeName,
       type: NodeType.ELEMENT_NODE,
       namespace: element.namespaceURI || undefined,
-      prefix: element.prefix || undefined
+      prefix: element.prefix || undefined,
+      parent: parentNode  // Set parent reference for namespace resolution
     };
     
-    // Process attributes
+    // Process attributes and find namespace declarations
     if (element.attributes.length > 0) {
       xnode.attributes = {};
+      const namespaceDecls: Record<string, string> = {};
+      let hasNamespaceDecls = false;
       
       for (let i = 0; i < element.attributes.length; i++) {
         const attr = element.attributes[i];
-        const attrName = attr.localName || attr.name.split(':').pop() || attr.name;
+        const attrValue = unescapeXML(attr.value);
         
-        // Ensure attribute values are properly unescaped
-        xnode.attributes[attrName] = unescapeXML(attr.value);
+        // Handle namespace declarations specially
+        if (attr.name === 'xmlns') {
+          // Default namespace declaration
+          namespaceDecls[''] = attrValue;
+          xnode.isDefaultNamespace = true;
+          hasNamespaceDecls = true;
+        } else if (attr.name.startsWith('xmlns:')) {
+          // Prefixed namespace declaration
+          const prefix = attr.name.substring(6); // Remove 'xmlns:'
+          namespaceDecls[prefix] = attrValue;
+          hasNamespaceDecls = true;
+        } else {
+          // Regular attribute
+          const attrName = attr.localName || attr.name.split(':').pop() || attr.name;
+          xnode.attributes[attrName] = attrValue;
+        }
+      }
+      
+      // Add namespace declarations if we found any
+      if (hasNamespaceDecls) {
+        xnode.namespaceDeclarations = namespaceDecls;
       }
     }
     
@@ -257,7 +280,8 @@ export class XmlToJsonConverter {
                 childNodes.push({
                   name: '#text',
                   type: NodeType.TEXT_NODE,
-                  value: unescapeXML(normalizedText)
+                  value: unescapeXML(normalizedText),
+                  parent: xnode  // Set parent reference
                 });
               }
             }
@@ -267,7 +291,8 @@ export class XmlToJsonConverter {
             childNodes.push({
               name: '#cdata',
               type: NodeType.CDATA_SECTION_NODE,
-              value: child.nodeValue || ''
+              value: child.nodeValue || '',
+              parent: xnode  // Set parent reference
             });
           }
           // Comments
@@ -275,7 +300,8 @@ export class XmlToJsonConverter {
             childNodes.push({
               name: '#comment',
               type: NodeType.COMMENT_NODE,
-              value: child.nodeValue || ''
+              value: child.nodeValue || '',
+              parent: xnode  // Set parent reference
             });
           }
           // Processing instructions
@@ -288,12 +314,13 @@ export class XmlToJsonConverter {
               name: '#pi',
               type: NodeType.PROCESSING_INSTRUCTION_NODE,
               value: pi.data || '',
-              attributes: { target: pi.target }
+              attributes: { target: pi.target },
+              parent: xnode  // Set parent reference
             });
           }
           // Element nodes (recursive)
           else if (child.nodeType === NodeType.ELEMENT_NODE) {
-            childNodes.push(this.domToXNode(child as Element));
+            childNodes.push(this.domToXNode(child as Element, xnode));
           }
         }
         
@@ -308,7 +335,7 @@ export class XmlToJsonConverter {
   }
 
   /**
-   * Convert XNode to JSON
+   * Convert XNode to JSON with enhanced namespace handling
    * @param node XNode to convert
    * @returns JSON representation
    */
@@ -330,19 +357,34 @@ export class XmlToJsonConverter {
       nodeObj[this.config.propNames.value] = node.value;
     }
     
-    // Add attributes if present
-    if (node.attributes && Object.keys(node.attributes).length > 0) {
+    // Add attributes and namespace declarations if present
+    if (this.config.preserveAttributes) {
       const attrs: Array<Record<string, any>> = [];
       
-      for (const [name, value] of Object.entries(node.attributes)) {
-        const attrObj: Record<string, any> = {
-          [name]: { [this.config.propNames.value]: value }
-        };
-        
-        attrs.push(attrObj);
+      // Add regular attributes
+      if (node.attributes && Object.keys(node.attributes).length > 0) {
+        for (const [name, value] of Object.entries(node.attributes)) {
+          const attrObj: Record<string, any> = {
+            [name]: { [this.config.propNames.value]: value }
+          };
+          attrs.push(attrObj);
+        }
       }
       
-      nodeObj[this.config.propNames.attributes] = attrs;
+      // Add namespace declarations as special attributes
+      if (node.namespaceDeclarations && this.config.preserveNamespaces) {
+        for (const [prefix, uri] of Object.entries(node.namespaceDeclarations)) {
+          const attrName = prefix === '' ? 'xmlns' : `xmlns:${prefix}`;
+          const attrObj: Record<string, any> = {
+            [attrName]: { [this.config.propNames.value]: uri }
+          };
+          attrs.push(attrObj);
+        }
+      }
+      
+      if (attrs.length > 0) {
+        nodeObj[this.config.propNames.attributes] = attrs;
+      }
     }
     
     // Add children if present

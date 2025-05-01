@@ -41,3 +41,4 @@ pnpm-debug.log*
 Thumbs.db
 ehthumbs.db
 reports/jest-html-reporters-attach/test-report/result.js
+app/yalc.lock

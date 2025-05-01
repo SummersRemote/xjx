@@ -1,5 +1,5 @@
 /**
- * XJX - Main class for XML-JSON transformation with improved Transformation API
+ * XJX - Main class for XML-JSON transformation with improved registry usage
  */
 import { DOMAdapter } from "./adapters/dom-adapter";
 import { DEFAULT_CONFIG } from "./config/config";
@@ -23,6 +23,27 @@ import { TransformUtil } from "./utils/transform-utils";
 import { ExtensionRegistry } from "./extensions/registry";
 import { NodeType } from './types/dom-types';
 
+/**
+ * XJX - XML-JSON transformation library
+ * 
+ * @example
+ * Basic usage:
+ * ```typescript
+ * import { XJX, TransformDirection, BooleanTransformer } from 'xjx';
+ * 
+ * // Create a new instance
+ * const xjx = new XJX();
+ * 
+ * // Add transformers (optional)
+ * xjx.addValueTransformer(TransformDirection.XML_TO_JSON, new BooleanTransformer());
+ * 
+ * // Convert XML to JSON
+ * const json = xjx.xmlToJson('<root><active>true</active></root>');
+ * 
+ * // Convert JSON back to XML
+ * const xml = xjx.jsonToXml(json);
+ * ```
+ */
 export class XJX {
   private config: Configuration;
   private xmlToJsonConverter: XmlToJsonConverter;
@@ -66,15 +87,47 @@ export class XJX {
     this.xmlUtil = new XmlUtil(this.config);
     this.transformUtil = new TransformUtil(this.config);
 
-    // Store a reference to the transformUtil in the config for extensions to use
-    (this.config as any)._transformUtil = this.transformUtil;
+    // Register transformation operations
+    this.registerTransformationOperations();
 
-    // Initialize converters
-    this.xmlToJsonConverter = new XmlToJsonConverter(this.config, this);
-    this.jsonToXmlConverter = new JsonToXmlConverter(this.config, this);
+    // Initialize converters without passing the XJX instance directly
+    this.xmlToJsonConverter = new XmlToJsonConverter(this.config);
+    this.jsonToXmlConverter = new JsonToXmlConverter(this.config);
 
     // Load extension methods
     this.loadExtensionMethods();
+  }
+
+  /**
+   * Register all transformation operations with the registry
+   * @private
+   */
+  private registerTransformationOperations(): void {
+    // Register all transformation methods that converters will need
+    ExtensionRegistry.registerTransformationOperation(
+      'applyValueTransformers', 
+      this.applyValueTransformers.bind(this)
+    );
+    
+    ExtensionRegistry.registerTransformationOperation(
+      'applyAttributeTransformers', 
+      this.applyAttributeTransformers.bind(this)
+    );
+    
+    ExtensionRegistry.registerTransformationOperation(
+      'applyNodeTransformers', 
+      this.applyNodeTransformers.bind(this)
+    );
+    
+    ExtensionRegistry.registerTransformationOperation(
+      'applyChildrenTransformers', 
+      this.applyChildrenTransformers.bind(this)
+    );
+    
+    ExtensionRegistry.registerTransformationOperation(
+      'applyTransformations', 
+      this.applyTransformations.bind(this)
+    );
   }
 
   /**
@@ -82,7 +135,18 @@ export class XJX {
    * @private
    */
   private loadExtensionMethods(): void {
-    for (const [name, method] of ExtensionRegistry.getAllMethods().entries()) {
+    // Load transformer methods
+    for (const [name, method] of ExtensionRegistry.getAllTransformers().entries()) {
+      if (!(this as any)[name]) {
+        // Bind the method to this instance
+        (this as any)[name] = (...args: any[]) => {
+          return method.apply(this, args);
+        };
+      }
+    }
+    
+    // Load utility methods
+    for (const [name, method] of ExtensionRegistry.getAllUtilities().entries()) {
       if (!(this as any)[name]) {
         // Bind the method to this instance
         (this as any)[name] = (...args: any[]) => {

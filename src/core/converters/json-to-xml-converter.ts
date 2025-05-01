@@ -2,7 +2,7 @@
  * JSON to XML converter with transformer support and improved entity and whitespace handling
  */
 import { Configuration } from "../types/config-types";
-import { XJXError } from "../types/error-types";
+import { XJXError, JsonToXmlError } from "../types/error-types";
 import { DOMAdapter } from "../adapters/dom-adapter";
 import { NodeType } from "../types/dom-types";
 import {
@@ -13,6 +13,7 @@ import {
 import { TransformUtil } from "../utils/transform-utils";
 import { XmlUtil } from "../utils/xml-utils";
 import { escapeXML, safeXmlText } from "../utils/xml-escape-utils";
+import { ExtensionRegistry } from "../extensions/registry";
 
 /**
  * JSON to XML converter
@@ -21,19 +22,16 @@ export class JsonToXmlConverter {
   private config: Configuration;
   private transformUtil: TransformUtil;
   private xmlUtil: XmlUtil;
-  private xjx: any; // Reference to XJX instance
   private namespaceMap: Record<string, string>; // Collected namespaces for resolution
 
   /**
    * Constructor
    * @param config Configuration
-   * @param xjx XJX instance
    */
-  constructor(config: Configuration, xjx: any) {
+  constructor(config: Configuration) {
     this.config = config;
     this.transformUtil = new TransformUtil(this.config);
     this.xmlUtil = new XmlUtil(this.config);
-    this.xjx = xjx;
     this.namespaceMap = {};
   }
 
@@ -56,8 +54,10 @@ export class JsonToXmlConverter {
         xnode.name
       );
 
-      // 3. Apply transformations
-      const transformedNode = this.xjx.applyTransformations(xnode, context);
+      // 3. Apply transformations using registry
+      const applyTransformations = ExtensionRegistry.getTransformationOperation('applyTransformations');
+      const transformedNode = applyTransformations(xnode, context);
+      
       if (transformedNode === null) {
         throw new XJXError("Root node was removed during transformation");
       }
@@ -113,13 +113,13 @@ export class JsonToXmlConverter {
    */
   private jsonToXNode(jsonObj: Record<string, any>, parentNode?: XNode): XNode {
     if (!jsonObj || typeof jsonObj !== "object") {
-      throw new XJXError("Invalid JSON object");
+      throw new JsonToXmlError("Invalid JSON object");
     }
 
     // Get the node name (first key in the object)
     const nodeName = Object.keys(jsonObj)[0];
     if (!nodeName) {
-      throw new XJXError("Empty JSON object");
+      throw new JsonToXmlError("Empty JSON object");
     }
 
     const nodeData = jsonObj[nodeName];

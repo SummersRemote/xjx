@@ -8,7 +8,6 @@ import {
   XNode 
 } from '../types/transform-types';
 import { DOMAdapter } from '../adapters/dom-adapter';
-import { createPathMatcher } from './path-matcher';
 
 /**
  * Utility class for working with transformations
@@ -118,15 +117,6 @@ export class TransformUtil {
       isAttribute: false,
       config: this.config
     };
-  }
-
-  /**
-   * Create a path matcher function for the given patterns
-   * @param patterns Path patterns to match
-   * @returns Function that returns true if a path matches any pattern
-   */
-  public createPathMatcher(patterns: string | string[]): (path: string) => boolean {
-    return createPathMatcher(patterns);
   }
 
   /**

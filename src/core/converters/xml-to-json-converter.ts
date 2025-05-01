@@ -1,8 +1,8 @@
 /**
- * XML to JSON converter with improved mixed content handling
+ * XML to JSON converter with improved mixed content handling and registry usage
  */
 import { Configuration } from "../types/config-types";
-import { XJXError } from "../types/error-types";
+import { XJXError, XmlToJsonError } from "../types/error-types";
 import { DOMAdapter } from "../adapters/dom-adapter";
 import { NodeType } from "../types/dom-types";
 import { 
@@ -12,6 +12,7 @@ import {
 } from "../types/transform-types";
 import { TransformUtil } from "../utils/transform-utils";
 import { escapeXML, unescapeXML } from "../utils/xml-escape-utils";
+import { ExtensionRegistry } from "../extensions/registry";
 
 /**
  * XML to JSON converter
@@ -19,17 +20,14 @@ import { escapeXML, unescapeXML } from "../utils/xml-escape-utils";
 export class XmlToJsonConverter {
   private config: Configuration;
   private transformUtil: TransformUtil;
-  private xjx: any; // Reference to XJX instance
 
   /**
    * Constructor
    * @param config Configuration
-   * @param xjx XJX instance
    */
-  constructor(config: Configuration, xjx: any) {
+  constructor(config: Configuration) {
     this.config = config;
     this.transformUtil = new TransformUtil(this.config);
-    this.xjx = xjx;
   }
 
   /**
@@ -48,7 +46,7 @@ export class XmlToJsonConverter {
       // Check for parsing errors
       const errors = xmlDoc.getElementsByTagName("parsererror");
       if (errors.length > 0) {
-        throw new XJXError(`XML parsing error: ${errors[0].textContent}`);
+        throw new XmlToJsonError(`XML parsing error: ${errors[0].textContent}`);
       }
 
       // 2. Convert DOM to XNode
@@ -60,8 +58,10 @@ export class XmlToJsonConverter {
         xnode.name
       );
       
-      // 4. Apply transformations
-      const transformedNode = this.xjx.applyTransformations(xnode, context);
+      // 4. Apply transformations using registry
+      const applyTransformations = ExtensionRegistry.getTransformationOperation('applyTransformations');
+      const transformedNode = applyTransformations(xnode, context);
+      
       if (transformedNode === null) {
         throw new XJXError('Root node was removed during transformation');
       }

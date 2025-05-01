@@ -1,6 +1,5 @@
 /**
- * Simplified base transformer implementations
- * Path matching feature has been removed for simplicity
+ * Base transformer implementations with path matching removed
  */
 import {
   ValueTransformer,
@@ -14,11 +13,10 @@ import {
 } from '../types/transform-types';
 
 /**
- * Simplified transformer options
- * No longer includes path matching functionality
+ * Basic transformer options
  */
 export interface TransformerOptions {
-  // Add any common transformer options here (none by default after removing paths)
+  // Can add common transformer options here if needed
 }
 
 /**
@@ -29,20 +27,27 @@ export abstract class BaseValueTransformer implements ValueTransformer {
    * Create a new value transformer
    */
   constructor(options?: TransformerOptions) {
-    // No path matcher initialization
+    // No initialization needed - path matching removed
   }
   
   /**
    * Transform a value
-   * Directly calls transformValue without path matching
+   * @param value The value to transform
+   * @param node The node containing the value
+   * @param context The transformation context
+   * @returns Transform result with the transformed value
    */
   transform(value: any, node: XNode, context: TransformContext): TransformResult<any> {
-    // No path matching check - call transformValue directly
+    // Directly call transformValue without path matching
     return this.transformValue(value, node, context);
   }
   
   /**
    * Transform a value (to be implemented by subclasses)
+   * @param value The value to transform
+   * @param node The node containing the value
+   * @param context The transformation context
+   * @returns Transform result with the transformed value
    */
   protected abstract transformValue(value: any, node: XNode, context: TransformContext): TransformResult<any>;
 }
@@ -55,20 +60,29 @@ export abstract class BaseAttributeTransformer implements AttributeTransformer {
    * Create a new attribute transformer
    */
   constructor(options?: TransformerOptions) {
-    // No path matcher initialization
+    // No initialization needed - path matching removed
   }
   
   /**
    * Transform an attribute
-   * Directly calls transformAttribute without path matching
+   * @param name The attribute name
+   * @param value The attribute value
+   * @param node The node containing the attribute
+   * @param context The transformation context
+   * @returns Transform result with the transformed name and value tuple
    */
   transform(name: string, value: any, node: XNode, context: TransformContext): TransformResult<[string, any]> {
-    // No path matching check - call transformAttribute directly
+    // Directly call transformAttribute without path matching
     return this.transformAttribute(name, value, node, context);
   }
   
   /**
    * Transform an attribute (to be implemented by subclasses)
+   * @param name The attribute name
+   * @param value The attribute value
+   * @param node The node containing the attribute
+   * @param context The transformation context
+   * @returns Transform result with the transformed name and value tuple
    */
   protected abstract transformAttribute(name: string, value: any, node: XNode, context: TransformContext): TransformResult<[string, any]>;
 }
@@ -81,20 +95,27 @@ export abstract class BaseChildrenTransformer implements ChildrenTransformer {
    * Create a new children transformer
    */
   constructor(options?: TransformerOptions) {
-    // No path matcher initialization
+    // No initialization needed - path matching removed
   }
   
   /**
    * Transform children
-   * Directly calls transformChildren without path matching
+   * @param children The children array
+   * @param node The parent node
+   * @param context The transformation context
+   * @returns Transform result with the transformed children array
    */
   transform(children: XNode[], node: XNode, context: TransformContext): TransformResult<XNode[]> {
-    // No path matching check - call transformChildren directly
+    // Directly call transformChildren without path matching
     return this.transformChildren(children, node, context);
   }
   
   /**
    * Transform children (to be implemented by subclasses)
+   * @param children The children array
+   * @param node The parent node
+   * @param context The transformation context
+   * @returns Transform result with the transformed children array
    */
   protected abstract transformChildren(children: XNode[], node: XNode, context: TransformContext): TransformResult<XNode[]>;
 }
@@ -107,20 +128,25 @@ export abstract class BaseNodeTransformer implements NodeTransformer {
    * Create a new node transformer
    */
   constructor(options?: TransformerOptions) {
-    // No path matcher initialization
+    // No initialization needed - path matching removed
   }
   
   /**
    * Transform a node
-   * Directly calls transformNode without path matching
+   * @param node The node to transform
+   * @param context The transformation context
+   * @returns Transform result with the transformed node
    */
   transform(node: XNode, context: TransformContext): TransformResult<XNode> {
-    // No path matching check - call transformNode directly
+    // Directly call transformNode without path matching
     return this.transformNode(node, context);
   }
   
   /**
    * Transform a node (to be implemented by subclasses)
+   * @param node The node to transform
+   * @param context The transformation context
+   * @returns Transform result with the transformed node
    */
   protected abstract transformNode(node: XNode, context: TransformContext): TransformResult<XNode>;
 }

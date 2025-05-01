@@ -1,8 +1,9 @@
 /**
- * Boolean transformer implementation
+ * Boolean transformer implementation (simplified)
+ * Path matching feature has been removed
  */
 import { BaseValueTransformer, TransformerOptions } from './transformer-base';
-import { XNode, TransformContext, TransformDirection, TransformResult, transformResult } from '../types/transform-types';
+import { XNode, TransformContext, TransformResult, transformResult } from '../types/transform-types';
 
 /**
  * Options for boolean transformer
@@ -36,7 +37,6 @@ const DEFAULT_FALSE_VALUES = ['false', 'no', '0', 'off'];
  * Example usage:
  * ```
  * const booleanTransformer = new BooleanTransformer({
- *   paths: ['root.items.*.active', 'root.settings.enabled'],
  *   trueValues: ['true', 'yes', '1', 'on', 'active', 'enabled'],
  *   falseValues: ['false', 'no', '0', 'off', 'inactive', 'disabled']
  * });

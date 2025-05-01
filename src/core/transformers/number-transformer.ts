@@ -1,8 +1,9 @@
 /**
- * Number transformer implementation
+ * Number transformer implementation (simplified)
+ * Path matching feature has been removed
  */
 import { BaseValueTransformer, TransformerOptions } from './transformer-base';
-import { XNode, TransformContext, TransformDirection, TransformResult, transformResult } from '../types/transform-types';
+import { XNode, TransformContext, TransformResult, transformResult } from '../types/transform-types';
 
 /**
  * Options for number transformer
@@ -48,7 +49,6 @@ export interface NumberTransformerOptions extends TransformerOptions {
  * Example usage:
  * ```
  * const numberTransformer = new NumberTransformer({
- *   paths: ['root.items.*.price', 'root.items.*.quantity'],
  *   integers: true,
  *   decimals: true,
  *   strictParsing: true

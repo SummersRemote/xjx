@@ -1,8 +1,9 @@
 /**
- * String replace transformer implementation
+ * String replace transformer implementation (simplified)
+ * Path matching feature has been removed
  */
 import { BaseValueTransformer, TransformerOptions } from './transformer-base';
-import { XNode, TransformContext, TransformDirection, TransformResult, transformResult } from '../types/transform-types';
+import { XNode, TransformContext, TransformResult, transformResult } from '../types/transform-types';
 
 /**
  * Options for string replace transformer
@@ -39,7 +40,6 @@ export interface StringReplaceOptions extends TransformerOptions {
  * Example usage:
  * ```
  * const urlLinkifier = new StringReplaceTransformer({
- *   paths: ['root.content.*.text'],
  *   pattern: /(https?:\/\/[\w-]+(\.[\w-]+)+[\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])/g,
  *   replacement: '<a href="$1">$1</a>'
  * });

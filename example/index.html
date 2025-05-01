@@ -16,7 +16,7 @@
             color: #2c3e50;
         }
         .container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
         }
         .instructions {
@@ -41,9 +41,40 @@
             border-radius: 4px;
             cursor: pointer;
             font-size: 14px;
+            transition: background-color 0.3s;
         }
         .button:hover {
             background-color: #0056b3;
+        }
+        .examples-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .example-button {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .example-desc {
+            font-size: 12px;
+            margin-top: 4px;
+            text-align: center;
+            color: #666;
+        }
+        .transformer-types {
+            margin-bottom: 20px;
+        }
+        .transformer-type {
+            background-color: #e9ecef;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+        }
+        .transformer-type h3 {
+            margin-top: 0;
+            color: #2c3e50;
         }
     </style>
 </head>
@@ -53,23 +84,85 @@
         
         <div class="instructions">
             <h2>Instructions</h2>
-            <p>This page is designed to run XJX library examples using ES Modules. Please open your browser's developer console to see the output.</p>
+            <p>This page demonstrates the XJX library for XML-JSON transformation using various transformer types. Open your browser's developer console to see the output.</p>
             <p>Press <code>F12</code> or <code>Ctrl+Shift+J</code> (Windows/Linux) or <code>Cmd+Option+J</code> (Mac) to open the console.</p>
             <p><strong>Note:</strong> ES Modules only work when served from a proper web server, not directly from the file system.</p>
         </div>
 
+        <div class="transformer-types">
+            <h2>Transformer Types</h2>
+            
+            <div class="transformer-type">
+                <h3>Value Transformers</h3>
+                <p>Modify primitive values like strings, numbers, and booleans. Examples include converting string "true" to boolean true, or string "123" to number 123.</p>
+            </div>
+            
+            <div class="transformer-type">
+                <h3>Attribute Transformers</h3>
+                <p>Modify attribute names and values. Examples include standardizing units (cm → centimeters) or formatting currencies.</p>
+            </div>
+            
+            <div class="transformer-type">
+                <h3>Node Transformers</h3>
+                <p>Modify entire elements, including renaming them or adding attributes. Examples include renaming "title" to "name" or adding currency attributes to prices.</p>
+            </div>
+            
+            <div class="transformer-type">
+                <h3>Children Transformers</h3>
+                <p>Process collections of child nodes, allowing filtering, sorting, or reorganizing. Examples include sorting items by ID or filtering out discontinued products.</p>
+            </div>
+        </div>
+
         <div>
             <h2>Run Examples</h2>
-            <button id="example1" class="button">Run Example 1: Basic XML to JSON</button>
-            <button id="example2" class="button">Run Example 2: JSON to XML</button>
-            <button id="example3" class="button">Run Example 3: Using Transformers</button>
-            <button id="example4" class="button">Run Example 4: ObjectToXJX</button>
-            <button id="runAll" class="button">Run All Examples</button>
+            <div class="examples-grid">
+                <div class="example-button">
+                    <button id="example1" class="button">Example 1</button>
+                    <div class="example-desc">Basic XML to JSON conversion</div>
+                </div>
+                
+                <div class="example-button">
+                    <button id="example2" class="button">Example 2</button>
+                    <div class="example-desc">JSON to XML conversion</div>
+                </div>
+                
+                <div class="example-button">
+                    <button id="example3" class="button">Example 3</button>
+                    <div class="example-desc">Value Transformers (Boolean, Number, String)</div>
+                </div>
+                
+                <div class="example-button">
+                    <button id="example4" class="button">Example 4</button>
+                    <div class="example-desc">Attribute Transformers</div>
+                </div>
+                
+                <div class="example-button">
+                    <button id="example5" class="button">Example 5</button>
+                    <div class="example-desc">Node Transformers</div>
+                </div>
+                
+                <div class="example-button">
+                    <button id="example6" class="button">Example 6</button>
+                    <div class="example-desc">Children Transformers</div>
+                </div>
+                
+                <div class="example-button">
+                    <button id="example7" class="button">Example 7</button>
+                    <div class="example-desc">Combined Transformers</div>
+                </div>
+                
+                <div class="example-button">
+                    <button id="example8" class="button">Example 8</button>
+                    <div class="example-desc">Object to XJX Conversion</div>
+                </div>
+            </div>
+            
+            <button id="runAll" class="button" style="background-color: #28a745; font-weight: bold; padding: 10px 20px;">Run All Examples</button>
         </div>
 
         <div id="output">
             <h2>Example Results</h2>
-            <p>Check your browser's console for detailed output.</p>
+            <p>Check your browser's console for detailed output of the examples.</p>
         </div>
     </div>
 

@@ -41,18 +41,6 @@ export class XmlUtil {
     const indent = this.config.outputOptions.indent;
     const INDENT = " ".repeat(indent);
 
-    // Check if there's an XML declaration in the original string
-    const hasXmlDeclaration = xmlString.trim().startsWith("<?xml");
-    let xmlDeclaration = "";
-
-    // Extract the XML declaration if present
-    if (hasXmlDeclaration) {
-      const match = xmlString.match(/^<\?xml[^?]*\?>/);
-      if (match) {
-        xmlDeclaration = match[0] + "\n";
-      }
-    }
-
     try {
       const doc = DOMAdapter.parseFromString(xmlString, "text/xml");
 
@@ -191,7 +179,8 @@ export class XmlUtil {
       };
 
       // Combine the XML declaration (if any) with the formatted body
-      return xmlDeclaration + serializer(doc).trim();
+      return serializer(doc).trim();
+
     } catch (error) {
       throw new XJXError(
         `Failed to pretty print XML: ${

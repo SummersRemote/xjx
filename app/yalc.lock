@@ -1,0 +1,9 @@
+{
+  "version": "v1",
+  "packages": {
+    "xjx": {
+      "signature": "bd468dfde454a9aec080474be58f5624",
+      "file": true
+    }
+  }
+}

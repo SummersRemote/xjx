@@ -1,5 +1,6 @@
 /**
- * JSON to XML converter with transformer support and improved entity and whitespace handling
+ * JSON to XML converter with improved architecture
+ * Uses consolidated utilities for entity handling, namespace resolution, and configuration
  */
 import { Configuration } from "../types/config-types";
 import { XJXError, JsonToXmlError } from "../types/error-types";
@@ -12,7 +13,9 @@ import {
 } from "../types/transform-types";
 import { TransformUtil } from "../utils/transform-utils";
 import { XmlUtil } from "../utils/xml-utils";
-import { escapeXML, safeXmlText } from "../utils/xml-escape-utils";
+import { XmlEntityHandler } from "../utils/xml-entity-handler";
+import { NamespaceUtil } from "../utils/namespace-util";
+import { ConfigProvider } from "../config/config-provider";
 import { ExtensionRegistry } from "../extensions/registry";
 
 /**
@@ -22,6 +25,8 @@ export class JsonToXmlConverter {
   private config: Configuration;
   private transformUtil: TransformUtil;
   private xmlUtil: XmlUtil;
+  private entityHandler: XmlEntityHandler;
+  private namespaceUtil: NamespaceUtil;
   private namespaceMap: Record<string, string>; // Collected namespaces for resolution
 
   /**
@@ -32,6 +37,8 @@ export class JsonToXmlConverter {
     this.config = config;
     this.transformUtil = new TransformUtil(this.config);
     this.xmlUtil = new XmlUtil(this.config);
+    this.entityHandler = XmlEntityHandler.getInstance();
+    this.namespaceUtil = NamespaceUtil.getInstance();
     this.namespaceMap = {};
   }
 
@@ -73,26 +80,17 @@ export class JsonToXmlConverter {
         doc.appendChild(element);
       }
 
-      // Serialize to XML string
-      let xmlString = DOMAdapter.serializeToString(doc);
-
-      // Remove xhtml decl inserted by some DOM implementations
-      xmlString = xmlString.replace(
-        ' xmlns="http://www.w3.org/1999/xhtml"',
-        ""
-      );
+      // Serialize to XML string using XmlUtil for consistent handling
+      let xmlString = this.xmlUtil.serializeXml(doc);
 
       // Apply pretty printing if enabled
       if (this.config.outputOptions.prettyPrint) {
         xmlString = this.xmlUtil.prettyPrintXml(xmlString);
       }
 
-      // Remove any existing XML declaration that might have survived
-      xmlString = xmlString.replace(/^<\?xml[^?]*\?>\s*/, "");
-
       // Add the XML declaration at the beginning if configured to do so
       if (this.config.outputOptions.xml.declaration) {
-        xmlString = '<?xml version="1.0" encoding="UTF-8"?>\n' + xmlString;
+        xmlString = this.xmlUtil.ensureXMLDeclaration(xmlString);
       }
 
       return xmlString;
@@ -267,47 +265,7 @@ export class JsonToXmlConverter {
   }
 
   /**
-   * Normalizes text content according to whitespace settings
-   * @param text Text to normalize
-   * @returns Normalized text
-   */
-  private normalizeTextContent(text: string): string {
-    if (!this.config.preserveWhitespace) {
-      // When preserveWhitespace is false, normalize whitespace
-      return String(text).trim();
-    }
-    return String(text);
-  }
-
-  /**
-   * Find a namespace URI for a given prefix by searching up the node hierarchy
-   * @param node Starting node
-   * @param prefix Namespace prefix to find
-   * @returns Namespace URI or undefined if not found
-   */
-  private findNamespaceForPrefix(
-    node: XNode,
-    prefix: string
-  ): string | undefined {
-    let current: XNode | undefined = node;
-
-    // Walk up the parent chain looking for a matching namespace declaration
-    while (current) {
-      if (
-        current.namespaceDeclarations &&
-        current.namespaceDeclarations[prefix] !== undefined
-      ) {
-        return current.namespaceDeclarations[prefix];
-      }
-      current = current.parent;
-    }
-
-    // If not found in ancestry, try the global map as fallback
-    return this.namespaceMap[prefix];
-  }
-
-  /**
-   * Convert XNode to DOM element with precise namespace handling
+   * Convert XNode to DOM element with consistent entity handling
    * @param node XNode to convert
    * @param doc DOM document
    * @returns DOM element
@@ -317,36 +275,15 @@ export class JsonToXmlConverter {
     let element: Element;
 
     if (node.namespace && this.config.preserveNamespaces) {
-      if (node.prefix) {
-        // Create element with namespace and prefix
-        element = DOMAdapter.createElementNS(
-          node.namespace,
-          `${node.prefix}:${node.name}`
-        );
-      } else {
-        // Create element with namespace but no prefix (default namespace)
-        element = DOMAdapter.createElementNS(node.namespace, node.name);
-      }
+      const qualifiedName = this.namespaceUtil.createQualifiedName(node.prefix, node.name);
+      element = DOMAdapter.createElementNS(node.namespace, qualifiedName);
     } else {
-      // Create element without namespace
       element = DOMAdapter.createElement(node.name);
     }
 
-    // Add namespace declarations explicitly if present
+    // Add namespace declarations using NamespaceUtil
     if (node.namespaceDeclarations && this.config.preserveNamespaces) {
-      for (const [prefix, uri] of Object.entries(node.namespaceDeclarations)) {
-        if (prefix === "") {
-          // Default namespace
-          element.setAttribute("xmlns", uri);
-        } else {
-          // Prefixed namespace
-          element.setAttributeNS(
-            "http://www.w3.org/2000/xmlns/",
-            `xmlns:${prefix}`,
-            uri
-          );
-        }
-      }
+      this.namespaceUtil.addNamespaceDeclarations(element, node.namespaceDeclarations);
     }
 
     // Set attributes
@@ -360,18 +297,30 @@ export class JsonToXmlConverter {
         if (colonIndex > 0 && this.config.preserveNamespaces) {
           const attrPrefix = name.substring(0, colonIndex);
           const attrLocalName = name.substring(colonIndex + 1);
-          const attrNs = this.findNamespaceForPrefix(node, attrPrefix);
+          
+          // Use NamespaceUtil for consistent namespace resolution
+          const attrNs = this.namespaceUtil.findNamespaceForPrefix(node, attrPrefix, this.namespaceMap);
 
           if (attrNs) {
-            // Set attribute with namespace
-            element.setAttributeNS(attrNs, name, escapeXML(String(value)));
+            // Set attribute with namespace, with entity handling
+            element.setAttributeNS(
+              attrNs, 
+              name, 
+              this.entityHandler.escapeXML(String(value))
+            );
           } else {
             // No namespace found, set as regular attribute
-            element.setAttribute(name, escapeXML(String(value)));
+            element.setAttribute(
+              name, 
+              this.entityHandler.escapeXML(String(value))
+            );
           }
         } else {
-          // Regular attribute
-          element.setAttribute(name, escapeXML(String(value)));
+          // Regular attribute with entity handling
+          element.setAttribute(
+            name, 
+            this.entityHandler.escapeXML(String(value))
+          );
         }
       }
     }
@@ -381,9 +330,9 @@ export class JsonToXmlConverter {
       node.value !== undefined &&
       (!node.children || node.children.length === 0)
     ) {
-      // Normalize and escape text content based on configuration
-      const normalizedText = this.normalizeTextContent(node.value);
-      element.textContent = safeXmlText(normalizedText);
+      // Normalize and safely escape text content
+      const normalizedText = this.xmlUtil.normalizeTextContent(node.value);
+      element.textContent = this.entityHandler.safeXmlText(normalizedText);
     }
 
     // Add children
@@ -391,13 +340,15 @@ export class JsonToXmlConverter {
       for (const child of node.children) {
         if (child.type === NodeType.TEXT_NODE) {
           // Text node - normalize and safely escape content
-          const normalizedText = this.normalizeTextContent(child.value);
-          element.appendChild(doc.createTextNode(safeXmlText(normalizedText)));
+          const normalizedText = this.xmlUtil.normalizeTextContent(child.value);
+          element.appendChild(
+            doc.createTextNode(this.entityHandler.safeXmlText(normalizedText))
+          );
         } else if (child.type === NodeType.CDATA_SECTION_NODE) {
           // CDATA section - no escaping needed
           element.appendChild(doc.createCDATASection(String(child.value)));
         } else if (child.type === NodeType.COMMENT_NODE) {
-          // Comment - safely escape content
+          // Comment
           element.appendChild(doc.createComment(String(child.value)));
         } else if (child.type === NodeType.PROCESSING_INSTRUCTION_NODE) {
           // Processing instruction

@@ -1,5 +1,6 @@
 /**
- * XML to JSON converter with improved mixed content handling and registry usage
+ * XML to JSON converter with improved architecture
+ * Uses consolidated utilities for entity handling, namespace resolution, and configuration
  */
 import { Configuration } from "../types/config-types";
 import { XJXError, XmlToJsonError } from "../types/error-types";
@@ -11,7 +12,10 @@ import {
   TransformDirection 
 } from "../types/transform-types";
 import { TransformUtil } from "../utils/transform-utils";
-import { escapeXML, unescapeXML } from "../utils/xml-escape-utils";
+import { XmlEntityHandler } from "../utils/xml-entity-handler";
+import { NamespaceUtil } from "../utils/namespace-util";
+import { XmlUtil } from "../utils/xml-utils";
+import { ConfigProvider } from "../config/config-provider";
 import { ExtensionRegistry } from "../extensions/registry";
 
 /**
@@ -20,6 +24,9 @@ import { ExtensionRegistry } from "../extensions/registry";
 export class XmlToJsonConverter {
   private config: Configuration;
   private transformUtil: TransformUtil;
+  private xmlUtil: XmlUtil;
+  private entityHandler: XmlEntityHandler;
+  private namespaceUtil: NamespaceUtil;
 
   /**
    * Constructor
@@ -28,6 +35,9 @@ export class XmlToJsonConverter {
   constructor(config: Configuration) {
     this.config = config;
     this.transformUtil = new TransformUtil(this.config);
+    this.xmlUtil = new XmlUtil(this.config);
+    this.entityHandler = XmlEntityHandler.getInstance();
+    this.namespaceUtil = NamespaceUtil.getInstance();
   }
 
   /**
@@ -37,18 +47,9 @@ export class XmlToJsonConverter {
    */
   public convert(xmlString: string): Record<string, any> {
     try {
-      // Pre-process XML string to handle parsing errors due to unescaped characters
-      const preprocessedXml = this.preprocessXml(xmlString);
-
-      // 1. Parse XML to DOM
-      const xmlDoc = DOMAdapter.parseFromString(preprocessedXml, "text/xml");
+      // 1. Parse XML to DOM using XmlUtil for centralized entity handling
+      const xmlDoc = this.xmlUtil.parseXml(xmlString);
       
-      // Check for parsing errors
-      const errors = xmlDoc.getElementsByTagName("parsererror");
-      if (errors.length > 0) {
-        throw new XmlToJsonError(`XML parsing error: ${errors[0].textContent}`);
-      }
-
       // 2. Convert DOM to XNode
       const xnode = this.domToXNode(xmlDoc.documentElement);
       
@@ -75,64 +76,6 @@ export class XmlToJsonConverter {
         }`
       );
     }
-  }
-
-  /**
-   * Preprocess XML string to handle common escaping issues
-   * @param xmlString Original XML string
-   * @returns Preprocessed XML string
-   */
-  private preprocessXml(xmlString: string): string {
-    // Attempt to identify unescaped entities outside of CDATA sections
-    let inCdata = false;
-    let result = '';
-    let i = 0;
-
-    while (i < xmlString.length) {
-      // Check for CDATA section start
-      if (xmlString.substring(i, i + 9) === '<![CDATA[') {
-        inCdata = true;
-        result += '<![CDATA[';
-        i += 9;
-        continue;
-      }
-      
-      // Check for CDATA section end
-      if (inCdata && xmlString.substring(i, i + 3) === ']]>') {
-        inCdata = false;
-        result += ']]>';
-        i += 3;
-        continue;
-      }
-      
-      // Handle special characters outside CDATA
-      if (!inCdata) {
-        const char = xmlString.charAt(i);
-        if (char === '&') {
-          // Check if this is already an entity reference
-          if (xmlString.substring(i, i + 5) === '&amp;' ||
-              xmlString.substring(i, i + 4) === '&lt;' ||
-              xmlString.substring(i, i + 4) === '&gt;' ||
-              xmlString.substring(i, i + 6) === '&quot;' ||
-              xmlString.substring(i, i + 6) === '&apos;') {
-            // Already an entity, leave it as is
-            result += char;
-          } else {
-            // Not a valid entity reference, escape it
-            result += '&amp;';
-          }
-        } else {
-          result += char;
-        }
-      } else {
-        // Inside CDATA, pass through unchanged
-        result += xmlString.charAt(i);
-      }
-      
-      i++;
-    }
-    
-    return result;
   }
 
   /**
@@ -211,37 +154,27 @@ export class XmlToJsonConverter {
       parent: parentNode  // Set parent reference for namespace resolution
     };
     
-    // Process attributes and find namespace declarations
+    // Process attributes and find namespace declarations using NamespaceUtil
     if (element.attributes.length > 0) {
       xnode.attributes = {};
-      const namespaceDecls: Record<string, string> = {};
-      let hasNamespaceDecls = false;
       
-      for (let i = 0; i < element.attributes.length; i++) {
-        const attr = element.attributes[i];
-        const attrValue = unescapeXML(attr.value);
-        
-        // Handle namespace declarations specially
-        if (attr.name === 'xmlns') {
-          // Default namespace declaration
-          namespaceDecls[''] = attrValue;
-          xnode.isDefaultNamespace = true;
-          hasNamespaceDecls = true;
-        } else if (attr.name.startsWith('xmlns:')) {
-          // Prefixed namespace declaration
-          const prefix = attr.name.substring(6); // Remove 'xmlns:'
-          namespaceDecls[prefix] = attrValue;
-          hasNamespaceDecls = true;
-        } else {
-          // Regular attribute
-          const attrName = attr.localName || attr.name.split(':').pop() || attr.name;
-          xnode.attributes[attrName] = attrValue;
-        }
+      // Get namespace declarations
+      const namespaceDecls = this.namespaceUtil.getNamespaceDeclarations(element);
+      if (Object.keys(namespaceDecls).length > 0) {
+        xnode.namespaceDeclarations = namespaceDecls;
+        xnode.isDefaultNamespace = this.namespaceUtil.hasDefaultNamespace(element);
       }
       
-      // Add namespace declarations if we found any
-      if (hasNamespaceDecls) {
-        xnode.namespaceDeclarations = namespaceDecls;
+      // Process regular attributes
+      for (let i = 0; i < element.attributes.length; i++) {
+        const attr = element.attributes[i];
+        
+        // Skip namespace declarations as they were already processed
+        if (attr.name === 'xmlns' || attr.name.startsWith('xmlns:')) continue;
+        
+        // Regular attribute - use entityHandler for consistent unescaping
+        const attrName = attr.localName || attr.name.split(':').pop() || attr.name;
+        xnode.attributes[attrName] = this.entityHandler.unescapeXML(attr.value);
       }
     }
     
@@ -257,7 +190,7 @@ export class XmlToJsonConverter {
         const text = element.childNodes[0].nodeValue || '';
         const normalizedText = this.normalizeTextContent(text, false);
         if (normalizedText) {
-          xnode.value = unescapeXML(normalizedText);
+          xnode.value = this.entityHandler.unescapeXML(normalizedText);
         }
       } else {
         // Mixed content or multiple children handling
@@ -280,7 +213,7 @@ export class XmlToJsonConverter {
                 childNodes.push({
                   name: '#text',
                   type: NodeType.TEXT_NODE,
-                  value: unescapeXML(normalizedText),
+                  value: this.entityHandler.unescapeXML(normalizedText),
                   parent: xnode  // Set parent reference
                 });
               }

@@ -1,16 +1,14 @@
 /**
- * XMLUtil - Utility functions for XML processing with improved entity handling
+ * Enhanced XMLUtil - Unified utilities for XML processing
+ * Uses the consolidated XmlEntityHandler and NamespaceUtil
  */
-import { XJXError } from "../types/error-types";
+import { XJXError, XmlToJsonError } from "../types/error-types";
 import { DOMAdapter } from "../adapters/dom-adapter";
 import { Configuration } from "../types/config-types";
 import { NodeType } from "../types/dom-types";
-import {
-  escapeXML,
-  unescapeXML,
-  safeXmlText,
-  containsSpecialChars,
-} from "../utils/xml-escape-utils";
+import { ConfigProvider } from "../config/config-provider";
+import { XmlEntityHandler } from "./xml-entity-handler";
+import { NamespaceUtil } from "./namespace-util";
 
 /**
  * Interface for XML validation result
@@ -22,6 +20,8 @@ export interface ValidationResult {
 
 export class XmlUtil {
   private config: Configuration;
+  private entityHandler: XmlEntityHandler;
+  private namespaceUtil: NamespaceUtil;
 
   /**
    * Constructor for XMLUtil
@@ -29,20 +29,68 @@ export class XmlUtil {
    */
   constructor(config: Configuration) {
     this.config = config;
+    this.entityHandler = XmlEntityHandler.getInstance();
+    this.namespaceUtil = NamespaceUtil.getInstance();
+  }
+
+  /**
+   * Parse XML string to DOM document with unified entity handling
+   * @param xmlString XML string to parse
+   * @param contentType Content type (default: text/xml)
+   * @returns Parsed DOM document
+   */
+  public parseXml(xmlString: string, contentType: string = 'text/xml'): Document {
+    try {
+      // Pre-process XML string to handle entity issues
+      const preprocessedXml = this.entityHandler.preprocessXml(xmlString);
+      
+      // Parse using DOMAdapter
+      const doc = DOMAdapter.parseFromString(preprocessedXml, contentType);
+      
+      // Check for parsing errors
+      const errors = doc.getElementsByTagName("parsererror");
+      if (errors.length > 0) {
+        throw new XmlToJsonError(`XML parsing error: ${errors[0].textContent}`);
+      }
+      
+      return doc;
+    } catch (error) {
+      throw new XmlToJsonError(
+        `Failed to parse XML: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+  
+  /**
+   * Serialize DOM to XML string with unified post-processing
+   * @param node DOM node to serialize
+   * @returns Serialized XML string
+   */
+  public serializeXml(node: Node): string {
+    try {
+      // Use DOMAdapter for serialization
+      let xmlString = DOMAdapter.serializeToString(node);
+      
+      // Post-process to ensure consistent entity handling and clean up
+      return this.entityHandler.postProcessXml(xmlString);
+    } catch (error) {
+      throw new XJXError(
+        `Failed to serialize XML: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
   }
 
   /**
    * Improved XML pretty print function that preserves mixed content structure
+   * @param xmlString XML string to format
+   * @returns Formatted XML string
    */
-  /**
-   * Improved XML pretty print function that preserves XML declaration and formatting
-   */
-  prettyPrintXml(xmlString: string): string {
+  public prettyPrintXml(xmlString: string): string {
     const indent = this.config.outputOptions.indent;
     const INDENT = " ".repeat(indent);
 
     try {
-      const doc = DOMAdapter.parseFromString(xmlString, "text/xml");
+      const doc = this.parseXml(xmlString);
 
       const serializer = (node: Node, level = 0): string => {
         const pad = INDENT.repeat(level);
@@ -195,19 +243,10 @@ export class XmlUtil {
    * @param xmlString XML string to validate
    * @returns Object with validation result and any error messages
    */
-  validateXML(xmlString: string): ValidationResult {
+  public validateXML(xmlString: string): ValidationResult {
     try {
-      // Attempt to preprocess XML string to catch common XML errors
-      const preprocessedXml = this.preprocessForValidation(xmlString);
-
-      const doc = DOMAdapter.parseFromString(preprocessedXml, "text/xml");
-      const errors = doc.getElementsByTagName("parsererror");
-      if (errors.length > 0) {
-        return {
-          isValid: false,
-          message: errors[0].textContent || "Unknown parsing error",
-        };
-      }
+      // Use the parseXml method which handles preprocessing
+      this.parseXml(xmlString);
       return { isValid: true };
     } catch (error) {
       return {
@@ -218,72 +257,11 @@ export class XmlUtil {
   }
 
   /**
-   * Preprocess XML string for validation to help users catch common errors
-   * @param xmlString Original XML string
-   * @returns Preprocessed XML string with common issues fixed
-   */
-  private preprocessForValidation(xmlString: string): string {
-    // This is a simplified version of the preprocessing in XmlToJsonConverter
-    // focused on handling basic entity escaping issues for validation
-    let inCdata = false;
-    let result = "";
-    let i = 0;
-
-    while (i < xmlString.length) {
-      // Check for CDATA section start
-      if (xmlString.substring(i, i + 9) === "<![CDATA[") {
-        inCdata = true;
-        result += "<![CDATA[";
-        i += 9;
-        continue;
-      }
-
-      // Check for CDATA section end
-      if (inCdata && xmlString.substring(i, i + 3) === "]]>") {
-        inCdata = false;
-        result += "]]>";
-        i += 3;
-        continue;
-      }
-
-      // Handle special characters outside CDATA
-      if (!inCdata) {
-        const char = xmlString.charAt(i);
-        if (char === "&") {
-          // Check if this is already an entity reference
-          if (
-            xmlString.substring(i, i + 5) === "&amp;" ||
-            xmlString.substring(i, i + 4) === "&lt;" ||
-            xmlString.substring(i, i + 4) === "&gt;" ||
-            xmlString.substring(i, i + 6) === "&quot;" ||
-            xmlString.substring(i, i + 6) === "&apos;"
-          ) {
-            // Already an entity, leave it as is
-            result += char;
-          } else {
-            // Not a valid entity reference, escape it
-            result += "&amp;";
-          }
-        } else {
-          result += char;
-        }
-      } else {
-        // Inside CDATA, pass through unchanged
-        result += xmlString.charAt(i);
-      }
-
-      i++;
-    }
-
-    return result;
-  }
-
-  /**
    * Add XML declaration to a string if missing or replace existing declaration
    * @param xmlString XML string
    * @returns XML string with declaration
    */
-  ensureXMLDeclaration(xmlString: string): string {
+  public ensureXMLDeclaration(xmlString: string): string {
     const standardDecl = '<?xml version="1.0" encoding="UTF-8"?>\n';
 
     // Check if the XML string already has a declaration
@@ -301,62 +279,47 @@ export class XmlUtil {
   }
 
   /**
-   * Escapes special characters in text for safe XML usage.
-   * @param text Text to escape.
-   * @returns Escaped XML string.
+   * Delegate to XmlEntityHandler for consistency
    */
-  escapeXML(text: string): string {
-    return escapeXML(text);
+  public escapeXML(text: string): string {
+    return this.entityHandler.escapeXML(text);
   }
 
   /**
-   * Unescapes XML entities back to their character equivalents.
-   * @param text Text with XML entities.
-   * @returns Unescaped text.
+   * Delegate to XmlEntityHandler for consistency
    */
-  unescapeXML(text: string): string {
-    return unescapeXML(text);
+  public unescapeXML(text: string): string {
+    return this.entityHandler.unescapeXML(text);
   }
 
   /**
-   * Safely processes text for XML inclusion, avoiding double-escaping
-   * @param text Text to process
-   * @returns Safely processed text
+   * Delegate to XmlEntityHandler for consistency
    */
-  safeXmlText(text: string): string {
-    return safeXmlText(text);
+  public safeXmlText(text: string): string {
+    return this.entityHandler.safeXmlText(text);
   }
 
   /**
-   * Extract the namespace prefix from a qualified name
-   * @param qualifiedName Qualified name (e.g., "ns:element")
-   * @returns Prefix or null if no prefix
+   * Delegate to NamespaceUtil for consistency
    */
-  extractPrefix(qualifiedName: string): string | null {
-    const colonIndex = qualifiedName.indexOf(":");
-    return colonIndex > 0 ? qualifiedName.substring(0, colonIndex) : null;
+  public extractPrefix(qualifiedName: string): string | null {
+    const result = this.namespaceUtil.parseQualifiedName(qualifiedName);
+    return result.prefix;
   }
 
   /**
-   * Extract the local name from a qualified name
-   * @param qualifiedName Qualified name (e.g., "ns:element")
-   * @returns Local name
+   * Delegate to NamespaceUtil for consistency
    */
-  extractLocalName(qualifiedName: string): string {
-    const colonIndex = qualifiedName.indexOf(":");
-    return colonIndex > 0
-      ? qualifiedName.substring(colonIndex + 1)
-      : qualifiedName;
+  public extractLocalName(qualifiedName: string): string {
+    const result = this.namespaceUtil.parseQualifiedName(qualifiedName);
+    return result.localName;
   }
 
   /**
-   * Create a qualified name from prefix and local name
-   * @param prefix Namespace prefix (can be null)
-   * @param localName Local name
-   * @returns Qualified name
+   * Delegate to NamespaceUtil for consistency
    */
-  createQualifiedName(prefix: string | null, localName: string): string {
-    return prefix ? `${prefix}:${localName}` : localName;
+  public createQualifiedName(prefix: string | null, localName: string): string {
+    return this.namespaceUtil.createQualifiedName(prefix, localName);
   }
 
   /**
@@ -364,7 +327,7 @@ export class XmlUtil {
    * @param text Text to normalize
    * @returns Normalized text
    */
-  normalizeTextContent(text: string): string {
+  public normalizeTextContent(text: string): string {
     if (!this.config.preserveWhitespace) {
       // If preserveWhitespace is false, normalize the whitespace
       // This trims the text and collapses multiple whitespace to a single space

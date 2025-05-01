@@ -1,5 +1,5 @@
 /**
- * XJX - Main class for XML-JSON transformation with improved registry usage
+ * XJX - Main class for XML-JSON transformation with improved architecture
  */
 import { DOMAdapter } from "./adapters/dom-adapter";
 import { DEFAULT_CONFIG } from "./config/config";
@@ -22,6 +22,7 @@ import { JsonUtil } from "./utils/json-utils";
 import { TransformUtil } from "./utils/transform-utils";
 import { ExtensionRegistry } from "./extensions/registry";
 import { NodeType } from './types/dom-types';
+import { ConfigProvider } from './config/config-provider';
 
 /**
  * XJX - XML-JSON transformation library
@@ -31,8 +32,14 @@ import { NodeType } from './types/dom-types';
  * ```typescript
  * import { XJX, TransformDirection, BooleanTransformer } from 'xjx';
  * 
- * // Create a new instance
- * const xjx = new XJX();
+ * // Create a new instance with optional configuration
+ * const xjx = new XJX({
+ *   preserveWhitespace: false,
+ *   outputOptions: {
+ *     prettyPrint: true,
+ *     indent: 2
+ *   }
+ * });
  * 
  * // Add transformers (optional)
  * xjx.addValueTransformer(TransformDirection.XML_TO_JSON, new BooleanTransformer());
@@ -70,17 +77,12 @@ export class XJX {
 
   /**
    * Constructor for XJX
-   * @param config Configuration options
+   * @param config Optional partial configuration to override defaults
    */
   constructor(config: Partial<Configuration> = {}) {
-    // Create a temporary JsonUtil to help with deep merging config
-    const tempJsonUtil = new JsonUtil(DEFAULT_CONFIG);
-
-    // Create a deep clone of the default config
-    const defaultClone = tempJsonUtil.deepClone(DEFAULT_CONFIG);
-
-    // Deep merge with the provided config
-    this.config = tempJsonUtil.deepMerge(defaultClone, config);
+    // Use ConfigProvider internally to manage configuration
+    const configProvider = ConfigProvider.getInstance(config);
+    this.config = configProvider.getConfig();
 
     // Initialize utilities with the merged config
     this.jsonUtil = new JsonUtil(this.config);
@@ -90,7 +92,7 @@ export class XJX {
     // Register transformation operations
     this.registerTransformationOperations();
 
-    // Initialize converters without passing the XJX instance directly
+    // Initialize converters
     this.xmlToJsonConverter = new XmlToJsonConverter(this.config);
     this.jsonToXmlConverter = new JsonToXmlConverter(this.config);
 

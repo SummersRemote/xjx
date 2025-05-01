@@ -23,14 +23,6 @@ export {
   ConfigurationError 
 } from './core/types/error-types';
 
-// XML Entity utilities
-export {
-  escapeXML,
-  unescapeXML,
-  safeXmlText,
-  containsSpecialChars
-} from './core/utils/xml-escape-utils';
-
 // Transformation API
 export {
   TransformDirection,
@@ -69,4 +61,3 @@ export { ExtensionRegistry } from './core/extensions/registry';
 // Utilities
 export { ValidationResult } from './core/utils/xml-utils';
 export { TransformUtil } from './core/utils/transform-utils';
-export { createPathMatcher } from './core/utils/path-matcher';

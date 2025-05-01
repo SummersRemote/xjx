@@ -4,7 +4,8 @@
  * Provides a wrapper around the XJX library for centralized management
  * of XML/JSON conversion and other operations.
  */
-import { XJX } from 'xjx/full';
+// import { XJX } from 'xjx/full';
+import { XJX } from '../../../dist';
 // import 'xjx/extensions/GetPathExtension';
 // import 'xjx/extensions/GetJsonSchemaExtension';
 

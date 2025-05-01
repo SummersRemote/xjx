@@ -7,15 +7,13 @@
 import { XNode } from '../types/transform-types';
 
 export class NamespaceUtil {
-  private static instance: NamespaceUtil;
+  // Singleton instance created immediately
+  private static readonly instance = new NamespaceUtil();
   
   /**
    * Get the singleton instance
    */
   public static getInstance(): NamespaceUtil {
-    if (!NamespaceUtil.instance) {
-      NamespaceUtil.instance = new NamespaceUtil();
-    }
     return NamespaceUtil.instance;
   }
   

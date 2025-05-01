@@ -1,42 +1,23 @@
 /**
- * XML to JSON converter with improved architecture
- * Uses consolidated utilities for entity handling, namespace resolution, and configuration
+ * XML to JSON converter extending the BaseConverter
  */
-import { Configuration } from "../types/config-types";
 import { XJXError, XmlToJsonError } from "../types/error-types";
+import { Configuration } from "../types/config-types";
 import { DOMAdapter } from "../adapters/dom-adapter";
 import { NodeType } from "../types/dom-types";
-import { 
-  XNode, 
-  TransformContext, 
-  TransformDirection 
-} from "../types/transform-types";
-import { TransformUtil } from "../utils/transform-utils";
-import { XmlEntityHandler } from "../utils/xml-entity-handler";
-import { NamespaceUtil } from "../utils/namespace-util";
-import { XmlUtil } from "../utils/xml-utils";
-import { TransformationRegistry } from "../transformation-registry";
+import { XNode, TransformDirection } from "../types/transform-types";
+import { BaseConverter } from "./base-converter";
 
 /**
  * XML to JSON converter
  */
-export class XmlToJsonConverter {
-  private config: Configuration;
-  private transformUtil: TransformUtil;
-  private xmlUtil: XmlUtil;
-  private entityHandler: XmlEntityHandler;
-  private namespaceUtil: NamespaceUtil;
-
+export class XmlToJsonConverter extends BaseConverter {
   /**
    * Constructor
    * @param config Configuration
    */
   constructor(config: Configuration) {
-    this.config = config;
-    this.transformUtil = new TransformUtil(this.config);
-    this.xmlUtil = new XmlUtil(this.config);
-    this.entityHandler = XmlEntityHandler.getInstance();
-    this.namespaceUtil = NamespaceUtil.getInstance();
+    super(config);
   }
 
   /**
@@ -46,21 +27,20 @@ export class XmlToJsonConverter {
    */
   public convert(xmlString: string): Record<string, any> {
     try {
-      // 1. Parse XML to DOM using XmlUtil for centralized entity handling
+      // 1. Parse XML to DOM
       const xmlDoc = this.xmlUtil.parseXml(xmlString);
       
       // 2. Convert DOM to XNode
       const xnode = this.domToXNode(xmlDoc.documentElement);
       
       // 3. Create root context for transformation
-      const context = this.transformUtil.createRootContext(
+      const context = this.createRootContext(
         TransformDirection.XML_TO_JSON,
         xnode.name
       );
       
-      // 4. Apply transformations using registry
-      const applyTransformations = TransformationRegistry.getOperation('applyTransformations');
-      const transformedNode = applyTransformations(xnode, context);
+      // 4. Apply transformations
+      const transformedNode = this.applyTransformations(xnode, context);
       
       if (transformedNode === null) {
         throw new XJXError('Root node was removed during transformation');
@@ -75,66 +55,6 @@ export class XmlToJsonConverter {
         }`
       );
     }
-  }
-
-  /**
-   * Normalize text content according to whitespace settings
-   * @param text Text to normalize
-   * @param inMixedContent Whether this text is part of mixed content
-   * @returns Normalized text
-   */
-  private normalizeTextContent(text: string, inMixedContent: boolean = false): string {
-    if (!text) return '';
-    
-    if (!this.config.preserveWhitespace) {
-      if (inMixedContent) {
-        // For mixed content, preserve single spaces between tags
-        // but collapse multiple spaces to single space
-        return text.replace(/\s+/g, ' ');
-      } else {
-        // For standalone text nodes, trim and collapse whitespace
-        return text.trim().replace(/\s+/g, ' ');
-      }
-    }
-    
-    // When preserveWhitespace is true, keep everything as is
-    return text;
-  }
-
-  /**
-   * Determine if text contains more than just whitespace
-   * @param text Text to check
-   * @returns True if text contains non-whitespace content
-   */
-  private hasContent(text: string): boolean {
-    return text.trim().length > 0;
-  }
-
-  /**
-   * Check if a node is part of mixed content
-   * @param element Parent element to check
-   * @returns True if element has mixed content
-   */
-  private hasMixedContent(element: Element): boolean {
-    if (element.childNodes.length <= 1) return false;
-    
-    let hasText = false;
-    let hasElement = false;
-    
-    for (let i = 0; i < element.childNodes.length; i++) {
-      const child = element.childNodes[i];
-      if (child.nodeType === NodeType.TEXT_NODE) {
-        if (this.hasContent(child.nodeValue || '')) {
-          hasText = true;
-        }
-      } else if (child.nodeType === NodeType.ELEMENT_NODE) {
-        hasElement = true;
-      }
-      
-      if (hasText && hasElement) return true;
-    }
-    
-    return false;
   }
 
   /**
@@ -214,7 +134,7 @@ export class XmlToJsonConverter {
     const hasMixed = this.hasMixedContent(element);
     
     // Single text node handling (optimize common case)
-    if (this.hasSingleTextNodeChild(element, hasMixed, xnode)) {
+    if (this.processSingleTextNodeChild(element, hasMixed, xnode)) {
       return;
     }
     
@@ -229,7 +149,7 @@ export class XmlToJsonConverter {
    * @param xnode Target XNode to populate
    * @returns True if handled as single text node
    */
-  private hasSingleTextNodeChild(element: Element, hasMixed: boolean, xnode: XNode): boolean {
+  private processSingleTextNodeChild(element: Element, hasMixed: boolean, xnode: XNode): boolean {
     if (element.childNodes.length === 1 && 
         element.childNodes[0].nodeType === NodeType.TEXT_NODE && 
         !hasMixed) {

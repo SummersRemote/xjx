@@ -7,7 +7,12 @@
 import { Configuration } from "./types/config-types";
 import { ConfigProvider } from "./config/config-provider";
 import { TransformDirection } from "./types/transform-types";
-import { ValueTransformer, AttributeTransformer, ChildrenTransformer, NodeTransformer } from "./types/transform-types";
+import { 
+  ValueTransformer, 
+  AttributeTransformer, 
+  ChildrenTransformer, 
+  NodeTransformer 
+} from "./types/transform-types";
 import { TransformerManager } from "./services/transformer-manager";
 import { TransformationService } from "./services/transformation-service";
 import { XmlToJsonConverter } from "./converters/xml-to-json-converter";
@@ -15,7 +20,7 @@ import { JsonToXmlConverter } from "./converters/json-to-xml-converter";
 import { XmlUtil } from "./utils/xml-utils";
 import { JsonUtil } from "./utils/json-utils";
 import { DOMAdapter } from "./adapters/dom-adapter";
-import { TransformationRegistry } from "./transformation-registry";
+import { UnifiedRegistry, RegistryType } from "./registry/unified-registry";
 
 /**
  * XJX - XML-JSON transformation library
@@ -77,16 +82,39 @@ export class XJX {
     // Initialize converters
     this.xmlToJsonConverter = new XmlToJsonConverter(this.config);
     this.jsonToXmlConverter = new JsonToXmlConverter(this.config);
+    
+    // Apply extension methods
+    this.applyExtensions();
   }
   
   /**
    * Register the transformation service with the registry
    */
   private registerTransformationService(): void {
-    TransformationRegistry.registerOperation(
+    UnifiedRegistry.register(
+      RegistryType.TRANSFORM_OPERATION,
       'applyTransformations',
       this.transformationService.applyTransformations.bind(this.transformationService)
     );
+  }
+  
+  /**
+   * Apply registered extension methods to this instance
+   */
+  private applyExtensions(): void {
+    // Apply all utility methods
+    const utilities = UnifiedRegistry.getAll(RegistryType.UTILITY);
+    
+    for (const [name, method] of utilities.entries()) {
+      (this as any)[name] = method.bind(this);
+    }
+    
+    // Apply all transformer factory methods
+    const transformers = UnifiedRegistry.getAll(RegistryType.TRANSFORMER);
+    
+    for (const [name, factory] of transformers.entries()) {
+      (this as any)[name] = factory.bind(this);
+    }
   }
   
   /**

@@ -1,10 +1,10 @@
 // =====================================================================================
 // GetJsonSchemaExtension.ts
 //
-// Extension that adds a `getJsonSchema` method using the registry system
+// Extension that adds a `getJsonSchema` method using the unified registry system
 // =====================================================================================
 
-import { ExtensionRegistry } from "../core/extensions/registry";
+import { UnifiedRegistry, RegistryType } from "../core/registry/unified-registry";
 import { JSONObject } from "../core/types/json-types";
 import { XJXError } from "../core/types/error-types";
 
@@ -202,8 +202,8 @@ function getJsonSchema(this: any): Record<string, any> {
   }
 }
 
-// Register the utility function
-ExtensionRegistry.registerUtility("getJsonSchema", getJsonSchema);
+// Register the utility function with the unified registry
+UnifiedRegistry.register(RegistryType.UTILITY, "getJsonSchema", getJsonSchema);
 
 // TypeScript module augmentation for type definitions
 declare module "../core/XJX" {

@@ -15,77 +15,90 @@ interface JSDOMInstance {
   window: DOMWindow;
 }
 
-export const DOMAdapter = (() => {
-  // Environment-specific DOM implementation
-  let domParser: any;
-  let xmlSerializer: any;
-  let docImplementation: any;
-  let jsdomInstance: JSDOMInstance | null = null;
+interface EnvironmentInfo {
+  isBrowser: boolean;
+  isNode: boolean;
+}
 
-  try {
-    if (typeof window === "undefined") {
-      // Node.js environment - try JSDOM first
-      try {
-        const { JSDOM } = require("jsdom");
-        jsdomInstance = new JSDOM("<!DOCTYPE html><html><body></body></html>", {
-          contentType: "text/xml",
-        }) as JSDOMInstance;
+interface DOMImplementation {
+  parser: any;
+  serializer: any;
+  docImpl: any;
+  jsdomInstance?: JSDOMInstance;
+}
 
-        domParser = jsdomInstance.window.DOMParser;
-        xmlSerializer = jsdomInstance.window.XMLSerializer;
-        docImplementation = jsdomInstance.window.document.implementation;
-      } catch (jsdomError) {
-        // Fall back to xmldom if JSDOM isn't available
-        try {
-          const { DOMParser, XMLSerializer, DOMImplementation } = require('@xmldom/xmldom');
-          domParser = DOMParser;
-          xmlSerializer = XMLSerializer;
-          const implementation = new DOMImplementation();
-          docImplementation = implementation;
-        } catch (xmldomError) {
-          throw new XJXError(`Node.js environment detected but neither 'jsdom' nor '@xmldom/xmldom' are available.`);
-        }
-      }
-    } else {
-      // Browser environment
-      if (!window.DOMParser) {
-        throw new XJXError("DOMParser is not available in this environment");
-      }
-
-      if (!window.XMLSerializer) {
-        throw new XJXError("XMLSerializer is not available in this environment");
-      }
-
-      domParser = window.DOMParser;
-      xmlSerializer = window.XMLSerializer;
-      docImplementation = document.implementation;
-    }
-  } catch (error) {
-    throw new XJXError(`DOM environment initialization failed: ${error instanceof Error ? error.message : String(error)}`);
-  }
-
+/**
+ * Detect the current environment (browser vs Node.js)
+ */
+function detectEnvironment(): EnvironmentInfo {
+  const isBrowser = typeof window !== 'undefined' && !!window.document;
   return {
-    createParser: () => {
+    isBrowser,
+    isNode: !isBrowser
+  };
+}
+
+/**
+ * Initialize the appropriate DOM implementation for the current environment
+ */
+function initializeEnvironment(env: EnvironmentInfo): DOMImplementation {
+  if (env.isBrowser) {
+    // Browser environment
+    if (!window.DOMParser) {
+      throw new XJXError("DOMParser is not available in this environment");
+    }
+    if (!window.XMLSerializer) {
+      throw new XJXError("XMLSerializer is not available in this environment");
+    }
+
+    return {
+      parser: window.DOMParser,
+      serializer: window.XMLSerializer,
+      docImpl: document.implementation
+    };
+  } else {
+    // Node.js environment - try JSDOM first, fall back to xmldom
+    try {
+      const { JSDOM } = require("jsdom");
+      const jsdomInstance = new JSDOM("<!DOCTYPE html><html><body></body></html>", {
+        contentType: "text/xml",
+      }) as JSDOMInstance;
+
+      return {
+        parser: jsdomInstance.window.DOMParser,
+        serializer: jsdomInstance.window.XMLSerializer,
+        docImpl: jsdomInstance.window.document.implementation,
+        jsdomInstance
+      };
+    } catch (jsdomError) {
       try {
-        return new domParser();
-      } catch (error) {
-        throw new XJXError(`Failed to create DOM parser: ${error instanceof Error ? error.message : String(error)}`);
+        const { DOMParser, XMLSerializer, DOMImplementation } = require('@xmldom/xmldom');
+        const implementation = new DOMImplementation();
+        
+        return {
+          parser: DOMParser,
+          serializer: XMLSerializer,
+          docImpl: implementation
+        };
+      } catch (xmldomError) {
+        throw new XJXError(`Node.js environment detected but neither 'jsdom' nor '@xmldom/xmldom' are available.`);
       }
-    },
-    
-    createSerializer: () => {
-      try {
-        return new xmlSerializer();
-      } catch (error) {
-        throw new XJXError(`Failed to create XML serializer: ${error instanceof Error ? error.message : String(error)}`);
-      }
-    },
-    
+    }
+  }
+}
+
+export const DOMAdapter = (() => {
+  // Environment detection and initialization
+  const env = detectEnvironment();
+  const impl = initializeEnvironment(env);
+  
+  // Return the public API
+  return {
     NodeType,
     
     parseFromString: (xmlString: string, contentType: string = 'text/xml') => {
       try {
-        const parser = new domParser();
+        const parser = new impl.parser();
         return parser.parseFromString(xmlString, contentType);
       } catch (error) {
         throw new XJXError(`Failed to parse XML: ${error instanceof Error ? error.message : String(error)}`);
@@ -94,7 +107,7 @@ export const DOMAdapter = (() => {
     
     serializeToString: (node: Node) => {
       try {
-        const serializer = new xmlSerializer();
+        const serializer = new impl.serializer();
         return serializer.serializeToString(node);
       } catch (error) {
         throw new XJXError(`Failed to serialize XML: ${error instanceof Error ? error.message : String(error)}`);
@@ -104,103 +117,84 @@ export const DOMAdapter = (() => {
     createDocument: () => {
       try {
         // For browsers, create a document with a root element to avoid issues
-        if (typeof window !== "undefined") {
-          const parser = new domParser();
+        if (env.isBrowser) {
+          const parser = new impl.parser();
           return parser.parseFromString('<temp></temp>', 'text/xml');
         } else {
-          return docImplementation.createDocument(null, null, null);
+          return impl.docImpl.createDocument(null, null, null);
         }
       } catch (error) {
         throw new XJXError(`Failed to create document: ${error instanceof Error ? error.message : String(error)}`);
       }
     },
     
-    createElement: (tagName: string) => {
+    createNode: (nodeType: NodeType, name?: string, value?: string): Node => {
       try {
-        if (typeof window !== "undefined") {
-          return document.createElement(tagName);
-        } else {
-          const doc = docImplementation.createDocument(null, null, null);
-          return doc.createElement(tagName);
+        const doc = env.isBrowser ? document : impl.docImpl.createDocument(null, null, null);
+        
+        switch (nodeType) {
+          case NodeType.ELEMENT_NODE:
+            return doc.createElement(name || 'div');
+            
+          case NodeType.TEXT_NODE:
+            return doc.createTextNode(value || '');
+            
+          case NodeType.CDATA_SECTION_NODE:
+            // For browser compatibility, use document.implementation for CDATA
+            const cdataDoc = env.isBrowser 
+              ? document.implementation.createDocument(null, null, null)
+              : doc;
+            return cdataDoc.createCDATASection(value || '');
+            
+          case NodeType.COMMENT_NODE:
+            return doc.createComment(value || '');
+            
+          case NodeType.PROCESSING_INSTRUCTION_NODE:
+            return doc.createProcessingInstruction(name || 'xml', value || '');
+            
+          default:
+            throw new XJXError(`Unsupported node type: ${nodeType}`);
         }
+      } catch (error) {
+        throw new XJXError(`Failed to create node: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    },
+    
+    createElement: (tagName: string): Element => {
+      try {
+        return DOMAdapter.createNode(NodeType.ELEMENT_NODE, tagName) as Element;
       } catch (error) {
         throw new XJXError(`Failed to create element: ${error instanceof Error ? error.message : String(error)}`);
       }
     },
     
-    createElementNS: (namespaceURI: string, qualifiedName: string) => {
+    createElementNS: (namespaceURI: string, qualifiedName: string): Element => {
       try {
-        if (typeof window !== "undefined") {
-          return document.createElementNS(namespaceURI, qualifiedName);
-        } else {
-          const doc = docImplementation.createDocument(null, null, null);
-          return doc.createElementNS(namespaceURI, qualifiedName);
-        }
+        const doc = env.isBrowser ? document : impl.docImpl.createDocument(null, null, null);
+        return doc.createElementNS(namespaceURI, qualifiedName);
       } catch (error) {
         throw new XJXError(`Failed to create element with namespace: ${error instanceof Error ? error.message : String(error)}`);
       }
     },
     
-    createTextNode: (data: string) => {
-      try {
-        if (typeof window !== "undefined") {
-          return document.createTextNode(data);
-        } else {
-          const doc = docImplementation.createDocument(null, null, null);
-          return doc.createTextNode(data);
-        }
-      } catch (error) {
-        throw new XJXError(`Failed to create text node: ${error instanceof Error ? error.message : String(error)}`);
-      }
+    createTextNode: (data: string): Text => {
+      return DOMAdapter.createNode(NodeType.TEXT_NODE, undefined, data) as Text;
     },
     
-    createCDATASection: (data: string) => {
-      try {
-        // For browser compatibility, use document.implementation to create CDATA
-        if (typeof window !== "undefined") {
-          const doc = document.implementation.createDocument(null, null, null);
-          return doc.createCDATASection(data);
-        } else {
-          const doc = docImplementation.createDocument(null, null, null);
-          return doc.createCDATASection(data);
-        }
-      } catch (error) {
-        throw new XJXError(`Failed to create CDATA section: ${error instanceof Error ? error.message : String(error)}`);
-      }
+    createCDATASection: (data: string): CDATASection => {
+      return DOMAdapter.createNode(NodeType.CDATA_SECTION_NODE, undefined, data) as CDATASection;
     },
     
-    createComment: (data: string) => {
-      try {
-        if (typeof window !== "undefined") {
-          return document.createComment(data);
-        } else {
-          const doc = docImplementation.createDocument(null, null, null);
-          return doc.createComment(data);
-        }
-      } catch (error) {
-        throw new XJXError(`Failed to create comment: ${error instanceof Error ? error.message : String(error)}`);
-      }
+    createComment: (data: string): Comment => {
+      return DOMAdapter.createNode(NodeType.COMMENT_NODE, undefined, data) as Comment;
     },
     
-    createProcessingInstruction: (target: string, data: string) => {
-      try {
-        if (typeof window !== "undefined") {
-          const doc = document.implementation.createDocument(null, null, null);
-          return doc.createProcessingInstruction(target, data);
-        } else {
-          const doc = docImplementation.createDocument(null, null, null);
-          return doc.createProcessingInstruction(target, data);
-        }
-      } catch (error) {
-        throw new XJXError(`Failed to create processing instruction: ${error instanceof Error ? error.message : String(error)}`);
-      }
+    createProcessingInstruction: (target: string, data: string): ProcessingInstruction => {
+      return DOMAdapter.createNode(NodeType.PROCESSING_INSTRUCTION_NODE, target, data) as ProcessingInstruction;
     },
     
-    // Helper methods
+    // Utility methods
     
-    /**
-     * Creates a proper namespace qualified attribute
-     */
     setNamespacedAttribute: (element: Element, namespaceURI: string | null, qualifiedName: string, value: string): void => {
       try {
         if (namespaceURI) {
@@ -213,20 +207,10 @@ export const DOMAdapter = (() => {
       }
     },
     
-    /**
-     * Check if an object is a DOM node
-     */
     isNode: (obj: any): boolean => {
-      try {
-        return obj && typeof obj === 'object' && typeof obj.nodeType === 'number';
-      } catch (error) {
-        return false;
-      }
+      return obj && typeof obj === 'object' && typeof obj.nodeType === 'number';
     },
     
-    /**
-     * Get DOM node type as string for debugging
-     */
     getNodeTypeName: (nodeType: number): string => {
       switch (nodeType) {
         case NodeType.ELEMENT_NODE: return 'ELEMENT_NODE';
@@ -238,9 +222,6 @@ export const DOMAdapter = (() => {
       }
     },
     
-    /**
-     * Get all node attributes as an object
-     */
     getNodeAttributes: (node: Element): Record<string, string> => {
       const result: Record<string, string> = {};
       for (let i = 0; i < node.attributes.length; i++) {
@@ -252,8 +233,8 @@ export const DOMAdapter = (() => {
     
     // Cleanup method (mainly for JSDOM)
     cleanup: () => {
-      if (jsdomInstance && typeof jsdomInstance.window.close === 'function') {
-        jsdomInstance.window.close();
+      if (impl.jsdomInstance && typeof impl.jsdomInstance.window.close === 'function') {
+        impl.jsdomInstance.window.close();
       }
     }
   };

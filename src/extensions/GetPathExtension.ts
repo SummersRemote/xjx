@@ -1,10 +1,10 @@
 // =====================================================================================
 // GetPathExtension.ts
 //
-// Extension that adds a `getPath` method using the registry system
+// Extension that adds a `getPath` method using the unified registry system
 // =====================================================================================
 
-import { ExtensionRegistry } from "../core/extensions/registry";
+import { UnifiedRegistry, RegistryType } from "../core/registry/unified-registry";
 
 /**
  * Safely retrieves a value from a JSON object using a dot-separated path.
@@ -17,8 +17,10 @@ import { ExtensionRegistry } from "../core/extensions/registry";
  */
 function getPath(this: any, obj: Record<string, any>, path: string, fallback: any = undefined): any {
   if (!obj || typeof obj !== "object") return fallback;
+  
   const segments = path.split(".");
   let current: any = obj;
+  
   for (const segment of segments) {
     if (current && typeof current === "object" && segment in current) {
       current = current[segment];
@@ -26,11 +28,12 @@ function getPath(this: any, obj: Record<string, any>, path: string, fallback: an
       return fallback;
     }
   }
+  
   return current;
 }
 
-// Register the utility function
-ExtensionRegistry.registerUtility("getPath", getPath);
+// Register the utility function with the unified registry
+UnifiedRegistry.register(RegistryType.UTILITY, "getPath", getPath);
 
 // TypeScript module augmentation for type definitions
 declare module "../core/XJX" {

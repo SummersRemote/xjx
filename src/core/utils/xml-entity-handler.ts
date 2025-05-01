@@ -7,15 +7,13 @@
 import { XJXError } from '../types/error-types';
 
 export class XmlEntityHandler {
-  private static instance: XmlEntityHandler;
+  // Singleton instance created immediately
+  private static readonly instance = new XmlEntityHandler();
   
   /**
    * Get the singleton instance
    */
   public static getInstance(): XmlEntityHandler {
-    if (!XmlEntityHandler.instance) {
-      XmlEntityHandler.instance = new XmlEntityHandler();
-    }
     return XmlEntityHandler.instance;
   }
   

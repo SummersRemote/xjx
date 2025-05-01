@@ -16,6 +16,21 @@ export class ConfigProvider {
   private config: Configuration;
   
   /**
+   * Gets the singleton instance, creating it if necessary
+   * @param initialConfig Optional configuration to initialize with
+   * @returns The ConfigProvider instance
+   */
+  public static getInstance(initialConfig?: Partial<Configuration>): ConfigProvider {
+    if (!ConfigProvider.instance) {
+      ConfigProvider.instance = new ConfigProvider(initialConfig);
+    } else if (initialConfig) {
+      // If we already have an instance but new config is provided, update it
+      ConfigProvider.instance.updateConfig(initialConfig);
+    }
+    return ConfigProvider.instance;
+  }
+  
+  /**
    * Private constructor (singleton pattern)
    * @param initialConfig Optional partial configuration to merge with defaults
    */
@@ -30,21 +45,6 @@ export class ConfigProvider {
     
     // Validate the merged configuration
     this.validateConfig(this.config);
-  }
-  
-  /**
-   * Gets the singleton instance, creating it if necessary
-   * @param initialConfig Optional configuration to initialize with
-   * @returns The ConfigProvider instance
-   */
-  public static getInstance(initialConfig?: Partial<Configuration>): ConfigProvider {
-    if (!ConfigProvider.instance) {
-      ConfigProvider.instance = new ConfigProvider(initialConfig);
-    } else if (initialConfig) {
-      // If we already have an instance but new config is provided, update it
-      ConfigProvider.instance.updateConfig(initialConfig);
-    }
-    return ConfigProvider.instance;
   }
   
   /**

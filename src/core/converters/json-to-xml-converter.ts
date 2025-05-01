@@ -1,44 +1,23 @@
 /**
- * JSON to XML converter with improved architecture
- * Uses consolidated utilities for entity handling, namespace resolution, and configuration
+ * JSON to XML converter extending the BaseConverter
  */
 import { Configuration } from "../types/config-types";
 import { XJXError, JsonToXmlError } from "../types/error-types";
 import { DOMAdapter } from "../adapters/dom-adapter";
 import { NodeType } from "../types/dom-types";
-import {
-  XNode,
-  TransformContext,
-  TransformDirection,
-} from "../types/transform-types";
-import { TransformUtil } from "../utils/transform-utils";
-import { XmlUtil } from "../utils/xml-utils";
-import { XmlEntityHandler } from "../utils/xml-entity-handler";
-import { NamespaceUtil } from "../utils/namespace-util";
-import { TransformationRegistry } from "../transformation-registry";
+import { XNode, TransformDirection } from "../types/transform-types";
+import { BaseConverter } from "./base-converter";
 
 /**
  * JSON to XML converter
  */
-export class JsonToXmlConverter {
-  private config: Configuration;
-  private transformUtil: TransformUtil;
-  private xmlUtil: XmlUtil;
-  private entityHandler: XmlEntityHandler;
-  private namespaceUtil: NamespaceUtil;
-  private namespaceMap: Record<string, string>; // Collected namespaces for resolution
-
+export class JsonToXmlConverter extends BaseConverter {
   /**
    * Constructor
    * @param config Configuration
    */
   constructor(config: Configuration) {
-    this.config = config;
-    this.transformUtil = new TransformUtil(this.config);
-    this.xmlUtil = new XmlUtil(this.config);
-    this.entityHandler = XmlEntityHandler.getInstance();
-    this.namespaceUtil = NamespaceUtil.getInstance();
-    this.namespaceMap = {};
+    super(config);
   }
 
   /**
@@ -55,14 +34,13 @@ export class JsonToXmlConverter {
       const xnode = this.jsonToXNode(jsonObj);
 
       // 2. Create root context for transformation
-      const context = this.transformUtil.createRootContext(
+      const context = this.createRootContext(
         TransformDirection.JSON_TO_XML,
         xnode.name
       );
 
-      // 3. Apply transformations using registry
-      const applyTransformations = TransformationRegistry.getOperation('applyTransformations');
-      const transformedNode = applyTransformations(xnode, context);
+      // 3. Apply transformations
+      const transformedNode = this.applyTransformations(xnode, context);
       
       if (transformedNode === null) {
         throw new XJXError("Root node was removed during transformation");
@@ -122,7 +100,7 @@ export class JsonToXmlConverter {
   }
 
   /**
-   * Convert JSON object to XNode with enhanced namespace handling
+   * Convert JSON object to XNode
    * @param jsonObj JSON object to convert
    * @param parentNode Optional parent node for building hierarchy
    * @returns XNode representation
@@ -228,7 +206,7 @@ export class JsonToXmlConverter {
       const valueKey = this.config.propNames.value;
       const attrValue = attrData[valueKey];
 
-      if (this.isNamespaceDeclaration(attrName, attrValue, namespaceDecls)) {
+      if (this.processNamespaceDeclaration(attrName, attrValue, namespaceDecls)) {
         hasNamespaceDecls = true;
       } else {
         // Regular attribute
@@ -240,39 +218,6 @@ export class JsonToXmlConverter {
     if (hasNamespaceDecls) {
       xnode.namespaceDeclarations = namespaceDecls;
     }
-  }
-
-  /**
-   * Check if an attribute is a namespace declaration and process it
-   * @param attrName Attribute name
-   * @param attrValue Attribute value
-   * @param namespaceDecls Namespace declarations to update
-   * @returns True if attribute was a namespace declaration
-   */
-  private isNamespaceDeclaration(
-    attrName: string, 
-    attrValue: any, 
-    namespaceDecls: Record<string, string>
-  ): boolean {
-    // Check if this is a namespace declaration
-    if (attrName === "xmlns") {
-      // Default namespace
-      namespaceDecls[""] = attrValue;
-      
-      // Add to global namespace map for resolution
-      this.namespaceMap[""] = attrValue;
-      return true;
-    } else if (attrName.startsWith("xmlns:")) {
-      // Prefixed namespace
-      const prefix = attrName.substring(6);
-      namespaceDecls[prefix] = attrValue;
-      
-      // Add to global namespace map for resolution
-      this.namespaceMap[prefix] = attrValue;
-      return true;
-    }
-    
-    return false;
   }
 
   /**
@@ -398,7 +343,7 @@ export class JsonToXmlConverter {
   }
 
   /**
-   * Convert XNode to DOM element with consistent entity handling
+   * Convert XNode to DOM element
    * @param node XNode to convert
    * @param doc DOM document
    * @returns DOM element
@@ -492,7 +437,7 @@ export class JsonToXmlConverter {
     const attrPrefix = name.substring(0, colonIndex);
     
     // Use NamespaceUtil for consistent namespace resolution
-    const attrNs = this.namespaceUtil.findNamespaceForPrefix(node, attrPrefix, this.namespaceMap);
+    const attrNs = this.findNamespaceForPrefix(node, attrPrefix);
 
     if (attrNs) {
       // Set attribute with namespace, with entity handling
@@ -540,7 +485,7 @@ export class JsonToXmlConverter {
    */
   private addTextContent(element: Element, node: XNode): void {
     // Normalize and safely escape text content
-    const normalizedText = this.xmlUtil.normalizeTextContent(node.value);
+    const normalizedText = this.normalizeTextContent(String(node.value));
     element.textContent = this.entityHandler.safeXmlText(normalizedText);
   }
 
@@ -586,7 +531,7 @@ export class JsonToXmlConverter {
    */
   private addTextNode(element: Element, node: XNode, doc: Document): void {
     // Text node - normalize and safely escape content
-    const normalizedText = this.xmlUtil.normalizeTextContent(node.value);
+    const normalizedText = this.normalizeTextContent(String(node.value));
     element.appendChild(
       doc.createTextNode(this.entityHandler.safeXmlText(normalizedText))
     );

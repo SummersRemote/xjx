@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XJX Library Examples (ES Modules)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        h1 {
+            color: #2c3e50;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .instructions {
+            background-color: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        code {
+            background-color: #f0f0f0;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .button {
+            display: inline-block;
+            background-color: #007bff;
+            color: white;
+            padding: 8px 16px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>XJX Library Examples (ES Modules)</h1>
+        
+        <div class="instructions">
+            <h2>Instructions</h2>
+            <p>This page is designed to run XJX library examples using ES Modules. Please open your browser's developer console to see the output.</p>
+            <p>Press <code>F12</code> or <code>Ctrl+Shift+J</code> (Windows/Linux) or <code>Cmd+Option+J</code> (Mac) to open the console.</p>
+            <p><strong>Note:</strong> ES Modules only work when served from a proper web server, not directly from the file system.</p>
+        </div>
+
+        <div>
+            <h2>Run Examples</h2>
+            <button id="example1" class="button">Run Example 1: Basic XML to JSON</button>
+            <button id="example2" class="button">Run Example 2: JSON to XML</button>
+            <button id="example3" class="button">Run Example 3: Using Transformers</button>
+            <button id="example4" class="button">Run Example 4: ObjectToXJX</button>
+            <button id="runAll" class="button">Run All Examples</button>
+        </div>
+
+        <div id="output">
+            <h2>Example Results</h2>
+            <p>Check your browser's console for detailed output.</p>
+        </div>
+    </div>
+
+    <!-- Load example script as a module -->
+    <script type="module" src="simple-example.js"></script>
+</body>
+</html>

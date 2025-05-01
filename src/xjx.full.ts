@@ -1,10 +1,11 @@
-
 // Export core components
 export * from './index';
+
+// Export all transformers
+export * from './core/transformers';
 
 // Export and auto-apply extensions
 import './extensions/GetPathExtension';
 import './extensions/GetJsonSchemaExtension';
 
-// Note: This file is used to create the "full" bundle 
-// that includes both core functionality and extensions
+// This file creates the "full" bundle with core functionality, transformers, and extensions

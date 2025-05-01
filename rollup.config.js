@@ -98,6 +98,23 @@ export default [
     ].filter(Boolean)
   },
 
+  // Transformer bundle
+  {
+    input: 'src/core/transformers/index.ts',
+    external: ['../types/transform-types', '../utils/path-matcher'],
+    output: [
+      { 
+        file: 'dist/transformers.js', 
+        format: 'esm', 
+        sourcemap: !isProd 
+      }
+    ],
+    plugins: [
+      ...basePlugins,
+      compressionPlugin
+    ].filter(Boolean)
+  },
+
   // Individual extensions
   {
     input: 'src/extensions/GetPathExtension.ts',
@@ -135,6 +152,13 @@ export default [
   {
     input: 'dist/dts/index.d.ts',
     output: { file: 'dist/index.d.ts', format: 'es' },
+    plugins: [dts()]
+  },
+  
+  // Transformer types
+  {
+    input: 'dist/dts/core/transformers/index.d.ts',
+    output: { file: 'dist/transformers.d.ts', format: 'es' },
     plugins: [dts()]
   },
   

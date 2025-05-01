@@ -23,12 +23,50 @@ export {
   ConfigurationError 
 } from './core/types/error-types';
 
-// Allow custom transformers
-export { 
-  ValueTransformer, 
-  TransformContext, 
-  TransformDirection 
-} from './core/transformers/ValueTransformer';
+// XML Entity utilities
+export {
+  escapeXML,
+  unescapeXML,
+  safeXmlText,
+  containsSpecialChars
+} from './core/utils/xml-escape-utils';
+
+// Transformation API
+export {
+  TransformDirection,
+  TransformContext,
+  XNode,
+  TransformResult,
+  ValueTransformer,
+  AttributeTransformer,
+  ChildrenTransformer,
+  NodeTransformer,
+  transformResult
+} from './core/types/transform-types';
+
+// Base transformer classes
+export {
+  TransformerOptions,
+  BaseValueTransformer,
+  BaseAttributeTransformer,
+  BaseChildrenTransformer,
+  BaseNodeTransformer
+} from './core/transformers/transformer-base';
+
+// Transformers
+export {
+  BooleanTransformer,
+  BooleanTransformerOptions,
+  NumberTransformer,
+  NumberTransformerOptions,
+  StringReplaceTransformer,
+  StringReplaceOptions
+} from './core/transformers';
+
+// Extension system
+export { ExtensionRegistry } from './core/extensions/registry';
 
 // Utilities
 export { ValidationResult } from './core/utils/xml-utils';
+export { TransformUtil } from './core/utils/transform-utils';
+export { createPathMatcher } from './core/utils/path-matcher';

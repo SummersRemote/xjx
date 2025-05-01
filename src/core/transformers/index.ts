@@ -1,16 +1,32 @@
 /**
- * Value transformers for the XJX library
+ * Transformer exports
+ * 
+ * This file exports all transformer-related classes and interfaces
  */
 
-// Export base transformer
-export { ValueTransformer, TransformContext, TransformDirection } from './ValueTransformer';
-
-// Export concrete transformers
-export { BooleanTransformer, BooleanTransformerOptions } from './BooleanTransformer';
-export { NumberTransformer, NumberTransformerOptions } from './NumberTransformer';
-export { StringReplaceTransformer, StringReplaceTransformerOptions } from './StringReplaceTransformer';
-
-// Export utility class
-export { TransformUtil } from './TransformUtil';
-
-// Add more transformers here in the future
+// Base classes
+export {
+    TransformerOptions,
+    BaseValueTransformer,
+    BaseAttributeTransformer,
+    BaseChildrenTransformer,
+    BaseNodeTransformer
+  } from './transformer-base';
+  
+  // Boolean transformer
+  export {
+    BooleanTransformer,
+    BooleanTransformerOptions
+  } from './boolean-transformer';
+  
+  // Number transformer
+  export {
+    NumberTransformer,
+    NumberTransformerOptions
+  } from './number-transformer';
+  
+  // String replace transformer
+  export {
+    StringReplaceTransformer,
+    StringReplaceOptions
+  } from './string-replace-transformer';

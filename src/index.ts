@@ -45,7 +45,7 @@ export {
   BaseNodeTransformer
 } from './core/transformers/transformer-base';
 
-// Transformers
+// Built-in transformers
 export {
   BooleanTransformer,
   BooleanTransformerOptions,
@@ -54,9 +54,6 @@ export {
   StringReplaceTransformer,
   StringReplaceOptions
 } from './core/transformers';
-
-// Extension system
-export { ExtensionRegistry } from './core/extensions/registry';
 
 // Utilities
 export { ValidationResult } from './core/utils/xml-utils';

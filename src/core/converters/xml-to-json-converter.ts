@@ -15,8 +15,7 @@ import { TransformUtil } from "../utils/transform-utils";
 import { XmlEntityHandler } from "../utils/xml-entity-handler";
 import { NamespaceUtil } from "../utils/namespace-util";
 import { XmlUtil } from "../utils/xml-utils";
-import { ConfigProvider } from "../config/config-provider";
-import { ExtensionRegistry } from "../extensions/registry";
+import { TransformationRegistry } from "../transformation-registry";
 
 /**
  * XML to JSON converter
@@ -60,7 +59,7 @@ export class XmlToJsonConverter {
       );
       
       // 4. Apply transformations using registry
-      const applyTransformations = ExtensionRegistry.getTransformationOperation('applyTransformations');
+      const applyTransformations = TransformationRegistry.getOperation('applyTransformations');
       const transformedNode = applyTransformations(xnode, context);
       
       if (transformedNode === null) {
@@ -80,7 +79,6 @@ export class XmlToJsonConverter {
 
   /**
    * Normalize text content according to whitespace settings
-   * This method has been updated to better handle mixed content
    * @param text Text to normalize
    * @param inMixedContent Whether this text is part of mixed content
    * @returns Normalized text
@@ -146,125 +144,242 @@ export class XmlToJsonConverter {
    * @returns XNode representation
    */
   private domToXNode(element: Element, parentNode?: XNode): XNode {
-    const xnode: XNode = {
+    // Create base node structure
+    const xnode = this.createBaseXNode(element, parentNode);
+    
+    // Process attributes and namespace declarations
+    this.processAttributesAndNamespaces(element, xnode);
+    
+    // Process child nodes
+    this.processChildNodes(element, xnode);
+    
+    return xnode;
+  }
+
+  /**
+   * Create the base XNode structure from a DOM element
+   * @param element Source DOM element
+   * @param parentNode Optional parent XNode
+   * @returns Basic XNode structure
+   */
+  private createBaseXNode(element: Element, parentNode?: XNode): XNode {
+    return {
       name: element.localName || element.nodeName.split(':').pop() || element.nodeName,
       type: NodeType.ELEMENT_NODE,
       namespace: element.namespaceURI || undefined,
       prefix: element.prefix || undefined,
       parent: parentNode  // Set parent reference for namespace resolution
     };
+  }
+
+  /**
+   * Process attributes and namespace declarations from a DOM element
+   * @param element Source DOM element
+   * @param xnode Target XNode to populate
+   */
+  private processAttributesAndNamespaces(element: Element, xnode: XNode): void {
+    if (element.attributes.length === 0) return;
     
-    // Process attributes and find namespace declarations using NamespaceUtil
-    if (element.attributes.length > 0) {
-      xnode.attributes = {};
-      
-      // Get namespace declarations
-      const namespaceDecls = this.namespaceUtil.getNamespaceDeclarations(element);
-      if (Object.keys(namespaceDecls).length > 0) {
-        xnode.namespaceDeclarations = namespaceDecls;
-        xnode.isDefaultNamespace = this.namespaceUtil.hasDefaultNamespace(element);
-      }
-      
-      // Process regular attributes
-      for (let i = 0; i < element.attributes.length; i++) {
-        const attr = element.attributes[i];
-        
-        // Skip namespace declarations as they were already processed
-        if (attr.name === 'xmlns' || attr.name.startsWith('xmlns:')) continue;
-        
-        // Regular attribute - use entityHandler for consistent unescaping
-        const attrName = attr.localName || attr.name.split(':').pop() || attr.name;
-        xnode.attributes[attrName] = this.entityHandler.unescapeXML(attr.value);
-      }
+    xnode.attributes = {};
+    
+    // Get namespace declarations
+    const namespaceDecls = this.namespaceUtil.getNamespaceDeclarations(element);
+    if (Object.keys(namespaceDecls).length > 0) {
+      xnode.namespaceDeclarations = namespaceDecls;
+      xnode.isDefaultNamespace = this.namespaceUtil.hasDefaultNamespace(element);
     }
+    
+    // Process regular attributes
+    for (let i = 0; i < element.attributes.length; i++) {
+      const attr = element.attributes[i];
+      
+      // Skip namespace declarations as they were already processed
+      if (attr.name === 'xmlns' || attr.name.startsWith('xmlns:')) continue;
+      
+      // Regular attribute - use entityHandler for consistent unescaping
+      const attrName = attr.localName || attr.name.split(':').pop() || attr.name;
+      xnode.attributes[attrName] = this.entityHandler.unescapeXML(attr.value);
+    }
+  }
+
+  /**
+   * Process all child nodes of a DOM element
+   * @param element Source DOM element
+   * @param xnode Target XNode to populate with children
+   */
+  private processChildNodes(element: Element, xnode: XNode): void {
+    if (element.childNodes.length === 0) return;
     
     // Detect if this element has mixed content
     const hasMixed = this.hasMixedContent(element);
     
-    // Process child nodes
-    if (element.childNodes.length > 0) {
-      // Single text node handling (optimize common case)
-      if (element.childNodes.length === 1 && 
-          element.childNodes[0].nodeType === NodeType.TEXT_NODE && 
-          !hasMixed) {
-        const text = element.childNodes[0].nodeValue || '';
-        const normalizedText = this.normalizeTextContent(text, false);
-        if (normalizedText) {
-          xnode.value = this.entityHandler.unescapeXML(normalizedText);
-        }
-      } else {
-        // Mixed content or multiple children handling
-        const childNodes: XNode[] = [];
-        
-        for (let i = 0; i < element.childNodes.length; i++) {
-          const child = element.childNodes[i];
+    // Single text node handling (optimize common case)
+    if (this.hasSingleTextNodeChild(element, hasMixed, xnode)) {
+      return;
+    }
+    
+    // Multiple children or mixed content handling
+    this.processMultipleChildren(element, xnode, hasMixed);
+  }
+
+  /**
+   * Optimize handling for elements with a single text node child
+   * @param element Source DOM element
+   * @param hasMixed Whether element has mixed content
+   * @param xnode Target XNode to populate
+   * @returns True if handled as single text node
+   */
+  private hasSingleTextNodeChild(element: Element, hasMixed: boolean, xnode: XNode): boolean {
+    if (element.childNodes.length === 1 && 
+        element.childNodes[0].nodeType === NodeType.TEXT_NODE && 
+        !hasMixed) {
+      const text = element.childNodes[0].nodeValue || '';
+      const normalizedText = this.normalizeTextContent(text, false);
+      if (normalizedText) {
+        xnode.value = this.entityHandler.unescapeXML(normalizedText);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Process multiple child nodes for an element
+   * @param element Source DOM element
+   * @param xnode Target XNode to populate
+   * @param hasMixed Whether element has mixed content
+   */
+  private processMultipleChildren(element: Element, xnode: XNode, hasMixed: boolean): void {
+    const childNodes: XNode[] = [];
+    
+    for (let i = 0; i < element.childNodes.length; i++) {
+      const child = element.childNodes[i];
+      
+      switch (child.nodeType) {
+        case NodeType.TEXT_NODE:
+          this.processTextNode(child, childNodes, xnode, hasMixed);
+          break;
           
-          // Text nodes
-          if (child.nodeType === NodeType.TEXT_NODE) {
-            const text = child.nodeValue || '';
-            
-            // Important: even with preserveWhitespace=false, we'll keep 
-            // non-empty text nodes in mixed content to preserve order
-            if (this.config.preserveWhitespace || hasMixed || this.hasContent(text)) {
-              const normalizedText = this.normalizeTextContent(text, hasMixed);
-              
-              // Only add if we have text (could be empty after normalization)
-              if (normalizedText && this.config.preserveTextNodes) {
-                childNodes.push({
-                  name: '#text',
-                  type: NodeType.TEXT_NODE,
-                  value: this.entityHandler.unescapeXML(normalizedText),
-                  parent: xnode  // Set parent reference
-                });
-              }
-            }
-          }
-          // CDATA sections - Preserve regardless of whitespace setting
-          else if (child.nodeType === NodeType.CDATA_SECTION_NODE && this.config.preserveCDATA) {
-            childNodes.push({
-              name: '#cdata',
-              type: NodeType.CDATA_SECTION_NODE,
-              value: child.nodeValue || '',
-              parent: xnode  // Set parent reference
-            });
-          }
-          // Comments
-          else if (child.nodeType === NodeType.COMMENT_NODE && this.config.preserveComments) {
-            childNodes.push({
-              name: '#comment',
-              type: NodeType.COMMENT_NODE,
-              value: child.nodeValue || '',
-              parent: xnode  // Set parent reference
-            });
-          }
-          // Processing instructions
-          else if (
-            child.nodeType === NodeType.PROCESSING_INSTRUCTION_NODE && 
-            this.config.preserveProcessingInstr
-          ) {
-            const pi = child as ProcessingInstruction;
-            childNodes.push({
-              name: '#pi',
-              type: NodeType.PROCESSING_INSTRUCTION_NODE,
-              value: pi.data || '',
-              attributes: { target: pi.target },
-              parent: xnode  // Set parent reference
-            });
-          }
-          // Element nodes (recursive)
-          else if (child.nodeType === NodeType.ELEMENT_NODE) {
-            childNodes.push(this.domToXNode(child as Element, xnode));
-          }
-        }
-        
-        // Only set children if there are any after filtering
-        if (childNodes.length > 0) {
-          xnode.children = childNodes;
-        }
+        case NodeType.CDATA_SECTION_NODE:
+          this.processCDATANode(child, childNodes, xnode);
+          break;
+          
+        case NodeType.COMMENT_NODE:
+          this.processCommentNode(child, childNodes, xnode);
+          break;
+          
+        case NodeType.PROCESSING_INSTRUCTION_NODE:
+          this.processProcessingInstructionNode(child as ProcessingInstruction, childNodes, xnode);
+          break;
+          
+        case NodeType.ELEMENT_NODE:
+          this.processElementNode(child as Element, childNodes, xnode);
+          break;
       }
     }
     
-    return xnode;
+    // Only set children if there are any after filtering
+    if (childNodes.length > 0) {
+      xnode.children = childNodes;
+    }
+  }
+
+  /**
+   * Process a text node
+   * @param node Text node
+   * @param childNodes Array to add the processed node to
+   * @param parentNode Parent XNode
+   * @param hasMixed Whether parent has mixed content
+   */
+  private processTextNode(
+    node: Node, 
+    childNodes: XNode[], 
+    parentNode: XNode, 
+    hasMixed: boolean
+  ): void {
+    const text = node.nodeValue || '';
+    
+    // Important: even with preserveWhitespace=false, we'll keep 
+    // non-empty text nodes in mixed content to preserve order
+    if (this.config.preserveWhitespace || hasMixed || this.hasContent(text)) {
+      const normalizedText = this.normalizeTextContent(text, hasMixed);
+      
+      // Only add if we have text (could be empty after normalization)
+      if (normalizedText && this.config.preserveTextNodes) {
+        childNodes.push({
+          name: '#text',
+          type: NodeType.TEXT_NODE,
+          value: this.entityHandler.unescapeXML(normalizedText),
+          parent: parentNode  // Set parent reference
+        });
+      }
+    }
+  }
+
+  /**
+   * Process a CDATA section node
+   * @param node CDATA node
+   * @param childNodes Array to add the processed node to
+   * @param parentNode Parent XNode
+   */
+  private processCDATANode(node: Node, childNodes: XNode[], parentNode: XNode): void {
+    if (this.config.preserveCDATA) {
+      childNodes.push({
+        name: '#cdata',
+        type: NodeType.CDATA_SECTION_NODE,
+        value: node.nodeValue || '',
+        parent: parentNode  // Set parent reference
+      });
+    }
+  }
+
+  /**
+   * Process a comment node
+   * @param node Comment node
+   * @param childNodes Array to add the processed node to
+   * @param parentNode Parent XNode
+   */
+  private processCommentNode(node: Node, childNodes: XNode[], parentNode: XNode): void {
+    if (this.config.preserveComments) {
+      childNodes.push({
+        name: '#comment',
+        type: NodeType.COMMENT_NODE,
+        value: node.nodeValue || '',
+        parent: parentNode  // Set parent reference
+      });
+    }
+  }
+
+  /**
+   * Process a processing instruction node
+   * @param pi Processing instruction node
+   * @param childNodes Array to add the processed node to
+   * @param parentNode Parent XNode
+   */
+  private processProcessingInstructionNode(
+    pi: ProcessingInstruction, 
+    childNodes: XNode[], 
+    parentNode: XNode
+  ): void {
+    if (this.config.preserveProcessingInstr) {
+      childNodes.push({
+        name: '#pi',
+        type: NodeType.PROCESSING_INSTRUCTION_NODE,
+        value: pi.data || '',
+        attributes: { target: pi.target },
+        parent: parentNode  // Set parent reference
+      });
+    }
+  }
+
+  /**
+   * Process an element node (recursive)
+   * @param element Element node
+   * @param childNodes Array to add the processed node to
+   * @param parentNode Parent XNode
+   */
+  private processElementNode(element: Element, childNodes: XNode[], parentNode: XNode): void {
+    childNodes.push(this.domToXNode(element, parentNode));
   }
 
   /**
@@ -276,11 +391,34 @@ export class XmlToJsonConverter {
     const result: Record<string, any> = {};
     const nodeObj: Record<string, any> = {};
     
-    // Add namespace and prefix if present
+    // Process core node properties (namespace, prefix, value)
+    this.processNodeCoreProperties(node, nodeObj);
+    
+    // Process attributes and namespace declarations
+    this.processNodeAttributesForJson(node, nodeObj);
+    
+    // Process child nodes
+    this.processNodeChildrenForJson(node, nodeObj);
+    
+    // Clean empty properties in compact mode
+    this.cleanEmptyPropertiesIfNeeded(nodeObj);
+    
+    result[node.name] = nodeObj;
+    return result;
+  }
+
+  /**
+   * Process core properties (namespace, prefix, value) for JSON conversion
+   * @param node Source XNode
+   * @param nodeObj Target JSON object
+   */
+  private processNodeCoreProperties(node: XNode, nodeObj: Record<string, any>): void {
+    // Add namespace if present
     if (node.namespace && this.config.preserveNamespaces) {
       nodeObj[this.config.propNames.namespace] = node.namespace;
     }
     
+    // Add prefix if present
     if (node.prefix && this.config.preserveNamespaces) {
       nodeObj[this.config.propNames.prefix] = node.prefix;
     }
@@ -289,83 +427,120 @@ export class XmlToJsonConverter {
     if (node.value !== undefined) {
       nodeObj[this.config.propNames.value] = node.value;
     }
+  }
+
+  /**
+   * Process attributes and namespace declarations for JSON conversion
+   * @param node Source XNode
+   * @param nodeObj Target JSON object
+   */
+  private processNodeAttributesForJson(node: XNode, nodeObj: Record<string, any>): void {
+    if (!this.config.preserveAttributes) return;
     
-    // Add attributes and namespace declarations if present
-    if (this.config.preserveAttributes) {
-      const attrs: Array<Record<string, any>> = [];
-      
-      // Add regular attributes
-      if (node.attributes && Object.keys(node.attributes).length > 0) {
-        for (const [name, value] of Object.entries(node.attributes)) {
-          const attrObj: Record<string, any> = {
-            [name]: { [this.config.propNames.value]: value }
-          };
-          attrs.push(attrObj);
-        }
-      }
-      
-      // Add namespace declarations as special attributes
-      if (node.namespaceDeclarations && this.config.preserveNamespaces) {
-        for (const [prefix, uri] of Object.entries(node.namespaceDeclarations)) {
-          const attrName = prefix === '' ? 'xmlns' : `xmlns:${prefix}`;
-          const attrObj: Record<string, any> = {
-            [attrName]: { [this.config.propNames.value]: uri }
-          };
-          attrs.push(attrObj);
-        }
-      }
-      
-      if (attrs.length > 0) {
-        nodeObj[this.config.propNames.attributes] = attrs;
+    const attrs: Array<Record<string, any>> = [];
+    
+    // Add regular attributes
+    this.addRegularAttributesToJson(node, attrs);
+    
+    // Add namespace declarations as special attributes
+    this.addNamespaceDeclarationsToJson(node, attrs);
+    
+    if (attrs.length > 0) {
+      nodeObj[this.config.propNames.attributes] = attrs;
+    }
+  }
+
+  /**
+   * Add regular attributes to JSON attribute array
+   * @param node Source XNode
+   * @param attrs Target attributes array
+   */
+  private addRegularAttributesToJson(node: XNode, attrs: Array<Record<string, any>>): void {
+    if (node.attributes && Object.keys(node.attributes).length > 0) {
+      for (const [name, value] of Object.entries(node.attributes)) {
+        const attrObj: Record<string, any> = {
+          [name]: { [this.config.propNames.value]: value }
+        };
+        attrs.push(attrObj);
       }
     }
+  }
+
+  /**
+   * Add namespace declarations to JSON attribute array
+   * @param node Source XNode
+   * @param attrs Target attributes array
+   */
+  private addNamespaceDeclarationsToJson(node: XNode, attrs: Array<Record<string, any>>): void {
+    if (node.namespaceDeclarations && this.config.preserveNamespaces) {
+      for (const [prefix, uri] of Object.entries(node.namespaceDeclarations)) {
+        const attrName = prefix === '' ? 'xmlns' : `xmlns:${prefix}`;
+        const attrObj: Record<string, any> = {
+          [attrName]: { [this.config.propNames.value]: uri }
+        };
+        attrs.push(attrObj);
+      }
+    }
+  }
+
+  /**
+   * Process child nodes for JSON conversion
+   * @param node Source XNode
+   * @param nodeObj Target JSON object
+   */
+  private processNodeChildrenForJson(node: XNode, nodeObj: Record<string, any>): void {
+    if (!node.children || node.children.length === 0) return;
     
-    // Add children if present
-    if (node.children && node.children.length > 0) {
-      const children: Array<Record<string, any>> = [];
-      
-      for (const child of node.children) {
-        if (child.type === NodeType.TEXT_NODE) {
-          // Text node
+    const children: Array<Record<string, any>> = [];
+    
+    for (const child of node.children) {
+      switch (child.type) {
+        case NodeType.TEXT_NODE:
           children.push({ [this.config.propNames.value]: child.value });
-        } else if (child.type === NodeType.CDATA_SECTION_NODE) {
-          // CDATA section
+          break;
+          
+        case NodeType.CDATA_SECTION_NODE:
           children.push({ [this.config.propNames.cdata]: child.value });
-        } else if (child.type === NodeType.COMMENT_NODE) {
-          // Comment
+          break;
+          
+        case NodeType.COMMENT_NODE:
           children.push({ [this.config.propNames.comments]: child.value });
-        } else if (child.type === NodeType.PROCESSING_INSTRUCTION_NODE) {
-          // Processing instruction
+          break;
+          
+        case NodeType.PROCESSING_INSTRUCTION_NODE:
           children.push({
             [this.config.propNames.instruction]: {
               [this.config.propNames.target]: child.attributes?.target,
               [this.config.propNames.value]: child.value
             }
           });
-        } else if (child.type === NodeType.ELEMENT_NODE) {
-          // Element node
+          break;
+          
+        case NodeType.ELEMENT_NODE:
           children.push(this.xnodeToJson(child));
-        }
-      }
-      
-      if (children.length > 0) {
-        nodeObj[this.config.propNames.children] = children;
+          break;
       }
     }
     
-    // Clean empty properties if compact mode
-    if (this.config.outputOptions.compact) {
-      Object.keys(nodeObj).forEach(key => {
-        const value = nodeObj[key];
-        if (value === undefined || value === null || 
-            (Array.isArray(value) && value.length === 0) ||
-            (typeof value === 'object' && Object.keys(value).length === 0)) {
-          delete nodeObj[key];
-        }
-      });
+    if (children.length > 0) {
+      nodeObj[this.config.propNames.children] = children;
     }
+  }
+
+  /**
+   * Clean empty properties in compact mode
+   * @param nodeObj Object to clean
+   */
+  private cleanEmptyPropertiesIfNeeded(nodeObj: Record<string, any>): void {
+    if (!this.config.outputOptions.compact) return;
     
-    result[node.name] = nodeObj;
-    return result;
+    Object.keys(nodeObj).forEach(key => {
+      const value = nodeObj[key];
+      if (value === undefined || value === null || 
+          (Array.isArray(value) && value.length === 0) ||
+          (typeof value === 'object' && Object.keys(value).length === 0)) {
+        delete nodeObj[key];
+      }
+    });
   }
 }

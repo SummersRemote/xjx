@@ -8,6 +8,7 @@ lib/
 out/
 dist/
 reports/
+.yalc/
 
 # TypeScript cache
 *.tsbuildinfo
@@ -40,7 +41,3 @@ pnpm-debug.log*
 Thumbs.db
 ehthumbs.db
 reports/jest-html-reporters-attach/test-report/result.js
-app/.yalc/xjx/LICENSE
-app/.yalc/xjx/package.json
-app/.yalc/xjx/README.md
-app/.yalc/xjx/yalc.sig

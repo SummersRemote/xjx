@@ -82,6 +82,16 @@ const dialog = computed({
   set: (value) => emit('update:modelValue', value)
 });
 
+// Format config as JSON string
+const formattedConfig = computed(() => {
+  try {
+    return JSON.stringify(store.config, null, 2);
+  } catch (error) {
+    console.error("Error formatting configuration:", error);
+    return `Error formatting configuration: ${error.message}`;
+  }
+});
+
 // Copy configuration to clipboard
 const copyConfig = () => {
   navigator.clipboard.writeText(formattedConfig.value)

@@ -1,11 +1,11 @@
 /**
- * XJX Service - Fixed Version
+ * XJX Service - Fixed Version with Improved Transformer Handling
  * 
  * Manages XJX instances and provides methods for working with transformers directly.
  * This version properly handles configuration changes by recreating the instance
  * while preserving transformers.
  */
-import { XJX, TransformDirection } from '../../../dist';
+import { XJX, TransformDirection } from '../../../dist/xjx.full.js'; // Import the full version with extensions
 import { BooleanTransformer, NumberTransformer, StringReplaceTransformer } from '../../../dist';
 import FilterChildrenTransformer from './transformers/FilterChildrenTransformer';
 
@@ -22,6 +22,7 @@ export default class XjxService {
    * @returns {XJX} A new XJX instance
    */
   static createInstance(config) {
+    // Make sure to use the full bundle that includes extensions
     return new XJX(config);
   }
   
@@ -36,25 +37,47 @@ export default class XjxService {
     
     // Apply all registered transformers
     if (XjxService._transformers && XjxService._transformers.length > 0) {
+      console.log(`Applying ${XjxService._transformers.length} transformers to XJX instance`);
+      
       for (const { direction, type, transformer } of XjxService._transformers) {
         try {
-          // Convert direction string to enum
-          const dirEnum = TransformDirection[direction];
+          // Make sure we have a valid direction enum value
+          let dirEnum;
+          if (typeof direction === 'string') {
+            dirEnum = TransformDirection[direction];
+            if (dirEnum === undefined) {
+              console.error(`Invalid direction string: ${direction}`);
+              continue;
+            }
+          } else {
+            dirEnum = direction;
+          }
+          
+          console.log(`Applying ${type} transformer for direction: ${dirEnum}`);
           
           // Apply transformer based on type
-          if (type === 'value') {
-            xjx.addValueTransformer(dirEnum, transformer);
-          } else if (type === 'children') {
-            xjx.addChildrenTransformer(dirEnum, transformer);
-          } else if (type === 'attribute') {
-            xjx.addAttributeTransformer(dirEnum, transformer);
-          } else if (type === 'node') {
-            xjx.addNodeTransformer(dirEnum, transformer);
+          switch (type) {
+            case 'value':
+              xjx.addValueTransformer(dirEnum, transformer);
+              break;
+            case 'children':
+              xjx.addChildrenTransformer(dirEnum, transformer);
+              break;
+            case 'attribute':
+              xjx.addAttributeTransformer(dirEnum, transformer);
+              break;
+            case 'node':
+              xjx.addNodeTransformer(dirEnum, transformer);
+              break;
+            default:
+              console.error(`Unknown transformer type: ${type}`);
           }
         } catch (error) {
           console.error(`Error applying transformer:`, error);
         }
       }
+    } else {
+      console.log('No transformers to apply');
     }
     
     return xjx;
@@ -80,16 +103,31 @@ export default class XjxService {
    * @returns {BooleanTransformer} The created transformer
    */
   static addBooleanTransformer(direction, options) {
-    const transformer = new BooleanTransformer(options);
-    
-    // Store the transformer in our registry
-    XjxService._transformers.push({
-      direction,
-      type: 'value',
-      transformer
-    });
-    
-    return transformer;
+    try {
+      // Parse options to ensure they're in the correct format
+      const parsedOptions = {
+        ...options,
+        trueValues: Array.isArray(options.trueValues) ? options.trueValues : String(options.trueValues).split(',').map(v => v.trim()),
+        falseValues: Array.isArray(options.falseValues) ? options.falseValues : String(options.falseValues).split(',').map(v => v.trim()),
+      };
+      
+      console.log('Creating BooleanTransformer with options:', parsedOptions);
+      const transformer = new BooleanTransformer(parsedOptions);
+      
+      // Store the transformer in our registry
+      XjxService._transformers.push({
+        direction,
+        type: 'value',
+        transformer,
+        options: parsedOptions
+      });
+      
+      console.log(`Added BooleanTransformer. Current transformers: ${XjxService._transformers.length}`);
+      return transformer;
+    } catch (error) {
+      console.error('Error creating BooleanTransformer:', error);
+      throw error;
+    }
   }
   
   /**
@@ -99,16 +137,24 @@ export default class XjxService {
    * @returns {NumberTransformer} The created transformer
    */
   static addNumberTransformer(direction, options) {
-    const transformer = new NumberTransformer(options);
-    
-    // Store the transformer in our registry
-    XjxService._transformers.push({
-      direction,
-      type: 'value',
-      transformer
-    });
-    
-    return transformer;
+    try {
+      console.log('Creating NumberTransformer with options:', options);
+      const transformer = new NumberTransformer(options);
+      
+      // Store the transformer in our registry
+      XjxService._transformers.push({
+        direction,
+        type: 'value',
+        transformer,
+        options
+      });
+      
+      console.log(`Added NumberTransformer. Current transformers: ${XjxService._transformers.length}`);
+      return transformer;
+    } catch (error) {
+      console.error('Error creating NumberTransformer:', error);
+      throw error;
+    }
   }
   
   /**
@@ -118,26 +164,44 @@ export default class XjxService {
    * @returns {StringReplaceTransformer} The created transformer
    */
   static addStringReplaceTransformer(direction, options) {
-    // Convert string pattern to RegExp if needed
-    if (typeof options.pattern === 'string' && 
-        options.pattern.startsWith('/') && 
-        options.pattern.lastIndexOf('/') > 0) {
-      const lastSlashIndex = options.pattern.lastIndexOf('/');
-      const patternBody = options.pattern.substring(1, lastSlashIndex);
-      const flags = options.pattern.substring(lastSlashIndex + 1);
-      options.pattern = new RegExp(patternBody, flags);
+    try {
+      // Clone to avoid modifying the original object
+      const processedOptions = {...options};
+      
+      // Convert string pattern to RegExp if needed
+      if (typeof processedOptions.pattern === 'string' && 
+          processedOptions.pattern.startsWith('/') && 
+          processedOptions.pattern.lastIndexOf('/') > 0) {
+        const lastSlashIndex = processedOptions.pattern.lastIndexOf('/');
+        const patternBody = processedOptions.pattern.substring(1, lastSlashIndex);
+        const flags = processedOptions.pattern.substring(lastSlashIndex + 1);
+        processedOptions.pattern = new RegExp(patternBody, flags);
+      } else if (typeof processedOptions.pattern === 'string') {
+        // Create a regular expression with appropriate flags
+        const flags = (processedOptions.ignoreCase ? 'i' : '') + 
+                      (processedOptions.replaceAll !== false ? 'g' : '');
+        processedOptions.pattern = new RegExp(processedOptions.pattern, flags);
+      }
+      
+      console.log('Creating StringReplaceTransformer with options:', 
+                  { ...processedOptions, pattern: processedOptions.pattern.toString() });
+      
+      const transformer = new StringReplaceTransformer(processedOptions);
+      
+      // Store the transformer in our registry
+      XjxService._transformers.push({
+        direction,
+        type: 'value',
+        transformer,
+        options: processedOptions
+      });
+      
+      console.log(`Added StringReplaceTransformer. Current transformers: ${XjxService._transformers.length}`);
+      return transformer;
+    } catch (error) {
+      console.error('Error creating StringReplaceTransformer:', error);
+      throw error;
     }
-    
-    const transformer = new StringReplaceTransformer(options);
-    
-    // Store the transformer in our registry
-    XjxService._transformers.push({
-      direction,
-      type: 'value',
-      transformer
-    });
-    
-    return transformer;
   }
   
   /**
@@ -147,16 +211,30 @@ export default class XjxService {
    * @returns {FilterChildrenTransformer} The created transformer
    */
   static addFilterChildrenTransformer(direction, options) {
-    const transformer = new FilterChildrenTransformer(options);
-    
-    // Store the transformer in our registry
-    XjxService._transformers.push({
-      direction,
-      type: 'children',
-      transformer
-    });
-    
-    return transformer;
+    try {
+      // Parse options to ensure they're in the correct format
+      const parsedOptions = {
+        ...options,
+        excludeNames: Array.isArray(options.excludeNames) ? options.excludeNames : String(options.excludeNames).split(',').map(v => v.trim())
+      };
+      
+      console.log('Creating FilterChildrenTransformer with options:', parsedOptions);
+      const transformer = new FilterChildrenTransformer(parsedOptions);
+      
+      // Store the transformer in our registry
+      XjxService._transformers.push({
+        direction,
+        type: 'children',
+        transformer,
+        options: parsedOptions
+      });
+      
+      console.log(`Added FilterChildrenTransformer. Current transformers: ${XjxService._transformers.length}`);
+      return transformer;
+    } catch (error) {
+      console.error('Error creating FilterChildrenTransformer:', error);
+      throw error;
+    }
   }
   
   /**
@@ -164,6 +242,8 @@ export default class XjxService {
    * @param {string} direction - 'XML_TO_JSON' or 'JSON_TO_XML', or null for all
    */
   static clearTransformers(direction = null) {
+    const beforeCount = XjxService._transformers.length;
+    
     if (direction) {
       // Filter out transformers for the specified direction
       XjxService._transformers = XjxService._transformers.filter(
@@ -173,6 +253,8 @@ export default class XjxService {
       // Clear all transformers
       XjxService._transformers = [];
     }
+    
+    console.log(`Cleared transformers. Before: ${beforeCount}, After: ${XjxService._transformers.length}`);
   }
   
   /**
@@ -190,6 +272,8 @@ export default class XjxService {
    * @returns {Object} JSON representation of the XML
    */
   static xmlToJson(xmlString, config) {
+    console.log('Converting XML to JSON with transformers:', XjxService._transformers.length);
+    
     // Create fresh instance with config AND transformers
     const xjx = this.createInstanceWithTransformers(config);
     
@@ -209,6 +293,8 @@ export default class XjxService {
    * @returns {string} XML representation of the JSON
    */
   static jsonToXml(jsonObj, config) {
+    console.log('Converting JSON to XML with transformers:', XjxService._transformers.length);
+    
     // Create fresh instance with config AND transformers
     const xjx = this.createInstanceWithTransformers(config);
     
@@ -252,23 +338,6 @@ export default class XjxService {
   }
   
   /**
-   * Get a value from JSON object using a path
-   * @param {Object} jsonObj - JSON object
-   * @param {string} path - Dot notation path
-   * @param {Object} config - XJX configuration options
-   * @param {any} fallback - Fallback value if path doesn't exist
-   * @returns {any} Retrieved value
-   */
-  static getPath(jsonObj, path, config, fallback) {
-    const xjx = this.createInstance(config);
-    try {
-      return xjx.getPath(jsonObj, path, fallback);
-    } finally {
-      xjx.cleanup();
-    }
-  }
-  
-  /**
    * Format JSON string with proper indentation
    * @param {string} jsonString - JSON string
    * @param {number} indent - Indentation spaces
@@ -298,6 +367,32 @@ export default class XjxService {
   }
   
   /**
+   * Get a value from JSON object using a path
+   * @param {Object} jsonObj - JSON object
+   * @param {string} path - Dot notation path
+   * @param {Object} config - XJX configuration options
+   * @param {any} fallback - Fallback value if path doesn't exist
+   * @returns {any} Retrieved value
+   */
+  static getPath(jsonObj, path, config, fallback) {
+    const xjx = this.createInstance(config);
+    try {
+      // Check if the method exists before calling it
+      if (typeof xjx.getPath !== 'function') {
+        console.error('getPath method not found on XJX instance. Make sure you are using the full bundle.');
+        return fallback;
+      }
+      
+      return xjx.getPath(jsonObj, path, fallback);
+    } catch (error) {
+      console.error('Error in getPath:', error);
+      return fallback;
+    } finally {
+      xjx.cleanup();
+    }
+  }
+  
+  /**
    * Generate a JSON schema based on the current configuration
    * @param {Object} config - XJX configuration options
    * @returns {Object} JSON schema object for validating XML-JSON documents
@@ -305,7 +400,16 @@ export default class XjxService {
   static getJsonSchema(config) {
     const xjx = this.createInstance(config);
     try {
+      // Check if the method exists before calling it
+      if (typeof xjx.getJsonSchema !== 'function') {
+        console.error('getJsonSchema method not found on XJX instance. Make sure you are using the full bundle.');
+        return null;
+      }
+      
       return xjx.getJsonSchema();
+    } catch (error) {
+      console.error('Error generating JSON schema:', error);
+      return null;
     } finally {
       xjx.cleanup();
     }
@@ -315,6 +419,7 @@ export default class XjxService {
    * Reset service state
    */
   static reset() {
+    console.log(`Resetting service. Clearing ${XjxService._transformers.length} transformers.`);
     // Clear all transformers
     XjxService._transformers = [];
   }

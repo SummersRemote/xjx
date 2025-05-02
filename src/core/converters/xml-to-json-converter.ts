@@ -29,23 +29,23 @@ export class XmlToJsonConverter extends BaseConverter {
     try {
       // 1. Parse XML to DOM
       const xmlDoc = this.xmlUtil.parseXml(xmlString);
-      
+
       // 2. Convert DOM to XNode
       const xnode = this.domToXNode(xmlDoc.documentElement);
-      
+
       // 3. Create root context for transformation
       const context = this.createRootContext(
         TransformDirection.XML_TO_JSON,
         xnode.name
       );
-      
+
       // 4. Apply transformations
       const transformedNode = this.applyTransformations(xnode, context);
-      
+
       if (transformedNode === null) {
-        throw new XJXError('Root node was removed during transformation');
+        throw new XJXError("Root node was removed during transformation");
       }
-      
+
       // 5. Convert XNode to JSON
       return this.xnodeToJson(transformedNode);
     } catch (error) {
@@ -66,13 +66,13 @@ export class XmlToJsonConverter extends BaseConverter {
   private domToXNode(element: Element, parentNode?: XNode): XNode {
     // Create base node structure
     const xnode = this.createBaseXNode(element, parentNode);
-    
+
     // Process attributes and namespace declarations
     this.processAttributesAndNamespaces(element, xnode);
-    
+
     // Process child nodes
     this.processChildNodes(element, xnode);
-    
+
     return xnode;
   }
 
@@ -84,11 +84,14 @@ export class XmlToJsonConverter extends BaseConverter {
    */
   private createBaseXNode(element: Element, parentNode?: XNode): XNode {
     return {
-      name: element.localName || element.nodeName.split(':').pop() || element.nodeName,
+      name:
+        element.localName ||
+        element.nodeName.split(":").pop() ||
+        element.nodeName,
       type: NodeType.ELEMENT_NODE,
       namespace: element.namespaceURI || undefined,
       prefix: element.prefix || undefined,
-      parent: parentNode  // Set parent reference for namespace resolution
+      parent: parentNode, // Set parent reference for namespace resolution
     };
   }
 
@@ -99,25 +102,27 @@ export class XmlToJsonConverter extends BaseConverter {
    */
   private processAttributesAndNamespaces(element: Element, xnode: XNode): void {
     if (element.attributes.length === 0) return;
-    
+
     xnode.attributes = {};
-    
+
     // Get namespace declarations
     const namespaceDecls = this.namespaceUtil.getNamespaceDeclarations(element);
     if (Object.keys(namespaceDecls).length > 0) {
       xnode.namespaceDeclarations = namespaceDecls;
-      xnode.isDefaultNamespace = this.namespaceUtil.hasDefaultNamespace(element);
+      xnode.isDefaultNamespace =
+        this.namespaceUtil.hasDefaultNamespace(element);
     }
-    
+
     // Process regular attributes
     for (let i = 0; i < element.attributes.length; i++) {
       const attr = element.attributes[i];
-      
+
       // Skip namespace declarations as they were already processed
-      if (attr.name === 'xmlns' || attr.name.startsWith('xmlns:')) continue;
-      
+      if (attr.name === "xmlns" || attr.name.startsWith("xmlns:")) continue;
+
       // Regular attribute - use entityHandler for consistent unescaping
-      const attrName = attr.localName || attr.name.split(':').pop() || attr.name;
+      const attrName =
+        attr.localName || attr.name.split(":").pop() || attr.name;
       xnode.attributes[attrName] = this.entityHandler.unescapeXML(attr.value);
     }
   }
@@ -129,15 +134,15 @@ export class XmlToJsonConverter extends BaseConverter {
    */
   private processChildNodes(element: Element, xnode: XNode): void {
     if (element.childNodes.length === 0) return;
-    
+
     // Detect if this element has mixed content
     const hasMixed = this.hasMixedContent(element);
-    
+
     // Single text node handling (optimize common case)
     if (this.processSingleTextNodeChild(element, hasMixed, xnode)) {
       return;
     }
-    
+
     // Multiple children or mixed content handling
     this.processMultipleChildren(element, xnode, hasMixed);
   }
@@ -149,11 +154,17 @@ export class XmlToJsonConverter extends BaseConverter {
    * @param xnode Target XNode to populate
    * @returns True if handled as single text node
    */
-  private processSingleTextNodeChild(element: Element, hasMixed: boolean, xnode: XNode): boolean {
-    if (element.childNodes.length === 1 && 
-        element.childNodes[0].nodeType === NodeType.TEXT_NODE && 
-        !hasMixed) {
-      const text = element.childNodes[0].nodeValue || '';
+  private processSingleTextNodeChild(
+    element: Element,
+    hasMixed: boolean,
+    xnode: XNode
+  ): boolean {
+    if (
+      element.childNodes.length === 1 &&
+      element.childNodes[0].nodeType === NodeType.TEXT_NODE &&
+      !hasMixed
+    ) {
+      const text = element.childNodes[0].nodeValue || "";
       const normalizedText = this.normalizeTextContent(text, false);
       if (normalizedText && this.config.preserveTextNodes) {
         // Only add the value if preserveTextNodes is true
@@ -170,35 +181,43 @@ export class XmlToJsonConverter extends BaseConverter {
    * @param xnode Target XNode to populate
    * @param hasMixed Whether element has mixed content
    */
-  private processMultipleChildren(element: Element, xnode: XNode, hasMixed: boolean): void {
+  private processMultipleChildren(
+    element: Element,
+    xnode: XNode,
+    hasMixed: boolean
+  ): void {
     const childNodes: XNode[] = [];
-    
+
     for (let i = 0; i < element.childNodes.length; i++) {
       const child = element.childNodes[i];
-      
+
       switch (child.nodeType) {
         case NodeType.TEXT_NODE:
           this.processTextNode(child, childNodes, xnode, hasMixed);
           break;
-          
+
         case NodeType.CDATA_SECTION_NODE:
           this.processCDATANode(child, childNodes, xnode);
           break;
-          
+
         case NodeType.COMMENT_NODE:
           this.processCommentNode(child, childNodes, xnode);
           break;
-          
+
         case NodeType.PROCESSING_INSTRUCTION_NODE:
-          this.processProcessingInstructionNode(child as ProcessingInstruction, childNodes, xnode);
+          this.processProcessingInstructionNode(
+            child as ProcessingInstruction,
+            childNodes,
+            xnode
+          );
           break;
-          
+
         case NodeType.ELEMENT_NODE:
           this.processElementNode(child as Element, childNodes, xnode);
           break;
       }
     }
-    
+
     // Only set children if there are any after filtering
     if (childNodes.length > 0) {
       xnode.children = childNodes;
@@ -213,25 +232,25 @@ export class XmlToJsonConverter extends BaseConverter {
    * @param hasMixed Whether parent has mixed content
    */
   private processTextNode(
-    node: Node, 
-    childNodes: XNode[], 
-    parentNode: XNode, 
+    node: Node,
+    childNodes: XNode[],
+    parentNode: XNode,
     hasMixed: boolean
   ): void {
-    const text = node.nodeValue || '';
-    
-    // Important: even with preserveWhitespace=false, we'll keep 
+    const text = node.nodeValue || "";
+
+    // Important: even with preserveWhitespace=false, we'll keep
     // non-empty text nodes in mixed content to preserve order
     if (this.config.preserveWhitespace || hasMixed || this.hasContent(text)) {
       const normalizedText = this.normalizeTextContent(text, hasMixed);
-      
+
       // Only add if we have text (could be empty after normalization)
       if (normalizedText && this.config.preserveTextNodes) {
         childNodes.push({
-          name: '#text',
+          name: "#text",
           type: NodeType.TEXT_NODE,
           value: this.entityHandler.unescapeXML(normalizedText),
-          parent: parentNode  // Set parent reference
+          parent: parentNode, // Set parent reference
         });
       }
     }
@@ -243,13 +262,17 @@ export class XmlToJsonConverter extends BaseConverter {
    * @param childNodes Array to add the processed node to
    * @param parentNode Parent XNode
    */
-  private processCDATANode(node: Node, childNodes: XNode[], parentNode: XNode): void {
+  private processCDATANode(
+    node: Node,
+    childNodes: XNode[],
+    parentNode: XNode
+  ): void {
     if (this.config.preserveCDATA) {
       childNodes.push({
-        name: '#cdata',
+        name: "#cdata",
         type: NodeType.CDATA_SECTION_NODE,
-        value: node.nodeValue || '',
-        parent: parentNode  // Set parent reference
+        value: node.nodeValue || "",
+        parent: parentNode, // Set parent reference
       });
     }
   }
@@ -260,13 +283,17 @@ export class XmlToJsonConverter extends BaseConverter {
    * @param childNodes Array to add the processed node to
    * @param parentNode Parent XNode
    */
-  private processCommentNode(node: Node, childNodes: XNode[], parentNode: XNode): void {
+  private processCommentNode(
+    node: Node,
+    childNodes: XNode[],
+    parentNode: XNode
+  ): void {
     if (this.config.preserveComments) {
       childNodes.push({
-        name: '#comment',
+        name: "#comment",
         type: NodeType.COMMENT_NODE,
-        value: node.nodeValue || '',
-        parent: parentNode  // Set parent reference
+        value: node.nodeValue || "",
+        parent: parentNode, // Set parent reference
       });
     }
   }
@@ -278,17 +305,17 @@ export class XmlToJsonConverter extends BaseConverter {
    * @param parentNode Parent XNode
    */
   private processProcessingInstructionNode(
-    pi: ProcessingInstruction, 
-    childNodes: XNode[], 
+    pi: ProcessingInstruction,
+    childNodes: XNode[],
     parentNode: XNode
   ): void {
     if (this.config.preserveProcessingInstr) {
       childNodes.push({
-        name: '#pi',
+        name: "#pi",
         type: NodeType.PROCESSING_INSTRUCTION_NODE,
-        value: pi.data || '',
+        value: pi.data || "",
         attributes: { target: pi.target },
-        parent: parentNode  // Set parent reference
+        parent: parentNode, // Set parent reference
       });
     }
   }
@@ -299,7 +326,11 @@ export class XmlToJsonConverter extends BaseConverter {
    * @param childNodes Array to add the processed node to
    * @param parentNode Parent XNode
    */
-  private processElementNode(element: Element, childNodes: XNode[], parentNode: XNode): void {
+  private processElementNode(
+    element: Element,
+    childNodes: XNode[],
+    parentNode: XNode
+  ): void {
     childNodes.push(this.domToXNode(element, parentNode));
   }
 
@@ -311,19 +342,19 @@ export class XmlToJsonConverter extends BaseConverter {
   private xnodeToJson(node: XNode): Record<string, any> {
     const result: Record<string, any> = {};
     const nodeObj: Record<string, any> = {};
-    
+
     // Process core node properties (namespace, prefix, value)
     this.processNodeCoreProperties(node, nodeObj);
-    
+
     // Process attributes and namespace declarations
     this.processNodeAttributesForJson(node, nodeObj);
-    
+
     // Process child nodes
     this.processNodeChildrenForJson(node, nodeObj);
-    
+
     // Clean empty properties in compact mode
     this.cleanEmptyPropertiesIfNeeded(nodeObj);
-    
+
     result[node.name] = nodeObj;
     return result;
   }
@@ -333,17 +364,20 @@ export class XmlToJsonConverter extends BaseConverter {
    * @param node Source XNode
    * @param nodeObj Target JSON object
    */
-  private processNodeCoreProperties(node: XNode, nodeObj: Record<string, any>): void {
+  private processNodeCoreProperties(
+    node: XNode,
+    nodeObj: Record<string, any>
+  ): void {
     // Add namespace if present
     if (node.namespace && this.config.preserveNamespaces) {
       nodeObj[this.config.propNames.namespace] = node.namespace;
     }
-    
+
     // Add prefix if present
     if (node.prefix && this.config.preserveNamespaces) {
       nodeObj[this.config.propNames.prefix] = node.prefix;
     }
-    
+
     // Add value if present and if text nodes should be preserved
     if (node.value !== undefined && this.config.preserveTextNodes) {
       nodeObj[this.config.propNames.value] = node.value;
@@ -355,17 +389,20 @@ export class XmlToJsonConverter extends BaseConverter {
    * @param node Source XNode
    * @param nodeObj Target JSON object
    */
-  private processNodeAttributesForJson(node: XNode, nodeObj: Record<string, any>): void {
+  private processNodeAttributesForJson(
+    node: XNode,
+    nodeObj: Record<string, any>
+  ): void {
     if (!this.config.preserveAttributes) return;
-    
+
     const attrs: Array<Record<string, any>> = [];
-    
+
     // Add regular attributes
     this.addRegularAttributesToJson(node, attrs);
-    
+
     // Add namespace declarations as special attributes
     this.addNamespaceDeclarationsToJson(node, attrs);
-    
+
     if (attrs.length > 0) {
       nodeObj[this.config.propNames.attributes] = attrs;
     }
@@ -376,11 +413,14 @@ export class XmlToJsonConverter extends BaseConverter {
    * @param node Source XNode
    * @param attrs Target attributes array
    */
-  private addRegularAttributesToJson(node: XNode, attrs: Array<Record<string, any>>): void {
+  private addRegularAttributesToJson(
+    node: XNode,
+    attrs: Array<Record<string, any>>
+  ): void {
     if (node.attributes && Object.keys(node.attributes).length > 0) {
       for (const [name, value] of Object.entries(node.attributes)) {
         const attrObj: Record<string, any> = {
-          [name]: { [this.config.propNames.value]: value }
+          [name]: { [this.config.propNames.value]: value },
         };
         attrs.push(attrObj);
       }
@@ -392,12 +432,15 @@ export class XmlToJsonConverter extends BaseConverter {
    * @param node Source XNode
    * @param attrs Target attributes array
    */
-  private addNamespaceDeclarationsToJson(node: XNode, attrs: Array<Record<string, any>>): void {
+  private addNamespaceDeclarationsToJson(
+    node: XNode,
+    attrs: Array<Record<string, any>>
+  ): void {
     if (node.namespaceDeclarations && this.config.preserveNamespaces) {
       for (const [prefix, uri] of Object.entries(node.namespaceDeclarations)) {
-        const attrName = prefix === '' ? 'xmlns' : `xmlns:${prefix}`;
+        const attrName = prefix === "" ? "xmlns" : `xmlns:${prefix}`;
         const attrObj: Record<string, any> = {
-          [attrName]: { [this.config.propNames.value]: uri }
+          [attrName]: { [this.config.propNames.value]: uri },
         };
         attrs.push(attrObj);
       }
@@ -409,40 +452,46 @@ export class XmlToJsonConverter extends BaseConverter {
    * @param node Source XNode
    * @param nodeObj Target JSON object
    */
-  private processNodeChildrenForJson(node: XNode, nodeObj: Record<string, any>): void {
+  private processNodeChildrenForJson(
+    node: XNode,
+    nodeObj: Record<string, any>
+  ): void {
     if (!node.children || node.children.length === 0) return;
-    
+
     const children: Array<Record<string, any>> = [];
-    
+
     for (const child of node.children) {
       switch (child.type) {
         case NodeType.TEXT_NODE:
-          children.push({ [this.config.propNames.value]: child.value });
+          // Only add text nodes if preserveTextNodes is true
+          if (this.config.preserveTextNodes) {
+            children.push({ [this.config.propNames.value]: child.value });
+          }
           break;
-          
+
         case NodeType.CDATA_SECTION_NODE:
           children.push({ [this.config.propNames.cdata]: child.value });
           break;
-          
+
         case NodeType.COMMENT_NODE:
           children.push({ [this.config.propNames.comments]: child.value });
           break;
-          
+
         case NodeType.PROCESSING_INSTRUCTION_NODE:
           children.push({
             [this.config.propNames.instruction]: {
               [this.config.propNames.target]: child.attributes?.target,
-              [this.config.propNames.value]: child.value
-            }
+              [this.config.propNames.value]: child.value,
+            },
           });
           break;
-          
+
         case NodeType.ELEMENT_NODE:
           children.push(this.xnodeToJson(child));
           break;
       }
     }
-    
+
     if (children.length > 0) {
       nodeObj[this.config.propNames.children] = children;
     }
@@ -454,12 +503,15 @@ export class XmlToJsonConverter extends BaseConverter {
    */
   private cleanEmptyPropertiesIfNeeded(nodeObj: Record<string, any>): void {
     if (!this.config.outputOptions.compact) return;
-    
-    Object.keys(nodeObj).forEach(key => {
+
+    Object.keys(nodeObj).forEach((key) => {
       const value = nodeObj[key];
-      if (value === undefined || value === null || 
-          (Array.isArray(value) && value.length === 0) ||
-          (typeof value === 'object' && Object.keys(value).length === 0)) {
+      if (
+        value === undefined ||
+        value === null ||
+        (Array.isArray(value) && value.length === 0) ||
+        (typeof value === "object" && Object.keys(value).length === 0)
+      ) {
         delete nodeObj[key];
       }
     });

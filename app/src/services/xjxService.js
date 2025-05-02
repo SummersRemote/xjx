@@ -1,24 +1,153 @@
 /**
- * XJX Service
+ * XJX Service - Simplified Version
  * 
- * Provides a wrapper around the XJX library for centralized management
- * of XML/JSON conversion and other operations.
+ * Manages a persistent XJX instance and provides methods for
+ * working with transformers directly.
  */
-// import { XJX } from 'xjx/full';
-import { XJX } from '../../../dist';
-// import 'xjx/extensions/GetPathExtension';
-// import 'xjx/extensions/GetJsonSchemaExtension';
+import { XJX, TransformDirection } from '../../../dist';
+import { BooleanTransformer, NumberTransformer, StringReplaceTransformer } from '../../../dist';
+import FilterChildrenTransformer from './transformers/FilterChildrenTransformer';
 
 export default class XjxService {
+  // Singleton XJX instance
+  static _instance = null;
+  
+  // Direction enum for convenience
+  static Direction = TransformDirection;
+  
   /**
-   * Creates an XJX instance with the provided configuration
-   * @param {Object} config - XJX configuration options
-   * @returns {XJX} XJX instance
+   * Get the singleton XJX instance, creating it if necessary
+   * @param {Object} config - Optional configuration to reset the instance
+   * @returns {XJX} The XJX instance
    */
-  static createInstance(config) {
-    return new XJX(config);
+  static getInstance(config = null) {
+    if (!XjxService._instance || config) {
+      // Create a new instance with the provided config or default
+      XjxService._instance = new XJX(config || {});
+    }
+    return XjxService._instance;
   }
-
+  
+  /**
+   * Reset the XJX instance with a new configuration
+   * @param {Object} config - New configuration
+   * @returns {XJX} The new XJX instance
+   */
+  static resetInstance(config) {
+    // Clean up the old instance if it exists
+    if (XjxService._instance) {
+      XjxService._instance.cleanup();
+    }
+    
+    // Create and return a new instance
+    XjxService._instance = new XJX(config || {});
+    return XjxService._instance;
+  }
+  
+  /**
+   * Get available transformer classes
+   * @returns {Object} Object containing transformer classes
+   */
+  static getTransformerClasses() {
+    return {
+      BooleanTransformer,
+      NumberTransformer,
+      StringReplaceTransformer,
+      FilterChildrenTransformer
+    };
+  }
+  
+  /**
+   * Add a Boolean transformer
+   * @param {string} direction - 'XML_TO_JSON' or 'JSON_TO_XML'
+   * @param {Object} options - Transformer options
+   * @returns {BooleanTransformer} The created transformer
+   */
+  static addBooleanTransformer(direction, options) {
+    const instance = XjxService.getInstance();
+    const transformer = new BooleanTransformer(options);
+    
+    // Add to XJX instance
+    instance.addValueTransformer(TransformDirection[direction], transformer);
+    
+    return transformer;
+  }
+  
+  /**
+   * Add a Number transformer
+   * @param {string} direction - 'XML_TO_JSON' or 'JSON_TO_XML'
+   * @param {Object} options - Transformer options
+   * @returns {NumberTransformer} The created transformer
+   */
+  static addNumberTransformer(direction, options) {
+    const instance = XjxService.getInstance();
+    const transformer = new NumberTransformer(options);
+    
+    // Add to XJX instance
+    instance.addValueTransformer(TransformDirection[direction], transformer);
+    
+    return transformer;
+  }
+  
+  /**
+   * Add a String Replace transformer
+   * @param {string} direction - 'XML_TO_JSON' or 'JSON_TO_XML'
+   * @param {Object} options - Transformer options
+   * @returns {StringReplaceTransformer} The created transformer
+   */
+  static addStringReplaceTransformer(direction, options) {
+    const instance = XjxService.getInstance();
+    
+    // Convert string pattern to RegExp if needed
+    if (typeof options.pattern === 'string' && 
+        options.pattern.startsWith('/') && 
+        options.pattern.lastIndexOf('/') > 0) {
+      const lastSlashIndex = options.pattern.lastIndexOf('/');
+      const patternBody = options.pattern.substring(1, lastSlashIndex);
+      const flags = options.pattern.substring(lastSlashIndex + 1);
+      options.pattern = new RegExp(patternBody, flags);
+    }
+    
+    const transformer = new StringReplaceTransformer(options);
+    
+    // Add to XJX instance
+    instance.addValueTransformer(TransformDirection[direction], transformer);
+    
+    return transformer;
+  }
+  
+  /**
+   * Add a Filter Children transformer
+   * @param {string} direction - 'XML_TO_JSON' or 'JSON_TO_XML'
+   * @param {Object} options - Transformer options
+   * @returns {FilterChildrenTransformer} The created transformer
+   */
+  static addFilterChildrenTransformer(direction, options) {
+    const instance = XjxService.getInstance();
+    const transformer = new FilterChildrenTransformer(options);
+    
+    // Add to XJX instance
+    instance.addChildrenTransformer(TransformDirection[direction], transformer);
+    
+    return transformer;
+  }
+  
+  /**
+   * Clear all transformers for a specific direction
+   * @param {string} direction - 'XML_TO_JSON' or 'JSON_TO_XML', or null for all
+   */
+  static clearTransformers(direction = null) {
+    const instance = XjxService.getInstance();
+    
+    if (direction) {
+      // Clear transformers for specific direction
+      instance.clearTransformers(TransformDirection[direction]);
+    } else {
+      // Clear all transformers
+      instance.clearTransformers();
+    }
+  }
+  
   /**
    * Convert XML string to JSON
    * @param {string} xmlString - XML content
@@ -26,15 +155,21 @@ export default class XjxService {
    * @returns {Object} JSON representation of the XML
    */
   static xmlToJson(xmlString, config) {
-    const xjx = this.createInstance(config);
-    try {
-      const result = xjx.xmlToJson(xmlString);
-      return result;
-    } finally {
-      xjx.cleanup();
-    }
+    // Update instance with new config but preserve transformers
+    const instance = XjxService.getInstance();
+    
+    // Apply the new configuration
+    Object.keys(config).forEach(key => {
+      // Skip valueTransforms since we're not using it anymore
+      if (key !== 'valueTransforms') {
+        instance[key] = config[key];
+      }
+    });
+    
+    // Perform the conversion
+    return instance.xmlToJson(xmlString);
   }
-
+  
   /**
    * Convert JSON object to XML string
    * @param {Object} jsonObj - JSON content
@@ -42,15 +177,21 @@ export default class XjxService {
    * @returns {string} XML representation of the JSON
    */
   static jsonToXml(jsonObj, config) {
-    const xjx = this.createInstance(config);
-    try {
-      const result = xjx.jsonToXml(jsonObj);
-      return result;
-    } finally {
-      xjx.cleanup();
-    }
+    // Update instance with new config but preserve transformers
+    const instance = XjxService.getInstance();
+    
+    // Apply the new configuration
+    Object.keys(config).forEach(key => {
+      // Skip valueTransforms since we're not using it anymore
+      if (key !== 'valueTransforms') {
+        instance[key] = config[key];
+      }
+    });
+    
+    // Perform the conversion
+    return instance.jsonToXml(jsonObj);
   }
-
+  
   /**
    * Pretty print XML string
    * @param {string} xmlString - XML content
@@ -58,15 +199,11 @@ export default class XjxService {
    * @returns {string} Formatted XML
    */
   static prettyPrintXml(xmlString, config) {
-    const xjx = this.createInstance(config);
-    try {
-      const result = xjx.prettyPrintXml(xmlString);
-      return result;
-    } finally {
-      xjx.cleanup();
-    }
+    // Use the existing instance but don't update its config
+    const instance = XjxService.getInstance();
+    return instance.prettyPrintXml(xmlString);
   }
-
+  
   /**
    * Validate XML string
    * @param {string} xmlString - XML content
@@ -74,15 +211,11 @@ export default class XjxService {
    * @returns {Object} Validation result {isValid, message}
    */
   static validateXml(xmlString, config) {
-    const xjx = this.createInstance(config);
-    try {
-      const result = xjx.validateXML(xmlString);
-      return result;
-    } finally {
-      xjx.cleanup();
-    }
+    // Use the existing instance but don't update its config
+    const instance = XjxService.getInstance();
+    return instance.validateXML(xmlString);
   }
-
+  
   /**
    * Get a value from JSON object using a path
    * @param {Object} jsonObj - JSON object
@@ -92,15 +225,11 @@ export default class XjxService {
    * @returns {any} Retrieved value
    */
   static getPath(jsonObj, path, config, fallback) {
-    const xjx = this.createInstance(config);
-    try {
-      const result = xjx.getPath(jsonObj, path, fallback);
-      return result;
-    } finally {
-      xjx.cleanup();
-    }
+    // Use the existing instance but don't update its config
+    const instance = XjxService.getInstance();
+    return instance.getPath(jsonObj, path, fallback);
   }
-
+  
   /**
    * Format JSON string with proper indentation
    * @param {string} jsonString - JSON string
@@ -115,7 +244,7 @@ export default class XjxService {
       throw new Error(`Failed to format JSON: ${error.message}`);
     }
   }
-
+  
   /**
    * Validate JSON string
    * @param {string} jsonString - JSON string
@@ -136,12 +265,17 @@ export default class XjxService {
    * @returns {Object} JSON schema object for validating XML-JSON documents
    */
   static getJsonSchema(config) {
-    const xjx = this.createInstance(config);
-    try {
-      const schema = xjx.getJsonSchema();
-      return schema;
-    } finally {
-      xjx.cleanup();
+    const instance = XjxService.getInstance();
+    return instance.getJsonSchema();
+  }
+  
+  /**
+   * Clean up resources when app shuts down
+   */
+  static cleanup() {
+    if (XjxService._instance) {
+      XjxService._instance.cleanup();
+      XjxService._instance = null;
     }
   }
 }

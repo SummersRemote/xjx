@@ -1,5 +1,6 @@
 <template>
   <main-layout>
+    <!-- Configuration Card -->
     <v-card class="mb-4">
       <v-card-title>
         <v-icon start>mdi-cog</v-icon>
@@ -22,6 +23,9 @@
       </v-expand-transition>
     </v-card>
 
+    <!-- Transformer Panel -->
+    <transformer-panel />
+
     <v-row>
       <v-col cols="12" class="text-center">
         <v-btn
@@ -43,7 +47,7 @@
         <v-btn
           color="warning"
           class="mx-2"
-          @click="store.resetToDefault"
+          @click="resetAll"
         >
           Reset
         </v-btn>
@@ -79,6 +83,8 @@ import ConfigPanel from './components/ConfigPanel.vue';
 import XmlEditor from './components/XmlEditor.vue';
 import JsonEditor from './components/JsonEditor.vue';
 import PathNavigator from './components/PathNavigator.vue';
+import TransformerPanel from './components/TransformerPanel.vue';
+import XjxService from './services/xjxService';
 
 // Get the store
 const store = useXjxStore();
@@ -89,6 +95,15 @@ const showConfig = ref(false);
 // Methods
 const toggleConfig = () => {
   showConfig.value = !showConfig.value;
+};
+
+// Reset everything including transformers
+const resetAll = () => {
+  // Reset the store to default values
+  store.resetToDefault();
+  
+  // Reset the XJX instance (this clears transformers)
+  XjxService.resetInstance(store.config);
 };
 
 // Initialize the application

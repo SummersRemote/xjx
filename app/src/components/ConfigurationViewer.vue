@@ -82,29 +82,6 @@ const dialog = computed({
   set: (value) => emit('update:modelValue', value)
 });
 
-// Format the configuration for display
-const formattedConfig = computed(() => {
-  try {
-    // Create a clean copy of the config without any Vue reactivity
-    const configCopy = JSON.parse(JSON.stringify(store.config));
-    
-    // Format transformers to be more readable if they exist
-    if (configCopy.valueTransforms && configCopy.valueTransforms.length > 0) {
-      configCopy.valueTransforms = configCopy.valueTransforms.map((transformer, index) => {
-        return {
-          ...transformer,
-          _index: index + 1, // Add index for readability
-        };
-      });
-    }
-    
-    return JSON.stringify(configCopy, null, 2);
-  } catch (error) {
-    console.error("Error formatting configuration:", error);
-    return `Error formatting configuration: ${error.message}`;
-  }
-});
-
 // Copy configuration to clipboard
 const copyConfig = () => {
   navigator.clipboard.writeText(formattedConfig.value)

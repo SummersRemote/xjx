@@ -1,47 +1,63 @@
 /**
- * XJX Service - Simplified Version
+ * XJX Service - Fixed Version
  * 
- * Manages a persistent XJX instance and provides methods for
- * working with transformers directly.
+ * Manages XJX instances and provides methods for working with transformers directly.
+ * This version properly handles configuration changes by recreating the instance
+ * while preserving transformers.
  */
 import { XJX, TransformDirection } from '../../../dist';
 import { BooleanTransformer, NumberTransformer, StringReplaceTransformer } from '../../../dist';
 import FilterChildrenTransformer from './transformers/FilterChildrenTransformer';
 
 export default class XjxService {
-  // Singleton XJX instance
-  static _instance = null;
+  // Store active transformers
+  static _transformers = [];
   
   // Direction enum for convenience
   static Direction = TransformDirection;
   
   /**
-   * Get the singleton XJX instance, creating it if necessary
-   * @param {Object} config - Optional configuration to reset the instance
-   * @returns {XJX} The XJX instance
+   * Create a fresh XJX instance with the provided configuration
+   * @param {Object} config - Configuration to use
+   * @returns {XJX} A new XJX instance
    */
-  static getInstance(config = null) {
-    if (!XjxService._instance || config) {
-      // Create a new instance with the provided config or default
-      XjxService._instance = new XJX(config || {});
-    }
-    return XjxService._instance;
+  static createInstance(config) {
+    return new XJX(config);
   }
   
   /**
-   * Reset the XJX instance with a new configuration
-   * @param {Object} config - New configuration
-   * @returns {XJX} The new XJX instance
+   * Create an XJX instance with the current transformers applied
+   * @param {Object} config - Configuration to use
+   * @returns {XJX} A new XJX instance with transformers applied
    */
-  static resetInstance(config) {
-    // Clean up the old instance if it exists
-    if (XjxService._instance) {
-      XjxService._instance.cleanup();
+  static createInstanceWithTransformers(config) {
+    // Create fresh instance with the provided config
+    const xjx = new XJX(config);
+    
+    // Apply all registered transformers
+    if (XjxService._transformers && XjxService._transformers.length > 0) {
+      for (const { direction, type, transformer } of XjxService._transformers) {
+        try {
+          // Convert direction string to enum
+          const dirEnum = TransformDirection[direction];
+          
+          // Apply transformer based on type
+          if (type === 'value') {
+            xjx.addValueTransformer(dirEnum, transformer);
+          } else if (type === 'children') {
+            xjx.addChildrenTransformer(dirEnum, transformer);
+          } else if (type === 'attribute') {
+            xjx.addAttributeTransformer(dirEnum, transformer);
+          } else if (type === 'node') {
+            xjx.addNodeTransformer(dirEnum, transformer);
+          }
+        } catch (error) {
+          console.error(`Error applying transformer:`, error);
+        }
+      }
     }
     
-    // Create and return a new instance
-    XjxService._instance = new XJX(config || {});
-    return XjxService._instance;
+    return xjx;
   }
   
   /**
@@ -64,11 +80,14 @@ export default class XjxService {
    * @returns {BooleanTransformer} The created transformer
    */
   static addBooleanTransformer(direction, options) {
-    const instance = XjxService.getInstance();
     const transformer = new BooleanTransformer(options);
     
-    // Add to XJX instance
-    instance.addValueTransformer(TransformDirection[direction], transformer);
+    // Store the transformer in our registry
+    XjxService._transformers.push({
+      direction,
+      type: 'value',
+      transformer
+    });
     
     return transformer;
   }
@@ -80,11 +99,14 @@ export default class XjxService {
    * @returns {NumberTransformer} The created transformer
    */
   static addNumberTransformer(direction, options) {
-    const instance = XjxService.getInstance();
     const transformer = new NumberTransformer(options);
     
-    // Add to XJX instance
-    instance.addValueTransformer(TransformDirection[direction], transformer);
+    // Store the transformer in our registry
+    XjxService._transformers.push({
+      direction,
+      type: 'value',
+      transformer
+    });
     
     return transformer;
   }
@@ -96,8 +118,6 @@ export default class XjxService {
    * @returns {StringReplaceTransformer} The created transformer
    */
   static addStringReplaceTransformer(direction, options) {
-    const instance = XjxService.getInstance();
-    
     // Convert string pattern to RegExp if needed
     if (typeof options.pattern === 'string' && 
         options.pattern.startsWith('/') && 
@@ -110,8 +130,12 @@ export default class XjxService {
     
     const transformer = new StringReplaceTransformer(options);
     
-    // Add to XJX instance
-    instance.addValueTransformer(TransformDirection[direction], transformer);
+    // Store the transformer in our registry
+    XjxService._transformers.push({
+      direction,
+      type: 'value',
+      transformer
+    });
     
     return transformer;
   }
@@ -123,11 +147,14 @@ export default class XjxService {
    * @returns {FilterChildrenTransformer} The created transformer
    */
   static addFilterChildrenTransformer(direction, options) {
-    const instance = XjxService.getInstance();
     const transformer = new FilterChildrenTransformer(options);
     
-    // Add to XJX instance
-    instance.addChildrenTransformer(TransformDirection[direction], transformer);
+    // Store the transformer in our registry
+    XjxService._transformers.push({
+      direction,
+      type: 'children',
+      transformer
+    });
     
     return transformer;
   }
@@ -137,15 +164,23 @@ export default class XjxService {
    * @param {string} direction - 'XML_TO_JSON' or 'JSON_TO_XML', or null for all
    */
   static clearTransformers(direction = null) {
-    const instance = XjxService.getInstance();
-    
     if (direction) {
-      // Clear transformers for specific direction
-      instance.clearTransformers(TransformDirection[direction]);
+      // Filter out transformers for the specified direction
+      XjxService._transformers = XjxService._transformers.filter(
+        t => t.direction !== direction
+      );
     } else {
       // Clear all transformers
-      instance.clearTransformers();
+      XjxService._transformers = [];
     }
+  }
+  
+  /**
+   * Get active transformers
+   * @returns {Array} Array of transformer entries
+   */
+  static getActiveTransformers() {
+    return [...XjxService._transformers];
   }
   
   /**
@@ -155,19 +190,16 @@ export default class XjxService {
    * @returns {Object} JSON representation of the XML
    */
   static xmlToJson(xmlString, config) {
-    // Update instance with new config but preserve transformers
-    const instance = XjxService.getInstance();
+    // Create fresh instance with config AND transformers
+    const xjx = this.createInstanceWithTransformers(config);
     
-    // Apply the new configuration
-    Object.keys(config).forEach(key => {
-      // Skip valueTransforms since we're not using it anymore
-      if (key !== 'valueTransforms') {
-        instance[key] = config[key];
-      }
-    });
-    
-    // Perform the conversion
-    return instance.xmlToJson(xmlString);
+    try {
+      // Perform conversion
+      return xjx.xmlToJson(xmlString);
+    } finally {
+      // Clean up the instance
+      xjx.cleanup();
+    }
   }
   
   /**
@@ -177,19 +209,16 @@ export default class XjxService {
    * @returns {string} XML representation of the JSON
    */
   static jsonToXml(jsonObj, config) {
-    // Update instance with new config but preserve transformers
-    const instance = XjxService.getInstance();
+    // Create fresh instance with config AND transformers
+    const xjx = this.createInstanceWithTransformers(config);
     
-    // Apply the new configuration
-    Object.keys(config).forEach(key => {
-      // Skip valueTransforms since we're not using it anymore
-      if (key !== 'valueTransforms') {
-        instance[key] = config[key];
-      }
-    });
-    
-    // Perform the conversion
-    return instance.jsonToXml(jsonObj);
+    try {
+      // Perform conversion
+      return xjx.jsonToXml(jsonObj);
+    } finally {
+      // Clean up the instance
+      xjx.cleanup();
+    }
   }
   
   /**
@@ -199,9 +228,12 @@ export default class XjxService {
    * @returns {string} Formatted XML
    */
   static prettyPrintXml(xmlString, config) {
-    // Use the existing instance but don't update its config
-    const instance = XjxService.getInstance();
-    return instance.prettyPrintXml(xmlString);
+    const xjx = this.createInstance(config);
+    try {
+      return xjx.prettyPrintXml(xmlString);
+    } finally {
+      xjx.cleanup();
+    }
   }
   
   /**
@@ -211,9 +243,12 @@ export default class XjxService {
    * @returns {Object} Validation result {isValid, message}
    */
   static validateXml(xmlString, config) {
-    // Use the existing instance but don't update its config
-    const instance = XjxService.getInstance();
-    return instance.validateXML(xmlString);
+    const xjx = this.createInstance(config);
+    try {
+      return xjx.validateXML(xmlString);
+    } finally {
+      xjx.cleanup();
+    }
   }
   
   /**
@@ -225,9 +260,12 @@ export default class XjxService {
    * @returns {any} Retrieved value
    */
   static getPath(jsonObj, path, config, fallback) {
-    // Use the existing instance but don't update its config
-    const instance = XjxService.getInstance();
-    return instance.getPath(jsonObj, path, fallback);
+    const xjx = this.createInstance(config);
+    try {
+      return xjx.getPath(jsonObj, path, fallback);
+    } finally {
+      xjx.cleanup();
+    }
   }
   
   /**
@@ -265,17 +303,19 @@ export default class XjxService {
    * @returns {Object} JSON schema object for validating XML-JSON documents
    */
   static getJsonSchema(config) {
-    const instance = XjxService.getInstance();
-    return instance.getJsonSchema();
+    const xjx = this.createInstance(config);
+    try {
+      return xjx.getJsonSchema();
+    } finally {
+      xjx.cleanup();
+    }
   }
   
   /**
-   * Clean up resources when app shuts down
+   * Reset service state
    */
-  static cleanup() {
-    if (XjxService._instance) {
-      XjxService._instance.cleanup();
-      XjxService._instance = null;
-    }
+  static reset() {
+    // Clear all transformers
+    XjxService._transformers = [];
   }
 }

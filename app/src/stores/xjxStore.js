@@ -61,8 +61,6 @@ export const useXjxStore = defineStore("xjx", {
         children: "$children",
       },
 
-      // New: Value transformers array (initialized as an empty array)
-      valueTransforms: [],
     },
 
     // Utility state
@@ -127,7 +125,6 @@ export const useXjxStore = defineStore("xjx", {
       this.pathInput = "";
       this.pathResult = "";
       this.error = null;
-      this.config.valueTransforms = []; // Reset transformers
 
       // Convert the default XML to JSON
       this.convertXmlToJson();

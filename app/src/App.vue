@@ -24,7 +24,7 @@
     </v-card>
 
     <!-- Transformer Panel -->
-    <transformer-panel />
+    <transformer-panel ref="transformerPanel" />
 
     <v-row>
       <v-col cols="12" class="text-center">
@@ -91,6 +91,7 @@ const store = useXjxStore();
 
 // State
 const showConfig = ref(false);
+const transformerPanel = ref(null);
 
 // Methods
 const toggleConfig = () => {
@@ -102,8 +103,13 @@ const resetAll = () => {
   // Reset the store to default values
   store.resetToDefault();
   
-  // Reset the XJX instance (this clears transformers)
-  XjxService.resetInstance(store.config);
+  // Reset the transformers
+  XjxService.reset();
+  
+  // Refresh the transformer panel
+  if (transformerPanel.value) {
+    transformerPanel.value.refreshTransformers();
+  }
 };
 
 // Initialize the application

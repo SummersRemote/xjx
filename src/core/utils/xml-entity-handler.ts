@@ -98,82 +98,15 @@ export class XmlEntityHandler {
   
   /**
    * Pre-processes XML string before parsing to handle common issues
-   * Centralizes preprocessing logic from multiple converters
    * @param xmlString Original XML string
    * @returns Preprocessed XML string ready for parsing
    */
   public preprocessXml(xmlString: string): string {
-    // Handle unescaped entities outside of CDATA sections
-    let inCdata = false;
-    let result = '';
-    let i = 0;
-
-    while (i < xmlString.length) {
-      // Check for CDATA section start
-      if (xmlString.substring(i, i + 9) === '<![CDATA[') {
-        inCdata = true;
-        result += '<![CDATA[';
-        i += 9;
-        continue;
-      }
-      
-      // Check for CDATA section end
-      if (inCdata && xmlString.substring(i, i + 3) === ']]>') {
-        inCdata = false;
-        result += ']]>';
-        i += 3;
-        continue;
-      }
-      
-      // Handle special characters outside CDATA
-      if (!inCdata) {
-        const char = xmlString.charAt(i);
-        if (char === '&') {
-          // Check if this is already an entity reference
-          if (xmlString.substring(i, i + 5) === '&amp;' ||
-              xmlString.substring(i, i + 4) === '&lt;' ||
-              xmlString.substring(i, i + 4) === '&gt;' ||
-              xmlString.substring(i, i + 6) === '&quot;' ||
-              xmlString.substring(i, i + 6) === '&apos;') {
-            // Already an entity, leave it as is
-            result += char;
-          } else {
-            // Not a valid entity reference, escape it
-            result += '&amp;';
-          }
-        } else if (char === '<') {
-          // Check if this is the start of a tag, comment, or processing instruction
-          if (this.isValidXmlStart(xmlString.substring(i))) {
-            result += char;
-          } else {
-            // Not a valid XML start, escape it
-            result += '&lt;';
-          }
-        } else if (char === '>') {
-          // Only escape if it's not part of a valid tag ending
-          if (i > 0 && (xmlString.charAt(i - 1) === '-' && xmlString.charAt(i - 2) === '-')) {
-            // End of comment, don't escape
-            result += char;
-          } else {
-            // Check if it's a valid tag end
-            if (this.isValidXmlEnd(xmlString.substring(0, i))) {
-              result += char;
-            } else {
-              result += '&gt;';
-            }
-          }
-        } else {
-          result += char;
-        }
-      } else {
-        // Inside CDATA, pass through unchanged
-        result += xmlString.charAt(i);
-      }
-      
-      i++;
-    }
-    
-    return result;
+    // Much simpler approach that only handles the essential escaping
+    return xmlString
+      .replace(/&(?!amp;|lt;|gt;|quot;|apos;)/g, '&amp;')
+      .replace(/<(?![a-zA-Z\/?!])/g, '&lt;')
+      .replace(/(?<![a-zA-Z0-9_:"'\s\/])>/g, '&gt;');
   }
   
   /**

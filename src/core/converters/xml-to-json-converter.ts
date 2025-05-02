@@ -155,7 +155,8 @@ export class XmlToJsonConverter extends BaseConverter {
         !hasMixed) {
       const text = element.childNodes[0].nodeValue || '';
       const normalizedText = this.normalizeTextContent(text, false);
-      if (normalizedText) {
+      if (normalizedText && this.config.preserveTextNodes) {
+        // Only add the value if preserveTextNodes is true
         xnode.value = this.entityHandler.unescapeXML(normalizedText);
       }
       return true;
@@ -343,8 +344,8 @@ export class XmlToJsonConverter extends BaseConverter {
       nodeObj[this.config.propNames.prefix] = node.prefix;
     }
     
-    // Add value if present
-    if (node.value !== undefined) {
+    // Add value if present and if text nodes should be preserved
+    if (node.value !== undefined && this.config.preserveTextNodes) {
       nodeObj[this.config.propNames.value] = node.value;
     }
   }

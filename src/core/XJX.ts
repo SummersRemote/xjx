@@ -21,6 +21,7 @@ import { XmlUtil } from "./utils/xml-utils";
 import { JsonUtil } from "./utils/json-utils";
 import { DOMAdapter } from "./adapters/dom-adapter";
 import { UnifiedRegistry, RegistryType } from "./registry/unified-registry";
+import { ConfigurationError } from "./types/error-types";
 
 /**
  * XJX - XML-JSON transformation library
@@ -72,16 +73,20 @@ export class XJX {
     
     // Initialize components
     this.transformerManager = new TransformerManager();
-    this.transformationService = new TransformationService(this.config, this.transformerManager);
+    
+    // Initialize utility classes first
     this.xmlUtil = new XmlUtil(this.config);
     this.jsonUtil = new JsonUtil(this.config);
     
-    // Register the transformation service
-    this.registerTransformationService();
+    // Initialize transformation service
+    this.transformationService = new TransformationService(this.config, this.transformerManager);
     
     // Initialize converters
     this.xmlToJsonConverter = new XmlToJsonConverter(this.config);
     this.jsonToXmlConverter = new JsonToXmlConverter(this.config);
+    
+    // Register the transformation service
+    this.registerTransformationService();
     
     // Apply extension methods
     this.applyExtensions();
@@ -233,6 +238,67 @@ export class XJX {
     root?: string | Record<string, any>
   ): Record<string, any> {
     return this.jsonUtil.objectToXJX(obj, root);
+  }
+  
+  /**
+   * Get the current configuration
+   * @returns A copy of the current configuration
+   */
+  public getConfig(): Configuration {
+    // Return a deep copy to prevent direct modification
+    return JSON.parse(JSON.stringify(this.config));
+  }
+  
+  /**
+   * Update configuration with new options
+   * @param options Partial configuration to merge with current config
+   * @returns This instance for chaining
+   */
+  public setConfig(options: Partial<Configuration>): this {
+    if (!options || Object.keys(options).length === 0) {
+      return this; // No changes needed
+    }
+  
+    try {
+      // Update configuration through the provider
+      const configProvider = ConfigProvider.getInstance();
+      
+      // Apply update (this internally validates and merges with existing config)
+      configProvider.updateConfig(options);
+      
+      // Get the fresh, merged and validated config
+      this.config = configProvider.getConfig();
+      
+      // Reinitialize components with the updated configuration
+      this.updateDependencies();
+      
+      return this;
+    } catch (error) {
+      // Throw as ConfigurationError to maintain consistent error types
+      throw new ConfigurationError(
+        `Failed to update configuration: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+  
+  /**
+   * Update all dependencies with the current configuration
+   * @private
+   */
+  private updateDependencies(): void {
+    // Update utility classes
+    this.xmlUtil = new XmlUtil(this.config);
+    this.jsonUtil = new JsonUtil(this.config);
+    
+    // Update transformation service with new config
+    this.transformationService = new TransformationService(this.config, this.transformerManager);
+    
+    // Re-register the transformation service
+    this.registerTransformationService();
+    
+    // Update converters
+    this.xmlToJsonConverter = new XmlToJsonConverter(this.config);
+    this.jsonToXmlConverter = new JsonToXmlConverter(this.config);
   }
   
   /**

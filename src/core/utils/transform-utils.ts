@@ -6,7 +6,7 @@ import {
   TransformContext, 
   TransformDirection, 
   XNode 
-} from '../types/transform-types';
+} from '../types/transform-interfaces';
 import { DOMAdapter } from '../adapters/dom-adapter';
 
 /**

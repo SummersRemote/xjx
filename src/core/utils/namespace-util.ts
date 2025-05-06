@@ -4,7 +4,7 @@
  * Centralizes all namespace resolution logic to ensure consistent handling 
  * of namespaces throughout the library.
  */
-import { XNode } from '../types/transform-types';
+import { XNode } from '../types/transform-interfaces';
 
 export class NamespaceUtil {
   // Singleton instance created immediately

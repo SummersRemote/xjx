@@ -1,148 +1,83 @@
-# XJX Library Documentation
+# XJX
 
-## Table of Contents
+[![npm version](https://badge.fury.io/js/xjx.svg)](https://badge.fury.io/js/xjx)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-- [Introduction](#introduction)
-- [Installation](#installation)
-- [Basic Usage](#basic-usage)
-- [Configuration](#configuration)
-- [XJX API Reference](#xjx-api-reference)
-- [Transformers](#transformers)
-  - [Built-in Transformers](#built-in-transformers)
-  - [Creating Custom Transformers](#creating-custom-transformers)
-- [Working with Namespaces](#working-with-namespaces)
-- [JSON Format](#json-format)
-- [Extensions](#extensions)
-- [Error Handling](#error-handling)
+XJX is a flexible XML/JSON transformation library with a fluent API. It provides robust features for converting between XML and JSON formats with support for custom transformations, preserving XML structure, and extensive configuration options.
 
-## Introduction
+## Features
 
-XJX is a flexible XML-JSON transformation library that provides bidirectional conversion between XML and JSON with support for namespaces, CDATA, comments, processing instructions, and more. The library's transformation pipeline allows you to customize the conversion process with value transformers.
+- **Bidirectional Conversion**: Transform XML to JSON and JSON to XML
+- **Fluent Builder API**: Intuitive method chaining for clean, readable code
+- **Extensible Transformation System**: Create custom transformers to modify content during conversion
+- **Comprehensive Node Support**: Handle elements, attributes, text, CDATA, comments, and processing instructions
+- **Namespace Support**: Preserve and manipulate XML namespaces
+- **Type Transformations**: Convert string values to appropriate JavaScript types (boolean, number, etc.)
+- **Format Preservation**: Keep XML structure, comments, CDATA, and more in JSON
+- **Extensive Configuration**: Customize output format, indentation, and more
 
 ## Installation
 
 ### Node.js
 
-Install using npm:
-
 ```bash
 npm install xjx
 ```
 
-XJX requires one of these DOM implementations:
-
-- **jsdom** (preferred for Node.js environment)
-- **@xmldom/xmldom** (lightweight alternative)
-
-Install with one of these dependencies:
-
-```bash
-# With jsdom (recommended)
-npm install xjx jsdom
-
-# OR with xmldom
-npm install xjx @xmldom/xmldom
-```
-
 ### Browser
 
-XJX can be used directly in the browser:
+#### Via CDN
 
 ```html
-<!-- ESM module (recommended) -->
 <script type="module">
-  import { XJX } from 'https://unpkg.com/xjx/dist/index.js';
-  // Your code here
+  import { XJX } from 'https://cdn.jsdelivr.net/npm/xjx/dist/index.js';
 </script>
+```
 
-<!-- Or UMD bundle -->
-<script src="https://unpkg.com/xjx/dist/xjx.umd.js"></script>
-<script>
-  const xjx = new XJX.XJX(); 
-  // Your code here
-</script>
+#### Via npm and bundlers (webpack, rollup, etc.)
 
-<!-- Or minified bundle -->
-<script src="https://unpkg.com/xjx/dist/xjx.min.js"></script>
+```javascript
+import { XJX } from 'xjx';
 ```
 
 ## Basic Usage
 
-### Converting XML to JSON
+### XML to JSON
 
 ```javascript
 import { XJX } from 'xjx';
 
-// Create a new instance with default configuration
-const xjx = new XJX();
-
-// Convert XML to JSON
-const xmlString = `
-  <root>
-    <element attribute="value">
-      <child>content</child>
-    </element>
-  </root>
+const xml = `
+<users>
+  <user id="1">
+    <name>John Doe</name>
+    <email>john@example.com</email>
+    <active>true</active>
+  </user>
+</users>
 `;
 
-const jsonObj = xjx.xmlToJson(xmlString);
-console.log(JSON.stringify(jsonObj, null, 2));
+const json = XJX.fromXml(xml).toJson();
+console.log(json);
 ```
 
-Output:
-
-```json
-{
-  "root": {
-    "$children": [
-      {
-        "element": {
-          "$attr": [
-            {
-              "attribute": {
-                "$val": "value"
-              }
-            }
-          ],
-          "$children": [
-            {
-              "child": {
-                "$val": "content"
-              }
-            }
-          ]
-        }
-      }
-    ]
-  }
-}
-```
-
-### Converting JSON to XML
+### JSON to XML
 
 ```javascript
 import { XJX } from 'xjx';
 
-const xjx = new XJX();
-
-const jsonObj = {
-  "root": {
-    "$children": [
+const json = {
+  users: {
+    $children: [
       {
-        "element": {
-          "$attr": [
-            {
-              "attribute": {
-                "$val": "value"
-              }
-            }
+        user: {
+          $attr: [
+            { id: { $val: 1 } }
           ],
-          "$children": [
-            {
-              "child": {
-                "$val": "content"
-              }
-            }
+          $children: [
+            { name: { $val: "John Doe" } },
+            { email: { $val: "john@example.com" } },
+            { active: { $val: true } }
           ]
         }
       }
@@ -150,594 +85,484 @@ const jsonObj = {
   }
 };
 
-const xmlString = xjx.jsonToXml(jsonObj);
-console.log(xmlString);
+const xml = XJX.fromJson(json).toXml();
+console.log(xml);
 ```
 
-Output:
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<root>
-  <element attribute="value">
-    <child>content</child>
-  </element>
-</root>
-```
-
-### Converting Plain Objects to XJX Format
-
-You can convert plain JavaScript objects to the XJX JSON format:
+### Converting Data Types
 
 ```javascript
-import { XJX } from 'xjx';
+import { XJX, BooleanTransform, NumberTransform } from 'xjx';
 
-const xjx = new XJX();
+const xml = `
+<data>
+  <active>true</active>
+  <count>42</count>
+  <price>19.99</price>
+</data>
+`;
 
-const plainObj = {
-  name: "John",
-  age: 30,
-  address: {
-    street: "123 Main St",
-    city: "Anytown"
-  },
-  hobbies: ["reading", "coding", "hiking"]
-};
+const json = XJX.fromXml(xml)
+  .withTransforms(
+    new BooleanTransform(),
+    new NumberTransform()
+  )
+  .toJson();
 
-// Convert to XJX format with "person" as the root element
-const xjxObj = xjx.objectToXJX(plainObj, "person");
-console.log(JSON.stringify(xjxObj, null, 2));
-
-// Convert to XML
-const xmlString = xjx.jsonToXml(xjxObj);
-console.log(xmlString);
+console.log(json);
+// Output will have "active" as boolean and "count"/"price" as numbers
 ```
 
-Output:
+## Fluent API
 
-```json
-{
-  "person": {
-    "$children": [
-      {
-        "name": {
-          "$val": "John"
-        }
-      },
-      {
-        "age": {
-          "$val": 30
-        }
-      },
-      {
-        "address": {
-          "$children": [
-            {
-              "street": {
-                "$val": "123 Main St"
-              }
-            },
-            {
-              "city": {
-                "$val": "Anytown"
-              }
-            }
-          ]
-        }
-      },
-      {
-        "hobbies": {
-          "$children": [
-            {
-              "$val": "reading"
-            },
-            {
-              "$val": "coding"
-            },
-            {
-              "$val": "hiking"
-            }
-          ]
-        }
+XJX provides a fluent builder API that makes transformations clear and easy to understand:
+
+```javascript
+// XML to JSON with transformations and custom configuration
+const result = XJX.fromXml(xmlString)
+  .withConfig({
+    preserveWhitespace: false,
+    outputOptions: {
+      compact: true,
+      prettyPrint: true
+    }
+  })
+  .withTransforms(
+    new BooleanTransform(),
+    new NumberTransform(),
+    new AttributeTransform({
+      renameMap: { 'old-name': 'newName' }
+    })
+  )
+  .toJson();
+
+// JSON to XML
+const xml = XJX.fromJson(jsonObject)
+  .withConfig({
+    outputOptions: {
+      prettyPrint: true,
+      indent: 2,
+      xml: {
+        declaration: true
       }
-    ]
-  }
-}
+    }
+  })
+  .toXml();
+
+// XML to XML (roundtrip with transformations)
+const transformedXml = XJX.fromXml(xmlString)
+  .withTransforms(/* ... */)
+  .toXml();
+
+// JSON to JSON (roundtrip with transformations)
+const transformedJson = XJX.fromJson(jsonObject)
+  .withTransforms(/* ... */)
+  .toJson();
+
+// Get JSON as string with custom indentation
+const jsonString = XJX.fromXml(xmlString)
+  .toJsonString(4);
 ```
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<person>
-  <name>John</name>
-  <age>30</age>
-  <address>
-    <street>123 Main St</street>
-    <city>Anytown</city>
-  </address>
-  <hobbies>reading</hobbies>
-  <hobbies>coding</hobbies>
-  <hobbies>hiking</hobbies>
-</person>
-```
+## Configuration Options
 
-## Configuration
-
-XJX provides many configuration options to control the conversion process:
+XJX provides extensive configuration options:
 
 ```javascript
-import { XJX } from 'xjx';
+const config = {
+  // Features to preserve during transformation
+  preserveNamespaces: true,
+  preserveComments: true,
+  preserveProcessingInstr: true,
+  preserveCDATA: true,
+  preserveTextNodes: true,
+  preserveWhitespace: false,
+  preserveAttributes: true,
 
-// Create a new instance with custom configuration
-const xjx = new XJX({
-  // Preservation options
-  preserveNamespaces: true,     // Preserve namespace information
-  preserveComments: true,       // Preserve comments
-  preserveProcessingInstr: true, // Preserve processing instructions
-  preserveCDATA: true,          // Preserve CDATA sections
-  preserveTextNodes: true,      // Preserve text nodes
-  preserveWhitespace: false,    // Strip whitespace
-  preserveAttributes: true,     // Preserve attributes
-  
   // Output options
   outputOptions: {
-    prettyPrint: true,          // Format XML output
-    indent: 2,                  // Indentation level (spaces)
-    compact: true,              // Remove empty properties
-    json: {},                   // JSON-specific options
+    prettyPrint: true,
+    indent: 2,
+    compact: true,
+    json: {},
     xml: {
-      declaration: true         // Include XML declaration
-    }
+      declaration: true,
+    },
   },
-  
-  // Custom property names for JSON representation
+
+  // Property names in the JSON representation
   propNames: {
-    namespace: "$ns",           // Namespace URI
-    prefix: "$pre",             // Namespace prefix
-    attributes: "$attr",        // Element attributes
-    value: "$val",              // Text content
-    cdata: "$cdata",            // CDATA content
-    comments: "$cmnt",          // Comment content
-    instruction: "$pi",         // Processing instruction
-    target: "$trgt",            // Processing instruction target
-    children: "$children"       // Child elements
-  }
-});
+    namespace: "$ns",
+    prefix: "$pre",
+    attributes: "$attr",
+    value: "$val",
+    cdata: "$cdata",
+    comments: "$cmnt",
+    instruction: "$pi", 
+    target: "$trgt",  
+    children: "$children",
+  },
+};
+
+// Apply configuration
+const result = XJX.fromXml(xml)
+  .withConfig(config)
+  .toJson();
 ```
-
-You can also update the configuration after creating an instance:
-
-```javascript
-xjx.setConfig({
-  preserveWhitespace: true,
-  outputOptions: {
-    indent: 4
-  }
-});
-```
-
-## XJX API Reference
-
-### Constructor
-
-```typescript
-new XJX(config?: Partial<Configuration>)
-```
-
-Creates a new XJX instance with optional configuration.
-
-### Core Methods
-
-#### XML to JSON Conversion
-
-```typescript
-xmlToJson(xmlString: string): Record<string, any>
-```
-
-Converts an XML string to a JSON object.
-
-#### JSON to XML Conversion
-
-```typescript
-jsonToXml(jsonObj: Record<string, any>): string
-```
-
-Converts a JSON object to an XML string.
-
-#### Plain Object to XJX Format
-
-```typescript
-objectToXJX(obj: any, root?: string | Record<string, any>): Record<string, any>
-```
-
-Converts a standard JavaScript object to the XJX JSON format.
-
-### Helper Methods
-
-#### Pretty Print XML
-
-```typescript
-prettyPrintXml(xmlString: string): string
-```
-
-Formats an XML string with indentation and line breaks.
-
-#### Validate XML
-
-```typescript
-validateXML(xmlString: string): { isValid: boolean; message?: string }
-```
-
-Validates an XML string and returns a result object.
-
-### Configuration Methods
-
-#### Get Configuration
-
-```typescript
-getConfig(): Configuration
-```
-
-Returns a copy of the current configuration.
-
-#### Set Configuration
-
-```typescript
-setConfig(options: Partial<Configuration>): XJX
-```
-
-Updates the configuration with new options.
-
-### Resource Management
-
-```typescript
-cleanup(): void
-```
-
-Releases resources used by the library (especially important when using jsdom in Node.js).
 
 ## Transformers
 
-Transformers allow you to modify values during the conversion process. They can be applied in either direction: XML to JSON, JSON to XML, or both.
-
-### Adding Transformers
-
-```typescript
-// Add a value transformer
-xjx.addValueTransformer(
-  TransformDirection.XML_TO_JSON, 
-  new BooleanTransformer()
-);
-
-// Add an attribute transformer
-xjx.addAttributeTransformer(
-  TransformDirection.JSON_TO_XML,
-  myAttributeTransformer
-);
-
-// Add a children transformer
-xjx.addChildrenTransformer(
-  TransformDirection.XML_TO_JSON,
-  myChildrenTransformer
-);
-
-// Add a node transformer
-xjx.addNodeTransformer(
-  TransformDirection.JSON_TO_XML,
-  myNodeTransformer
-);
-```
-
-### Clearing Transformers
-
-```typescript
-// Clear all transformers
-xjx.clearTransformers();
-
-// Clear transformers for a specific direction
-xjx.clearTransformers(TransformDirection.XML_TO_JSON);
-```
+Transformers allow you to modify content during the conversion process. XJX comes with several built-in transformers and supports custom transformers.
 
 ### Built-in Transformers
 
-XJX comes with several built-in transformers:
+#### BooleanTransform
 
-#### BooleanTransformer
-
-Converts string values like "true", "yes", "1", or "on" to boolean `true`, and values like "false", "no", "0", or "off" to boolean `false`.
+Converts string values to booleans.
 
 ```javascript
-import { XJX, TransformDirection, BooleanTransformer } from 'xjx';
+import { XJX, BooleanTransform } from 'xjx';
 
-const xjx = new XJX();
-xjx.addValueTransformer(
-  TransformDirection.XML_TO_JSON, 
-  new BooleanTransformer({
-    // Optional custom true/false values
-    trueValues: ['true', 'yes', '1', 'on', 'active'],
-    falseValues: ['false', 'no', '0', 'off', 'inactive'],
-    ignoreCase: true  // Case-insensitive matching (default: true)
-  })
-);
-
-// Example usage
-const xmlString = `
-<settings>
-  <featureEnabled>yes</featureEnabled>
-  <debugMode>no</debugMode>
-  <verboseLogging>true</verboseLogging>
-</settings>
-`;
-
-const jsonObj = xjx.xmlToJson(xmlString);
-console.log(jsonObj.settings.$children[0].featureEnabled.$val);  // true (boolean)
-console.log(jsonObj.settings.$children[1].debugMode.$val);       // false (boolean)
-console.log(jsonObj.settings.$children[2].verboseLogging.$val);  // true (boolean)
+const result = XJX.fromXml(xml)
+  .withTransforms(
+    new BooleanTransform({
+      trueValues: ['true', 'yes', '1', 'on'],
+      falseValues: ['false', 'no', '0', 'off'],
+      ignoreCase: true
+    })
+  )
+  .toJson();
 ```
 
-#### NumberTransformer
+#### NumberTransform
 
 Converts string values to numbers.
 
 ```javascript
-import { XJX, TransformDirection, NumberTransformer } from 'xjx';
+import { XJX, NumberTransform } from 'xjx';
 
-const xjx = new XJX();
-xjx.addValueTransformer(
-  TransformDirection.XML_TO_JSON, 
-  new NumberTransformer({
-    integers: true,              // Convert integers (default: true)
-    decimals: true,              // Convert decimals (default: true)
-    scientific: true,            // Convert scientific notation (default: true)
-    strictParsing: true,         // Only convert exact number strings (default: true)
-    decimalSeparator: '.',       // Decimal separator (default: '.')
-    thousandsSeparator: ','      // Thousands separator (default: ',')
-  })
-);
-
-// Example usage
-const xmlString = `
-<data>
-  <int>42</int>
-  <float>3.14</float>
-  <formattedNumber>1,234.56</formattedNumber>
-  <scientific>2.5e-3</scientific>
-</data>
-`;
-
-const jsonObj = xjx.xmlToJson(xmlString);
-console.log(jsonObj.data.$children[0].int.$val);                // 42 (number)
-console.log(jsonObj.data.$children[1].float.$val);              // 3.14 (number)
-console.log(jsonObj.data.$children[2].formattedNumber.$val);    // 1234.56 (number)
-console.log(jsonObj.data.$children[3].scientific.$val);         // 0.0025 (number)
+const result = XJX.fromXml(xml)
+  .withTransforms(
+    new NumberTransform({
+      integers: true,
+      decimals: true,
+      scientific: true,
+      strictParsing: true
+    })
+  )
+  .toJson();
 ```
 
-#### StringReplaceTransformer
+#### StringReplaceTransform
 
-Performs string replacements on text values.
+Performs string replacements using regular expressions.
 
 ```javascript
-import { XJX, TransformDirection, StringReplaceTransformer } from 'xjx';
+import { XJX, StringReplaceTransform } from 'xjx';
 
-const xjx = new XJX();
+const result = XJX.fromXml(xml)
+  .withTransforms(
+    new StringReplaceTransform({
+      pattern: /https?:\/\/\S+/g,
+      replacement: '<a href="$&">$&</a>'
+    })
+  )
+  .toXml();
+```
 
-// URL linkifier transformer
-xjx.addValueTransformer(
-  TransformDirection.XML_TO_JSON, 
-  new StringReplaceTransformer({
-    pattern: /(https?:\/\/[\w-]+(\.[\w-]+)+[\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])/g,
-    replacement: '<a href="$1">$1</a>',
-    replaceAll: true  // Replace all occurrences (default: true)
-  })
-);
+#### AttributeTransform
 
-// Example usage
-const xmlString = `
-<post>
-  <content>Check out our website at https://example.com for more information.</content>
-</post>
-`;
+Manipulates XML attributes.
 
-const jsonObj = xjx.xmlToJson(xmlString);
-console.log(jsonObj.post.$children[0].content.$val);
-// "Check out our website at <a href="https://example.com">https://example.com</a> for more information."
+```javascript
+import { XJX, AttributeTransform } from 'xjx';
+
+const result = XJX.fromXml(xml)
+  .withTransforms(
+    new AttributeTransform({
+      renameMap: { 'old-attr': 'newAttr' },
+      removeAttributes: ['internal-id', 'temp']
+    })
+  )
+  .toXml();
+```
+
+#### ElementTransform
+
+Manipulates XML elements.
+
+```javascript
+import { XJX, ElementTransform, NodeType } from 'xjx';
+
+const result = XJX.fromXml(xml)
+  .withTransforms(
+    new ElementTransform({
+      renameMap: { 'old-tag': 'newTag' },
+      filter: node => node.name !== 'secret',
+      addChildren: parent => {
+        if (parent.name === 'user') {
+          return [{
+            name: 'timestamp',
+            type: NodeType.ELEMENT_NODE,
+            value: new Date().toISOString()
+          }];
+        }
+        return [];
+      }
+    })
+  )
+  .toXml();
+```
+
+#### CommentTransform
+
+Manages XML comments.
+
+```javascript
+import { XJX, CommentTransform } from 'xjx';
+
+const result = XJX.fromXml(xml)
+  .withTransforms(
+    new CommentTransform({
+      removeAll: false,
+      removePattern: /TODO/i,
+      keepPattern: /IMPORTANT/i
+    })
+  )
+  .toXml();
+```
+
+#### TextTransform
+
+Manipulates text nodes.
+
+```javascript
+import { XJX, TextTransform } from 'xjx';
+
+const result = XJX.fromXml(xml)
+  .withTransforms(
+    new TextTransform({
+      trim: true,
+      normalizeWhitespace: true,
+      transformFn: text => text.toUpperCase()
+    })
+  )
+  .toXml();
 ```
 
 ### Creating Custom Transformers
 
-You can create custom transformers by extending the base classes:
-
-#### Creating a Custom Value Transformer
+You can create your own transformers by implementing the `Transform` interface:
 
 ```javascript
-import { BaseValueTransformer, TransformContext, XNode, TransformResult, transformResult } from 'xjx';
+import { XJX, TransformTarget, transformResult } from 'xjx';
 
-// Create a transformer that capitalizes text values
-class CapitalizeTransformer extends BaseValueTransformer {
-  constructor() {
-    super();
-  }
+// Custom transformer that capitalizes text
+class CapitalizeTransform {
+  // Specify which node types to target
+  targets = [TransformTarget.Value];
   
-  // Implement the transformValue method
-  protected transformValue(value: any, node: XNode, context: TransformContext): TransformResult<any> {
+  transform(value, context) {
     // Only transform string values
     if (typeof value !== 'string') {
       return transformResult(value);
     }
     
-    // Capitalize the first letter of each word
-    const transformed = value.replace(/\b\w/g, char => char.toUpperCase());
-    
-    // Return the transformed value
-    return transformResult(transformed);
+    // Return capitalized value
+    return transformResult(value.toUpperCase());
   }
 }
 
-// Usage
-const xjx = new XJX();
-xjx.addValueTransformer(TransformDirection.XML_TO_JSON, new CapitalizeTransformer());
+// Use the custom transformer
+const result = XJX.fromXml(xml)
+  .withTransforms(new CapitalizeTransform())
+  .toXml();
 ```
 
-#### Creating a Custom Attribute Transformer
+## Namespace Handling
+
+XJX preserves XML namespaces in the JSON representation:
 
 ```javascript
-import { BaseAttributeTransformer, TransformContext, XNode, TransformResult, transformResult } from 'xjx';
-
-// Create a transformer that prefixes attribute names
-class AttributePrefixTransformer extends BaseAttributeTransformer {
-  private prefix: string;
-  
-  constructor(prefix: string) {
-    super();
-    this.prefix = prefix;
-  }
-  
-  // Implement the transformAttribute method
-  protected transformAttribute(name: string, value: any, node: XNode, context: TransformContext): TransformResult<[string, any]> {
-    // Skip attributes that already have the prefix
-    if (name.startsWith(this.prefix)) {
-      return transformResult([name, value]);
-    }
-    
-    // Add the prefix to the attribute name
-    return transformResult([`${this.prefix}${name}`, value]);
-  }
-}
-
-// Usage
-const xjx = new XJX();
-xjx.addAttributeTransformer(TransformDirection.JSON_TO_XML, new AttributePrefixTransformer('data-'));
-```
-
-## Working with Namespaces
-
-XJX preserves namespace information by default:
-
-```javascript
-// XML with namespaces
-const xmlString = `
-<root xmlns="http://example.com/default" xmlns:ns1="http://example.com/ns1">
-  <element>Default namespace</element>
-  <ns1:element>Custom namespace</ns1:element>
+const xml = `
+<root xmlns="http://default.namespace.com" xmlns:ns="http://example.namespace.com">
+  <ns:element>Content</ns:element>
 </root>
 `;
 
-const xjx = new XJX();
-const jsonObj = xjx.xmlToJson(xmlString);
+const json = XJX.fromXml(xml)
+  .withConfig({
+    preserveNamespaces: true
+  })
+  .toJson();
 
-// Namespace information is preserved
-console.log(jsonObj.root.$ns);  // "http://example.com/default"
-console.log(jsonObj.root.$children[1]['ns1:element'].$ns);  // "http://example.com/ns1"
-console.log(jsonObj.root.$children[1]['ns1:element'].$pre);  // "ns1"
-
-// Convert back to XML
-const xmlResult = xjx.jsonToXml(jsonObj);
-// Namespaces are preserved in the output
+console.log(json);
 ```
 
-## JSON Format
-
-The JSON format used by XJX is designed to represent all aspects of XML, including:
-
-- Element structure
-- Attributes
-- Text content
-- Namespaces
-- CDATA sections
-- Comments
-- Processing instructions
-
-The default property names can be customized through the configuration:
+The resulting JSON will include namespace information:
 
 ```javascript
-const xjx = new XJX({
-  propNames: {
-    namespace: "_ns",       // Change from "$ns"
-    prefix: "_prefix",      // Change from "$pre"
-    attributes: "_attrs",   // Change from "$attr"
-    value: "_content",      // Change from "$val"
-    cdata: "_cdata",        // Change from "$cdata"
-    comments: "_comment",   // Change from "$cmnt"
-    instruction: "_pi",     // Change from "$pi"
-    target: "_target",      // Change from "$trgt"
-    children: "_children"   // Change from "$children"
+{
+  "root": {
+    "$ns": "http://default.namespace.com",
+    "$children": [
+      {
+        "element": {
+          "$ns": "http://example.namespace.com",
+          "$pre": "ns",
+          "$val": "Content"
+        }
+      }
+    ]
   }
-});
+}
 ```
 
-## Extensions
+When converting back to XML, namespaces are properly restored.
 
-### getPath Extension
+## Advanced Features
 
-Retrieve values from the JSON structure using a dot-separated path:
+### Transform Utility Functions
+
+XJX provides utility functions for working with transformers:
 
 ```javascript
-import { XJX } from 'xjx/full';  // Import the full bundle with extensions
+import { TransformUtils, BooleanTransform, NumberTransform } from 'xjx';
 
-const xjx = new XJX();
+// Compose multiple transforms into one
+const dataTypeTransform = TransformUtils.composeTransforms(
+  new BooleanTransform(),
+  new NumberTransform()
+);
 
-const xmlString = `
+// Create conditional transforms
+const userElementTransform = TransformUtils.conditionalTransform(
+  (node, context) => node.name === 'user',
+  new ElementTransform({
+    // Only applied to user elements
+  })
+);
+
+// Create named transforms for debugging
+const namedTransform = TransformUtils.namedTransform(
+  'MyTransform',
+  new CustomTransform()
+);
+```
+
+### XML Validation
+
+Validate XML before processing:
+
+```javascript
+const validationResult = XJX.validateXml(xmlString);
+if (validationResult.isValid) {
+  // Process valid XML
+} else {
+  console.error('Invalid XML:', validationResult.message);
+}
+```
+
+### Pretty-Printing XML
+
+Format XML with proper indentation:
+
+```javascript
+const formattedXml = XJX.prettyPrintXml(xmlString);
+console.log(formattedXml);
+```
+
+## Browser Support
+
+XJX supports modern browsers with ES6/ES2015 features:
+
+- Chrome
+- Firefox
+- Safari
+- Edge
+- Opera
+
+For older browsers, use a transpiler like Babel along with your bundler.
+
+## TypeScript Support
+
+XJX is written in TypeScript and includes complete type definitions.
+
+```typescript
+import { XJX, Transform, TransformTarget, TransformContext, TransformResult } from 'xjx';
+
+// TypeScript interfaces for creating custom transformers
+class MyTransform implements Transform {
+  targets: TransformTarget[] = [TransformTarget.Value];
+  
+  transform(value: any, context: TransformContext): TransformResult<any> {
+    // Implementation
+    return { value: transformedValue, remove: false };
+  }
+}
+```
+
+## Examples
+
+### Convert XML with Custom Format
+
+```javascript
+import { XJX } from 'xjx';
+
+const xml = `
 <library>
   <book id="1">
-    <title>The Hobbit</title>
-    <author>J.R.R. Tolkien</author>
+    <title>JavaScript: The Good Parts</title>
+    <author>Douglas Crockford</author>
+    <year>2008</year>
+    <inStock>true</inStock>
   </book>
 </library>
 `;
 
-const jsonObj = xjx.xmlToJson(xmlString);
+const json = XJX.fromXml(xml)
+  .withConfig({
+    propNames: {
+      value: "@content",
+      attributes: "@props",
+      children: "@items"
+    }
+  })
+  .withTransforms(
+    new BooleanTransform(),
+    new NumberTransform()
+  )
+  .toJson();
 
-// Get values using dot notation
-const bookId = xjx.getPath(jsonObj, 'library.$children.0.book.$attr.0.id.$val');
-console.log(bookId);  // "1"
-
-const title = xjx.getPath(jsonObj, 'library.$children.0.book.$children.0.title.$val');
-console.log(title);  // "The Hobbit"
-
-// With a fallback value
-const publisher = xjx.getPath(jsonObj, 'library.$children.0.book.$children.2.publisher.$val', 'Unknown');
-console.log(publisher);  // "Unknown"
+console.log(JSON.stringify(json, null, 2));
 ```
 
-### getJsonSchema Extension
-
-Generate a JSON Schema for the XML-JSON structure:
+### Sort and Filter Elements
 
 ```javascript
-import { XJX } from 'xjx/full';  // Import the full bundle with extensions
+import { XJX, ElementTransform, SortChildrenTransform } from 'xjx';
 
-const xjx = new XJX();
-const schema = xjx.getJsonSchema();
-
-console.log(JSON.stringify(schema, null, 2));
+const result = XJX.fromXml(xml)
+  .withTransforms(
+    // Remove private elements
+    new ElementTransform({
+      filterChildren: node => !node.name.startsWith('private-')
+    }),
+    
+    // Sort users by name
+    new SortChildrenTransform({
+      targetParent: 'users',
+      childType: 'user',
+      sortKey: 'name'
+    })
+  )
+  .toXml();
 ```
 
-## Error Handling
+## Contributing
 
-XJX provides several error classes for specific error types:
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-```javascript
-import { XJX, XJXError, XmlToJsonError, JsonToXmlError } from 'xjx';
+## License
 
-try {
-  const xjx = new XJX();
-  const jsonObj = xjx.xmlToJson('<invalid>xml</invalid>');
-} catch (error) {
-  if (error instanceof XmlToJsonError) {
-    console.error('XML parsing error:', error.message);
-  } else if (error instanceof JsonToXmlError) {
-    console.error('JSON serialization error:', error.message);
-  } else if (error instanceof XJXError) {
-    console.error('XJX error:', error.message);
-  } else {
-    console.error('Unexpected error:', error);
-  }
-}
-```
-
-### Error Types
-
-- `XJXError` - Base error class
-- `XmlToJsonError` - XML parsing issues
-- `JsonToXmlError` - XML serialization issues
-- `EnvironmentError` - Environment incompatibility (e.g., missing DOM implementation)
-- `ConfigurationError` - Invalid configuration
+This project is licensed under the MIT License - see the LICENSE file for details.

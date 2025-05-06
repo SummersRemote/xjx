@@ -83,7 +83,7 @@ export const useXjxStore = defineStore("xjx", {
       this.error = null;
 
       try {
-        // Use the XjxService to convert XML to JSON
+        // Use the refactored XjxService with fluent API
         const jsonObj = XjxService.xmlToJson(this.xmlContent, this.config);
 
         // Format and store the result
@@ -105,7 +105,7 @@ export const useXjxStore = defineStore("xjx", {
         // Parse JSON content
         const jsonObj = JSON.parse(this.jsonContent);
 
-        // Use the XjxService to convert JSON to XML
+        // Use the refactored XjxService with fluent API
         const xmlString = XjxService.jsonToXml(jsonObj, this.config);
 
         // Store the result
@@ -148,7 +148,7 @@ export const useXjxStore = defineStore("xjx", {
           throw new Error("Please enter a path to navigate");
         }
 
-        // Use the XjxService to get the path
+        // Use the refactored XjxService with fluent API
         const result = XjxService.getPath(jsonObj, path, this.config);
 
         // Format the result for display

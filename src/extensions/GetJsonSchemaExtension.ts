@@ -1,21 +1,22 @@
 // =====================================================================================
 // GetJsonSchemaExtension.ts
 //
-// Extension that adds a `getJsonSchema` method using the unified registry system
+// Extension that adds a `toJsonSchema` method using the new terminal extension system
 // =====================================================================================
 
-import { UnifiedRegistry, RegistryType } from "../core/registry/unified-registry";
+import { XJX } from "../core/XJX";
 import { JSONObject } from "../core/types/json-types";
 import { XJXError } from "../core/types/error-types";
+import { TerminalExtensionContext } from "./types";
 
 /**
  * Generate a simple JSON Schema based on current configuration.
  *
- * @param this The XJX instance
  * @returns A basic JSON schema object
  */
-function getJsonSchema(this: any): Record<string, any> {
+function getJsonSchema(this: TerminalExtensionContext): Record<string, any> {
   try {
+    // Use 'this.config' which is available in the extension context
     const config = this.config;
     const propNames = config.propNames;
     const compact = config.outputOptions.compact || false;
@@ -202,15 +203,8 @@ function getJsonSchema(this: any): Record<string, any> {
   }
 }
 
-// Register the utility function with the unified registry
-UnifiedRegistry.register(RegistryType.UTILITY, "getJsonSchema", getJsonSchema);
-
-// TypeScript module augmentation for type definitions
-declare module "../core/XJX" {
-  interface XJX {
-    getJsonSchema(): Record<string, any>;
-  }
-}
+// Register the terminal extension
+XJX.registerTerminalExtension("toJsonSchema", getJsonSchema);
 
 // =====================================================================================
 // END OF FILE

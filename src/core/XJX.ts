@@ -6,6 +6,7 @@ import { XjxBuilder } from '../fluent/xjx-builder';
 import { XmlUtil } from './utils/xml-utils';
 import { ConfigProvider } from './config/config-provider';
 import { DOMAdapter } from './adapters/dom-adapter';
+import { TerminalExtensionContext, NonTerminalExtensionContext } from '../extensions/types';
 
 /**
  * Main XJX class - provides access to the fluent API
@@ -83,5 +84,47 @@ export class XJX {
    */
   public static cleanup(): void {
     DOMAdapter.cleanup();
+  }
+  
+  /**
+   * Register a terminal extension method (returns a value)
+   * @param name Extension name
+   * @param method Implementation function that properly uses this: TerminalExtensionContext
+   */
+  public static registerTerminalExtension(name: string, method: (this: TerminalExtensionContext, ...args: any[]) => any): void {
+    // Register on XJX class
+    (XJX as any)[name] = function(...args: any[]) {
+      // For static usage, create a context with default config
+      const context: TerminalExtensionContext = {
+        config: XJX.getConfig()
+      };
+      return method.apply(context, args);
+    };
+    
+    // Register on XjxBuilder class for fluent API
+    (XjxBuilder.prototype as any)[name] = function(...args: any[]) {
+      return method.apply(this, args);
+    };
+  }
+  
+  /**
+   * Register a non-terminal extension method (returns this for chaining)
+   * @param name Extension name
+   * @param method Implementation function that properly uses this: NonTerminalExtensionContext
+   */
+  public static registerNonTerminalExtension(name: string, method: (this: NonTerminalExtensionContext, ...args: any[]) => any): void {
+    // Register on XJX class
+    (XJX as any)[name] = function(...args: any[]) {
+      // For static usage, create and return a builder
+      const builder = new XjxBuilder();
+      method.apply(builder, args);
+      return builder;
+    };
+    
+    // Register on XjxBuilder class for fluent API
+    (XjxBuilder.prototype as any)[name] = function(...args: any[]) {
+      method.apply(this, args);
+      return this; // Always return this for chaining
+    };
   }
 }

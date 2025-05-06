@@ -5,7 +5,7 @@
 // =====================================================================================
 
 import { XJX } from "../core/XJX";
-import { TerminalExtensionContext } from "./types";
+import { TerminalExtensionContext } from "../core/types/extension-types";
 
 /**
  * Safely retrieves a value from a JSON object using a dot-separated path.

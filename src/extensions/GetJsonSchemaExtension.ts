@@ -7,7 +7,7 @@
 import { XJX } from "../core/XJX";
 import { JSONObject } from "../core/types/json-types";
 import { XJXError } from "../core/types/error-types";
-import { TerminalExtensionContext } from "./types";
+import { TerminalExtensionContext } from "../core/types/extension-types";
 
 /**
  * Generate a simple JSON Schema based on current configuration.

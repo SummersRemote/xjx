@@ -7,12 +7,12 @@ import {
   TransformDirection,
   TransformTarget,
   XNode
-} from '../core/types/transform-interfaces';
-import { DEFAULT_CONFIG } from '../core/config/config';
-import { XmlToJsonProcessor } from './processors/xml-to-json-processor';
-import { JsonToXmlProcessor } from './processors/json-to-xml-processor';
-import { ConfigProvider } from '../core/config/config-provider';
-import { XJXError } from '../core/types/error-types';
+} from './types/transform-interfaces';
+import { DEFAULT_CONFIG } from './config/config';
+import { XmlToJsonProcessor } from './converters/xml-to-json-processor';
+import { JsonToXmlProcessor } from './converters/json-to-xml-processor';
+import { ConfigProvider } from './config/config-provider';
+import { XJXError } from './types/error-types';
 
 /**
  * Builder for XJX transformations

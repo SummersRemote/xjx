@@ -45,19 +45,19 @@ export {
 } from './core/types/error-types';
 
 // Transformers
-export { BooleanTransform, BooleanTransformOptions } from './fluent/transforms/boolean-transform';
-export { NumberTransform, NumberTransformOptions } from './fluent/transforms/number-transform';
-export { StringReplaceTransform, StringReplaceOptions } from './fluent/transforms/string-replace-transform';
-export { CommentTransform, CommentTransformOptions } from './fluent/transforms/comment-transform';
-export { AttributeTransform, AttributeTransformOptions } from './fluent/transforms/attribute-transform';
-export { TextTransform, TextTransformOptions } from './fluent/transforms/text-transform';
+export { BooleanTransform, BooleanTransformOptions } from './core/transforms/boolean-transform';
+export { NumberTransform, NumberTransformOptions } from './core/transforms/number-transform';
+export { StringReplaceTransform, StringReplaceOptions } from './core/transforms/string-replace-transform';
+export { CommentTransform, CommentTransformOptions } from './core/transforms/comment-transform';
+export { AttributeTransform, AttributeTransformOptions } from './core/transforms/attribute-transform';
+export { TextTransform, TextTransformOptions } from './core/transforms/text-transform';
 export { 
   ElementTransform, 
   ElementTransformOptions,
   SortChildrenTransform,
   SortChildrenOptions
-} from './fluent/transforms/element-transform';
+} from './core/transforms/element-transform';
 
 // Utilities
 export { ValidationResult } from './core/utils/xml-utils';
-export { TransformApplier } from './fluent/processors/processor-interfaces';
+export { TransformApplier } from './core/converters/processor-interfaces';

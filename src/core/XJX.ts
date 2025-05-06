@@ -2,11 +2,11 @@
  * XJX - Main class with fluent API
  */
 import { Configuration } from './types/config-types';
-import { XjxBuilder } from '../fluent/xjx-builder';
+import { XjxBuilder } from './xjx-builder';
 import { XmlUtil } from './utils/xml-utils';
 import { ConfigProvider } from './config/config-provider';
 import { DOMAdapter } from './adapters/dom-adapter';
-import { TerminalExtensionContext, NonTerminalExtensionContext } from '../extensions/types';
+import { TerminalExtensionContext, NonTerminalExtensionContext } from './types/extension-types';
 
 /**
  * Main XJX class - provides access to the fluent API

@@ -4,9 +4,9 @@
  * This file contains shared interfaces used by extension functions
  * to properly type the 'this' context.
  */
-import { Configuration } from "../core/types/config-types";
-import { Transform } from "../core/types/transform-interfaces";
-import { XjxBuilder } from "../fluent/xjx-builder";
+import { Configuration } from "./config-types";
+import { Transform } from "./transform-interfaces";
+import { XjxBuilder } from "../xjx-builder";
 
 /**
  * Context interface for extension functions

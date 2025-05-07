@@ -5,7 +5,7 @@ import { XNodeTransformer } from './converter-interfaces';
 import {
   Configuration,
   Transform,
-  NodeModel,
+  XNode,
   TransformContext,
   TransformResult,
   TransformTarget,
@@ -35,7 +35,7 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
    * @param direction Direction of transformation
    * @returns Transformed XNode
    */
-  public transform(node: NodeModel, transforms: Transform[], direction: TransformDirection): NodeModel {
+  public transform(node: XNode, transforms: Transform[], direction: TransformDirection): XNode {
     try {
       if (!transforms || transforms.length === 0) {
         return node; // No transformations to apply
@@ -67,7 +67,7 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
    * @param direction Direction of transformation
    * @returns Transformation context
    */
-  public createRootContext(node: NodeModel, direction: TransformDirection): TransformContext {
+  public createRootContext(node: XNode, direction: TransformDirection): TransformContext {
     return {
       nodeName: node.name,
       nodeType: node.type,
@@ -87,10 +87,10 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
    * @returns Transformed XNode or null if removed
    */
   private applyTransforms(
-    node: NodeModel,
+    node: XNode,
     context: TransformContext,
     transforms: Transform[]
-  ): NodeModel | null {
+  ): XNode | null {
     // 1. Apply element transforms first
     const elementResult = this.applyElementTransforms(node, context, transforms);
     
@@ -98,7 +98,7 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
       return null;
     }
     
-    const transformedNode = elementResult.value as NodeModel;
+    const transformedNode = elementResult.value as XNode;
     
     // 2. Transform node value if present
     if (transformedNode.value !== undefined) {
@@ -137,10 +137,10 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
    * @returns Transform result
    */
   private applyElementTransforms(
-    node: NodeModel,
+    node: XNode,
     context: TransformContext,
     transforms: Transform[]
-  ): TransformResult<NodeModel> {
+  ): TransformResult<XNode> {
     // Filter transforms that target elements
     const applicableTransforms = transforms.filter(transform => 
       transform.targets.includes(TransformTarget.Element)
@@ -152,7 +152,7 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
     }
     
     // Apply each applicable transform in sequence
-    let result: TransformResult<NodeModel> = { value: node, remove: false };
+    let result: TransformResult<XNode> = { value: node, remove: false };
     
     for (const transform of applicableTransforms) {
       result = transform.transform(result.value, context);
@@ -210,7 +210,7 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
    * @param transforms Transforms to apply
    */
   private transformAttributes(
-    node: NodeModel,
+    node: XNode,
     context: TransformContext,
     transforms: Transform[]
   ): void {
@@ -309,13 +309,13 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
    * @param transforms Transforms to apply
    */
   private transformChildren(
-    node: NodeModel,
+    node: XNode,
     context: TransformContext,
     transforms: Transform[]
   ): void {
     if (!node.children) return;
     
-    const newChildren: NodeModel[] = [];
+    const newChildren: XNode[] = [];
     
     for (let i = 0; i < node.children.length; i++) {
       const child = node.children[i];
@@ -337,7 +337,7 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
       };
       
       // Apply transforms based on node type
-      let transformedChild: NodeModel | null = null;
+      let transformedChild: XNode | null = null;
       
       switch (child.type) {
         case NodeType.TEXT_NODE:
@@ -377,10 +377,10 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
    * @returns Transformed node or null if removed
    */
   private transformTextNode(
-    node: NodeModel,
+    node: XNode,
     context: TransformContext,
     transforms: Transform[]
-  ): NodeModel | null {
+  ): XNode | null {
     // Apply text node transforms
     const textTransforms = transforms.filter(transform => 
       transform.targets.includes(TransformTarget.Text)
@@ -390,7 +390,7 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
     let shouldRemove = false;
     
     if (textTransforms.length > 0) {
-      let result: TransformResult<NodeModel> = { value: transformedNode, remove: false };
+      let result: TransformResult<XNode> = { value: transformedNode, remove: false };
       
       for (const transform of textTransforms) {
         result = transform.transform(result.value, context);
@@ -400,7 +400,7 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
           break;
         }
         
-        transformedNode = result.value as NodeModel;
+        transformedNode = result.value as XNode;
       }
     }
     
@@ -431,10 +431,10 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
    * @returns Transformed node or null if removed
    */
   private transformCDATANode(
-    node: NodeModel,
+    node: XNode,
     context: TransformContext,
     transforms: Transform[]
-  ): NodeModel | null {
+  ): XNode | null {
     // Apply CDATA transforms
     const cdataTransforms = transforms.filter(transform => 
       transform.targets.includes(TransformTarget.CDATA)
@@ -444,7 +444,7 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
     let shouldRemove = false;
     
     if (cdataTransforms.length > 0) {
-      let result: TransformResult<NodeModel> = { value: transformedNode, remove: false };
+      let result: TransformResult<XNode> = { value: transformedNode, remove: false };
       
       for (const transform of cdataTransforms) {
         result = transform.transform(result.value, context);
@@ -454,7 +454,7 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
           break;
         }
         
-        transformedNode = result.value as NodeModel;
+        transformedNode = result.value as XNode;
       }
     }
     
@@ -485,10 +485,10 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
    * @returns Transformed node or null if removed
    */
   private transformCommentNode(
-    node: NodeModel,
+    node: XNode,
     context: TransformContext,
     transforms: Transform[]
-  ): NodeModel | null {
+  ): XNode | null {
     // Apply comment transforms
     const commentTransforms = transforms.filter(transform => 
       transform.targets.includes(TransformTarget.Comment)
@@ -498,7 +498,7 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
       return node;
     }
     
-    let result: TransformResult<NodeModel> = { value: node, remove: false };
+    let result: TransformResult<XNode> = { value: node, remove: false };
     
     for (const transform of commentTransforms) {
       result = transform.transform(result.value, context);
@@ -508,7 +508,7 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
       }
     }
     
-    return result.value as NodeModel;
+    return result.value as XNode;
   }
 
   /**
@@ -519,10 +519,10 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
    * @returns Transformed node or null if removed
    */
   private transformProcessingInstructionNode(
-    node: NodeModel,
+    node: XNode,
     context: TransformContext,
     transforms: Transform[]
-  ): NodeModel | null {
+  ): XNode | null {
     // Apply PI transforms
     const piTransforms = transforms.filter(transform => 
       transform.targets.includes(TransformTarget.ProcessingInstruction)
@@ -532,7 +532,7 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
       return node;
     }
     
-    let result: TransformResult<NodeModel> = { value: node, remove: false };
+    let result: TransformResult<XNode> = { value: node, remove: false };
     
     for (const transform of piTransforms) {
       result = transform.transform(result.value, context);
@@ -542,7 +542,7 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
       }
     }
     
-    return result.value as NodeModel;
+    return result.value as XNode;
   }
 
   /**

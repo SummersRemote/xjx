@@ -7,7 +7,7 @@ import {
     TransformResult, 
     TransformTarget, 
     createTransformResult,
-    NodeModel,
+    XNode,
     NodeType
   } from '../../core/types/transform-interfaces';
   
@@ -20,7 +20,7 @@ import {
      * If provided, the transform will only be applied to elements
      * where this function returns true
      */
-    filter?: (node: NodeModel, context: TransformContext) => boolean;
+    filter?: (node: XNode, context: TransformContext) => boolean;
     
     /**
      * Map of element names to rename
@@ -32,13 +32,13 @@ import {
      * Filter function to remove children
      * Return true to keep the child, false to remove it
      */
-    filterChildren?: (node: NodeModel, context: TransformContext) => boolean;
+    filterChildren?: (node: XNode, context: TransformContext) => boolean;
     
     /**
      * Function to create new children
      * Return an array of new nodes to add as children
      */
-    addChildren?: (parentNode: NodeModel, context: TransformContext) => NodeModel[];
+    addChildren?: (parentNode: XNode, context: TransformContext) => XNode[];
   }
   
   /**
@@ -71,10 +71,10 @@ import {
     // Target elements
     targets = [TransformTarget.Element];
     
-    private filter?: (node: NodeModel, context: TransformContext) => boolean;
+    private filter?: (node: XNode, context: TransformContext) => boolean;
     private renameMap?: Record<string, string>;
-    private filterChildren?: (node: NodeModel, context: TransformContext) => boolean;
-    private addChildren?: (parentNode: NodeModel, context: TransformContext) => NodeModel[];
+    private filterChildren?: (node: XNode, context: TransformContext) => boolean;
+    private addChildren?: (parentNode: XNode, context: TransformContext) => XNode[];
     
     /**
      * Create a new element transformer
@@ -91,7 +91,7 @@ import {
      * 
      * No need to check node type - the pipeline handles that
      */
-    transform(node: NodeModel, context: TransformContext): TransformResult<NodeModel> {
+    transform(node: XNode, context: TransformContext): TransformResult<XNode> {
       // Skip if filter is provided and returns false
       if (this.filter && !this.filter(node, context)) {
         return createTransformResult(node);
@@ -175,7 +175,7 @@ import {
      * Function to extract sort value from node
      * Default sorts by node name
      */
-    sortBy?: (node: NodeModel, context: TransformContext) => string | number;
+    sortBy?: (node: XNode, context: TransformContext) => string | number;
     
     /**
      * Optional key path to sort by (alternative to sortBy function)
@@ -218,7 +218,7 @@ import {
     
     private targetParent?: string;
     private childType?: string;
-    private sortBy: (node: NodeModel, context: TransformContext) => string | number;
+    private sortBy: (node: XNode, context: TransformContext) => string | number;
     private direction: 'asc' | 'desc';
     
     /**
@@ -231,7 +231,7 @@ import {
       
       // If sortKey is provided, create a sort function based on it
       if (options.sortKey) {
-        this.sortBy = (node: NodeModel) => {
+        this.sortBy = (node: XNode) => {
           return this.getNestedValue(node, options.sortKey!);
         };
       } else if (options.sortBy) {
@@ -239,14 +239,14 @@ import {
         this.sortBy = options.sortBy;
       } else {
         // Default sort by name
-        this.sortBy = (node: NodeModel) => node.name;
+        this.sortBy = (node: XNode) => node.name;
       }
     }
     
     /**
      * Transform by sorting children
      */
-    transform(node: NodeModel, context: TransformContext): TransformResult<NodeModel> {
+    transform(node: XNode, context: TransformContext): TransformResult<XNode> {
       // Only process elements with children
       if (!node.children || node.children.length <= 1) {
         return createTransformResult(node);
@@ -267,7 +267,7 @@ import {
       }
       
       // Filter children if a specific child type is specified
-      let childrenToSort: NodeModel[] = this.childType 
+      let childrenToSort: XNode[] = this.childType 
         ? result.children.filter(child => child.name === this.childType)
         : [...result.children]; // Create a new array to avoid mutating the original
       
@@ -310,7 +310,7 @@ import {
     /**
      * Create a context for a child node
      */
-    private createChildContext(child: NodeModel, parentContext: TransformContext): TransformContext {
+    private createChildContext(child: XNode, parentContext: TransformContext): TransformContext {
       return {
         nodeName: child.name,
         nodeType: child.type,

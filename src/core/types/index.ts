@@ -13,7 +13,7 @@ export {
     TransformContext,
     TransformResult,
     TransformDirection,
-    NodeModel,
+    XNode,
     createTransformResult,
     
     // Configuration types

@@ -4,7 +4,7 @@
 import { 
     Configuration, 
     Transform, 
-    NodeModel as XNode, 
+    XNode as XNode, 
     TransformContext,
     TransformDirection
   } from '../types/transform-interfaces';

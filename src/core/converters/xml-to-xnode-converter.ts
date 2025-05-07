@@ -2,7 +2,7 @@
  * XML to XNode converter implementation
  */
 import { XmlToXNodeConverter } from './converter-interfaces';
-import { Configuration, NodeModel } from '../types/transform-interfaces';
+import { Configuration, XNode } from '../types/transform-interfaces';
 import { XmlUtil } from '../utils/xml-utils';
 import { NodeType } from '../types/dom-types';
 import { XJXError, XmlToJsonError } from '../types/error-types';
@@ -32,7 +32,7 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
    * @param xml XML string
    * @returns XNode representation
    */
-  public convert(xml: string): NodeModel {
+  public convert(xml: string): XNode {
     try {
       // Reset namespace map
       this.namespaceMap = {};
@@ -57,9 +57,9 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
    * @param parentNode Optional parent node
    * @returns XNode representation
    */
-  public elementToXNode(element: Element, parentNode?: NodeModel): NodeModel {
+  public elementToXNode(element: Element, parentNode?: XNode): XNode {
     // Create base node
-    const xnode: NodeModel = {
+    const xnode: XNode = {
       name:
         element.localName ||
         element.nodeName.split(":").pop() ||
@@ -119,7 +119,7 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
         }
       } else {
         // Process multiple children
-        const children: NodeModel[] = [];
+        const children: XNode[] = [];
 
         for (let i = 0; i < element.childNodes.length; i++) {
           const child = element.childNodes[i];
@@ -216,8 +216,8 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
    */
   private processTextNode(
     node: Node,
-    children: NodeModel[],
-    parentNode: NodeModel,
+    children: XNode[],
+    parentNode: XNode,
     hasMixed: boolean
   ): void {
     const text = node.nodeValue || "";
@@ -244,8 +244,8 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
    */
   private processCDATANode(
     node: Node,
-    children: NodeModel[],
-    parentNode: NodeModel
+    children: XNode[],
+    parentNode: XNode
   ): void {
     if (this.config.preserveCDATA) {
       children.push({
@@ -265,8 +265,8 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
    */
   private processCommentNode(
     node: Node,
-    children: NodeModel[],
-    parentNode: NodeModel
+    children: XNode[],
+    parentNode: XNode
   ): void {
     if (this.config.preserveComments) {
       children.push({
@@ -286,8 +286,8 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
    */
   private processProcessingInstructionNode(
     pi: ProcessingInstruction,
-    children: NodeModel[],
-    parentNode: NodeModel
+    children: XNode[],
+    parentNode: XNode
   ): void {
     if (this.config.preserveProcessingInstr) {
       children.push({

@@ -2,7 +2,7 @@
  * XNode to JSON converter implementation
  */
 import { XNodeToJsonConverter } from './converter-interfaces';
-import { Configuration, NodeModel } from '../types/transform-interfaces';
+import { Configuration, XNode } from '../types/transform-interfaces';
 import {
   JSONValue,
   JSONObject,
@@ -35,7 +35,7 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
    * @param node XNode representation
    * @returns JSON object
    */
-  public convert(node: NodeModel): Record<string, any> {
+  public convert(node: XNode): Record<string, any> {
     try {
       // First perform the basic conversion
       let jsonResult = this.xnodeToJson(node);
@@ -67,7 +67,7 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
    * @param node XNode to convert
    * @returns JSON object
    */
-  private xnodeToJson(node: NodeModel): Record<string, any> {
+  private xnodeToJson(node: XNode): Record<string, any> {
     const result: Record<string, any> = {};
     const nodeObj: Record<string, any> = {};
 

@@ -74,19 +74,19 @@ export interface TransformResult<T> {
 /**
  * Internal node representation
  */
-export interface NodeModel {
+export interface XNode {
   name: string;
   type: number;
   value?: any;
   attributes?: Record<string, any>;
-  children?: NodeModel[];
+  children?: XNode[];
   namespace?: string;
   prefix?: string;
   
   // Enhanced namespace handling
   namespaceDeclarations?: Record<string, string>;
   isDefaultNamespace?: boolean;
-  parent?: NodeModel;
+  parent?: XNode;
 }
 
 /**

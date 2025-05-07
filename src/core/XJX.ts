@@ -10,7 +10,7 @@ import {
   TerminalExtensionContext, 
   NonTerminalExtensionContext 
 } from './types/extension-types';
-import { TransformDirection, NodeModel, Transform } from './types/transform-interfaces';
+import { TransformDirection, XNode, Transform } from './types/transform-interfaces';
 
 /**
  * Main XJX class - provides access to the fluent API and manages extensions

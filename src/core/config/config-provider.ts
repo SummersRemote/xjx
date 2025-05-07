@@ -57,6 +57,14 @@ export class ConfigProvider {
   }
   
   /**
+   * Get a mutable copy of the current configuration
+   * @returns A mutable copy of the current configuration
+   */
+  public getMutableConfig(): Configuration {
+    return this.deepClone(this.config);
+  }
+  
+  /**
    * Update the configuration with new values
    * @param partialConfig Partial configuration to merge with current config
    */
@@ -80,6 +88,15 @@ export class ConfigProvider {
    */
   public resetToDefaults(): void {
     this.config = this.deepClone(DEFAULT_CONFIG);
+  }
+  
+  /**
+   * Set configuration directly (use with caution)
+   * @param config Complete configuration object
+   */
+  public setConfig(config: Configuration): void {
+    this.validateConfig(config);
+    this.config = this.deepClone(config);
   }
   
   /**

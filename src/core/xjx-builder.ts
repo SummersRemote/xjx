@@ -5,31 +5,35 @@ import {
   Configuration,
   Transform,
   TransformDirection,
-  TransformTarget,
   XNode
 } from './types/transform-interfaces';
-import { DEFAULT_CONFIG } from './config/config';
-import { XmlToJsonProcessor } from './converters/xml-to-json-processor';
-import { JsonToXmlProcessor } from './converters/json-to-xml-processor';
 import { ConfigProvider } from './config/config-provider';
 import { XJXError } from './types/error-types';
+import { DefaultXmlToXNodeConverter } from './converters/xml-to-xnode-converter';
+import { DefaultJsonToXNodeConverter } from './converters/json-to-xnode-converter';
+import { DefaultXNodeToXmlConverter } from './converters/xnode-to-xml-converter';
+import { DefaultXNodeToJsonConverter } from './converters/xnode-to-json-converter';
+import { DefaultXNodeTransformer } from './converters/xnode-transformer';
 
 /**
  * Builder for XJX transformations
  */
 export class XjxBuilder {
-  private source: any;
-  private sourceType: 'xml' | 'json' | null = null;
-  public config: Configuration;
+  private xnode: XNode | null = null;
   private transforms: Transform[] = [];
+  public config: Configuration;
+  private configProvider: ConfigProvider;
+  private direction: TransformDirection | null = null;
   
   /**
    * Create a new builder instance
    */
   constructor() {
-    // Initialize with default configuration
-    const configProvider = ConfigProvider.getInstance();
-    this.config = configProvider.getConfig();
+    // Get the singleton config provider
+    this.configProvider = ConfigProvider.getInstance();
+    
+    // Initialize with a deep clone of the global configuration
+    this.config = this.deepClone(this.configProvider.getMutableConfig());
   }
   
   /**
@@ -41,8 +45,11 @@ export class XjxBuilder {
       throw new XJXError('Invalid XML source: must be a non-empty string');
     }
     
-    this.source = source;
-    this.sourceType = 'xml';
+    // Convert XML to XNode
+    const converter = new DefaultXmlToXNodeConverter(this.config);
+    this.xnode = converter.convert(source);
+    this.direction = TransformDirection.XML_TO_JSON;
+    
     return this;
   }
   
@@ -55,14 +62,17 @@ export class XjxBuilder {
       throw new XJXError('Invalid JSON source: must be a non-empty object');
     }
     
-    this.source = source;
-    this.sourceType = 'json';
+    // Convert JSON to XNode
+    const converter = new DefaultJsonToXNodeConverter(this.config);
+    this.xnode = converter.convert(source);
+    this.direction = TransformDirection.JSON_TO_XML;
+    
     return this;
   }
   
   /**
    * Set configuration options
-   * @param config Partial configuration to merge with defaults
+   * @param config Partial configuration to merge with current config
    */
   withConfig(config: Partial<Configuration>): XjxBuilder {
     if (!config || Object.keys(config).length === 0) {
@@ -71,6 +81,22 @@ export class XjxBuilder {
     
     // Merge with current config
     this.config = this.deepMerge(this.config, config);
+    return this;
+  }
+  
+  /**
+   * Reset this builder's configuration to match global configuration
+   */
+  resetToGlobalConfig(): XjxBuilder {
+    this.config = this.deepClone(this.configProvider.getMutableConfig());
+    return this;
+  }
+  
+  /**
+   * Make this builder's configuration the global default
+   */
+  makeConfigGlobal(): XjxBuilder {
+    this.configProvider.setConfig(this.deepClone(this.config));
     return this;
   }
   
@@ -101,18 +127,21 @@ export class XjxBuilder {
   toXml(): string {
     this.validateSource();
     
-    if (this.sourceType === 'xml') {
-      // XML to XML (identity with transformations)
-      const processor = new XmlToJsonProcessor(this.config);
-      const json = processor.process(this.source, this.getTransformsForDirection(TransformDirection.XML_TO_JSON));
-      
-      const jsonToXmlProcessor = new JsonToXmlProcessor(this.config);
-      return jsonToXmlProcessor.process(json, this.getTransformsForDirection(TransformDirection.JSON_TO_XML));
-    } else {
-      // JSON to XML
-      const processor = new JsonToXmlProcessor(this.config);
-      return processor.process(this.source, this.getTransformsForDirection(TransformDirection.JSON_TO_XML));
+    // Apply transformations if any are registered
+    if (this.transforms.length > 0) {
+      const transformer = new DefaultXNodeTransformer(this.config);
+      this.xnode = transformer.transform(
+        this.xnode!, 
+        this.transforms, 
+        this.direction === TransformDirection.XML_TO_JSON 
+          ? TransformDirection.JSON_TO_XML 
+          : TransformDirection.JSON_TO_XML
+      );
     }
+    
+    // Convert XNode to XML
+    const converter = new DefaultXNodeToXmlConverter(this.config);
+    return converter.convert(this.xnode!);
   }
   
   /**
@@ -121,18 +150,21 @@ export class XjxBuilder {
   toJson(): Record<string, any> {
     this.validateSource();
     
-    if (this.sourceType === 'json') {
-      // JSON to JSON (identity with transformations)
-      const processor = new JsonToXmlProcessor(this.config);
-      const xml = processor.process(this.source, this.getTransformsForDirection(TransformDirection.JSON_TO_XML));
-      
-      const xmlToJsonProcessor = new XmlToJsonProcessor(this.config);
-      return xmlToJsonProcessor.process(xml, this.getTransformsForDirection(TransformDirection.XML_TO_JSON));
-    } else {
-      // XML to JSON
-      const processor = new XmlToJsonProcessor(this.config);
-      return processor.process(this.source, this.getTransformsForDirection(TransformDirection.XML_TO_JSON));
+    // Apply transformations if any are registered
+    if (this.transforms.length > 0) {
+      const transformer = new DefaultXNodeTransformer(this.config);
+      this.xnode = transformer.transform(
+        this.xnode!, 
+        this.transforms, 
+        this.direction === TransformDirection.XML_TO_JSON 
+          ? TransformDirection.XML_TO_JSON 
+          : TransformDirection.XML_TO_JSON
+      );
     }
+    
+    // Convert XNode to JSON
+    const converter = new DefaultXNodeToJsonConverter(this.config);
+    return converter.convert(this.xnode!);
   }
   
   /**
@@ -148,19 +180,9 @@ export class XjxBuilder {
    * @private
    */
   private validateSource(): void {
-    if (!this.source || !this.sourceType) {
+    if (!this.xnode || !this.direction) {
       throw new XJXError('No source set: call fromXml() or fromJson() before transformation');
     }
-  }
-  
-  /**
-   * Filter transforms based on direction
-   * @private
-   */
-  private getTransformsForDirection(direction: TransformDirection): Transform[] {
-    // In this implementation, we apply all transforms regardless of direction
-    // A more sophisticated implementation could filter based on transform configuration
-    return this.transforms;
   }
   
   /**

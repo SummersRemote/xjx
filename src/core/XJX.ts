@@ -44,6 +44,8 @@ export class XJX {
    * @param xmlString XML string to validate
    */
   public static validateXml(xmlString: string): { isValid: boolean; message?: string } {
+    // Ensure xmlUtil is using latest configuration
+    XJX.refreshUtilWithLatestConfig();
     return XJX.xmlUtil.validateXML(xmlString);
   }
   
@@ -52,6 +54,8 @@ export class XJX {
    * @param xmlString XML string to format
    */
   public static prettyPrintXml(xmlString: string): string {
+    // Ensure xmlUtil is using latest configuration
+    XJX.refreshUtilWithLatestConfig();
     return XJX.xmlUtil.prettyPrintXml(xmlString);
   }
   
@@ -60,7 +64,7 @@ export class XJX {
    */
   public static resetConfig(): void {
     XJX.configProvider.resetToDefaults();
-    XJX.xmlUtil = new XmlUtil(XJX.configProvider.getConfig());
+    XJX.refreshUtilWithLatestConfig();
   }
   
   /**
@@ -69,7 +73,7 @@ export class XJX {
    */
   public static updateConfig(config: Partial<Configuration>): void {
     XJX.configProvider.updateConfig(config);
-    XJX.xmlUtil = new XmlUtil(XJX.configProvider.getConfig());
+    XJX.refreshUtilWithLatestConfig();
   }
   
   /**
@@ -84,6 +88,14 @@ export class XJX {
    */
   public static cleanup(): void {
     DOMAdapter.cleanup();
+  }
+  
+  /**
+   * Refresh utility instances with latest configuration
+   * @private
+   */
+  private static refreshUtilWithLatestConfig(): void {
+    XJX.xmlUtil = new XmlUtil(XJX.configProvider.getConfig());
   }
   
   /**

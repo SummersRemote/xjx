@@ -348,8 +348,8 @@ const getTransformerTypeName = (transformer) => {
       return 'Boolean';
     } else if (transformer.transformer.constructor.name.includes('Number')) {
       return 'Number';
-    } else if (transformer.transformer.constructor.name.includes('StringReplace')) {
-      return 'String';
+    // } else if (transformer.transformer.constructor.name.includes('StringReplace')) {
+    //   return 'String';
     }
     return 'Value';
   } else if (transformer.type === 'children') {
@@ -455,11 +455,11 @@ const addTransformer = () => {
         newTransformer.direction,
         processedOptions
       );
-    } else if (newTransformer.type === 'String') {
-      XjxService.addStringReplaceTransformer(
-        newTransformer.direction,
-        processedOptions
-      );
+    // } else if (newTransformer.type === 'String') {
+    //   XjxService.addStringReplaceTransformer(
+    //     newTransformer.direction,
+    //     processedOptions
+    //   );
     } else if (newTransformer.type === 'Filter') {
       XjxService.addFilterChildrenTransformer(
         newTransformer.direction,
@@ -509,8 +509,8 @@ const removeTransformer = (index) => {
           XjxService.addBooleanTransformer(transformer.direction, instance.options);
         } else if (instance.constructor.name.includes('Number')) {
           XjxService.addNumberTransformer(transformer.direction, instance.options);
-        } else if (instance.constructor.name.includes('StringReplace')) {
-          XjxService.addStringReplaceTransformer(transformer.direction, instance.options);
+        // } else if (instance.constructor.name.includes('StringReplace')) {
+        //   XjxService.addStringReplaceTransformer(transformer.direction, instance.options);
         }
       } else if (transformer.type === 'children') {
         XjxService.addFilterChildrenTransformer(transformer.direction, transformer.transformer.options);

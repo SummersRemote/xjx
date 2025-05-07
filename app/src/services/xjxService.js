@@ -5,7 +5,7 @@
  * support for transformers.
  */
 import { XJX, TransformDirection } from '../../../dist/xjx.full.js'; // Import the full version with extensions
-import { BooleanTransform, NumberTransform, StringReplaceTransform } from '../../../dist';
+import { BooleanTransform, NumberTransform } from '../../../dist';
 import FilterChildrenTransformer from './transformers/FilterChildrenTransformer';
 
 export default class XjxService {
@@ -245,52 +245,52 @@ export default class XjxService {
     }
   }
   
-  /**
-   * Add a String Replace transformer
-   * @param {string} direction - 'XML_TO_JSON' or 'JSON_TO_XML'
-   * @param {Object} options - Transformer options
-   * @returns {StringReplaceTransform} The created transformer
-   */
-  static addStringReplaceTransformer(direction, options) {
-    try {
-      // Clone to avoid modifying the original object
-      const processedOptions = {...options};
+  // /**
+  //  * Add a String Replace transformer
+  //  * @param {string} direction - 'XML_TO_JSON' or 'JSON_TO_XML'
+  //  * @param {Object} options - Transformer options
+  //  * @returns {StringReplaceTransform} The created transformer
+  //  */
+  // static addStringReplaceTransformer(direction, options) {
+  //   try {
+  //     // Clone to avoid modifying the original object
+  //     const processedOptions = {...options};
       
-      // Convert string pattern to RegExp if needed
-      if (typeof processedOptions.pattern === 'string' && 
-          processedOptions.pattern.startsWith('/') && 
-          processedOptions.pattern.lastIndexOf('/') > 0) {
-        const lastSlashIndex = processedOptions.pattern.lastIndexOf('/');
-        const patternBody = processedOptions.pattern.substring(1, lastSlashIndex);
-        const flags = processedOptions.pattern.substring(lastSlashIndex + 1);
-        processedOptions.pattern = new RegExp(patternBody, flags);
-      } else if (typeof processedOptions.pattern === 'string') {
-        // Create a regular expression with appropriate flags
-        const flags = (processedOptions.ignoreCase ? 'i' : '') + 
-                      (processedOptions.replaceAll !== false ? 'g' : '');
-        processedOptions.pattern = new RegExp(processedOptions.pattern, flags);
-      }
+  //     // Convert string pattern to RegExp if needed
+  //     if (typeof processedOptions.pattern === 'string' && 
+  //         processedOptions.pattern.startsWith('/') && 
+  //         processedOptions.pattern.lastIndexOf('/') > 0) {
+  //       const lastSlashIndex = processedOptions.pattern.lastIndexOf('/');
+  //       const patternBody = processedOptions.pattern.substring(1, lastSlashIndex);
+  //       const flags = processedOptions.pattern.substring(lastSlashIndex + 1);
+  //       processedOptions.pattern = new RegExp(patternBody, flags);
+  //     } else if (typeof processedOptions.pattern === 'string') {
+  //       // Create a regular expression with appropriate flags
+  //       const flags = (processedOptions.ignoreCase ? 'i' : '') + 
+  //                     (processedOptions.replaceAll !== false ? 'g' : '');
+  //       processedOptions.pattern = new RegExp(processedOptions.pattern, flags);
+  //     }
       
-      console.log('Creating StringReplaceTransform with options:', 
-                  { ...processedOptions, pattern: processedOptions.pattern.toString() });
+  //     console.log('Creating StringReplaceTransform with options:', 
+  //                 { ...processedOptions, pattern: processedOptions.pattern.toString() });
       
-      const transformer = new StringReplaceTransform(processedOptions);
+  //     const transformer = new StringReplaceTransform(processedOptions);
       
-      // Store the transformer in our registry
-      XjxService._transformers.push({
-        direction,
-        type: 'value',
-        transformer,
-        options: processedOptions
-      });
+  //     // Store the transformer in our registry
+  //     XjxService._transformers.push({
+  //       direction,
+  //       type: 'value',
+  //       transformer,
+  //       options: processedOptions
+  //     });
       
-      console.log(`Added StringReplaceTransform. Current transformers: ${XjxService._transformers.length}`);
-      return transformer;
-    } catch (error) {
-      console.error('Error creating StringReplaceTransform:', error);
-      throw error;
-    }
-  }
+  //     console.log(`Added StringReplaceTransform. Current transformers: ${XjxService._transformers.length}`);
+  //     return transformer;
+  //   } catch (error) {
+  //     console.error('Error creating StringReplaceTransform:', error);
+  //     throw error;
+  //   }
+  // }
   
   /**
    * Add a Filter Children transformer
@@ -361,7 +361,7 @@ export default class XjxService {
     return {
       BooleanTransform,
       NumberTransform,
-      StringReplaceTransform,
+      // StringReplaceTransform,
       FilterChildrenTransformer
     };
   }

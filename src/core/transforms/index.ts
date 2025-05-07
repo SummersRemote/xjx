@@ -9,5 +9,3 @@
 export { BooleanTransform, BooleanTransformOptions } from './boolean-transform';
 export { NumberTransform, NumberTransformOptions } from './number-transform';
 export { RegexTransform, RegexOptions } from './regex-transform';
-
-// Note: StringReplaceTransform is deprecated - use RegexTransform instead

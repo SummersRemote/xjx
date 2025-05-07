@@ -11,10 +11,25 @@ import brotli from 'rollup-plugin-brotli';
 const packageJson = JSON.parse(readFileSync('./package.json', 'utf8'));
 const isProd = process.env.NODE_ENV === 'production';
 
+// External dependencies that shouldn't be bundled
+const external = [
+  ...Object.keys(packageJson.peerDependencies || {}),
+  ...Object.keys(packageJson.dependencies || {})
+];
+
+// Common plugins for all bundles
 const basePlugins = [
-  nodeResolve({ browser: true, extensions: ['.ts', '.js'] }),
+  nodeResolve({ 
+    browser: true, 
+    extensions: ['.ts', '.js'],
+    preferBuiltins: false 
+  }),
   commonjs(),
-  typescript({ tsconfig: './tsconfig.json', declaration: true }),
+  typescript({ 
+    tsconfig: './tsconfig.json', 
+    declaration: true,
+    sourceMap: !isProd
+  }),
   filesize(),
   visualizer({
     filename: 'dist/stats.html',
@@ -25,30 +40,39 @@ const basePlugins = [
   })
 ];
 
-const compressionPlugin = isProd && brotli({
-  extensions: ['js'],
-});
+// Add compression for production builds
+const prodPlugins = isProd ? [
+  brotli({
+    extensions: ['js'],
+  })
+] : [];
 
 export default [
-  // Core bundle
+  // Core bundle - minimal version with just essential functionality
   {
     input: 'src/index.ts',
-    external: [...Object.keys(packageJson.peerDependencies || {})],
+    external,
     output: [
+      // ESM bundle for modern environments
       { 
         file: 'dist/index.js', 
         format: 'esm', 
         sourcemap: !isProd, 
         exports: 'named' 
       },
+      // UMD bundle for browser/CommonJS compatibility
       { 
         file: 'dist/xjx.umd.js', 
         format: 'umd', 
         name: 'XJX', 
         sourcemap: !isProd, 
         exports: 'named', 
-        globals: { jsdom: 'JSDOM', '@xmldom/xmldom': 'xmldom' } 
+        globals: { 
+          jsdom: 'JSDOM', 
+          '@xmldom/xmldom': 'xmldom' 
+        } 
       },
+      // Minified IIFE bundle for direct browser usage
       { 
         file: 'dist/xjx.min.js', 
         format: 'iife', 
@@ -60,29 +84,35 @@ export default [
     ],
     plugins: [
       ...basePlugins,
-      compressionPlugin
-    ].filter(Boolean)
+      ...prodPlugins
+    ]
   },
 
-  // Full bundle (core + extensions)
+  // Full bundle - includes all extensions and utilities
   {
     input: 'src/xjx.full.ts',
-    external: [...Object.keys(packageJson.peerDependencies || {})],
+    external,
     output: [
+      // ESM bundle
       { 
         file: 'dist/xjx.full.js', 
         format: 'esm', 
         sourcemap: !isProd, 
         exports: 'named' 
       },
+      // UMD bundle
       { 
         file: 'dist/xjx.full.umd.js', 
         format: 'umd', 
         name: 'XJX', 
         sourcemap: !isProd, 
         exports: 'named', 
-        globals: { jsdom: 'JSDOM', '@xmldom/xmldom': 'xmldom' } 
+        globals: { 
+          jsdom: 'JSDOM', 
+          '@xmldom/xmldom': 'xmldom' 
+        } 
       },
+      // Minified IIFE bundle
       { 
         file: 'dist/xjx.full.min.js', 
         format: 'iife', 
@@ -94,14 +124,16 @@ export default [
     ],
     plugins: [
       ...basePlugins,
-      compressionPlugin
-    ].filter(Boolean)
+      ...prodPlugins
+    ]
   },
 
-  // Converter bundle (new for the refactored architecture)
+  // Submodules for specific functionality
+  
+  // Converters bundle
   {
     input: 'src/core/converters/index.ts',
-    external: ['../types/transform-types', '../utils/path-matcher'],
+    external: [...external, '../types/transform-interfaces', '../utils/xml-utils'],
     output: [
       { 
         file: 'dist/converters.js', 
@@ -111,31 +143,50 @@ export default [
     ],
     plugins: [
       ...basePlugins,
-      compressionPlugin
-    ].filter(Boolean)
+      ...prodPlugins
+    ]
   },
 
-  // Core extensions bundle (new for the refactored architecture)
+  // Transforms bundle
   {
-    input: 'src/extensions/core/index.ts',
-    external: ['../../core/XJX', '../../core/converters/*'],
+    input: 'src/core/transforms/index.ts',
+    external: [...external, '../types/transform-interfaces'],
     output: [
       { 
-        file: 'dist/extensions/core-extensions.js', 
+        file: 'dist/transforms.js', 
         format: 'esm', 
         sourcemap: !isProd 
       }
     ],
     plugins: [
       ...basePlugins,
-      compressionPlugin
-    ].filter(Boolean)
+      ...prodPlugins
+    ]
+  },
+
+  // Utils bundle
+  {
+    input: 'src/core/utils/index.ts',
+    external: [...external, '../types/transform-interfaces', '../types/error-types'],
+    output: [
+      { 
+        file: 'dist/utils.js', 
+        format: 'esm', 
+        sourcemap: !isProd 
+      }
+    ],
+    plugins: [
+      ...basePlugins,
+      ...prodPlugins
+    ]
   },
 
   // Individual extensions
+
+  // GetPath Extension
   {
-    input: 'src/extensions/GetPathExtension.ts',
-    external: ['../core/utils/json-utils', '../core/XJX'],
+    input: 'src/core/commands/terminal/GetPathExtension.ts',
+    external: [...external, '../../XJX', '../../types/extension-types'],
     output: [
       { 
         file: 'dist/extensions/GetPathExtension.js', 
@@ -145,13 +196,14 @@ export default [
     ],
     plugins: [
       ...basePlugins,
-      compressionPlugin
-    ].filter(Boolean)
+      ...prodPlugins
+    ]
   },
 
+  // GetJsonSchema Extension
   {
-    input: 'src/extensions/GetJsonSchemaExtension.ts',
-    external: ['../core/utils/json-utils', '../core/XJX'],
+    input: 'src/core/commands/terminal/GetJsonSchemaExtension.ts',
+    external: [...external, '../../XJX', '../../types/extension-types', '../../types/json-types'],
     output: [
       { 
         file: 'dist/extensions/GetJsonSchemaExtension.js', 
@@ -161,11 +213,11 @@ export default [
     ],
     plugins: [
       ...basePlugins,
-      compressionPlugin
-    ].filter(Boolean)
+      ...prodPlugins
+    ]
   },
 
-  // Types bundles
+  // Types bundles - consolidate types into unified declaration files
   {
     input: 'dist/dts/index.d.ts',
     output: { file: 'dist/index.d.ts', format: 'es' },
@@ -179,19 +231,25 @@ export default [
   },
   
   {
-    input: 'dist/dts/extensions/core/index.d.ts',
-    output: { file: 'dist/extensions/core-extensions.d.ts', format: 'es' },
+    input: 'dist/dts/core/transforms/index.d.ts',
+    output: { file: 'dist/transforms.d.ts', format: 'es' },
     plugins: [dts()]
   },
   
   {
-    input: 'dist/dts/extensions/GetPathExtension.d.ts',
+    input: 'dist/dts/core/utils/index.d.ts',
+    output: { file: 'dist/utils.d.ts', format: 'es' },
+    plugins: [dts()]
+  },
+  
+  {
+    input: 'dist/dts/core/commands/terminal/GetPathExtension.d.ts',
     output: { file: 'dist/extensions/GetPathExtension.d.ts', format: 'es' },
     plugins: [dts()]
   },
   
   {
-    input: 'dist/dts/extensions/GetJsonSchemaExtension.d.ts',
+    input: 'dist/dts/core/commands/terminal/GetJsonSchemaExtension.d.ts',
     output: { file: 'dist/extensions/GetJsonSchemaExtension.d.ts', format: 'es' },
     plugins: [dts()]
   }

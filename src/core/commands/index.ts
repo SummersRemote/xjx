@@ -1,16 +1,21 @@
 /**
- * Core extensions index - imports all core extensions to ensure they're registered
+ * Core extensions index
+ * 
+ * This barrel file imports all core extensions to ensure they're registered with XJX.
+ * The imports are organized by extension type for better maintainability.
  */
 
-// Import all core extensions
+// Non-terminal extensions (methods that return the builder for chaining)
 import './nonterminal/FromXmlExtension';
 import './nonterminal/FromJsonExtension';
-import './terminal/ToXmlExtension';
-import './terminal/ToJsonExtension';
-import './terminal/ToJsonStringExtension';
 import './nonterminal/WithConfigExtension';
 import './nonterminal/WithTransformsExtension';
 import './nonterminal/ConfigManagementExtensions';
+
+// Terminal extensions (methods that return a value)
+import './terminal/ToXmlExtension';
+import './terminal/ToJsonExtension';
+import './terminal/ToJsonStringExtension';
 import './terminal/GetJsonSchemaExtension';
 import './terminal/GetPathExtension';
 

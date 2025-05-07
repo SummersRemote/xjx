@@ -4,11 +4,24 @@
  * Main entry point and exports for the library
  */
 
+// =====================================================================================
+// Core functionality
+// =====================================================================================
+
 // Main XJX class with fluent API
 export { XJX } from './core/XJX';
 
+// Configuration
+export { DEFAULT_CONFIG } from './core/config/config';
+export { ConfigProvider } from './core/config/config-provider';
+
+// =====================================================================================
+// Type definitions
+// =====================================================================================
+
 // Core interfaces and types
 export {
+  // Transform related types
   Transform,
   TransformTarget,
   TransformContext,
@@ -16,11 +29,10 @@ export {
   TransformDirection,
   NodeModel as XNode,
   createTransformResult as transformResult,
+  
+  // Configuration types
   Configuration
 } from './core/types/transform-interfaces';
-
-// Configuration
-export { DEFAULT_CONFIG } from './core/config/config';
 
 // JSON types
 export { 
@@ -44,6 +56,17 @@ export {
   ConfigurationError 
 } from './core/types/error-types';
 
+// Extension types
+export {
+  XJXContext,
+  TerminalExtensionContext,
+  NonTerminalExtensionContext
+} from './core/types/extension-types';
+
+// =====================================================================================
+// Converters
+// =====================================================================================
+
 // Converter interfaces
 export {
   Converter,
@@ -61,14 +84,28 @@ export { DefaultXNodeToXmlConverter } from './core/converters/xnode-to-xml-conve
 export { DefaultXNodeToJsonConverter } from './core/converters/xnode-to-json-converter';
 export { DefaultXNodeTransformer } from './core/converters/xnode-transformer';
 
-// Extension types
-export {
-  XJXContext,
-  TerminalExtensionContext,
-  NonTerminalExtensionContext
-} from './core/types/extension-types';
+// =====================================================================================
+// Utilities
+// =====================================================================================
 
+// XML utilities
+export { XmlUtil, ValidationResult } from './core/utils/xml-utils';
+export { XmlEntityHandler } from './core/utils/xml-entity-handler';
+export { NamespaceUtil } from './core/utils/namespace-util';
+
+// JSON utilities
+export { JsonUtil } from './core/utils/json-utils';
+
+// Transform utilities
+export { TransformUtils } from './core/utils/transform-utils';
+
+// DOM adapter
+export { DOMAdapter } from './core/adapters/dom-adapter';
+
+// =====================================================================================
 // Transformers
+// =====================================================================================
+
 export { BooleanTransform, BooleanTransformOptions } from './core/transforms/boolean-transform';
 export { NumberTransform, NumberTransformOptions } from './core/transforms/number-transform';
 export { StringReplaceTransform, StringReplaceOptions } from './core/transforms/string-replace-transform';
@@ -82,12 +119,9 @@ export {
   SortChildrenOptions
 } from './core/transforms/element-transform';
 
-// Utilities
-export { ValidationResult } from './core/utils/xml-utils';
-
+// =====================================================================================
 // Register core extensions
-import './core/commands';
+// =====================================================================================
 
-// Register additional extensions
-import './core/commands/terminal/GetPathExtension';
-import './core/commands/terminal/GetJsonSchemaExtension';
+// This ensures all extension methods are available on XJX and XjxBuilder
+import './core/commands';

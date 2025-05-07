@@ -5,7 +5,7 @@
  * to properly type the 'this' context.
  */
 import { Configuration } from "./config-types";
-import { Transform, XNode, TransformDirection } from "./transform-interfaces";
+import { Transform, NodeModel, TransformDirection } from "./transform-interfaces";
 import { ConfigProvider } from "../config/config-provider";
 
 /**
@@ -23,7 +23,7 @@ export interface XJXContext {
  */
 export interface TerminalExtensionContext extends XJXContext {
   // These properties are available in the builder context
-  xnode: XNode | null;
+  xnode: NodeModel | null;
   direction: TransformDirection | null;
   transforms: Transform[];
   configProvider: ConfigProvider;
@@ -40,7 +40,7 @@ export interface TerminalExtensionContext extends XJXContext {
  */
 export interface NonTerminalExtensionContext extends XJXContext {
   // Properties that can be modified by extensions
-  xnode: XNode | null;
+  xnode: NodeModel | null;
   direction: TransformDirection | null;
   transforms: Transform[];
   configProvider: ConfigProvider;

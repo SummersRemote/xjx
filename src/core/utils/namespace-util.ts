@@ -4,7 +4,7 @@
  * Centralizes all namespace resolution logic to ensure consistent handling 
  * of namespaces throughout the library.
  */
-import { XNode } from '../types/transform-interfaces';
+import { NodeModel } from '../types/transform-interfaces';
 
 export class NamespaceUtil {
   // Singleton instance created immediately
@@ -32,11 +32,11 @@ export class NamespaceUtil {
    * @returns Namespace URI or undefined if not found
    */
   public findNamespaceForPrefix(
-    node: XNode,
+    node: NodeModel,
     prefix: string,
     namespaceMap?: Record<string, string>
   ): string | undefined {
-    let current: XNode | undefined = node;
+    let current: NodeModel | undefined = node;
 
     // Walk up the parent chain looking for a matching namespace declaration
     while (current) {
@@ -141,9 +141,9 @@ export class NamespaceUtil {
    * @param node XNode to start from
    * @returns Combined namespace declarations
    */
-  public collectNamespaceDeclarations(node: XNode): Record<string, string> {
+  public collectNamespaceDeclarations(node: NodeModel): Record<string, string> {
     const result: Record<string, string> = {};
-    let current: XNode | undefined = node;
+    let current: NodeModel | undefined = node;
     
     // Walk up the parent chain and collect all namespace declarations
     while (current) {

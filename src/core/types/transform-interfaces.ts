@@ -74,19 +74,19 @@ export interface TransformResult<T> {
 /**
  * Internal node representation
  */
-export interface XNode {
+export interface NodeModel {
   name: string;
   type: number;
   value?: any;
   attributes?: Record<string, any>;
-  children?: XNode[];
+  children?: NodeModel[];
   namespace?: string;
   prefix?: string;
   
   // Enhanced namespace handling
   namespaceDeclarations?: Record<string, string>;
   isDefaultNamespace?: boolean;
-  parent?: XNode;
+  parent?: NodeModel;
 }
 
 /**
@@ -103,6 +103,6 @@ export interface Transform {
 /**
  * Helper function to create a transform result
  */
-export function transformResult<T>(value: T, remove: boolean = false): TransformResult<T> {
+export function createTransformResult<T>(value: T, remove: boolean = false): TransformResult<T> {
   return { value, remove };
 }

@@ -1,10 +1,10 @@
 /**
  * Core extension that implements the withTransforms method
  */
-import { XJX } from "../../core/XJX";
-import { Transform } from "../../core/types/transform-interfaces";
-import { XJXError } from "../../core/types/error-types";
-import { NonTerminalExtensionContext } from "../../core/types/extension-types";
+import { XJX } from "../../XJX";
+import { Transform } from "../../types/transform-interfaces";
+import { XJXError } from "../../types/error-types";
+import { NonTerminalExtensionContext } from "../../types/extension-types";
 
 /**
  * Add transformers to the pipeline

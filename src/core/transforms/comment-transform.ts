@@ -6,7 +6,7 @@ import {
     TransformContext, 
     TransformResult, 
     TransformTarget, 
-    transformResult 
+    createTransformResult 
   } from '../../core/types/transform-interfaces';
   
   /**
@@ -79,15 +79,15 @@ import {
       
       // Check if comment should be kept based on keepPattern
       if (this.keepPattern && this.keepPattern.test(commentValue)) {
-        return transformResult(value);
+        return createTransformResult(value);
       }
       
       // Check if comment should be removed based on removeAll or removePattern
       if (this.removeAll || (this.removePattern && this.removePattern.test(commentValue))) {
-        return transformResult(null, true);
+        return createTransformResult(null, true);
       }
       
       // Default case: keep the comment
-      return transformResult(value);
+      return createTransformResult(value);
     }
   }

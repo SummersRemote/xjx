@@ -2,7 +2,7 @@
  * JSON to XNode converter implementation
  */
 import { JsonToXNodeConverter } from './converter-interfaces';
-import { Configuration, XNode } from '../types/transform-interfaces';
+import { Configuration, NodeModel } from '../types/transform-interfaces';
 import { NodeType } from '../types/dom-types';
 import { XJXError, JsonToXmlError } from '../types/error-types';
 
@@ -26,7 +26,7 @@ export class DefaultJsonToXNodeConverter implements JsonToXNodeConverter {
    * @param json JSON object
    * @returns XNode representation
    */
-  public convert(json: Record<string, any>): XNode {
+  public convert(json: Record<string, any>): NodeModel {
     try {
       // Reset namespace map
       this.namespaceMap = {};
@@ -47,7 +47,7 @@ export class DefaultJsonToXNodeConverter implements JsonToXNodeConverter {
    * @param parentNode Optional parent node
    * @returns XNode representation
    */
-  private jsonToXNode(jsonObj: Record<string, any>, parentNode?: XNode): XNode {
+  private jsonToXNode(jsonObj: Record<string, any>, parentNode?: NodeModel): NodeModel {
     this.validateJsonObject(jsonObj);
 
     // Get the node name (first key in the object)
@@ -59,7 +59,7 @@ export class DefaultJsonToXNodeConverter implements JsonToXNodeConverter {
     const nodeData = jsonObj[nodeName];
 
     // Create base XNode
-    const xnode: XNode = {
+    const xnode: NodeModel = {
       name: nodeName,
       type: NodeType.ELEMENT_NODE,
       parent: parentNode
@@ -162,8 +162,8 @@ export class DefaultJsonToXNodeConverter implements JsonToXNodeConverter {
    * @param parentNode Parent XNode
    * @returns Array of XNode children
    */
-  private processChildren(children: any[], parentNode: XNode): XNode[] {
-    const result: XNode[] = [];
+  private processChildren(children: any[], parentNode: NodeModel): NodeModel[] {
+    const result: NodeModel[] = [];
     
     for (const child of children) {
       // Special node types
@@ -187,7 +187,7 @@ export class DefaultJsonToXNodeConverter implements JsonToXNodeConverter {
    * @param parentNode Parent XNode
    * @returns True if processed as special node
    */
-  private processSpecialChild(child: any, result: XNode[], parentNode: XNode): boolean {
+  private processSpecialChild(child: any, result: NodeModel[], parentNode: NodeModel): boolean {
     const valueKey = this.config.propNames.value;
     const cdataKey = this.config.propNames.cdata;
     const commentsKey = this.config.propNames.comments;

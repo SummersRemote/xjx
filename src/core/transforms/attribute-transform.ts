@@ -6,7 +6,7 @@ import {
     TransformContext, 
     TransformResult, 
     TransformTarget, 
-    transformResult 
+    createTransformResult 
   } from '../../core/types/transform-interfaces';
   
   /**
@@ -68,19 +68,19 @@ import {
     transform(value: any, context: TransformContext): TransformResult<any> {
       // Ensure we have an attribute name from context
       if (!context.attributeName) {
-        return transformResult(value);
+        return createTransformResult(value);
       }
       
       const attributeName = context.attributeName;
       
       // Check if attribute should be removed by name
       if (this.removeAttributes.has(attributeName)) {
-        return transformResult(null, true);
+        return createTransformResult(null, true);
       }
       
       // Check if attribute should be removed by pattern
       if (this.removePattern && this.removePattern.test(attributeName)) {
-        return transformResult(null, true);
+        return createTransformResult(null, true);
       }
       
       // Check if attribute should be renamed
@@ -88,14 +88,14 @@ import {
       if (newName) {
         // For attribute transformers, we need to handle [name, value] tuples
         if (Array.isArray(value) && value.length === 2) {
-          return transformResult([newName, value[1]]);
+          return createTransformResult([newName, value[1]]);
         }
         
         // If we're just processing the attribute name itself
-        return transformResult([newName, value]);
+        return createTransformResult([newName, value]);
       }
       
       // No changes needed
-      return transformResult(value);
+      return createTransformResult(value);
     }
   }

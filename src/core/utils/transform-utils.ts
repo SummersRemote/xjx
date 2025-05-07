@@ -6,7 +6,7 @@ import {
     TransformContext, 
     TransformDirection, 
     TransformTarget, 
-    XNode 
+    NodeModel 
   } from '../types/transform-interfaces';
   import { Configuration } from '../types/config-types';
   
@@ -44,7 +44,7 @@ import {
      */
     static createChildContext(
       parentContext: TransformContext,
-      childNode: XNode,
+      childNode: NodeModel,
       index: number
     ): TransformContext {
       return {

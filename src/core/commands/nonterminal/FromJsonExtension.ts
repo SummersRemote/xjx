@@ -1,11 +1,11 @@
 /**
  * Core extension that implements the fromJson method
  */
-import { XJX } from "../../core/XJX";
-import { DefaultJsonToXNodeConverter } from "../../core/converters/json-to-xnode-converter";
-import { XJXError } from "../../core/types/error-types";
-import { TransformDirection } from "../../core/types/transform-interfaces";
-import { NonTerminalExtensionContext } from "../../core/types/extension-types";
+import { XJX } from "../../XJX";
+import { DefaultJsonToXNodeConverter } from "../../converters/json-to-xnode-converter";
+import { XJXError } from "../../types/error-types";
+import { TransformDirection } from "../../types/transform-interfaces";
+import { NonTerminalExtensionContext } from "../../types/extension-types";
 
 /**
  * Set JSON source for transformation

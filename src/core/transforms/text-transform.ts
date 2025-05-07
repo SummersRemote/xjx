@@ -6,7 +6,7 @@ import {
     TransformContext, 
     TransformResult, 
     TransformTarget, 
-    transformResult 
+    createTransformResult 
   } from '../../core/types/transform-interfaces';
   
   /**
@@ -85,7 +85,7 @@ import {
         text = node;
       } else {
         // Not a text node or string, return unchanged
-        return transformResult(node);
+        return createTransformResult(node);
       }
       
       // Apply transformations
@@ -111,9 +111,9 @@ import {
       // Return transformed text in the same format as input
       if (isNodeObject) {
         const newNode = { ...node, value: result };
-        return transformResult(newNode);
+        return createTransformResult(newNode);
       } else {
-        return transformResult(result);
+        return createTransformResult(result);
       }
     }
   }

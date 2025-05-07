@@ -4,10 +4,10 @@
 // Extension that adds a `toJsonSchema` method using the new terminal extension system
 // =====================================================================================
 
-import { XJX } from "../core/XJX";
-import { JSONObject } from "../core/types/json-types";
-import { XJXError } from "../core/types/error-types";
-import { TerminalExtensionContext } from "../core/types/extension-types";
+import { XJX } from "../../XJX";
+import { JSONObject } from "../../types/json-types";
+import { XJXError } from "../../types/error-types";
+import { TerminalExtensionContext } from "../../types/extension-types";
 
 /**
  * Generate a simple JSON Schema based on current configuration.

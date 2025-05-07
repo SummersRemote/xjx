@@ -1,9 +1,9 @@
 /**
  * Core extension that implements the withConfig method
  */
-import { XJX } from "../../core/XJX";
-import { Configuration } from "../../core/types/transform-interfaces";
-import { NonTerminalExtensionContext } from "../../core/types/extension-types";
+import { XJX } from "../../XJX";
+import { Configuration } from "../../types/transform-interfaces";
+import { NonTerminalExtensionContext } from "../../types/extension-types";
 
 /**
  * Set configuration options

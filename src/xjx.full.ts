@@ -8,10 +8,8 @@
 export * from './index';
 
 // Ensure all core extensions are registered
-import './extensions/core';
+import './core/commands';
 
 // Register additional extensions
-import './extensions/GetPathExtension';
-import './extensions/GetJsonSchemaExtension';
 
 // This file creates the "full" bundle with core functionality, converters, and all extensions

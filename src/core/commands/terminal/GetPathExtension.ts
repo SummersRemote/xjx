@@ -4,8 +4,8 @@
 // Extension that adds a `getPath` method using the new terminal extension system
 // =====================================================================================
 
-import { XJX } from "../core/XJX";
-import { TerminalExtensionContext } from "../core/types/extension-types";
+import { XJX } from "../../XJX";
+import { TerminalExtensionContext } from "../../types/extension-types";
 
 /**
  * Safely retrieves a value from a JSON object using a dot-separated path.

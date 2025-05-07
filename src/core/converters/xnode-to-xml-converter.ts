@@ -2,7 +2,7 @@
  * XNode to XML converter implementation
  */
 import { XNodeToXmlConverter } from './converter-interfaces';
-import { Configuration, XNode } from '../types/transform-interfaces';
+import { Configuration, NodeModel } from '../types/transform-interfaces';
 import { XmlUtil } from '../utils/xml-utils';
 import { DOMAdapter } from '../adapters/dom-adapter';
 import { NodeType } from '../types/dom-types';
@@ -36,7 +36,7 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
    * @param node XNode representation
    * @returns XML string
    */
-  public convert(node: XNode): string {
+  public convert(node: NodeModel): string {
     try {
       // Reset namespace map
       this.namespaceMap = {};
@@ -83,7 +83,7 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
    * @param doc DOM document
    * @returns DOM element
    */
-  public xnodeToDom(node: XNode, doc: Document): Element {
+  public xnodeToDom(node: NodeModel, doc: Document): Element {
     let element: Element;
     
     // Create element with namespace if needed
@@ -180,7 +180,7 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
    * @param prefix Prefix to find
    * @returns Namespace URI or undefined
    */
-  private findNamespaceForPrefix(node: XNode, prefix: string): string | undefined {
+  private findNamespaceForPrefix(node: NodeModel, prefix: string): string | undefined {
     return this.namespaceUtil.findNamespaceForPrefix(node, prefix, this.namespaceMap);
   }
 }

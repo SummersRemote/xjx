@@ -6,8 +6,8 @@ import {
     TransformContext, 
     TransformResult, 
     TransformTarget, 
-    transformResult,
-    XNode,
+    createTransformResult,
+    NodeModel,
     NodeType
   } from '../../core/types/transform-interfaces';
   
@@ -20,7 +20,7 @@ import {
      * If provided, the transform will only be applied to elements
      * where this function returns true
      */
-    filter?: (node: XNode, context: TransformContext) => boolean;
+    filter?: (node: NodeModel, context: TransformContext) => boolean;
     
     /**
      * Map of element names to rename
@@ -32,13 +32,13 @@ import {
      * Filter function to remove children
      * Return true to keep the child, false to remove it
      */
-    filterChildren?: (node: XNode, context: TransformContext) => boolean;
+    filterChildren?: (node: NodeModel, context: TransformContext) => boolean;
     
     /**
      * Function to create new children
      * Return an array of new nodes to add as children
      */
-    addChildren?: (parentNode: XNode, context: TransformContext) => XNode[];
+    addChildren?: (parentNode: NodeModel, context: TransformContext) => NodeModel[];
   }
   
   /**
@@ -71,10 +71,10 @@ import {
     // Target elements
     targets = [TransformTarget.Element];
     
-    private filter?: (node: XNode, context: TransformContext) => boolean;
+    private filter?: (node: NodeModel, context: TransformContext) => boolean;
     private renameMap?: Record<string, string>;
-    private filterChildren?: (node: XNode, context: TransformContext) => boolean;
-    private addChildren?: (parentNode: XNode, context: TransformContext) => XNode[];
+    private filterChildren?: (node: NodeModel, context: TransformContext) => boolean;
+    private addChildren?: (parentNode: NodeModel, context: TransformContext) => NodeModel[];
     
     /**
      * Create a new element transformer
@@ -91,10 +91,10 @@ import {
      * 
      * No need to check node type - the pipeline handles that
      */
-    transform(node: XNode, context: TransformContext): TransformResult<XNode> {
+    transform(node: NodeModel, context: TransformContext): TransformResult<NodeModel> {
       // Skip if filter is provided and returns false
       if (this.filter && !this.filter(node, context)) {
-        return transformResult(node);
+        return createTransformResult(node);
       }
       
       // Deep clone the node to avoid modifying the original
@@ -143,7 +143,7 @@ import {
         }
       }
       
-      return transformResult(result);
+      return createTransformResult(result);
     }
     
     /**
@@ -175,7 +175,7 @@ import {
      * Function to extract sort value from node
      * Default sorts by node name
      */
-    sortBy?: (node: XNode, context: TransformContext) => string | number;
+    sortBy?: (node: NodeModel, context: TransformContext) => string | number;
     
     /**
      * Optional key path to sort by (alternative to sortBy function)
@@ -218,7 +218,7 @@ import {
     
     private targetParent?: string;
     private childType?: string;
-    private sortBy: (node: XNode, context: TransformContext) => string | number;
+    private sortBy: (node: NodeModel, context: TransformContext) => string | number;
     private direction: 'asc' | 'desc';
     
     /**
@@ -231,7 +231,7 @@ import {
       
       // If sortKey is provided, create a sort function based on it
       if (options.sortKey) {
-        this.sortBy = (node: XNode) => {
+        this.sortBy = (node: NodeModel) => {
           return this.getNestedValue(node, options.sortKey!);
         };
       } else if (options.sortBy) {
@@ -239,22 +239,22 @@ import {
         this.sortBy = options.sortBy;
       } else {
         // Default sort by name
-        this.sortBy = (node: XNode) => node.name;
+        this.sortBy = (node: NodeModel) => node.name;
       }
     }
     
     /**
      * Transform by sorting children
      */
-    transform(node: XNode, context: TransformContext): TransformResult<XNode> {
+    transform(node: NodeModel, context: TransformContext): TransformResult<NodeModel> {
       // Only process elements with children
       if (!node.children || node.children.length <= 1) {
-        return transformResult(node);
+        return createTransformResult(node);
       }
       
       // Check if this is the target parent (if specified)
       if (this.targetParent && node.name !== this.targetParent) {
-        return transformResult(node);
+        return createTransformResult(node);
       }
       
       // Deep clone the node to avoid modifying the original
@@ -263,11 +263,11 @@ import {
       // At this point we know result.children exists and has elements
       // Because we checked node.children above and result is a clone of node
       if (!result.children) {
-        return transformResult(result);
+        return createTransformResult(result);
       }
       
       // Filter children if a specific child type is specified
-      let childrenToSort: XNode[] = this.childType 
+      let childrenToSort: NodeModel[] = this.childType 
         ? result.children.filter(child => child.name === this.childType)
         : [...result.children]; // Create a new array to avoid mutating the original
       
@@ -304,13 +304,13 @@ import {
         }
       }
       
-      return transformResult(result);
+      return createTransformResult(result);
     }
     
     /**
      * Create a context for a child node
      */
-    private createChildContext(child: XNode, parentContext: TransformContext): TransformContext {
+    private createChildContext(child: NodeModel, parentContext: TransformContext): TransformContext {
       return {
         nodeName: child.name,
         nodeType: child.type,

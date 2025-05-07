@@ -6,7 +6,7 @@ import {
     TransformContext, 
     TransformResult, 
     TransformTarget, 
-    transformResult 
+    createTransformResult 
   } from '../../core/types/transform-interfaces';
   
   /**
@@ -90,7 +90,7 @@ import {
     transform(value: any, context: TransformContext): TransformResult<any> {
       // Already a number, return as is
       if (typeof value === 'number') {
-        return transformResult(value);
+        return createTransformResult(value);
       }
       
       // Convert to string for parsing
@@ -98,7 +98,7 @@ import {
       
       // Skip empty strings
       if (!strValue.trim()) {
-        return transformResult(value);
+        return createTransformResult(value);
       }
       
       // Remove thousands separators
@@ -135,7 +135,7 @@ import {
         const regex = new RegExp(`^(${regexParts.join('|')})$`);
         
         if (!regex.test(normalized)) {
-          return transformResult(value);
+          return createTransformResult(value);
         }
       }
       
@@ -143,6 +143,6 @@ import {
       const parsed = parseFloat(normalized);
       
       // Return the parsed number if it's valid, otherwise original value
-      return transformResult(isNaN(parsed) ? value : parsed);
+      return createTransformResult(isNaN(parsed) ? value : parsed);
     }
   }

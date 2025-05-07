@@ -1,11 +1,11 @@
 /**
  * Core extension that implements the toXml method
  */
-import { XJX } from "../../core/XJX";
-import { DefaultXNodeToXmlConverter } from "../../core/converters/xnode-to-xml-converter";
-import { DefaultXNodeTransformer } from "../../core/converters/xnode-transformer";
-import { TerminalExtensionContext } from "../../core/types/extension-types";
-import { TransformDirection } from "../../core/types/transform-interfaces";
+import { XJX } from "../../XJX";
+import { DefaultXNodeToXmlConverter } from "../../converters/xnode-to-xml-converter";
+import { DefaultXNodeTransformer } from "../../converters/xnode-transformer";
+import { TerminalExtensionContext } from "../../types/extension-types";
+import { TransformDirection } from "../../types/transform-interfaces";
 
 /**
  * Convert current XNode to XML string

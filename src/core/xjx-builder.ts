@@ -8,7 +8,7 @@ import {
   Configuration,
   Transform,
   TransformDirection,
-  XNode
+  NodeModel
 } from './types/transform-interfaces';
 import { ConfigProvider } from './config/config-provider';
 import { XJXError } from './types/error-types';
@@ -21,7 +21,7 @@ import { XJXError } from './types/error-types';
  */
 export class XjxBuilder {
   // Public properties that extensions can access
-  public xnode: XNode | null = null;
+  public xnode: NodeModel | null = null;
   public transforms: Transform[] = [];
   public config: Configuration;
   public direction: TransformDirection | null = null;

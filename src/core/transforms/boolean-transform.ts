@@ -6,7 +6,7 @@ import {
     TransformContext, 
     TransformResult, 
     TransformTarget, 
-    transformResult 
+    createTransformResult 
   } from '../../core/types/transform-interfaces';
   
   /**
@@ -73,12 +73,12 @@ import {
     transform(value: any, context: TransformContext): TransformResult<any> {
       // Already a boolean, return as is
       if (typeof value === 'boolean') {
-        return transformResult(value);
+        return createTransformResult(value);
       }
       
       // Skip non-string values
       if (typeof value !== 'string') {
-        return transformResult(value);
+        return createTransformResult(value);
       }
       
       // Convert to string for comparison
@@ -87,19 +87,19 @@ import {
       // Check for true values
       for (const trueVal of this.trueValues) {
         if (this.compareValues(strValue, trueVal)) {
-          return transformResult(true);
+          return createTransformResult(true);
         }
       }
       
       // Check for false values
       for (const falseVal of this.falseValues) {
         if (this.compareValues(strValue, falseVal)) {
-          return transformResult(false);
+          return createTransformResult(false);
         }
       }
       
       // No match, return original value
-      return transformResult(value);
+      return createTransformResult(value);
     }
     
     /**

@@ -6,7 +6,7 @@ import {
     TransformContext, 
     TransformResult, 
     TransformTarget, 
-    transformResult 
+    createTransformResult 
   } from '../../core/types/transform-interfaces';
   import { XJXError } from '../../core/types/error-types';
   
@@ -98,14 +98,14 @@ import {
     transform(value: any, context: TransformContext): TransformResult<any> {
       // Skip non-string values
       if (typeof value !== 'string') {
-        return transformResult(value);
+        return createTransformResult(value);
       }
       
       // Perform the replacement
       const result = value.replace(this.regex, this.replacement);
       
       // Only return the new value if something changed
-      return transformResult(result !== value ? result : value);
+      return createTransformResult(result !== value ? result : value);
     }
     
     /**

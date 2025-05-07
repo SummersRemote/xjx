@@ -1,11 +1,11 @@
 /**
  * Core extension that implements the fromXml method
  */
-import { XJX } from "../../core/XJX";
-import { DefaultXmlToXNodeConverter } from "../../core/converters/xml-to-xnode-converter";
-import { XJXError } from "../../core/types/error-types";
-import { TransformDirection } from "../../core/types/transform-interfaces";
-import { NonTerminalExtensionContext } from "../../core/types/extension-types";
+import { XJX } from "../../XJX";
+import { DefaultXmlToXNodeConverter } from "../../converters/xml-to-xnode-converter";
+import { XJXError } from "../../types/error-types";
+import { TransformDirection } from "../../types/transform-interfaces";
+import { NonTerminalExtensionContext } from "../../types/extension-types";
 
 /**
  * Set XML source for transformation

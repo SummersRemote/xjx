@@ -14,8 +14,8 @@ export {
   TransformContext,
   TransformResult,
   TransformDirection,
-  XNode,
-  transformResult,
+  NodeModel as XNode,
+  createTransformResult as transformResult,
   Configuration
 } from './core/types/transform-interfaces';
 
@@ -86,8 +86,8 @@ export {
 export { ValidationResult } from './core/utils/xml-utils';
 
 // Register core extensions
-import './extensions/core';
+import './core/commands';
 
 // Register additional extensions
-import './extensions/GetPathExtension';
-import './extensions/GetJsonSchemaExtension';
+import './core/commands/terminal/GetPathExtension';
+import './core/commands/terminal/GetJsonSchemaExtension';

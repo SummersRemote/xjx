@@ -1,8 +1,8 @@
 /**
  * Core extensions that implement config management methods
  */
-import { XJX } from "../../core/XJX";
-import { NonTerminalExtensionContext } from "../../core/types/extension-types";
+import { XJX } from "../../XJX";
+import { NonTerminalExtensionContext } from "../../types/extension-types";
 
 /**
  * Reset this builder's configuration to match global configuration

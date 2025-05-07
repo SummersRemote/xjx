@@ -3,14 +3,23 @@
  */
 import { XNodeToJsonConverter } from './converter-interfaces';
 import { Configuration, XNode } from '../types/transform-interfaces';
+import {
+  JSONValue,
+  JSONObject,
+  JSONArray,
+  XMLJSONNode,
+  XMLJSONElement,
+} from "../types/json-types";
 import { NodeType } from '../types/dom-types';
 import { XJXError } from '../types/error-types';
+import { JsonUtil } from '../utils/json-utils';
 
 /**
  * Converts XNode to JSON object
  */
 export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
   private config: Configuration;
+  private jsonUtil: JsonUtil;
 
   /**
    * Create a new converter
@@ -18,6 +27,7 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
    */
   constructor(config: Configuration) {
     this.config = config;
+    this.jsonUtil = new JsonUtil(config);
   }
 
   /**
@@ -27,7 +37,22 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
    */
   public convert(node: XNode): Record<string, any> {
     try {
-      return this.xnodeToJson(node);
+      // First perform the basic conversion
+      let jsonResult = this.xnodeToJson(node);
+      
+      // Apply compact mode if configured
+      if (this.config.outputOptions.compact) {
+        const compactedJson = this.jsonUtil.compactJson(jsonResult);
+        
+        // If compaction returns undefined (completely empty), return an empty object
+        if (compactedJson === undefined) {
+          return {};
+        }
+        
+        jsonResult = compactedJson as Record<string, any>;
+      }
+      
+      return jsonResult;
     } catch (error) {
       throw new XJXError(
         `Failed to convert XNode to JSON: ${
@@ -134,20 +159,8 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
       }
     }
 
-    // Clean empty properties in compact mode
-    if (this.config.outputOptions.compact) {
-      Object.keys(nodeObj).forEach((key) => {
-        const value = nodeObj[key];
-        if (
-          value === undefined ||
-          value === null ||
-          (Array.isArray(value) && value.length === 0) ||
-          (typeof value === "object" && Object.keys(value).length === 0)
-        ) {
-          delete nodeObj[key];
-        }
-      });
-    }
+    // Remove the ineffective compaction code that was here
+    // It will be handled in the convert method instead
 
     result[node.name] = nodeObj;
     return result;

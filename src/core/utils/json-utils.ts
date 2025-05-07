@@ -209,4 +209,59 @@ export class JsonUtil {
 
     return target;
   }
+
+  /**
+   * Add compactJson method to JsonUtil class in src/core/utils/json-utils.ts
+   *
+   * This method recursively removes empty objects, arrays, null and undefined values
+   * while preserving primitive values including empty strings (which are valid values).
+   */
+
+  /**
+   * Recursively compacts a JSON structure by removing empty objects and arrays
+   * Empty means: {}, [], null, undefined
+   * Preserves all primitive values including empty strings, 0, false, etc.
+   *
+   * @param value JSON value to compact
+   * @returns Compacted JSON value or undefined if the value is completely empty
+   */
+  compactJson(value: JSONValue): JSONValue | undefined {
+    // Handle null/undefined
+    if (value === null || value === undefined) {
+      return undefined;
+    }
+
+    // Preserve primitive values (including empty strings, zeros, and booleans)
+    if (typeof value !== "object") {
+      return value;
+    }
+
+    // Handle arrays
+    if (Array.isArray(value)) {
+      const compactedArray: JSONValue[] = [];
+
+      for (const item of value) {
+        const compactedItem = this.compactJson(item);
+        if (compactedItem !== undefined) {
+          compactedArray.push(compactedItem);
+        }
+      }
+
+      return compactedArray.length > 0 ? compactedArray : undefined;
+    }
+
+    // Handle objects
+    const compactedObj: JSONObject = {};
+    let hasProperties = false;
+
+    for (const [key, propValue] of Object.entries(value as JSONObject)) {
+      const compactedValue = this.compactJson(propValue);
+      if (compactedValue !== undefined) {
+        compactedObj[key] = compactedValue;
+        hasProperties = true;
+      }
+    }
+
+    return hasProperties ? compactedObj : undefined;
+  }
 }

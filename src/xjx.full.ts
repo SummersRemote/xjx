@@ -1,8 +1,17 @@
+/**
+ * XJX Full Bundle
+ * 
+ * Exports core functionality plus all extensions
+ */
+
 // Export core components
 export * from './index';
 
-// Export and auto-apply extensions
+// Ensure all core extensions are registered
+import './extensions/core';
+
+// Register additional extensions
 import './extensions/GetPathExtension';
 import './extensions/GetJsonSchemaExtension';
 
-// This file creates the "full" bundle with core functionality, transformers, and extensions
+// This file creates the "full" bundle with core functionality, converters, and all extensions

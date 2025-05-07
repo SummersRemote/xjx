@@ -44,6 +44,30 @@ export {
   ConfigurationError 
 } from './core/types/error-types';
 
+// Converter interfaces
+export {
+  Converter,
+  XmlToXNodeConverter,
+  JsonToXNodeConverter,
+  XNodeToXmlConverter,
+  XNodeToJsonConverter,
+  XNodeTransformer
+} from './core/converters/converter-interfaces';
+
+// Default converter implementations
+export { DefaultXmlToXNodeConverter } from './core/converters/xml-to-xnode-converter';
+export { DefaultJsonToXNodeConverter } from './core/converters/json-to-xnode-converter';
+export { DefaultXNodeToXmlConverter } from './core/converters/xnode-to-xml-converter';
+export { DefaultXNodeToJsonConverter } from './core/converters/xnode-to-json-converter';
+export { DefaultXNodeTransformer } from './core/converters/xnode-transformer';
+
+// Extension types
+export {
+  XJXContext,
+  TerminalExtensionContext,
+  NonTerminalExtensionContext
+} from './core/types/extension-types';
+
 // Transformers
 export { BooleanTransform, BooleanTransformOptions } from './core/transforms/boolean-transform';
 export { NumberTransform, NumberTransformOptions } from './core/transforms/number-transform';
@@ -60,4 +84,10 @@ export {
 
 // Utilities
 export { ValidationResult } from './core/utils/xml-utils';
-export { TransformApplier } from './core/converters/processor-interfaces';
+
+// Register core extensions
+import './extensions/core';
+
+// Register additional extensions
+import './extensions/GetPathExtension';
+import './extensions/GetJsonSchemaExtension';

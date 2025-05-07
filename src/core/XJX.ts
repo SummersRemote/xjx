@@ -1,43 +1,23 @@
 /**
- * XJX - Main class with fluent API
+ * XJX - Main class with entry points to fluent API and extension registration
  */
 import { Configuration } from './types/config-types';
 import { XjxBuilder } from './xjx-builder';
 import { XmlUtil } from './utils/xml-utils';
 import { ConfigProvider } from './config/config-provider';
 import { DOMAdapter } from './adapters/dom-adapter';
-import { TerminalExtensionContext, NonTerminalExtensionContext } from './types/extension-types';
+import { 
+  TerminalExtensionContext, 
+  NonTerminalExtensionContext 
+} from './types/extension-types';
+import { TransformDirection, XNode, Transform } from './types/transform-interfaces';
 
 /**
- * Main XJX class - provides access to the fluent API
+ * Main XJX class - provides access to the fluent API and manages extensions
  */
 export class XJX {
   private static configProvider = ConfigProvider.getInstance();
   private static xmlUtil = new XmlUtil(XJX.configProvider.getConfig());
-  
-  /**
-   * Create a builder starting with XML source
-   * @param source XML string
-   */
-  public static fromXml(source: string): XjxBuilder {
-    return new XjxBuilder().fromXml(source);
-  }
-  
-  /**
-   * Create a builder starting with JSON source
-   * @param source JSON object
-   */
-  public static fromJson(source: Record<string, any>): XjxBuilder {
-    return new XjxBuilder().fromJson(source);
-  }
-  
-  /**
-   * Create a builder with configuration
-   * @param config Configuration to apply
-   */
-  public static withConfig(config: Partial<Configuration>): XjxBuilder {
-    return new XjxBuilder().withConfig(config);
-  }
   
   /**
    * Utility method to validate XML string
@@ -106,16 +86,16 @@ export class XJX {
   public static registerTerminalExtension(name: string, method: (this: TerminalExtensionContext, ...args: any[]) => any): void {
     // Register on XJX class
     (XJX as any)[name] = function(...args: any[]) {
-      // For static usage, create a context with default config
-      const context: TerminalExtensionContext = {
-        config: XJX.getConfig()
-      };
-      return method.apply(context, args);
+      // For static usage, we need to create a builder to get the full context
+      // Use type assertion to conform to the TerminalExtensionContext interface
+      const builder = new XjxBuilder();
+      return method.apply(builder as unknown as TerminalExtensionContext, args);
     };
     
     // Register on XjxBuilder class for fluent API
     (XjxBuilder.prototype as any)[name] = function(...args: any[]) {
-      return method.apply(this, args);
+      // When called through the builder, use type assertion to match interface
+      return method.apply(this as unknown as TerminalExtensionContext, args);
     };
   }
   
@@ -125,17 +105,18 @@ export class XJX {
    * @param method Implementation function that properly uses this: NonTerminalExtensionContext
    */
   public static registerNonTerminalExtension(name: string, method: (this: NonTerminalExtensionContext, ...args: any[]) => any): void {
-    // Register on XJX class
+    // Register on XJX class as a factory method that creates a new builder
     (XJX as any)[name] = function(...args: any[]) {
       // For static usage, create and return a builder
       const builder = new XjxBuilder();
-      method.apply(builder, args);
+      method.apply(builder as unknown as NonTerminalExtensionContext, args);
       return builder;
     };
     
     // Register on XjxBuilder class for fluent API
     (XjxBuilder.prototype as any)[name] = function(...args: any[]) {
-      method.apply(this, args);
+      // When called through the builder, use type assertion to match interface
+      method.apply(this as unknown as NonTerminalExtensionContext, args);
       return this; // Always return this for chaining
     };
   }

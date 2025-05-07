@@ -98,22 +98,39 @@ export default [
     ].filter(Boolean)
   },
 
-  // // Transformer bundle
-  // {
-  //   input: 'src/fluent/transformers/index.ts',
-  //   external: ['../types/transform-types', '../utils/path-matcher'],
-  //   output: [
-  //     { 
-  //       file: 'dist/transformers.js', 
-  //       format: 'esm', 
-  //       sourcemap: !isProd 
-  //     }
-  //   ],
-  //   plugins: [
-  //     ...basePlugins,
-  //     compressionPlugin
-  //   ].filter(Boolean)
-  // },
+  // Converter bundle (new for the refactored architecture)
+  {
+    input: 'src/core/converters/index.ts',
+    external: ['../types/transform-types', '../utils/path-matcher'],
+    output: [
+      { 
+        file: 'dist/converters.js', 
+        format: 'esm', 
+        sourcemap: !isProd 
+      }
+    ],
+    plugins: [
+      ...basePlugins,
+      compressionPlugin
+    ].filter(Boolean)
+  },
+
+  // Core extensions bundle (new for the refactored architecture)
+  {
+    input: 'src/extensions/core/index.ts',
+    external: ['../../core/XJX', '../../core/converters/*'],
+    output: [
+      { 
+        file: 'dist/extensions/core-extensions.js', 
+        format: 'esm', 
+        sourcemap: !isProd 
+      }
+    ],
+    plugins: [
+      ...basePlugins,
+      compressionPlugin
+    ].filter(Boolean)
+  },
 
   // Individual extensions
   {
@@ -148,21 +165,25 @@ export default [
     ].filter(Boolean)
   },
 
-  // Types bundle
+  // Types bundles
   {
     input: 'dist/dts/index.d.ts',
     output: { file: 'dist/index.d.ts', format: 'es' },
     plugins: [dts()]
   },
   
-  // // Transformer types
-  // {
-  //   input: 'dist/dts/core/transformers/index.d.ts',
-  //   output: { file: 'dist/transformers.d.ts', format: 'es' },
-  //   plugins: [dts()]
-  // },
+  {
+    input: 'dist/dts/core/converters/index.d.ts',
+    output: { file: 'dist/converters.d.ts', format: 'es' },
+    plugins: [dts()]
+  },
   
-  // Extension types
+  {
+    input: 'dist/dts/extensions/core/index.d.ts',
+    output: { file: 'dist/extensions/core-extensions.d.ts', format: 'es' },
+    plugins: [dts()]
+  },
+  
   {
     input: 'dist/dts/extensions/GetPathExtension.d.ts',
     output: { file: 'dist/extensions/GetPathExtension.d.ts', format: 'es' },

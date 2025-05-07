@@ -1,7 +1,7 @@
 /**
  * XJX Full Bundle
  * 
- * Comprehensive bundle that includes the core library plus all extensions.
+ * Comprehensive bundle that includes the core library plus all extensions and addons.
  * This is the "batteries included" version of XJX.
  */
 
@@ -11,11 +11,8 @@ export * from './index';
 // Ensure all core extensions are registered
 import './core/commands';
 
-// Export transform-specific functionality from transforms barrel
-export * from './core/transforms';
-
-// Export utility-specific functionality from utils barrel
-export * from './core/utils';
+// Export all addons (non-essential functionality)
+export * from './addons';
 
 // Register all individual extensions
 import './core/commands/terminal/GetPathExtension';

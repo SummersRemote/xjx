@@ -103,21 +103,13 @@ export { TransformUtils } from './core/utils/transform-utils';
 export { DOMAdapter } from './core/adapters/dom-adapter';
 
 // =====================================================================================
-// Transformers
+// Core Transformers
 // =====================================================================================
 
+// Export only essential transformers - others are in addons
 export { BooleanTransform, BooleanTransformOptions } from './core/transforms/boolean-transform';
 export { NumberTransform, NumberTransformOptions } from './core/transforms/number-transform';
-export { StringReplaceTransform, StringReplaceOptions } from './core/transforms/string-replace-transform';
-export { CommentTransform, CommentTransformOptions } from './core/transforms/comment-transform';
-export { AttributeTransform, AttributeTransformOptions } from './core/transforms/attribute-transform';
-export { TextTransform, TextTransformOptions } from './core/transforms/text-transform';
-export { 
-  ElementTransform, 
-  ElementTransformOptions,
-  SortChildrenTransform,
-  SortChildrenOptions
-} from './core/transforms/element-transform';
+export { RegexTransform, RegexOptions } from './core/transforms/regex-transform';
 
 // =====================================================================================
 // Register core extensions

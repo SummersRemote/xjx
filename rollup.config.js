@@ -130,7 +130,7 @@ export default [
 
   // Submodules for specific functionality
   
-  // Converters bundle
+  // Core Converters bundle
   {
     input: 'src/core/converters/index.ts',
     external: [...external, '../types/transform-interfaces', '../utils/xml-utils'],
@@ -147,7 +147,7 @@ export default [
     ]
   },
 
-  // Transforms bundle
+  // Core Transforms bundle
   {
     input: 'src/core/transforms/index.ts',
     external: [...external, '../types/transform-interfaces'],
@@ -171,6 +171,40 @@ export default [
     output: [
       { 
         file: 'dist/utils.js', 
+        format: 'esm', 
+        sourcemap: !isProd 
+      }
+    ],
+    plugins: [
+      ...basePlugins,
+      ...prodPlugins
+    ]
+  },
+
+  // Addon Transforms bundle
+  {
+    input: 'src/addons/transforms/index.ts',
+    external: [...external, '../../core/types/transform-interfaces'],
+    output: [
+      { 
+        file: 'dist/addons/transforms.js', 
+        format: 'esm', 
+        sourcemap: !isProd 
+      }
+    ],
+    plugins: [
+      ...basePlugins,
+      ...prodPlugins
+    ]
+  },
+
+  // All Addons bundle
+  {
+    input: 'src/addons/index.ts',
+    external: [...external, '../core/types/transform-interfaces'],
+    output: [
+      { 
+        file: 'dist/addons.js', 
         format: 'esm', 
         sourcemap: !isProd 
       }
@@ -239,6 +273,18 @@ export default [
   {
     input: 'dist/dts/core/utils/index.d.ts',
     output: { file: 'dist/utils.d.ts', format: 'es' },
+    plugins: [dts()]
+  },
+  
+  {
+    input: 'dist/dts/addons/transforms/index.d.ts',
+    output: { file: 'dist/addons/transforms.d.ts', format: 'es' },
+    plugins: [dts()]
+  },
+  
+  {
+    input: 'dist/dts/addons/index.d.ts',
+    output: { file: 'dist/addons.d.ts', format: 'es' },
     plugins: [dts()]
   },
   

@@ -1,17 +1,23 @@
 /**
- * Utils module - exports all utility classes and functions
+ * Core utilities - Static utility functions for the XJX library
  * 
- * This barrel file centralizes all utility-related exports for easier imports
- * and better tree-shaking capabilities.
+ * This module provides all the static utility functions used throughout the library.
+ * Each utility class focuses on a specific domain.
  */
 
-// XML utilities
-export { XmlUtil, ValidationResult } from './xml-utils';
-export { XmlEntityHandler } from './xml-entity-handler';
-export { NamespaceUtil } from './namespace-util';
+// Common utility functions
+export { CommonUtils } from './common-utils';
 
-// JSON utilities
-export { JsonUtil } from './json-utils';
+// Error handling utilities
+export { ErrorUtils, ErrorType } from './error-utils';
 
-// Transform utilities
-export { TransformUtils } from './transform-utils';
+// DOM operations
+export { DomUtils } from './dom-utils';
+
+// XML-specific utilities
+export { XmlUtils, ValidationResult } from './xml-utils';
+export { EntityUtils } from './entity-utils';
+export { NamespaceUtils } from './namespace-utils';
+
+// JSON operations
+export { JsonUtils } from './json-utils';

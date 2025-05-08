@@ -7,30 +7,37 @@
     "module": "./dist/index.js",
     "types": "./dist/index.d.ts",
     "exports": {
-        ".": {
-            "import": "./dist/index.js",
-            "require": "./dist/xjx.umd.js",
-            "types": "./dist/index.d.ts"
-        },
-        "./full": {
-            "import": "./dist/xjx.full.js",
-            "require": "./dist/xjx.full.umd.js",
-            "types": "./dist/index.d.ts"
-        },
-        "./extensions/GetPathExtension": {
-            "import": "./dist/extensions/GetPathExtension.js",
-            "types": "./dist/extensions/GetPathExtension.d.ts"
-        },
-        "./extensions/getJsonSchemaExtension": {
-            "import": "./dist/extensions/getJsonSchemaExtension.js",
-            "types": "./dist/extensions/getJsonSchemaExtension.d.ts"
-        },
-        "./package.json": "./package.json"
+      ".": {
+        "import": "./dist/index.js",
+        "require": "./dist/xjx.umd.js",
+        "types": "./dist/index.d.ts"
+      },
+      "./utils": {
+        "import": "./dist/core/utils/index.js",
+        "require": "./dist/core/utils/index.umd.js",
+        "types": "./dist/core/utils/index.d.ts"
+      },
+      "./transforms": {
+        "import": "./dist/transforms/index.js",
+        "require": "./dist/transforms/index.umd.js",
+        "types": "./dist/transforms/index.d.ts"
+      },
+      "./converters": {
+        "import": "./dist/converters/index.js",
+        "require": "./dist/converters/index.umd.js",
+        "types": "./dist/converters/index.d.ts"
+      },
+      "./full": {
+        "import": "./dist/xjx.full.js",
+        "require": "./dist/xjx.full.umd.js",
+        "types": "./dist/index.d.ts"
+      },
+      "./package.json": "./package.json"
     },
     "files": [
-        "dist",
-        "package.json",
-        "README.md"
+      "dist",
+      "package.json",
+      "README.md"
     ],
     "scripts": {
         "clean": "rimraf dist",

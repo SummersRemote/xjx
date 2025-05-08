@@ -6,7 +6,7 @@
  */
 import { Configuration } from "./config-types";
 import { Transform, XNode, TransformDirection } from "./transform-interfaces";
-import { ConfigProvider } from "../config/config-provider";
+import { ConfigService } from "../services/config-service";
 
 /**
  * Base context interface for extension functions
@@ -26,7 +26,7 @@ export interface TerminalExtensionContext extends XJXContext {
   xnode: XNode | null;
   direction: TransformDirection | null;
   transforms: Transform[];
-  configProvider: ConfigProvider;
+  configProvider: ConfigService;
   
   // Common utility methods required by terminal extensions
   validateSource: () => void;
@@ -43,7 +43,7 @@ export interface NonTerminalExtensionContext extends XJXContext {
   xnode: XNode | null;
   direction: TransformDirection | null;
   transforms: Transform[];
-  configProvider: ConfigProvider;
+  configProvider: ConfigService;
   
   // Utility methods
   validateSource: () => void;

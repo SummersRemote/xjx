@@ -8,14 +8,22 @@
 // Export all core functionality
 export * from './index';
 
-// Ensure all core extensions are registered
-import './core/commands';
+// Export additional utilities
+export * from './core/utils';
 
-// Export all addons (non-essential functionality)
-export * from './addons';
+// Export all models
+export * from './core/models';
 
-// Register all individual extensions
-import './core/commands/terminal/GetPathExtension';
-import './core/commands/terminal/GetJsonSchemaExtension';
+// Export all converters
+export * from './converters';
+
+// Export all transforms
+export * from './transforms';
+
+// Ensure all extensions are registered
+import './extensions';
+
+// Export services (for advanced usage)
+export * from './core/services';
 
 // Note: Any additional extensions should be added here

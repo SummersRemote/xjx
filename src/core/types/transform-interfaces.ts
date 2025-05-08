@@ -3,9 +3,13 @@
  */
 import { Configuration } from './config-types';
 import { NodeType } from './dom-types';
+import { XNode } from '../models/xnode';
 
 // Re-export Configuration and NodeType so they can be imported from this file
 export { Configuration, NodeType };
+
+// Also re-export XNode for backward compatibility
+export { XNode };
 
 /**
  * Transform target types enum - specifies which nodes a transformer can target
@@ -69,24 +73,6 @@ export interface TransformResult<T> {
   
   // Whether the node/value should be removed
   remove: boolean; // Change from optional to required
-}
-
-/**
- * Internal node representation
- */
-export interface XNode {
-  name: string;
-  type: number;
-  value?: any;
-  attributes?: Record<string, any>;
-  children?: XNode[];
-  namespace?: string;
-  prefix?: string;
-  
-  // Enhanced namespace handling
-  namespaceDeclarations?: Record<string, string>;
-  isDefaultNamespace?: boolean;
-  parent?: XNode;
 }
 
 /**

@@ -4,8 +4,8 @@
  * Manages XJX operations using the new fluent API while maintaining
  * support for transformers.
  */
-import { XJX, TransformDirection } from '../../../dist/xjx.full.js'; // Import the full version with extensions
-import { BooleanTransform, NumberTransform } from '../../../dist';
+import { XJX, TransformDirection } from '../../../dist/esm'; // Import the full version with extensions
+import { BooleanTransform, NumberTransform } from '../../../dist/esm';
 import FilterChildrenTransformer from './transformers/FilterChildrenTransformer';
 
 export default class XjxService {

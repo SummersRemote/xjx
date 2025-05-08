@@ -1,11 +1,17 @@
 /**
- * XJX Service - Refactored with Fluent API
+ * XjxService - Streamlined service for XJX library
  * 
- * Manages XJX operations using the new fluent API while maintaining
- * support for transformers.
+ * Direct integration with the XJX library using the fluent API
  */
-import { XJX, TransformDirection } from '../../../dist/esm'; // Import the full version with extensions
-import { BooleanTransform, NumberTransform } from '../../../dist/esm';
+import { 
+  XJX, 
+  TransformDirection, 
+  BooleanTransform, 
+  NumberTransform, 
+  RegexTransform 
+} from '../../../dist/esm'; // Import from the local build
+
+// Custom transformer
 import FilterChildrenTransformer from './transformers/FilterChildrenTransformer';
 
 export default class XjxService {
@@ -22,9 +28,9 @@ export default class XjxService {
    * @returns {Object} JSON representation of the XML
    */
   static xmlToJson(xmlString, config) {
-    console.log('Converting XML to JSON with transformers:', XjxService._transformers.length);
-    
     try {
+      console.log('Converting XML to JSON with', XjxService._transformers.length, 'transformers');
+      
       // Start with the XML
       let builder = XJX.fromXml(xmlString);
       
@@ -35,8 +41,15 @@ export default class XjxService {
       if (XjxService._transformers.length > 0) {
         // Filter transformers for XML to JSON direction
         const xmlToJsonTransformers = XjxService._transformers
-          .filter(t => t.direction === 'XML_TO_JSON' || t.direction === TransformDirection.XML_TO_JSON)
+          .filter(t => {
+            // Check if direction matches XML_TO_JSON
+            const matches = t.direction === TransformDirection.XML_TO_JSON;
+            console.log('Transformer direction check:', t.direction, TransformDirection.XML_TO_JSON, matches);
+            return matches;
+          })
           .map(t => t.transformer);
+        
+        console.log('Filtered transformers for XML_TO_JSON:', xmlToJsonTransformers.length);
         
         if (xmlToJsonTransformers.length > 0) {
           builder = builder.withTransforms(...xmlToJsonTransformers);
@@ -58,9 +71,9 @@ export default class XjxService {
    * @returns {string} XML representation of the JSON
    */
   static jsonToXml(jsonObj, config) {
-    console.log('Converting JSON to XML with transformers:', XjxService._transformers.length);
-    
     try {
+      console.log('Converting JSON to XML with', XjxService._transformers.length, 'transformers');
+      
       // Start with the JSON
       let builder = XJX.fromJson(jsonObj);
       
@@ -71,8 +84,15 @@ export default class XjxService {
       if (XjxService._transformers.length > 0) {
         // Filter transformers for JSON to XML direction
         const jsonToXmlTransformers = XjxService._transformers
-          .filter(t => t.direction === 'JSON_TO_XML' || t.direction === TransformDirection.JSON_TO_XML)
+          .filter(t => {
+            // Check if direction matches JSON_TO_XML
+            const matches = t.direction === TransformDirection.JSON_TO_XML;
+            console.log('Transformer direction check:', t.direction, TransformDirection.JSON_TO_XML, matches);
+            return matches;
+          })
           .map(t => t.transformer);
+        
+        console.log('Filtered transformers for JSON_TO_XML:', jsonToXmlTransformers.length);
         
         if (jsonToXmlTransformers.length > 0) {
           builder = builder.withTransforms(...jsonToXmlTransformers);
@@ -90,22 +110,18 @@ export default class XjxService {
   /**
    * Pretty print XML string
    * @param {string} xmlString - XML content
-   * @param {Object} config - XJX configuration options
    * @returns {string} Formatted XML
    */
-  static prettyPrintXml(xmlString, config) {
-    // Using static method directly
+  static prettyPrintXml(xmlString) {
     return XJX.prettyPrintXml(xmlString);
   }
   
   /**
    * Validate XML string
    * @param {string} xmlString - XML content
-   * @param {Object} config - XJX configuration options
    * @returns {Object} Validation result {isValid, message}
    */
-  static validateXml(xmlString, config) {
-    // Using static method directly
+  static validateXml(xmlString) {
     return XJX.validateXml(xmlString);
   }
   
@@ -148,14 +164,7 @@ export default class XjxService {
    */
   static getPath(jsonObj, path, config, fallback) {
     try {
-      // In the new API, getPath is an extension method added to the XJX namespace
-      // We need to check if it exists and use it directly
-      if (typeof XJX.getPath === 'function') {
-        return XJX.getPath(jsonObj, path, fallback);
-      } else {
-        console.warn('getPath method not found on XJX. Make sure you are using the full bundle with extensions.');
-        return fallback;
-      }
+      return XJX.getPath(jsonObj, path, fallback);
     } catch (error) {
       console.error('Error in getPath:', error);
       return fallback;
@@ -169,13 +178,8 @@ export default class XjxService {
    */
   static getJsonSchema(config) {
     try {
-      // In the new API, getJsonSchema is an extension method
-      if (typeof XJX.getJsonSchema === 'function') {
-        return XJX.getJsonSchema(config);
-      } else {
-        console.warn('getJsonSchema method not found on XJX. Make sure you are using the full bundle with extensions.');
-        return null;
-      }
+      // Use the withConfig method to apply configuration first
+      return XJX.withConfig(config).toJsonSchema();
     } catch (error) {
       console.error('Error generating JSON schema:', error);
       return null;
@@ -186,7 +190,7 @@ export default class XjxService {
   
   /**
    * Add a Boolean transformer
-   * @param {string} direction - 'XML_TO_JSON' or 'JSON_TO_XML'
+   * @param {TransformDirection} direction - XML_TO_JSON or JSON_TO_XML
    * @param {Object} options - Transformer options
    * @returns {BooleanTransform} The created transformer
    */
@@ -199,8 +203,10 @@ export default class XjxService {
         falseValues: Array.isArray(options.falseValues) ? options.falseValues : String(options.falseValues).split(',').map(v => v.trim()),
       };
       
-      console.log('Creating BooleanTransform with options:', parsedOptions);
       const transformer = new BooleanTransform(parsedOptions);
+      
+      console.log('Created BooleanTransform:', transformer);
+      console.log('BooleanTransform targets:', transformer.targets);
       
       // Store the transformer in our registry
       XjxService._transformers.push({
@@ -210,7 +216,6 @@ export default class XjxService {
         options: parsedOptions
       });
       
-      console.log(`Added BooleanTransform. Current transformers: ${XjxService._transformers.length}`);
       return transformer;
     } catch (error) {
       console.error('Error creating BooleanTransform:', error);
@@ -220,13 +225,12 @@ export default class XjxService {
   
   /**
    * Add a Number transformer
-   * @param {string} direction - 'XML_TO_JSON' or 'JSON_TO_XML'
+   * @param {TransformDirection} direction - XML_TO_JSON or JSON_TO_XML
    * @param {Object} options - Transformer options
    * @returns {NumberTransform} The created transformer
    */
   static addNumberTransformer(direction, options) {
     try {
-      console.log('Creating NumberTransform with options:', options);
       const transformer = new NumberTransform(options);
       
       // Store the transformer in our registry
@@ -237,7 +241,6 @@ export default class XjxService {
         options
       });
       
-      console.log(`Added NumberTransform. Current transformers: ${XjxService._transformers.length}`);
       return transformer;
     } catch (error) {
       console.error('Error creating NumberTransform:', error);
@@ -245,56 +248,52 @@ export default class XjxService {
     }
   }
   
-  // /**
-  //  * Add a String Replace transformer
-  //  * @param {string} direction - 'XML_TO_JSON' or 'JSON_TO_XML'
-  //  * @param {Object} options - Transformer options
-  //  * @returns {StringReplaceTransform} The created transformer
-  //  */
-  // static addStringReplaceTransformer(direction, options) {
-  //   try {
-  //     // Clone to avoid modifying the original object
-  //     const processedOptions = {...options};
+  /**
+   * Add a Regex transformer
+   * @param {TransformDirection} direction - XML_TO_JSON or JSON_TO_XML
+   * @param {Object} options - Transformer options
+   * @returns {RegexTransform} The created transformer
+   */
+  static addRegexTransformer(direction, options) {
+    try {
+      // Clone to avoid modifying the original object
+      const processedOptions = {...options};
       
-  //     // Convert string pattern to RegExp if needed
-  //     if (typeof processedOptions.pattern === 'string' && 
-  //         processedOptions.pattern.startsWith('/') && 
-  //         processedOptions.pattern.lastIndexOf('/') > 0) {
-  //       const lastSlashIndex = processedOptions.pattern.lastIndexOf('/');
-  //       const patternBody = processedOptions.pattern.substring(1, lastSlashIndex);
-  //       const flags = processedOptions.pattern.substring(lastSlashIndex + 1);
-  //       processedOptions.pattern = new RegExp(patternBody, flags);
-  //     } else if (typeof processedOptions.pattern === 'string') {
-  //       // Create a regular expression with appropriate flags
-  //       const flags = (processedOptions.ignoreCase ? 'i' : '') + 
-  //                     (processedOptions.replaceAll !== false ? 'g' : '');
-  //       processedOptions.pattern = new RegExp(processedOptions.pattern, flags);
-  //     }
+      // Convert string pattern to RegExp if needed
+      if (typeof processedOptions.pattern === 'string' && 
+          processedOptions.pattern.startsWith('/') && 
+          processedOptions.pattern.lastIndexOf('/') > 0) {
+        const lastSlashIndex = processedOptions.pattern.lastIndexOf('/');
+        const patternBody = processedOptions.pattern.substring(1, lastSlashIndex);
+        const flags = processedOptions.pattern.substring(lastSlashIndex + 1);
+        processedOptions.pattern = new RegExp(patternBody, flags);
+      } else if (typeof processedOptions.pattern === 'string') {
+        // Create a regular expression with appropriate flags
+        const flags = (processedOptions.ignoreCase ? 'i' : '') + 
+                      (processedOptions.replaceAll !== false ? 'g' : '');
+        processedOptions.pattern = new RegExp(processedOptions.pattern, flags);
+      }
       
-  //     console.log('Creating StringReplaceTransform with options:', 
-  //                 { ...processedOptions, pattern: processedOptions.pattern.toString() });
+      const transformer = new RegexTransform(processedOptions);
       
-  //     const transformer = new StringReplaceTransform(processedOptions);
+      // Store the transformer in our registry
+      XjxService._transformers.push({
+        direction,
+        type: 'value',
+        transformer,
+        options: processedOptions
+      });
       
-  //     // Store the transformer in our registry
-  //     XjxService._transformers.push({
-  //       direction,
-  //       type: 'value',
-  //       transformer,
-  //       options: processedOptions
-  //     });
-      
-  //     console.log(`Added StringReplaceTransform. Current transformers: ${XjxService._transformers.length}`);
-  //     return transformer;
-  //   } catch (error) {
-  //     console.error('Error creating StringReplaceTransform:', error);
-  //     throw error;
-  //   }
-  // }
+      return transformer;
+    } catch (error) {
+      console.error('Error creating RegexTransform:', error);
+      throw error;
+    }
+  }
   
   /**
    * Add a Filter Children transformer
-   * @param {string} direction - 'XML_TO_JSON' or 'JSON_TO_XML'
+   * @param {TransformDirection} direction - XML_TO_JSON or JSON_TO_XML
    * @param {Object} options - Transformer options
    * @returns {FilterChildrenTransformer} The created transformer
    */
@@ -306,7 +305,6 @@ export default class XjxService {
         excludeNames: Array.isArray(options.excludeNames) ? options.excludeNames : String(options.excludeNames).split(',').map(v => v.trim())
       };
       
-      console.log('Creating FilterChildrenTransformer with options:', parsedOptions);
       const transformer = new FilterChildrenTransformer(parsedOptions);
       
       // Store the transformer in our registry
@@ -317,7 +315,6 @@ export default class XjxService {
         options: parsedOptions
       });
       
-      console.log(`Added FilterChildrenTransformer. Current transformers: ${XjxService._transformers.length}`);
       return transformer;
     } catch (error) {
       console.error('Error creating FilterChildrenTransformer:', error);
@@ -327,11 +324,9 @@ export default class XjxService {
   
   /**
    * Clear all transformers for a specific direction
-   * @param {string} direction - 'XML_TO_JSON' or 'JSON_TO_XML', or null for all
+   * @param {TransformDirection} direction - XML_TO_JSON or JSON_TO_XML, or null for all
    */
   static clearTransformers(direction = null) {
-    const beforeCount = XjxService._transformers.length;
-    
     if (direction) {
       // Filter out transformers for the specified direction
       XjxService._transformers = XjxService._transformers.filter(
@@ -341,8 +336,6 @@ export default class XjxService {
       // Clear all transformers
       XjxService._transformers = [];
     }
-    
-    console.log(`Cleared transformers. Before: ${beforeCount}, After: ${XjxService._transformers.length}`);
   }
   
   /**
@@ -354,23 +347,9 @@ export default class XjxService {
   }
   
   /**
-   * Get available transformer classes
-   * @returns {Object} Object containing transformer classes
-   */
-  static getTransformerClasses() {
-    return {
-      BooleanTransform,
-      NumberTransform,
-      // StringReplaceTransform,
-      FilterChildrenTransformer
-    };
-  }
-  
-  /**
    * Reset service state
    */
   static reset() {
-    console.log(`Resetting service. Clearing ${XjxService._transformers.length} transformers.`);
     // Clear all transformers
     XjxService._transformers = [];
   }

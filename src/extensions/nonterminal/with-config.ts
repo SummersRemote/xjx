@@ -4,6 +4,7 @@
 import { XJX } from "../../XJX";
 import { Configuration } from "../../core/types/transform-interfaces";
 import { NonTerminalExtensionContext } from "../../core/types/extension-types";
+import { CommonUtils } from "xjx/core/utils/common-utils";
 
 /**
  * Set configuration options
@@ -15,7 +16,7 @@ function withConfig(this: NonTerminalExtensionContext, config: Partial<Configura
   }
   
   // Merge with current config
-  this.config = this.deepMerge(this.config, config);
+  this.config = CommonUtils.deepMerge(this.config, config);
   return this;
 }
 

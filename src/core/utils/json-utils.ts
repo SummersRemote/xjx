@@ -1,6 +1,6 @@
 /**
  * JsonUtils - Static utility for JSON operations
- * 
+ *
  * Provides utilities for working with JSON structures in the XJX library.
  */
 import { Configuration } from "../types/config-types";
@@ -25,7 +25,7 @@ export class JsonUtils {
    * @returns XML-like JSON object
    */
   public static objectToXJX(
-    obj: JSONValue, 
+    obj: JSONValue,
     config: Configuration,
     root?: string | JSONObject
   ): XMLJSONNode {
@@ -39,8 +39,15 @@ export class JsonUtils {
     if (root && typeof root === "object" && !Array.isArray(root)) {
       // Handle root with config-based keys
       const elementName = ((root as JSONObject).name as string) || "root"; // Default to "root" if no name is provided
-      const prefix =
-        ((root as JSONObject)[config.propNames.prefix] as string) || "";
+
+      // Fix: Safely access prefix from the attributes object
+      const attrsKey = config.propNames.attributesKey;
+      let prefix = "";
+      if (root[attrsKey] && typeof root[attrsKey] === "object") {
+        const attrs = root[attrsKey] as JSONObject;
+        prefix = (attrs.prefix as string) || "";
+      }
+
       const qualifiedName = prefix ? `${prefix}:${elementName}` : elementName;
 
       const result: XMLJSONNode = {
@@ -50,29 +57,34 @@ export class JsonUtils {
       const rootElement = result[qualifiedName];
 
       // Add attributes to the root element if defined
-      const attrsKey = config.propNames.attributes;
-      if (root[attrsKey] && Array.isArray(root[attrsKey])) {
-        rootElement[attrsKey] = root[attrsKey] as JSONArray;
+      if (root[attrsKey] && typeof root[attrsKey] === "object") {
+        rootElement[attrsKey] = root[attrsKey] as JSONObject;
       }
 
       // Merge existing children with the new generated children
-      const childrenKey = config.propNames.children;
-      const children = root[childrenKey]
-        ? (root[childrenKey] as JSONArray)
-        : [];
-      rootElement[childrenKey] = [
+      const contentKey = config.propNames.contentKey;
+      const children = root[contentKey] ? (root[contentKey] as JSONArray) : [];
+      rootElement[contentKey] = [
         ...children,
         { [elementName]: wrappedObject as XMLJSONElement },
       ] as unknown as XMLJSONNode[];
 
       // Add namespace and prefix if defined
-      const nsKey = config.propNames.namespace;
+      const nsKey = "xmlns";
       if (root[nsKey]) {
-        rootElement[nsKey] = root[nsKey] as JSONValue;
+        if (!rootElement[attrsKey]) {
+          rootElement[attrsKey] = {};
+        }
+        (rootElement[attrsKey] as JSONObject)[nsKey] = root[nsKey] as JSONValue;
       }
 
       if (prefix && root[nsKey]) {
-        rootElement[`xmlns:${prefix}`] = root[nsKey] as JSONValue;
+        if (!rootElement[attrsKey]) {
+          rootElement[attrsKey] = {};
+        }
+        (rootElement[attrsKey] as JSONObject)[`xmlns:${prefix}`] = root[
+          nsKey
+        ] as JSONValue;
       }
 
       return result;
@@ -89,9 +101,12 @@ export class JsonUtils {
    * @returns Wrapped value
    * @private
    */
-  private static wrapObject(value: JSONValue, config: Configuration): JSONObject {
-    const valKey = config.propNames.value;
-    const childrenKey = config.propNames.children;
+  private static wrapObject(
+    value: JSONValue,
+    config: Configuration
+  ): JSONObject {
+    const textKey = config.propNames.textKey;
+    const contentKey = config.propNames.contentKey;
 
     if (
       value === null ||
@@ -99,13 +114,14 @@ export class JsonUtils {
       typeof value === "number" ||
       typeof value === "boolean"
     ) {
-      return { [valKey]: value };
+      // For simple types, use the text key directly
+      return { [textKey]: value };
     }
 
     if (Array.isArray(value)) {
       // For arrays, wrap each item and return as a children-style array of repeated elements
       return {
-        [childrenKey]: value.map((item) => {
+        [contentKey]: value.map((item) => {
           return JsonUtils.wrapObject(item, config);
         }),
       };
@@ -113,13 +129,11 @@ export class JsonUtils {
 
     if (typeof value === "object" && value !== null) {
       // It's an object: wrap its properties in children
-      const children = Object.entries(value as JSONObject).map(
-        ([key, val]) => ({
-          [key]: JsonUtils.wrapObject(val, config),
-        })
-      );
+      const content = Object.entries(value as JSONObject).map(([key, val]) => ({
+        [key]: JsonUtils.wrapObject(val, config),
+      }));
 
-      return { [childrenKey]: children };
+      return { [contentKey]: content };
     }
 
     return {}; // Empty object for unsupported types
@@ -206,9 +220,7 @@ export class JsonUtils {
    * @returns True if the value is a valid JSON object
    */
   public static isValidJsonObject(value: any): boolean {
-    return value !== null && 
-           typeof value === 'object' && 
-           !Array.isArray(value);
+    return value !== null && typeof value === "object" && !Array.isArray(value);
   }
 
   /**
@@ -226,10 +238,12 @@ export class JsonUtils {
    * @returns True if the value is a valid JSON primitive
    */
   public static isValidJsonPrimitive(value: any): boolean {
-    return value === null || 
-           typeof value === 'string' || 
-           typeof value === 'number' || 
-           typeof value === 'boolean';
+    return (
+      value === null ||
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean"
+    );
   }
 
   /**
@@ -243,11 +257,13 @@ export class JsonUtils {
     }
 
     if (JsonUtils.isValidJsonArray(value)) {
-      return (value as any[]).every(item => JsonUtils.isValidJsonValue(item));
+      return (value as any[]).every((item) => JsonUtils.isValidJsonValue(item));
     }
 
     if (JsonUtils.isValidJsonObject(value)) {
-      return Object.values(value).every(item => JsonUtils.isValidJsonValue(item));
+      return Object.values(value).every((item) =>
+        JsonUtils.isValidJsonValue(item)
+      );
     }
 
     return false;
@@ -260,7 +276,11 @@ export class JsonUtils {
    * @param defaultValue Default value if path not found
    * @returns Value at path or default value
    */
-  public static getPath<T>(obj: JSONValue, path: string, defaultValue?: T): T | undefined {
+  public static getPath<T>(
+    obj: JSONValue,
+    path: string,
+    defaultValue?: T
+  ): T | undefined {
     return CommonUtils.getPath(obj, path, defaultValue);
   }
 
@@ -271,14 +291,18 @@ export class JsonUtils {
    * @param value Value to set
    * @returns New object with value set (original object is not modified)
    */
-  public static setPath<T extends JSONValue>(obj: T, path: string, value: JSONValue): T {
-    if (!obj || typeof obj !== 'object') {
+  public static setPath<T extends JSONValue>(
+    obj: T,
+    path: string,
+    value: JSONValue
+  ): T {
+    if (!obj || typeof obj !== "object") {
       // Cannot set path on a primitive
       return obj;
     }
 
     const result = CommonUtils.deepClone(obj);
-    const segments = path.split('.');
+    const segments = path.split(".");
     let current: any = result;
 
     // Navigate to the parent of the property to set
@@ -288,7 +312,10 @@ export class JsonUtils {
       // Create parent objects if they don't exist
       if (current[segment] === undefined || current[segment] === null) {
         current[segment] = {};
-      } else if (typeof current[segment] !== 'object' || Array.isArray(current[segment])) {
+      } else if (
+        typeof current[segment] !== "object" ||
+        Array.isArray(current[segment])
+      ) {
         // Cannot set property on a non-object
         return obj;
       }

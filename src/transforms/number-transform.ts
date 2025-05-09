@@ -100,27 +100,54 @@ export class NumberTransform implements Transform {
       return createTransformResult(value);
     }
     
-    // Try to use CommonUtils for simple cases
+    // Handle elements with attributes specially
+    if (value && typeof value === 'object') {
+      const textKey = context.config.propNames.textKey;
+      
+      // If this is an object with text key, apply transformation to the text value
+      if (value[textKey] !== undefined) {
+        const result = this.transformValue(value[textKey]);
+        if (result !== value[textKey]) {
+          const newValue = { ...value };
+          newValue[textKey] = result;
+          return createTransformResult(newValue);
+        }
+      }
+      
+      return createTransformResult(value);
+    }
+    
+    // For simple strings, just transform directly
+    return createTransformResult(this.transformValue(value));
+  }
+
+  // Helper method to transform individual values
+  private transformValue(value: any): any {
+    // Skip non-string values if they're not numbers already
+    if (typeof value === 'number') {
+      return value;
+    }
+    
+    if (typeof value !== 'string') {
+      return value;
+    }
+    
+    // Use the default utility or complex implementation based on configuration
     if (this.isDefaultConfiguration()) {
-      // Use the common utility function with default settings
       const numValue = CommonUtils.toNumber(value);
       
-      // Only transform if it was actually a number
       if (typeof numValue === 'number' && !isNaN(numValue)) {
-        // When using strict parsing, check that the original was a clean number
         if (this.strictParsing) {
           const strValue = String(value).trim();
-          // Simple regex to check for clean numeric format
           if (/^-?(\d+|\d*\.\d+|\d+\.\d*)(e[+-]?\d+)?$/i.test(strValue)) {
-            return createTransformResult(numValue);
+            return numValue;
           }
         } else {
-          return createTransformResult(numValue);
+          return numValue;
         }
       }
     }
     
-    // For more complex cases or custom options, use the full implementation
     return this.transformComplex(value);
   }
 
@@ -141,16 +168,16 @@ export class NumberTransform implements Transform {
   /**
    * Complex transformation with custom options
    * @param value Value to transform
-   * @returns Transform result
+   * @returns Transformed value
    * @private
    */
-  private transformComplex(value: any): TransformResult<any> {
+  private transformComplex(value: any): any {
     // Convert to string for parsing
     const strValue = String(value);
     
     // Skip empty strings
     if (!strValue.trim()) {
-      return createTransformResult(value);
+      return value;
     }
     
     // Remove thousands separators
@@ -187,7 +214,7 @@ export class NumberTransform implements Transform {
       const regex = new RegExp(`^(${regexParts.join('|')})$`);
       
       if (!regex.test(normalized)) {
-        return createTransformResult(value);
+        return value;
       }
     }
     
@@ -195,6 +222,6 @@ export class NumberTransform implements Transform {
     const parsed = parseFloat(normalized);
     
     // Return the parsed number if it's valid, otherwise original value
-    return createTransformResult(isNaN(parsed) ? value : parsed);
+    return isNaN(parsed) ? value : parsed;
   }
 }

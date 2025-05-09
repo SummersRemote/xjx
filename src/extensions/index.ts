@@ -12,7 +12,7 @@
 import './terminal/to-xml';
 import './terminal/to-json';
 import './terminal/to-json-string';
-import './terminal/get-json-schema';
+// import './terminal/get-json-schema';
 import './terminal/get-path';
 
 // Non-terminal extensions (methods that return the builder for chaining)

@@ -161,15 +161,12 @@ export class ConfigService {
    */
   private validatePropNames(propNames: Record<string, string>): void {
     const requiredPropNames = [
-      'namespace',
-      'prefix',
-      'attributes',
-      'value',
-      'cdata',
-      'comments',
-      'instruction',
-      'target',
-      'children'
+      'attributesKey',
+      'textKey',
+      'contentKey',
+      'cdataKey',
+      'commentKey',
+      'processingInstrKey'
     ];
     
     for (const prop of requiredPropNames) {

@@ -1,16 +1,16 @@
 /**
  * RegexTransform - Performs regex replacements on values
- * 
+ *
  * Refactored to use the new static utilities.
  */
-import { 
-  Transform, 
-  TransformContext, 
-  TransformResult, 
-  TransformTarget, 
-  createTransformResult 
-} from '../core/types/transform-interfaces';
-import { ErrorUtils } from '../core/utils/error-utils';
+import {
+  Transform,
+  TransformContext,
+  TransformResult,
+  TransformTarget,
+  createTransformResult,
+} from "../core/types/transform-interfaces";
+import { ErrorUtils } from "../core/utils/error-utils";
 
 /**
  * Options for regex transformer
@@ -21,7 +21,7 @@ export interface RegexOptions {
    * Can be a RegExp (with flags) or a string
    */
   pattern: RegExp | string;
-  
+
   /**
    * The replacement string
    * Can use RegExp capture groups with $1, $2, etc.
@@ -31,7 +31,7 @@ export interface RegexOptions {
 
 /**
  * RegexTransform - Performs regex replacements on text and attribute values
- * 
+ *
  * Example usage:
  * ```
  * // Simple string replacement
@@ -41,7 +41,7 @@ export interface RegexOptions {
  *      replacement: "bar"
  *    }))
  *    .toJson();
- * 
+ *
  * // RegExp with flags for case-insensitive global replacement
  * XJX.fromXml(xml)
  *    .withTransforms(new RegexTransform({
@@ -54,15 +54,15 @@ export interface RegexOptions {
 export class RegexTransform implements Transform {
   // Target text values, CDATA, and comments
   targets = [
-    TransformTarget.Value, 
-    TransformTarget.Text, 
-    TransformTarget.CDATA, 
-    TransformTarget.Comment
+    TransformTarget.Value,
+    TransformTarget.Text,
+    TransformTarget.CDATA,
+    TransformTarget.Comment,
   ];
-  
+
   private regex: RegExp;
   private replacement: string;
-  
+
   /**
    * Create a new regex transformer
    * @param options Transformer options
@@ -70,18 +70,18 @@ export class RegexTransform implements Transform {
   constructor(options: RegexOptions) {
     ErrorUtils.validate(
       !!options.pattern,
-      'RegexTransform requires a pattern option',
-      'general'
+      "RegexTransform requires a pattern option",
+      "general"
     );
-    
+
     ErrorUtils.validate(
       options.replacement !== undefined,
-      'RegexTransform requires a replacement option',
-      'general'
+      "RegexTransform requires a replacement option",
+      "general"
     );
-    
+
     this.replacement = options.replacement;
-    
+
     // Create regex from pattern
     if (options.pattern instanceof RegExp) {
       // Use the RegExp directly with its flags
@@ -90,10 +90,10 @@ export class RegexTransform implements Transform {
       // For string patterns, create a RegExp with global flag by default
       // This ensures all occurrences are replaced
       const escapedPattern = this.escapeRegExp(options.pattern);
-      this.regex = new RegExp(escapedPattern, 'g');
+      this.regex = new RegExp(escapedPattern, "g");
     }
   }
-  
+
   /**
    * Transform a string value using the configured regex replacement
    * @param value Value to transform
@@ -101,18 +101,37 @@ export class RegexTransform implements Transform {
    * @returns Transformed value result
    */
   transform(value: any, context: TransformContext): TransformResult<any> {
-    // Skip non-string values
-    if (typeof value !== 'string') {
+    // Handle elements with attributes specially
+    if (value && typeof value === "object") {
+      const textKey = context.config.propNames.textKey;
+
+      // If this is an object with text key, apply regex to the text value
+      if (value[textKey] !== undefined && typeof value[textKey] === "string") {
+        const newText = this.applyRegex(value[textKey]);
+        if (newText !== value[textKey]) {
+          const newValue = { ...value };
+          newValue[textKey] = newText;
+          return createTransformResult(newValue);
+        }
+      }
+
       return createTransformResult(value);
     }
-    
-    // Perform the replacement
-    const result = value.replace(this.regex, this.replacement);
-    
-    // Only return the new value if something changed
-    return createTransformResult(result !== value ? result : value);
+
+    // For simple strings, just apply regex directly
+    if (typeof value === "string") {
+      return createTransformResult(this.applyRegex(value));
+    }
+
+    // Skip non-string values
+    return createTransformResult(value);
   }
-  
+
+  // Helper method to apply regex
+  private applyRegex(text: string): string {
+    return text.replace(this.regex, this.replacement);
+  }
+
   /**
    * Escape special characters in a string for use in a RegExp
    * @param string String to escape
@@ -120,6 +139,6 @@ export class RegexTransform implements Transform {
    * @private
    */
   private escapeRegExp(string: string): string {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
 }

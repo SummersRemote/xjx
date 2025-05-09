@@ -1,7 +1,7 @@
 /**
  * JSON to XNode converter implementation
  * 
- * Converts JSON objects to XNode representation using the new static utilities.
+ * Converts JSON objects to XNode representation using the context-sensitive format.
  */
 import { JsonToXNodeConverter } from './converter-interfaces';
 import { Configuration } from '../core/types/config-types';
@@ -39,7 +39,7 @@ export class DefaultJsonToXNodeConverter implements JsonToXNodeConverter {
         // Validate JSON
         this.validateJsonObject(json);
         
-        // Convert to XNode
+        // Convert JSON to XNode
         return this.jsonToXNode(json);
       },
       'Failed to convert JSON to XNode',
@@ -48,203 +48,392 @@ export class DefaultJsonToXNodeConverter implements JsonToXNodeConverter {
   }
 
   /**
-   * Convert JSON object to XNode
-   * @param jsonObj JSON object
+   * Convert JSON to XNode
+   * @param json JSON object
    * @param parentNode Optional parent node
    * @returns XNode representation
-   * @private
    */
-  private jsonToXNode(jsonObj: Record<string, any>, parentNode?: XNode): XNode {
-    // Get the node name (first key in the object)
-    const nodeName = Object.keys(jsonObj)[0];
-    if (!nodeName) {
+  private jsonToXNode(
+    json: Record<string, any>, 
+    parentNode?: XNode
+  ): XNode {
+    // Get the root element name (first property in the object)
+    const elementName = Object.keys(json)[0];
+    if (!elementName) {
       throw new Error("Empty JSON object");
     }
-
-    const nodeData = jsonObj[nodeName];
-
-    // Create base XNode
-    const xnode = new XNode(nodeName, NodeType.ELEMENT_NODE);
-    xnode.parent = parentNode;
-
-    // Process namespace and prefix
-    const namespaceKey = this.config.propNames.namespace;
-    const prefixKey = this.config.propNames.prefix;
     
-    if (nodeData[namespaceKey] && this.config.preserveNamespaces) {
-      xnode.namespace = nodeData[namespaceKey];
+    // Handle special node types
+    if (elementName === this.config.propNames.commentKey) {
+      // Comment node
+      const commentNode = XNode.createCommentNode(String(json[elementName]));
+      commentNode.parent = parentNode;
+      return commentNode;
+    } else if (elementName.startsWith(this.config.propNames.processingInstrKey)) {
+      // Processing instruction
+      return this.createPiFromJson(elementName, json[elementName], parentNode);
+    } else if (elementName === this.config.propNames.cdataKey) {
+      // CDATA section
+      const cdataNode = XNode.createCDATANode(String(json[elementName]));
+      cdataNode.parent = parentNode;
+      return cdataNode;
+    } else if (elementName === "#text") {
+      // Text node
+      const textNode = XNode.createTextNode(String(json[elementName]));
+      textNode.parent = parentNode;
+      return textNode;
     }
-
-    if (nodeData[prefixKey] && this.config.preserveNamespaces) {
-      xnode.prefix = nodeData[prefixKey];
+    
+    // Parse element name for possible namespace prefix
+    let prefix: string | undefined;
+    let localName: string = elementName;
+    
+    // Handle namespace prefix in element name
+    if (this.config.preserveNamespaces && elementName.includes(':')) {
+      const parts = elementName.split(':');
+      prefix = parts[0];
+      localName = parts[1];
     }
-
-    // Process value
-    const valueKey = this.config.propNames.value;
-    if (nodeData[valueKey] !== undefined) {
-      xnode.value = nodeData[valueKey];
+    
+    // Get element value
+    const elementValue = json[elementName];
+    
+    // Create element node
+    const node = new XNode(localName, NodeType.ELEMENT_NODE);
+    node.prefix = prefix;
+    node.parent = parentNode;
+    
+    // Handle simple value cases
+    if (elementValue === null || elementValue === undefined) {
+      // Null or undefined becomes empty element
+      return node;
+    } else if (typeof elementValue === 'string' || 
+               typeof elementValue === 'number' || 
+               typeof elementValue === 'boolean') {
+      // Simple scalar value becomes text content
+      node.value = String(elementValue);
+      return node;
+    } else if (elementValue === '') {
+      // Empty string (represents empty element)
+      return node;
     }
-
-    // Process attributes
-    const attributesKey = this.config.propNames.attributes;
-    if (this.config.preserveAttributes && 
-        nodeData[attributesKey] && 
-        Array.isArray(nodeData[attributesKey])) {
+    
+    // Handle complex value (object)
+    if (typeof elementValue === 'object') {
+      // Process attributes if present
+      if (elementValue[this.config.propNames.attributesKey]) {
+        this.processAttributes(node, elementValue[this.config.propNames.attributesKey]);
+      }
       
-      xnode.attributes = {};
-      const namespaceDecls: Record<string, string> = {};
-      let hasNamespaceDecls = false;
-
-      for (const attrObj of nodeData[attributesKey]) {
-        const attrName = Object.keys(attrObj)[0];
-        if (!attrName) continue;
-
-        const attrData = attrObj[attrName];
-        const attrValue = attrData[valueKey];
-
-        if (this.processNamespaceDeclaration(attrName, attrValue, namespaceDecls)) {
-          hasNamespaceDecls = true;
-        } else {
-          // Regular attribute
-          xnode.attributes[attrName] = attrValue;
-        }
-      }
-
-      // Add namespace declarations if any were found
-      if (hasNamespaceDecls) {
-        xnode.namespaceDeclarations = namespaceDecls;
+      // Handle different content types
+      if (elementValue[this.config.propNames.textKey] !== undefined) {
+        // Element with both attributes and text
+        node.value = String(elementValue[this.config.propNames.textKey]);
+      } else if (elementValue[this.config.propNames.contentKey]) {
+        // Mixed content
+        node.children = this.processMixedContent(
+          elementValue[this.config.propNames.contentKey], 
+          node
+        );
+      } else if (elementValue[this.config.propNames.cdataKey]) {
+        // CDATA content
+        const cdataNode = XNode.createCDATANode(
+          String(elementValue[this.config.propNames.cdataKey])
+        );
+        cdataNode.parent = node;
+        node.children = [cdataNode];
+      } else {
+        // Child elements and comments
+        node.children = this.processChildren(elementValue, node);
       }
     }
+    
+    return node;
+  }
 
-    // Process children
-    const childrenKey = this.config.propNames.children;
-    if (nodeData[childrenKey] && Array.isArray(nodeData[childrenKey])) {
-      xnode.children = this.processChildren(nodeData[childrenKey], xnode);
+  /**
+   * Process attributes
+   * @param node Target node
+   * @param attributes Attributes object
+   */
+  private processAttributes(
+    node: XNode, 
+    attributes: Record<string, any>
+  ): void {
+    if (!attributes || typeof attributes !== 'object') {
+      return;
     }
-
-    return xnode;
+    
+    // Initialize attributes if needed
+    if (!node.attributes) {
+      node.attributes = {};
+    }
+    
+    // Process each attribute
+    for (const [name, value] of Object.entries(attributes)) {
+      // Handle namespace declarations
+      if (this.config.preserveNamespaces && (name === 'xmlns' || name.startsWith('xmlns:'))) {
+        this.processNamespaceDeclaration(node, name, String(value));
+      } else {
+        // Regular attribute
+        node.attributes[name] = value;
+      }
+    }
   }
 
   /**
    * Process namespace declaration
-   * @param attrName Attribute name
-   * @param attrValue Attribute value
-   * @param namespaceDecls Namespace declarations map
-   * @returns True if processed as namespace declaration
-   * @private
+   * @param node Target node
+   * @param name Namespace attribute name (xmlns or xmlns:prefix)
+   * @param value Namespace URI
    */
-  private processNamespaceDeclaration(
-    attrName: string,
-    attrValue: any,
-    namespaceDecls: Record<string, string>
-  ): boolean {
-    // Check if this is a namespace declaration
-    if (attrName === "xmlns") {
-      // Default namespace
-      namespaceDecls[""] = attrValue;
-      
-      // Add to global namespace map
-      this.namespaceMap[""] = attrValue;
-      return true;
-    } else if (attrName.startsWith("xmlns:")) {
-      // Prefixed namespace
-      const prefix = attrName.substring(6);
-      namespaceDecls[prefix] = attrValue;
-      
-      // Add to global namespace map
-      this.namespaceMap[prefix] = attrValue;
-      return true;
+  private processNamespaceDeclaration(node: XNode, name: string, value: string): void {
+    // Initialize namespace declarations if needed
+    if (!node.namespaceDeclarations) {
+      node.namespaceDeclarations = {};
     }
     
-    return false;
+    if (name === 'xmlns') {
+      // Default namespace
+      node.namespaceDeclarations[''] = value;
+      node.isDefaultNamespace = true;
+      
+      // Set node's namespace if no explicit prefix
+      if (!node.prefix) {
+        node.namespace = value;
+      }
+    } else if (name.startsWith('xmlns:')) {
+      // Prefixed namespace
+      const prefix = name.substring(6);
+      node.namespaceDeclarations[prefix] = value;
+      
+      // If node has this prefix, set its namespace
+      if (node.prefix === prefix) {
+        node.namespace = value;
+      }
+    }
+    
+    // Add to global namespace map
+    this.namespaceMap[name === 'xmlns' ? '' : name.substring(6)] = value;
   }
 
   /**
-   * Process child nodes from JSON
-   * @param children Children array from JSON
-   * @param parentNode Parent XNode
-   * @returns Array of XNode children
-   * @private
+   * Process mixed content
+   * @param content Mixed content array
+   * @param parentNode Parent node
+   * @returns Array of child nodes
    */
-  private processChildren(children: any[], parentNode: XNode): XNode[] {
-    const result: XNode[] = [];
+  private processMixedContent(
+    content: any[],
+    parentNode: XNode
+  ): XNode[] {
+    if (!Array.isArray(content)) {
+      return [];
+    }
     
-    for (const child of children) {
-      // Special node types
-      if (this.processSpecialChild(child, result, parentNode)) {
+    const children: XNode[] = [];
+    
+    for (const item of content) {
+      if (item === null || item === undefined) {
         continue;
       }
       
-      // Element node (recursively process)
-      if (JsonUtils.isValidJsonObject(child) && !Array.isArray(child)) {
-        result.push(this.jsonToXNode(child, parentNode));
+      if (typeof item === 'string' || 
+          typeof item === 'number' || 
+          typeof item === 'boolean') {
+        // Text node
+        const textNode = XNode.createTextNode(String(item));
+        textNode.parent = parentNode;
+        children.push(textNode);
+      } else if (typeof item === 'object') {
+        // Element, CDATA, comment, or PI
+        if (item[this.config.propNames.cdataKey]) {
+          // CDATA section
+          const cdataNode = XNode.createCDATANode(String(item[this.config.propNames.cdataKey]));
+          cdataNode.parent = parentNode;
+          children.push(cdataNode);
+        } else if (item[this.config.propNames.commentKey]) {
+          // Comment
+          const commentNode = XNode.createCommentNode(String(item[this.config.propNames.commentKey]));
+          commentNode.parent = parentNode;
+          children.push(commentNode);
+        } else {
+          // Element node or processing instruction
+          const childNode = this.jsonToXNode(item, parentNode);
+          children.push(childNode);
+        }
       }
     }
     
-    return result;
+    return children;
   }
 
   /**
-   * Process special child node types (text, CDATA, comment, PI)
-   * @param child Child data from JSON
-   * @param result Output children array
-   * @param parentNode Parent XNode
-   * @returns True if processed as special node
-   * @private
+   * Process child elements
+   * @param parent Parent element value
+   * @param parentNode Parent node
+   * @returns Array of child nodes
    */
-  private processSpecialChild(child: any, result: XNode[], parentNode: XNode): boolean {
-    const valueKey = this.config.propNames.value;
-    const cdataKey = this.config.propNames.cdata;
-    const commentsKey = this.config.propNames.comments;
-    const instructionKey = this.config.propNames.instruction;
-    const targetKey = this.config.propNames.target;
+  private processChildren(
+    parent: Record<string, any>,
+    parentNode: XNode
+  ): XNode[] {
+    const children: XNode[] = [];
     
-    // Text node
-    if (child[valueKey] !== undefined && this.config.preserveTextNodes) {
-      const textNode = XNode.createTextNode(child[valueKey]);
-      textNode.parent = parentNode;
-      result.push(textNode);
-      return true;
-    }
-    
-    // CDATA section
-    if (child[cdataKey] !== undefined && this.config.preserveCDATA) {
-      const cdataNode = XNode.createCDATANode(child[cdataKey]);
-      cdataNode.parent = parentNode;
-      result.push(cdataNode);
-      return true;
-    }
-    
-    // Comment
-    if (child[commentsKey] !== undefined && this.config.preserveComments) {
-      const commentNode = XNode.createCommentNode(child[commentsKey]);
-      commentNode.parent = parentNode;
-      result.push(commentNode);
-      return true;
-    }
-    
-    // Processing instruction
-    if (child[instructionKey] !== undefined && this.config.preserveProcessingInstr) {
-      const piData = child[instructionKey];
-      const target = piData[targetKey];
-      const value = piData[valueKey] || "";
-      
-      if (target) {
-        const piNode = XNode.createProcessingInstructionNode(target, value);
-        piNode.parent = parentNode;
-        result.push(piNode);
+    // Process each property that's not a special attribute
+    for (const [key, value] of Object.entries(parent)) {
+      // Skip special properties
+      if (key === this.config.propNames.attributesKey || 
+          key === this.config.propNames.textKey || 
+          key === this.config.propNames.contentKey ||
+          key === this.config.propNames.cdataKey) {
+        continue;
       }
-      return true;
+      
+      // Handle comments
+      if (key === this.config.propNames.commentKey) {
+        if (this.config.commentMode === 'preserve') {
+          // Handle multiple comments
+          if (Array.isArray(value)) {
+            for (const comment of value) {
+              const commentNode = XNode.createCommentNode(String(comment));
+              commentNode.parent = parentNode;
+              children.push(commentNode);
+            }
+          } else {
+            const commentNode = XNode.createCommentNode(String(value));
+            commentNode.parent = parentNode;
+            children.push(commentNode);
+          }
+        }
+        continue;
+      }
+      
+      // Handle processing instructions
+      if (key.startsWith(this.config.propNames.processingInstrKey)) {
+        const piNode = this.createPiFromJson(key, value, parentNode);
+        children.push(piNode);
+        continue;
+      }
+      
+      // Handle regular elements
+      if (Array.isArray(value)) {
+        // Array of elements with the same name
+        for (const item of value) {
+          const child = this.processChildElement(key, item, parentNode);
+          if (child) {
+            children.push(child);
+          }
+        }
+      } else {
+        // Single element
+        const child = this.processChildElement(key, value, parentNode);
+        if (child) {
+          children.push(child);
+        }
+      }
     }
     
-    return false;
+    return children;
+  }
+
+  /**
+   * Process a single child element
+   * @param name Element name
+   * @param value Element value
+   * @param parentNode Parent node
+   * @returns Child node or null if invalid
+   */
+  private processChildElement(
+    name: string,
+    value: any,
+    parentNode: XNode
+  ): XNode | null {
+    if (value === null || value === undefined) {
+      return null;
+    }
+    
+    // Create child with simple value
+    if (typeof value === 'string' || 
+        typeof value === 'number' || 
+        typeof value === 'boolean' ||
+        value === '') {
+      // Parse name for namespace
+      let prefix: string | undefined;
+      let localName: string = name;
+      
+      if (this.config.preserveNamespaces && name.includes(':')) {
+        const parts = name.split(':');
+        prefix = parts[0];
+        localName = parts[1];
+      }
+      
+      // Create node
+      const node = new XNode(localName, NodeType.ELEMENT_NODE);
+      node.prefix = prefix;
+      node.parent = parentNode;
+      
+      // Set namespace if we have it in our map
+      if (prefix && this.namespaceMap[prefix]) {
+        node.namespace = this.namespaceMap[prefix];
+      }
+      
+      // Set value for non-empty elements
+      if (value !== '') {
+        node.value = String(value);
+      }
+      
+      return node;
+    }
+    
+    // Complex value (object)
+    if (typeof value === 'object') {
+      // Create element wrapper
+      const wrapper: Record<string, any> = {};
+      wrapper[name] = value;
+      
+      // Process with jsonToXNode
+      return this.jsonToXNode(wrapper, parentNode);
+    }
+    
+    return null;
+  }
+
+  /**
+   * Create a processing instruction node
+   * @param key Processing instruction key
+   * @param value Processing instruction value
+   * @param parentNode Parent node
+   * @returns Processing instruction node
+   */
+  private createPiFromJson(
+    key: string,
+    value: any,
+    parentNode?: XNode
+  ): XNode {
+    // Extract target from key
+    const target = key.substring(this.config.propNames.processingInstrKey.length);
+    
+    // Build instruction data
+    let data = '';
+    if (value && value[this.config.propNames.attributesKey]) {
+      const attrs = value[this.config.propNames.attributesKey];
+      data = Object.entries(attrs)
+        .map(([name, val]) => `${name}="${val}"`)
+        .join(' ');
+    }
+    
+    // Create node
+    const piNode = XNode.createProcessingInstructionNode(target, data);
+    piNode.parent = parentNode;
+    
+    return piNode;
   }
 
   /**
    * Validate JSON object
    * @param jsonObj JSON object to validate
    * @throws Error if validation fails
-   * @private
    */
   private validateJsonObject(jsonObj: Record<string, any>): void {
     ErrorUtils.validate(

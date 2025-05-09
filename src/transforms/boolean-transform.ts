@@ -83,23 +83,32 @@ export class BooleanTransform implements Transform {
       return createTransformResult(value);
     }
     
-    // Try to use CommonUtils for simple cases
-    if (this.trueValues === DEFAULT_TRUE_VALUES && 
-        this.falseValues === DEFAULT_FALSE_VALUES && 
-        this.ignoreCase === true) {
-      // Use the common utility function with default settings
-      const boolValue = CommonUtils.toBoolean(value);
+    // Handle elements with attributes specially
+    if (value && typeof value === 'object') {
+      const textKey = context.config.propNames.textKey;
       
-      // Only transform if it was actually converted to a boolean
-      if (typeof boolValue === 'boolean' && 
-          (boolValue === true || boolValue === false)) {
-        return createTransformResult(boolValue);
+      // If this is an object with text key, apply transformation to the text value
+      if (value[textKey] !== undefined) {
+        const result = this.transformValue(value[textKey]);
+        if (result !== value[textKey]) {
+          const newValue = { ...value };
+          newValue[textKey] = result;
+          return createTransformResult(newValue);
+        }
       }
+      
+      return createTransformResult(value);
     }
     
+    // For simple strings, just transform directly
+    return createTransformResult(this.transformValue(value));
+  }
+  
+  // Helper method to transform individual values
+  private transformValue(value: any): any {
     // Skip non-string values
     if (typeof value !== 'string') {
-      return createTransformResult(value);
+      return value;
     }
     
     // Convert to string for comparison
@@ -108,21 +117,21 @@ export class BooleanTransform implements Transform {
     // Check for true values
     for (const trueVal of this.trueValues) {
       if (this.compareValues(strValue, trueVal)) {
-        return createTransformResult(true);
+        return true;
       }
     }
     
     // Check for false values
     for (const falseVal of this.falseValues) {
       if (this.compareValues(strValue, falseVal)) {
-        return createTransformResult(false);
+        return false;
       }
     }
     
     // No match, return original value
-    return createTransformResult(value);
+    return value;
   }
-  
+
   /**
    * Compare two values with case sensitivity option
    * @param a First value

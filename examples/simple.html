@@ -116,8 +116,8 @@
             BooleanTransform, 
             NumberTransform,
             TransformTarget, 
-            transformResult 
-        } from '../dist/index.js';
+            createTransformResult 
+        } from '../dist/esm/index.js';
 
         // Example 1: Simple Round-Trip Conversion
         document.getElementById('roundtrip-input').textContent = 
@@ -200,11 +200,11 @@
             transform(value, context) {
                 // Only transform string values
                 if (typeof value !== 'string') {
-                    return transformResult(value);
+                    return createTransformResult(value);
                 }
                 
                 // Capitalize the text
-                return transformResult(value.toUpperCase());
+                return createTransformResult(value.toUpperCase());
             }
         }
 

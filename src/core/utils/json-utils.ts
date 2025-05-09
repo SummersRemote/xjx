@@ -1,7 +1,11 @@
 /**
- * JSONUtil - Utility functions for JSON processing
+ * JsonUtils - Static utility for JSON operations
+ * 
+ * Provides utilities for working with JSON structures in the XJX library.
  */
 import { Configuration } from "../types/config-types";
+import { ErrorUtils } from "./error-utils";
+import { CommonUtils } from "./common-utils";
 import {
   JSONValue,
   JSONObject,
@@ -10,27 +14,22 @@ import {
   XMLJSONElement,
 } from "../types/json-types";
 
-export class JsonUtil {
-  protected config: Configuration;
-
-  /**
-   * Constructor for JSONUtil
-   * @param config Configuration options
-   */
-  constructor(config: Configuration) {
-    this.config = config;
-  }
-
+export class JsonUtils {
   /**
    * Converts a plain JSON object to the XML-like JSON structure.
    * Optionally wraps the result in a root element with attributes and namespaces.
    *
    * @param obj Standard JSON object
+   * @param config Configuration object
    * @param root Optional root element configuration (either a string or object with $ keys)
    * @returns XML-like JSON object
    */
-  objectToXJX(obj: JSONValue, root?: string | JSONObject): XMLJSONNode {
-    const wrappedObject = this.wrapObject(obj);
+  public static objectToXJX(
+    obj: JSONValue, 
+    config: Configuration,
+    root?: string | JSONObject
+  ): XMLJSONNode {
+    const wrappedObject = JsonUtils.wrapObject(obj, config);
 
     if (typeof root === "string") {
       // Root is a simple string: wrap result with this root tag
@@ -41,7 +40,7 @@ export class JsonUtil {
       // Handle root with config-based keys
       const elementName = ((root as JSONObject).name as string) || "root"; // Default to "root" if no name is provided
       const prefix =
-        ((root as JSONObject)[this.config.propNames.prefix] as string) || "";
+        ((root as JSONObject)[config.propNames.prefix] as string) || "";
       const qualifiedName = prefix ? `${prefix}:${elementName}` : elementName;
 
       const result: XMLJSONNode = {
@@ -51,13 +50,13 @@ export class JsonUtil {
       const rootElement = result[qualifiedName];
 
       // Add attributes to the root element if defined
-      const attrsKey = this.config.propNames.attributes;
+      const attrsKey = config.propNames.attributes;
       if (root[attrsKey] && Array.isArray(root[attrsKey])) {
         rootElement[attrsKey] = root[attrsKey] as JSONArray;
       }
 
       // Merge existing children with the new generated children
-      const childrenKey = this.config.propNames.children;
+      const childrenKey = config.propNames.children;
       const children = root[childrenKey]
         ? (root[childrenKey] as JSONArray)
         : [];
@@ -67,7 +66,7 @@ export class JsonUtil {
       ] as unknown as XMLJSONNode[];
 
       // Add namespace and prefix if defined
-      const nsKey = this.config.propNames.namespace;
+      const nsKey = config.propNames.namespace;
       if (root[nsKey]) {
         rootElement[nsKey] = root[nsKey] as JSONValue;
       }
@@ -86,11 +85,13 @@ export class JsonUtil {
   /**
    * Wraps a standard JSON value in the XML-like JSON structure
    * @param value Value to wrap
+   * @param config Configuration object
    * @returns Wrapped value
+   * @private
    */
-  private wrapObject(value: JSONValue): JSONObject {
-    const valKey = this.config.propNames.value;
-    const childrenKey = this.config.propNames.children;
+  private static wrapObject(value: JSONValue, config: Configuration): JSONObject {
+    const valKey = config.propNames.value;
+    const childrenKey = config.propNames.children;
 
     if (
       value === null ||
@@ -105,7 +106,7 @@ export class JsonUtil {
       // For arrays, wrap each item and return as a children-style array of repeated elements
       return {
         [childrenKey]: value.map((item) => {
-          return this.wrapObject(item);
+          return JsonUtils.wrapObject(item, config);
         }),
       };
     }
@@ -114,7 +115,7 @@ export class JsonUtil {
       // It's an object: wrap its properties in children
       const children = Object.entries(value as JSONObject).map(
         ([key, val]) => ({
-          [key]: this.wrapObject(val),
+          [key]: JsonUtils.wrapObject(val, config),
         })
       );
 
@@ -125,16 +126,51 @@ export class JsonUtil {
   }
 
   /**
-   * Check if a value is empty
-   * @param value Value to check
-   * @returns true if empty
+   * Recursively compacts a JSON structure by removing empty objects and arrays
+   * Empty means: {}, [], null, undefined
+   * Preserves all primitive values including empty strings, 0, false, etc.
+   *
+   * @param value JSON value to compact
+   * @returns Compacted JSON value or undefined if the value is completely empty
    */
-  isEmpty(value: JSONValue): boolean {
-    if (value == null) return true;
-    if (Array.isArray(value)) return value.length === 0;
-    if (typeof value === "object")
-      return Object.keys(value as JSONObject).length === 0;
-    return false;
+  public static compactJson(value: JSONValue): JSONValue | undefined {
+    // Handle null/undefined
+    if (value === null || value === undefined) {
+      return undefined;
+    }
+
+    // Preserve primitive values (including empty strings, zeros, and booleans)
+    if (typeof value !== "object") {
+      return value;
+    }
+
+    // Handle arrays
+    if (Array.isArray(value)) {
+      const compactedArray: JSONValue[] = [];
+
+      for (const item of value) {
+        const compactedItem = JsonUtils.compactJson(item);
+        if (compactedItem !== undefined) {
+          compactedArray.push(compactedItem);
+        }
+      }
+
+      return compactedArray.length > 0 ? compactedArray : undefined;
+    }
+
+    // Handle objects
+    const compactedObj: JSONObject = {};
+    let hasProperties = false;
+
+    for (const [key, propValue] of Object.entries(value as JSONObject)) {
+      const compactedValue = JsonUtils.compactJson(propValue);
+      if (compactedValue !== undefined) {
+        compactedObj[key] = compactedValue;
+        hasProperties = true;
+      }
+    }
+
+    return hasProperties ? compactedObj : undefined;
   }
 
   /**
@@ -143,7 +179,7 @@ export class JsonUtil {
    * @param indent Optional indentation level
    * @returns JSON string representation
    */
-  safeStringify(obj: JSONValue, indent: number = 2): string {
+  public static safeStringify(obj: JSONValue, indent: number = 2): string {
     try {
       return JSON.stringify(obj, null, indent);
     } catch (error) {
@@ -152,61 +188,116 @@ export class JsonUtil {
   }
 
   /**
-   * Deep clone an object
-   * @param obj Object to clone
-   * @returns Cloned object
+   * Safely parse a JSON string
+   * @param text JSON string to parse
+   * @returns Parsed object or null if parsing fails
    */
-  deepClone<T>(obj: T): T {
+  public static safeParse(text: string): JSONValue | null {
     try {
-      return JSON.parse(JSON.stringify(obj));
+      return JSON.parse(text);
     } catch (error) {
-      throw new Error(
-        `Failed to deep clone object: ${
-          error instanceof Error ? error.message : String(error)
-        }`
-      );
+      return null;
     }
   }
 
   /**
-   * Deep merge two objects with proper type handling
-   * @param target Target object
-   * @param source Source object
-   * @returns Merged object (target is modified)
+   * Validate that a value is a valid JSON object
+   * @param value Value to validate
+   * @returns True if the value is a valid JSON object
    */
-  deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
-    if (!source || typeof source !== "object" || source === null) {
-      return target;
+  public static isValidJsonObject(value: any): boolean {
+    return value !== null && 
+           typeof value === 'object' && 
+           !Array.isArray(value);
+  }
+
+  /**
+   * Validate that a value is a valid JSON array
+   * @param value Value to validate
+   * @returns True if the value is a valid JSON array
+   */
+  public static isValidJsonArray(value: any): boolean {
+    return Array.isArray(value);
+  }
+
+  /**
+   * Validate that a value is a valid JSON primitive
+   * @param value Value to validate
+   * @returns True if the value is a valid JSON primitive
+   */
+  public static isValidJsonPrimitive(value: any): boolean {
+    return value === null || 
+           typeof value === 'string' || 
+           typeof value === 'number' || 
+           typeof value === 'boolean';
+  }
+
+  /**
+   * Validate that a value is a valid JSON value
+   * @param value Value to validate
+   * @returns True if the value is a valid JSON value
+   */
+  public static isValidJsonValue(value: any): boolean {
+    if (JsonUtils.isValidJsonPrimitive(value)) {
+      return true;
     }
 
-    if (!target || typeof target !== "object" || target === null) {
-      return source as T;
+    if (JsonUtils.isValidJsonArray(value)) {
+      return (value as any[]).every(item => JsonUtils.isValidJsonValue(item));
     }
 
-    Object.keys(source).forEach((key) => {
-      const sourceValue = source[key as keyof Partial<T>];
-      const targetValue = target[key as keyof T];
+    if (JsonUtils.isValidJsonObject(value)) {
+      return Object.values(value).every(item => JsonUtils.isValidJsonValue(item));
+    }
 
-      // If both source and target values are objects, recursively merge them
-      if (
-        sourceValue !== null &&
-        targetValue !== null &&
-        typeof sourceValue === "object" &&
-        typeof targetValue === "object" &&
-        !Array.isArray(sourceValue) &&
-        !Array.isArray(targetValue)
-      ) {
-        // Recursively merge the nested objects
-        (target as Record<string, any>)[key] = this.deepMerge(
-          targetValue as Record<string, any>,
-          sourceValue as Record<string, any>
-        );
-      } else {
-        // Otherwise just replace the value
-        (target as Record<string, any>)[key] = sourceValue;
+    return false;
+  }
+
+  /**
+   * Get a value from a JSON object using a path
+   * @param obj Object to get value from
+   * @param path Path to value (dot notation)
+   * @param defaultValue Default value if path not found
+   * @returns Value at path or default value
+   */
+  public static getPath<T>(obj: JSONValue, path: string, defaultValue?: T): T | undefined {
+    return CommonUtils.getPath(obj, path, defaultValue);
+  }
+
+  /**
+   * Set a value in a JSON object using a path
+   * @param obj Object to set value in
+   * @param path Path to value (dot notation)
+   * @param value Value to set
+   * @returns New object with value set (original object is not modified)
+   */
+  public static setPath<T extends JSONValue>(obj: T, path: string, value: JSONValue): T {
+    if (!obj || typeof obj !== 'object') {
+      // Cannot set path on a primitive
+      return obj;
+    }
+
+    const result = CommonUtils.deepClone(obj);
+    const segments = path.split('.');
+    let current: any = result;
+
+    // Navigate to the parent of the property to set
+    for (let i = 0; i < segments.length - 1; i++) {
+      const segment = segments[i];
+
+      // Create parent objects if they don't exist
+      if (current[segment] === undefined || current[segment] === null) {
+        current[segment] = {};
+      } else if (typeof current[segment] !== 'object' || Array.isArray(current[segment])) {
+        // Cannot set property on a non-object
+        return obj;
       }
-    });
 
-    return target;
+      current = current[segment];
+    }
+
+    // Set the value
+    current[segments[segments.length - 1]] = value;
+    return result;
   }
 }

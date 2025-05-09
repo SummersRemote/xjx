@@ -40,10 +40,10 @@
                       <span class="font-weight-bold">{{ index + 1 }}. {{ getTransformerTypeName(transformer) }}</span>
                       <v-chip
                         size="small"
-                        :color="transformer.direction === 'XML_TO_JSON' ? 'primary' : 'secondary'"
+                        :color="transformer.direction === TD.XML_TO_JSON ? 'primary' : 'secondary'"
                         class="ml-2"
                       >
-                        {{ transformer.direction === 'XML_TO_JSON' ? 'XML → JSON' : 'JSON → XML' }}
+                        {{ transformer.direction === TD.XML_TO_JSON ? 'XML → JSON' : 'JSON → XML' }}
                       </v-chip>
                     </v-list-item-title>
                     <v-list-item-subtitle>
@@ -89,11 +89,11 @@
                     Number
                   </v-btn>
                   <v-btn
-                    @click="showAddForm('String')"
+                    @click="showAddForm('Regex')"
                     prepend-icon="mdi-find-replace"
-                    :color="newTransformer.type === 'String' ? 'primary' : ''"
+                    :color="newTransformer.type === 'Regex' ? 'primary' : ''"
                   >
-                    String Replace
+                    Regex Replace
                   </v-btn>
                   <v-btn
                     @click="showAddForm('Filter')"
@@ -122,11 +122,11 @@
                     >
                       <v-radio
                         label="XML to JSON"
-                        value="XML_TO_JSON"
+                        :value="TD.XML_TO_JSON"
                       ></v-radio>
                       <v-radio
                         label="JSON to XML"
-                        value="JSON_TO_XML"
+                        :value="TD.JSON_TO_XML"
                       ></v-radio>
                     </v-radio-group>
                   </v-col>
@@ -200,8 +200,8 @@
                   </v-row>
                 </div>
 
-                <!-- String Replace Transformer Form -->
-                <div v-if="newTransformer.type === 'String'">
+                <!-- Regex Transformer Form -->
+                <div v-if="newTransformer.type === 'Regex'">
                   <v-row>
                     <v-col cols="12" md="6">
                       <v-text-field
@@ -219,21 +219,15 @@
                         persistent-hint
                       ></v-text-field>
                     </v-col>
-                    <v-col cols="12" md="6">
-                      <v-switch
-                        v-model="newTransformer.options.ignoreCase"
-                        label="Ignore Case"
-                        color="primary"
-                        hide-details
-                      ></v-switch>
-                    </v-col>
-                    <v-col cols="12" md="6">
-                      <v-switch
-                        v-model="newTransformer.options.replaceAll"
-                        label="Replace All Occurrences"
-                        color="primary"
-                        hide-details
-                      ></v-switch>
+                    <v-col cols="12">
+                      <v-alert
+                        type="info"
+                        variant="tonal"
+                        density="compact"
+                        class="mb-2"
+                      >
+                        For regex patterns, you can use JavaScript syntax: /pattern/flags
+                      </v-alert>
                     </v-col>
                   </v-row>
                 </div>
@@ -308,6 +302,7 @@
 import { ref, computed, reactive, onMounted } from 'vue';
 import { useXjxStore } from '../stores/xjxStore';
 import XjxService from '../services/xjxService';
+import { TransformDirection } from '../../../dist/esm';
 
 // Get the store
 const store = useXjxStore();
@@ -318,10 +313,13 @@ const showPanel = ref(false);
 // Track active transformers
 const activeTransformers = ref([]);
 
+// Make TransformDirection available to the template (you need to rename the import to avoid naming conflicts)
+const TD = TransformDirection;
+
 // New transformer state
 const newTransformer = reactive({
   type: '',
-  direction: 'XML_TO_JSON',
+  direction: TD.XML_TO_JSON,
   options: {}
 });
 
@@ -344,12 +342,13 @@ const togglePanel = () => {
 const getTransformerTypeName = (transformer) => {
   if (transformer.type === 'value') {
     // Check the transformer instance constructor name
-    if (transformer.transformer.constructor.name.includes('Boolean')) {
+    const constructorName = transformer.transformer.constructor.name;
+    if (constructorName.includes('Boolean')) {
       return 'Boolean';
-    } else if (transformer.transformer.constructor.name.includes('Number')) {
+    } else if (constructorName.includes('Number')) {
       return 'Number';
-    } else if (transformer.transformer.constructor.name.includes('StringReplace')) {
-      return 'String';
+    } else if (constructorName.includes('Regex')) {
+      return 'Regex';
     }
     return 'Value';
   } else if (transformer.type === 'children') {
@@ -364,17 +363,21 @@ const getTransformerDescription = (transformer) => {
   const instance = transformer.transformer;
   
   if (type === 'Boolean') {
-    return `True values: ${instance.options.trueValues?.join(', ')}, False values: ${instance.options.falseValues?.join(', ')}`;
+    const options = instance.options || {};
+    return `True values: ${options.trueValues?.join(', ') || 'default'}, False values: ${options.falseValues?.join(', ') || 'default'}`;
   } else if (type === 'Number') {
+    const options = instance.options || {};
     return [
-      instance.options.integers ? 'Integers' : '',
-      instance.options.decimals ? 'Decimals' : '',
-      instance.options.scientific ? 'Scientific Notation' : ''
-    ].filter(Boolean).join(', ');
-  } else if (type === 'String') {
-    return `Replace: ${instance.options.pattern.toString()}, With: "${instance.options.replacement}"`;
+      options.integers ? 'Integers' : '',
+      options.decimals ? 'Decimals' : '',
+      options.scientific ? 'Scientific Notation' : ''
+    ].filter(Boolean).join(', ') || 'Default settings';
+  } else if (type === 'Regex') {
+    const options = instance.options || {};
+    return `Replace: ${options.pattern?.toString() || ''}, With: "${options.replacement || ''}"`;
   } else if (type === 'Filter') {
-    return `Exclude children named: ${instance.options.excludeNames?.join(', ')}`;
+    const options = instance.options || {};
+    return `Exclude children named: ${options.excludeNames?.join(', ') || ''}`;
   }
   return 'Transformer';
 };
@@ -382,7 +385,7 @@ const getTransformerDescription = (transformer) => {
 // Show form for adding a specific transformer type
 const showAddForm = (type) => {
   newTransformer.type = type;
-  newTransformer.direction = 'XML_TO_JSON';
+  newTransformer.direction = TD.XML_TO_JSON;
   
   // Set default options based on the transformer type
   if (type === 'Boolean') {
@@ -398,12 +401,10 @@ const showAddForm = (type) => {
       scientific: true,
       strictParsing: true
     };
-  } else if (type === 'String') {
+  } else if (type === 'Regex') {
     newTransformer.options = {
       pattern: '',
-      replacement: '',
-      ignoreCase: false,
-      replaceAll: true
+      replacement: ''
     };
   } else if (type === 'Filter') {
     newTransformer.options = {
@@ -419,7 +420,7 @@ const isValidTransformerConfig = computed(() => {
     return false;
   }
   
-  if (newTransformer.type === 'String') {
+  if (newTransformer.type === 'Regex') {
     return !!newTransformer.options.pattern && newTransformer.options.replacement !== undefined;
   }
   
@@ -433,37 +434,26 @@ const isValidTransformerConfig = computed(() => {
 // Add a new transformer
 const addTransformer = () => {
   try {
-    // Process the options based on transformer type
-    const processedOptions = { ...newTransformer.options };
-    
-    // Process string inputs for arrays
-    if (newTransformer.type === 'Boolean') {
-      processedOptions.trueValues = newTransformer.options.trueValues.split(',').map(v => v.trim());
-      processedOptions.falseValues = newTransformer.options.falseValues.split(',').map(v => v.trim());
-    } else if (newTransformer.type === 'Filter') {
-      processedOptions.excludeNames = newTransformer.options.excludeNames.split(',').map(v => v.trim());
-    }
-    
     // Create the appropriate transformer type
     if (newTransformer.type === 'Boolean') {
       XjxService.addBooleanTransformer(
         newTransformer.direction,
-        processedOptions
+        newTransformer.options
       );
     } else if (newTransformer.type === 'Number') {
       XjxService.addNumberTransformer(
         newTransformer.direction,
-        processedOptions
+        newTransformer.options
       );
-    } else if (newTransformer.type === 'String') {
-      XjxService.addStringReplaceTransformer(
+    } else if (newTransformer.type === 'Regex') {
+      XjxService.addRegexTransformer(
         newTransformer.direction,
-        processedOptions
+        newTransformer.options
       );
     } else if (newTransformer.type === 'Filter') {
       XjxService.addFilterChildrenTransformer(
         newTransformer.direction,
-        processedOptions
+        newTransformer.options
       );
     }
     
@@ -483,7 +473,7 @@ const addTransformer = () => {
 // Cancel adding a transformer
 const cancelAdd = () => {
   newTransformer.type = '';
-  newTransformer.direction = 'XML_TO_JSON';
+  newTransformer.direction = TD.XML_TO_JSON;
   newTransformer.options = {};
 };
 
@@ -503,14 +493,15 @@ const removeTransformer = (index) => {
     for (const transformer of transformers) {
       if (transformer.type === 'value') {
         const instance = transformer.transformer;
+        const constructorName = instance.constructor.name;
         
         // Re-add based on transformer type
-        if (instance.constructor.name.includes('Boolean')) {
+        if (constructorName.includes('Boolean')) {
           XjxService.addBooleanTransformer(transformer.direction, instance.options);
-        } else if (instance.constructor.name.includes('Number')) {
+        } else if (constructorName.includes('Number')) {
           XjxService.addNumberTransformer(transformer.direction, instance.options);
-        } else if (instance.constructor.name.includes('StringReplace')) {
-          XjxService.addStringReplaceTransformer(transformer.direction, instance.options);
+        } else if (constructorName.includes('Regex')) {
+          XjxService.addRegexTransformer(transformer.direction, instance.options);
         }
       } else if (transformer.type === 'children') {
         XjxService.addFilterChildrenTransformer(transformer.direction, transformer.transformer.options);
@@ -536,4 +527,8 @@ const clearAllTransformers = () => {
     store.showNotification('All transformers cleared', 'info', 2000);
   }
 };
+
+defineExpose({
+  refreshTransformers
+});
 </script>

@@ -1,8 +1,29 @@
-// Export core components
+/**
+ * XJX Full Bundle
+ * 
+ * Comprehensive bundle that includes the core library plus all extensions and addons.
+ * This is the "batteries included" version of XJX.
+ */
+
+// Export all core functionality
 export * from './index';
 
-// Export and auto-apply extensions
-import './extensions/GetPathExtension';
-import './extensions/GetJsonSchemaExtension';
+// Export additional utilities
+export * from './core/utils';
 
-// This file creates the "full" bundle with core functionality, transformers, and extensions
+// Export all models
+export * from './core/models';
+
+// Export all converters
+export * from './converters';
+
+// Export all transforms
+export * from './transforms';
+
+// Ensure all extensions are registered
+import './extensions';
+
+// Export services (for advanced usage)
+export * from './core/services';
+
+// Note: Any additional extensions should be added here

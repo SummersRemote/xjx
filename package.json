@@ -7,30 +7,22 @@
     "module": "./dist/index.js",
     "types": "./dist/index.d.ts",
     "exports": {
-        ".": {
-            "import": "./dist/index.js",
-            "require": "./dist/xjx.umd.js",
-            "types": "./dist/index.d.ts"
-        },
-        "./full": {
-            "import": "./dist/xjx.full.js",
-            "require": "./dist/xjx.full.umd.js",
-            "types": "./dist/index.d.ts"
-        },
-        "./extensions/GetPathExtension": {
-            "import": "./dist/extensions/GetPathExtension.js",
-            "types": "./dist/extensions/GetPathExtension.d.ts"
-        },
-        "./extensions/getJsonSchemaExtension": {
-            "import": "./dist/extensions/getJsonSchemaExtension.js",
-            "types": "./dist/extensions/getJsonSchemaExtension.d.ts"
-        },
-        "./package.json": "./package.json"
+      ".": {
+        "import": "./dist/esm/index.js",
+        "require": "./dist/xjx.umd.js",
+        "types": "./dist/types/index.d.ts"
+      },
+      "./full": {
+        "import": "./dist/esm/xjx.full.js",
+        "require": "./dist/xjx.full.umd.js",
+        "types": "./dist/types/xjx.full.d.ts"
+      },
+      "./package.json": "./package.json"
     },
     "files": [
-        "dist",
-        "package.json",
-        "README.md"
+      "dist",
+      "package.json",
+      "README.md"
     ],
     "scripts": {
         "clean": "rimraf dist",

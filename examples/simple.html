@@ -115,6 +115,7 @@
             XJX, 
             BooleanTransform, 
             NumberTransform,
+            RegexTransform,
             TransformTarget, 
             createTransformResult 
         } from '../dist/esm/index.js';
@@ -158,15 +159,38 @@
         document.getElementById('transform-button').addEventListener('click', () => {
             const xml = document.getElementById('transform-input').textContent;
             
-            // Apply Boolean and Number transformers
+            // Apply transformers in sequence for better control
             const json = XJX.fromXml(xml)
+                // First apply RegexTransform to handle special formats like percentages
+                .withTransforms(
+                    new RegexTransform({
+                        pattern: /^(\d+\.?\d*)%$/,
+                        replacement: "$1"
+                    })
+                )
+                // Then apply type conversions
                 .withTransforms(
                     new BooleanTransform({
                         trueValues: ['true', 'yes', 'on'],
                         falseValues: ['false', 'no', 'off']
                     }),
-                    new NumberTransform()
+                    new NumberTransform({
+                        integers: true,
+                        decimals: true,
+                        scientific: true,
+                        strictParsing: false // Allow extraction from strings with patterns
+                    })
                 )
+                // Use context-sensitive format
+                .withConfig({
+                    // Ensure we preserve original types during conversion
+                    preserveValueTypes: true,
+                    // Make output more readable
+                    outputOptions: {
+                        prettyPrint: true,
+                        indent: 2
+                    }
+                })
                 .toJson();
             
             document.getElementById('transform-json').textContent = JSON.stringify(json, null, 2);

@@ -28,13 +28,6 @@ export interface Configuration {
   // JSON structure options
   alwaysUseArrays: boolean;     // Whether to always use arrays for elements that could repeat
   emptyElementValue: string;    // Value for empty/self-closing elements
-  whitespaceMode: "preserve" | "normalize" | "trim"; // How to handle whitespace
-  
-  // How to handle comments (specific to the context-sensitive format)
-  commentMode: "preserve" | "omit";
-  
-  // Whether to convert CDATA sections to regular text
-  cdataAsText: boolean;
   
   // Output options
   outputOptions: {

@@ -120,7 +120,7 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
         return this.elementToJson(node);
 
       case NodeType.COMMENT_NODE:
-        if (this.config.commentMode === "preserve") {
+        if (this.config.preserveComments) {
           return {
             [`${this.config.propNames.commentKey}`]: node.value || "",
           };
@@ -131,11 +131,7 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
         return this.piToJson(node);
 
       case NodeType.CDATA_SECTION_NODE:
-        if (this.config.cdataAsText) {
-          return { "#text": node.value || "" };
-        } else {
-          return { [this.config.propNames.cdataKey]: node.value || "" };
-        }
+        return { [this.config.propNames.cdataKey]: node.value || "" };
 
       case NodeType.TEXT_NODE:
         return { "#text": this.normalizeText(node.value || "") };
@@ -200,7 +196,7 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
       if (attributes) {
         elementValue[this.config.propNames.attributesKey] = attributes;
       }
-    } else if (analysis.hasCDATA && !this.config.cdataAsText) {
+    } else if (analysis.hasCDATA) {
       // Element with CDATA
       const cdata = this.getNodeCDATAContent(node);
 
@@ -307,13 +303,9 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
 
         case NodeType.CDATA_SECTION_NODE:
           // CDATA section
-          if (this.config.cdataAsText) {
-            result.push(child.value || "");
-          } else {
-            result.push({
-              [this.config.propNames.cdataKey]: child.value || "",
-            });
-          }
+          result.push({
+            [this.config.propNames.cdataKey]: child.value || "",
+          });
           break;
 
         case NodeType.ELEMENT_NODE:
@@ -324,7 +316,7 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
 
         case NodeType.COMMENT_NODE:
           // Comment node
-          if (this.config.commentMode === "preserve") {
+          if (this.config.preserveComments) {
             result.push({
               [this.config.propNames.commentKey]: child.value || "",
             });
@@ -364,7 +356,7 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
         elementsByName.set(key, elements);
       } else if (
         child.type === NodeType.COMMENT_NODE &&
-        this.config.commentMode === "preserve"
+        this.config.preserveComments
       ) {
         // Handle comments
         if (!result[this.config.propNames.commentKey]) {
@@ -524,8 +516,7 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
       .filter(
         (child) =>
           child.type === NodeType.TEXT_NODE ||
-          (this.config.cdataAsText &&
-            child.type === NodeType.CDATA_SECTION_NODE)
+          child.type === NodeType.CDATA_SECTION_NODE
       )
       .map((child) => child.value || "")
       .join("");
@@ -552,25 +543,16 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
   }
 
   /**
-   * Normalize text based on whitespace mode
+   * Normalize text based on whitespace configuration
    * @param text Text to normalize
    * @returns Normalized text
    */
   private normalizeText(text: string): string {
-    switch (this.config.whitespaceMode) {
-      case "preserve":
-        return text;
-
-      case "normalize":
-        // Replace sequences of whitespace with single space and trim ends
-        return text.trim().replace(/\s+/g, " ");
-
-      case "trim":
-        // Just trim start and end
-        return text.trim();
-
-      default:
-        return text;
+    if (this.config.preserveWhitespace) {
+      return text.trim();
+    } else {
+      // Normalize whitespace - replace sequences with a single space and trim
+      return text.trim().replace(/\s+/g, " ");
     }
   }
 }

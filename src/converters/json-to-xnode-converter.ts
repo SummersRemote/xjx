@@ -292,7 +292,7 @@ export class DefaultJsonToXNodeConverter implements JsonToXNodeConverter {
       
       // Handle comments
       if (key === this.config.propNames.commentKey) {
-        if (this.config.commentMode === 'preserve') {
+        if (this.config.preserveComments) {
           // Handle multiple comments
           if (Array.isArray(value)) {
             for (const comment of value) {

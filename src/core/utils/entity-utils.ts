@@ -113,7 +113,7 @@ export class EntityUtils {
   }
 
   /**
-   * Normalize whitespace in text content
+   * Normalize whitespace in text content based on preserveWhitespace
    * @param text Text to normalize
    * @param preserveWhitespace Whether to preserve whitespace
    * @returns Normalized text
@@ -123,12 +123,12 @@ export class EntityUtils {
       return '';
     }
 
-    if (!preserveWhitespace) {
-      // Trim and collapse multiple whitespace characters to a single space
+    if (preserveWhitespace) {
+      return text.trim();
+    } else {
+      // Normalize whitespace - replace sequences with a single space and trim
       return text.trim().replace(/\s+/g, ' ');
     }
-
-    return text;
   }
 
   /**

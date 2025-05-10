@@ -29,11 +29,6 @@ export const DEFAULT_CONFIG: Configuration = {
   // JSON structure options
   alwaysUseArrays: false, // Don't always use arrays by default, convert only when needed
   emptyElementValue: "", // Represent empty elements as empty strings
-  whitespaceMode: "normalize", // Normalize whitespace by default
-  
-  // Context-sensitive format specific options
-  commentMode: "preserve", // Preserve comments
-  cdataAsText: false, // Keep CDATA as separate structure
 
   // Output options
   outputOptions: {

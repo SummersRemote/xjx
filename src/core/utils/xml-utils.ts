@@ -277,13 +277,22 @@ export class XmlUtils {
   }
 
   /**
-   * Normalize whitespace in text content based on configuration
+   * Normalize text content based on preserveWhitespace setting
    * @param text Text to normalize
    * @param preserveWhitespace Whether to preserve whitespace
    * @returns Normalized text
    */
   public static normalizeTextContent(text: string, preserveWhitespace: boolean = false): string {
-    return EntityUtils.normalizeWhitespace(text, preserveWhitespace);
+    if (!text || typeof text !== 'string') {
+      return '';
+    }
+
+    if (preserveWhitespace) {
+      return text.trim();
+    } else {
+      // Normalize whitespace - replace sequences with a single space and trim
+      return text.trim().replace(/\s+/g, ' ');
+    }
   }
 
   /**

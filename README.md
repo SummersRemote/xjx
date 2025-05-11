@@ -287,68 +287,6 @@ const result = XJX.fromXml(xml)
   .toXml();
 ```
 
-#### ElementTransform
-
-Manipulates XML elements.
-
-```javascript
-import { XJX, ElementTransform, NodeType } from 'xjx';
-
-const result = XJX.fromXml(xml)
-  .withTransforms(
-    new ElementTransform({
-      renameMap: { 'old-tag': 'newTag' },
-      filter: node => node.name !== 'secret',
-      addChildren: parent => {
-        if (parent.name === 'user') {
-          return [{
-            name: 'timestamp',
-            type: NodeType.ELEMENT_NODE,
-            value: new Date().toISOString()
-          }];
-        }
-        return [];
-      }
-    })
-  )
-  .toXml();
-```
-
-#### CommentTransform
-
-Manages XML comments.
-
-```javascript
-import { XJX, CommentTransform } from 'xjx';
-
-const result = XJX.fromXml(xml)
-  .withTransforms(
-    new CommentTransform({
-      removeAll: false,
-      removePattern: /TODO/i,
-      keepPattern: /IMPORTANT/i
-    })
-  )
-  .toXml();
-```
-
-#### TextTransform
-
-Manipulates text nodes.
-
-```javascript
-import { XJX, TextTransform } from 'xjx';
-
-const result = XJX.fromXml(xml)
-  .withTransforms(
-    new TextTransform({
-      trim: true,
-      normalizeWhitespace: true,
-      transformFn: text => text.toUpperCase()
-    })
-  )
-  .toXml();
-```
 
 ### Creating Custom Transformers
 
@@ -502,62 +440,6 @@ class MyTransform implements Transform {
 }
 ```
 
-## Examples
-
-### Convert XML with Custom Format
-
-```javascript
-import { XJX } from 'xjx';
-
-const xml = `
-<library>
-  <book id="1">
-    <title>JavaScript: The Good Parts</title>
-    <author>Douglas Crockford</author>
-    <year>2008</year>
-    <inStock>true</inStock>
-  </book>
-</library>
-`;
-
-const json = XJX.fromXml(xml)
-  .withConfig({
-    propNames: {
-      value: "@content",
-      attributes: "@props",
-      children: "@items"
-    }
-  })
-  .withTransforms(
-    new BooleanTransform(),
-    new NumberTransform()
-  )
-  .toJson();
-
-console.log(JSON.stringify(json, null, 2));
-```
-
-### Sort and Filter Elements
-
-```javascript
-import { XJX, ElementTransform, SortChildrenTransform } from 'xjx';
-
-const result = XJX.fromXml(xml)
-  .withTransforms(
-    // Remove private elements
-    new ElementTransform({
-      filterChildren: node => !node.name.startsWith('private-')
-    }),
-    
-    // Sort users by name
-    new SortChildrenTransform({
-      targetParent: 'users',
-      childType: 'user',
-      sortKey: 'name'
-    })
-  )
-  .toXml();
-```
 
 ## Contributing
 

@@ -1,8 +1,8 @@
 /**
- * XNode - Enhanced XML node class with instance methods
+ * XNode - Enhanced XML node class with metadata support
  * 
  * Represents an XML node in the XJX object model with rich instance methods
- * for manipulation and traversal.
+ * for manipulation and traversal, plus metadata capabilities.
  */
 import { NodeType } from '../types/dom-types';
 import { CommonUtils } from '../utils/common-utils';
@@ -25,6 +25,9 @@ export class XNode {
   public parent?: XNode;
   public namespaceDeclarations?: Record<string, string>;
   public isDefaultNamespace?: boolean;
+  
+  // Metadata container for processing instructions and hints
+  public metadata?: Record<string, any>;
   
   /**
    * Create a new XNode
@@ -100,6 +103,80 @@ export class XNode {
     
     return node;
   }
+  
+  // --- Metadata Methods ---
+  
+  /**
+   * Set metadata value
+   * @param key Metadata key
+   * @param value Metadata value
+   * @returns This node for chaining
+   */
+  public setMetadata(key: string, value: any): XNode {
+    if (!this.metadata) {
+      this.metadata = {};
+    }
+    this.metadata[key] = value;
+    return this; // For chaining
+  }
+  
+  /**
+   * Get metadata value
+   * @param key Metadata key
+   * @param defaultValue Default value if metadata not found
+   * @returns Metadata value or default value
+   */
+  public getMetadata<T>(key: string, defaultValue?: T): T | undefined {
+    return (this.metadata && key in this.metadata) 
+      ? this.metadata[key] as T 
+      : defaultValue;
+  }
+  
+  /**
+   * Check if metadata key exists
+   * @param key Metadata key
+   * @returns True if metadata exists
+   */
+  public hasMetadata(key: string): boolean {
+    return this.metadata !== undefined && key in this.metadata;
+  }
+  
+  /**
+   * Remove metadata
+   * @param key Metadata key
+   * @returns True if metadata was removed
+   */
+  public removeMetadata(key: string): boolean {
+    if (!this.metadata || !(key in this.metadata)) {
+      return false;
+    }
+    delete this.metadata[key];
+    return true;
+  }
+  
+  /**
+   * Set multiple metadata values
+   * @param values Metadata key-value pairs
+   * @returns This node for chaining
+   */
+  public setMetadataValues(values: Record<string, any>): XNode {
+    if (!this.metadata) {
+      this.metadata = {};
+    }
+    Object.assign(this.metadata, values);
+    return this; // For chaining
+  }
+  
+  /**
+   * Clear all metadata
+   * @returns This node for chaining
+   */
+  public clearMetadata(): XNode {
+    this.metadata = undefined;
+    return this; // For chaining
+  }
+  
+  // --- Existing XNode Methods ---
   
   /**
    * Add a child node
@@ -324,6 +401,11 @@ export class XNode {
       // Clone namespace declarations if present
       if (this.namespaceDeclarations) {
         clone.namespaceDeclarations = { ...this.namespaceDeclarations };
+      }
+      
+      // Clone metadata if present
+      if (this.metadata) {
+        clone.metadata = { ...this.metadata };
       }
       
       clone.isDefaultNamespace = this.isDefaultNamespace;

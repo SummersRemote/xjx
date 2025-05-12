@@ -1,4 +1,4 @@
-# XJX API Reference
+# XJX API Reference (Updated)
 
 This document provides a comprehensive reference for the XJX library API, including classes, methods, interfaces, and utilities.
 
@@ -8,6 +8,7 @@ This document provides a comprehensive reference for the XJX library API, includ
 - [XjxBuilder Class](#xjxbuilder-class)
 - [XNode Class](#xnode-class)
 - [Configuration](#configuration)
+- [ConfigManager](#configmanager)
 - [Transformers](#transformers)
 - [Utilities](#utilities)
 - [Error Handling](#error-handling)
@@ -94,8 +95,8 @@ public transforms: Transform[];
 // Current configuration
 public config: Configuration;
 
-// Transformation direction
-public direction: TransformDirection | null;
+// Source format identifier
+public sourceFormat: FormatId | null;
 ```
 
 ### Core Methods
@@ -123,17 +124,17 @@ toJson(): Record<string, any>;
 toJsonString(indent: number = 2): string;
 ```
 
-### Configuration Management
+### Utility Methods
 
 ```typescript
-// Reset to global configuration
-resetToGlobalConfig(): XjxBuilder;
-
-// Make current configuration the global default
-makeConfigGlobal(): XjxBuilder;
-
 // Validate that a source has been set
 validateSource(): void;
+
+// Deep clone an object
+deepClone<T>(obj: T): T;
+
+// Deep merge two objects
+deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T;
 ```
 
 ## XNode Class
@@ -367,6 +368,37 @@ const DEFAULT_CONFIG: Configuration = {
 };
 ```
 
+## ConfigManager
+
+The `ConfigManager` provides static methods for managing configurations. This replaces the previous ConfigService with a simpler approach.
+
+```typescript
+// ConfigManager API
+const ConfigManager = {
+  // Get a fresh copy of the default configuration
+  getDefaultConfig(): Configuration;
+  
+  // Merge configurations
+  mergeConfig(
+    baseConfig: Configuration, 
+    overrideConfig: Partial<Configuration>
+  ): Configuration;
+  
+  // Validate configuration
+  isValidConfig(config: any): boolean;
+  
+  // Create a valid configuration
+  createConfig(config: Partial<Configuration>): Configuration;
+  
+  // Get configuration value by path
+  getConfigValue<T>(
+    config: Configuration, 
+    path: string, 
+    defaultValue?: T
+  ): T | undefined;
+};
+```
+
 ## Transformers
 
 Transformers modify the XNode structure during conversion.
@@ -425,9 +457,22 @@ interface TransformContext {
   // Configuration
   config: Configuration;
   
-  // Direction of transformation
-  direction: TransformDirection;
+  // Target format
+  targetFormat: FormatId;
 }
+```
+
+### Format Identifiers
+
+```typescript
+// Format identifier type
+export type FormatId = string;
+
+// Core format constants
+export const FORMATS = {
+  XML: 'xml' as FormatId,
+  JSON: 'json' as FormatId
+};
 ```
 
 ### TransformResult Interface
@@ -444,15 +489,6 @@ interface TransformResult<T> {
 // Helper function
 function createTransformResult<T>(value: T, remove: boolean = false): TransformResult<T> {
   return { value, remove };
-}
-```
-
-### TransformDirection Enum
-
-```typescript
-enum TransformDirection {
-  XML_TO_JSON = 'xml-to-json',
-  JSON_TO_XML = 'json-to-xml'
 }
 ```
 
@@ -473,11 +509,14 @@ interface BooleanTransformOptions {
 }
 
 class BooleanTransform implements Transform {
+  // Format-aware transformation
   constructor(options?: BooleanTransformOptions);
 }
 ```
 
 #### NumberTransform
+
+The improved NumberTransform with format-aware behavior:
 
 ```typescript
 interface NumberTransformOptions {
@@ -489,9 +528,6 @@ interface NumberTransformOptions {
   
   // Whether to convert scientific notation (default: true)
   scientific?: boolean;
-  
-  // Only convert strings that look exactly like numbers (default: true)
-  strictParsing?: boolean;
   
   // Decimal separator character (default: ".")
   decimalSeparator?: string;
@@ -507,13 +543,18 @@ class NumberTransform implements Transform {
 
 #### RegexTransform
 
+The improved RegexTransform with format-specific transformations:
+
 ```typescript
 interface RegexOptions {
-  // The pattern to search for (RegExp or string)
+  // The pattern to search for (RegExp, string, or "/pattern/flags")
   pattern: RegExp | string;
   
-  // The replacement string
+  // The replacement string or function
   replacement: string;
+  
+  // Optional format this regex applies to
+  format?: FormatId;
 }
 
 class RegexTransform implements Transform {
@@ -521,92 +562,15 @@ class RegexTransform implements Transform {
 }
 ```
 
-#### AttributeTransform
-
-```typescript
-interface AttributeTransformOptions {
-  // Map of attribute names to rename
-  renameMap?: Record<string, string>;
-  
-  // Set of attribute names to remove
-  removeAttributes?: string[];
-  
-  // Regular expression pattern to match attributes to remove
-  removePattern?: RegExp;
-}
-
-class AttributeTransform implements Transform {
-  constructor(options?: AttributeTransformOptions);
-}
-```
-
-#### ElementTransform
-
-```typescript
-interface ElementTransformOptions {
-  // Filter function to selectively process elements
-  filter?: (node: XNode, context: TransformContext) => boolean;
-  
-  // Map of element names to rename
-  renameMap?: Record<string, string>;
-  
-  // Filter function to remove children
-  filterChildren?: (node: XNode, context: TransformContext) => boolean;
-  
-  // Function to create new children
-  addChildren?: (parentNode: XNode, context: TransformContext) => XNode[];
-}
-
-class ElementTransform implements Transform {
-  constructor(options?: ElementTransformOptions);
-}
-```
-
-#### TextTransform
-
-```typescript
-interface TextTransformOptions {
-  // Function to transform text content
-  transformFn?: (text: string) => string;
-  
-  // Whether to trim whitespace (default: false)
-  trim?: boolean;
-  
-  // Whether to normalize whitespace (default: false)
-  normalizeWhitespace?: boolean;
-  
-  // Whether to ensure consistent newlines (default: false)
-  normalizeNewlines?: boolean;
-}
-
-class TextTransform implements Transform {
-  constructor(options?: TextTransformOptions);
-}
-```
-
-#### CommentTransform
-
-```typescript
-interface CommentTransformOptions {
-  // Whether to remove all comments (default: false)
-  removeAll?: boolean;
-  
-  // Regular expression to match comments to remove
-  removePattern?: RegExp;
-  
-  // Regular expression to match comments to keep
-  keepPattern?: RegExp;
-}
-
-class CommentTransform implements Transform {
-  constructor(options?: CommentTransformOptions);
-}
-```
-
 #### MetadataTransform
 
 ```typescript
 type NodeSelector = string | RegExp | ((node: XNode, context: TransformContext) => boolean);
+
+interface FormatMetadata {
+  format: FormatId;
+  metadata: Record<string, any>;
+}
 
 interface MetadataTransformOptions {
   // Criteria for selecting nodes to apply metadata to
@@ -618,8 +582,11 @@ interface MetadataTransformOptions {
   // Whether to apply to all nodes regardless of selector
   applyToAll?: boolean;
   
-  // Metadata to apply to matching nodes
-  metadata: Record<string, any>;
+  // Metadata to apply to matching nodes (general)
+  metadata?: Record<string, any>;
+  
+  // Format-specific metadata
+  formatMetadata?: FormatMetadata[];
   
   // Whether to replace existing metadata (true) or merge with it (false)
   replace?: boolean;
@@ -646,7 +613,7 @@ XJX includes several utility classes for various operations.
 class TransformUtils {
   // Create a root transformation context
   static createRootContext(
-    direction: TransformDirection,
+    targetFormat: FormatId,
     rootName: string,
     config: Configuration
   ): TransformContext;
@@ -1034,9 +1001,8 @@ interface XJXContext {
 interface TerminalExtensionContext extends XJXContext {
   // These properties are available in the builder context
   xnode: XNode | null;
-  direction: TransformDirection | null;
+  sourceFormat: FormatId | null;
   transforms: Transform[];
-  configProvider: ConfigService;
   
   // Common utility methods required by terminal extensions
   validateSource: () => void;
@@ -1052,9 +1018,8 @@ interface TerminalExtensionContext extends XJXContext {
 interface NonTerminalExtensionContext extends XJXContext {
   // Properties that can be modified by extensions
   xnode: XNode | null;
-  direction: TransformDirection | null;
+  sourceFormat: FormatId | null;
   transforms: Transform[];
-  configProvider: ConfigService;
   
   // Utility methods
   validateSource: () => void;

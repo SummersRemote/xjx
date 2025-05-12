@@ -89,9 +89,23 @@ node.clearMetadata();
 
 ## The MetadataTransform
 
-While you can manipulate metadata directly on XNode instances, the `MetadataTransform` class provides a convenient way to add metadata through the transformation pipeline:
+While you can manipulate metadata directly on XNode instances, the `MetadataTransform` class provides a convenient way to add metadata through the transformation pipeline.
+
+The updated MetadataTransform now supports format-specific metadata application:
 
 ```typescript
+interface FormatMetadata {
+  /**
+   * Format identifier this metadata applies to
+   */
+  format: FormatId;
+  
+  /**
+   * Metadata to apply for this format
+   */
+  metadata: Record<string, any>;
+}
+
 interface MetadataTransformOptions {
   // Criteria for selecting nodes to apply metadata to
   selector?: NodeSelector; // string, RegExp, or function
@@ -103,7 +117,10 @@ interface MetadataTransformOptions {
   applyToAll?: boolean;
   
   // Metadata to apply to matching nodes
-  metadata: Record<string, any>;
+  metadata?: Record<string, any>;
+  
+  // Format-specific metadata configurations
+  formatMetadata?: FormatMetadata[];
   
   // Whether to replace existing metadata (true) or merge with it (false)
   replace?: boolean;
@@ -177,7 +194,49 @@ const result = XJX.fromXml(xml)
     })
   )
   .toJson();
+```
 
+### Format-Specific Metadata
+
+The enhanced MetadataTransform now allows you to specify different metadata for different output formats:
+
+```javascript
+import { XJX, MetadataTransform, FORMATS } from 'xjx';
+
+// Apply different metadata based on the target format
+const result = XJX.fromXml(xml)
+  .withTransforms(
+    new MetadataTransform({
+      selector: 'section',
+      formatMetadata: [
+        {
+          format: FORMATS.JSON,
+          metadata: { 
+            jsonSchema: {
+              type: 'object',
+              properties: {
+                title: { type: 'string', required: true },
+                para: { type: 'array', items: { type: 'string' } }
+              }
+            }
+          }
+        },
+        {
+          format: FORMATS.XML,
+          metadata: { 
+            xmlSchema: 'section.xsd',
+            validation: true
+          }
+        }
+      ]
+    })
+  )
+  .toJson(); // Will apply the JSON-specific metadata
+```
+
+### Removing Metadata Keys
+
+```javascript
 // Remove certain metadata keys
 const result = XJX.fromXml(xml)
   .withTransforms(
@@ -266,8 +325,6 @@ if (!validationResult.valid) {
 }
 ```
 
-The `validate()` extension could use the metadata to check if nodes meet the specified validation rules.
-
 ### 3. Security and Redaction
 
 ```javascript
@@ -301,9 +358,7 @@ const result = XJX.fromXml(xml)
   .toJson();
 ```
 
-The `SecurityTransform` could use the security metadata to redact sensitive information according to the specified patterns.
-
-### 4. Rendering Instructions
+### 4. Rendering Instructions for UI Components
 
 ```javascript
 import { XJX, MetadataTransform } from 'xjx';
@@ -414,22 +469,15 @@ result = result.withTransforms(
   new NumberTransform()
 );
 
-result = addAuditStep(result, 'Security filtering');
-result = result.withTransforms(/* security transforms */);
-
-// Get final result
+// Get final result and audit trail
 const json = result.toJson();
-
-// We can also retrieve the audit trail
 const audit = result.xnode?.getMetadata('audit');
 console.log('Processing audit:', audit);
 ```
 
-This example shows how metadata can be used to track the processing history of a document, useful for debugging and audit purposes.
+## Advanced Usage: Format-Aware Metadata Transformers
 
-## Advanced Usage: Metadata-Aware Transformers
-
-You can create custom transformers that work with metadata. Here's an example of a transformer that uses metadata to transform nodes:
+You can create custom transformers that work with metadata in a format-specific way:
 
 ```typescript
 import { 
@@ -438,10 +486,11 @@ import {
   TransformResult, 
   TransformTarget, 
   createTransformResult,
-  XNode
+  XNode,
+  FORMATS
 } from 'xjx';
 
-export class FormatBasedOnMetadataTransform implements Transform {
+export class FormatBasedMetadataTransform implements Transform {
   // Target elements only
   targets = [TransformTarget.Element];
   
@@ -450,53 +499,48 @@ export class FormatBasedOnMetadataTransform implements Transform {
     const result = node.clone(false);
     result.children = node.children; // Shallow copy children
     
-    // Get formatting metadata if it exists
-    const formatting = node.getMetadata<{
-      casing?: 'upper' | 'lower' | 'title',
-      prefix?: string,
-      suffix?: string
-    }>('formatting');
-    
-    if (formatting) {
-      // Apply text formatting to all text children
-      if (result.children) {
-        result.children = result.children.map(child => {
-          if (child.type === 3) { // Text node
-            let text = String(child.value || '');
-            
-            // Apply casing transformation
-            if (formatting.casing) {
-              switch (formatting.casing) {
-                case 'upper':
-                  text = text.toUpperCase();
-                  break;
-                case 'lower':
-                  text = text.toLowerCase();
-                  break;
-                case 'title':
-                  text = text.split(' ')
-                    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-                    .join(' ');
-                  break;
-              }
-            }
-            
-            // Apply prefix/suffix
-            if (formatting.prefix) {
-              text = formatting.prefix + text;
-            }
-            if (formatting.suffix) {
-              text = text + formatting.suffix;
-            }
-            
-            // Create new text node with transformed text
-            const newChild = child.clone(false);
-            newChild.value = text;
-            return newChild;
-          }
-          
-          return child;
-        });
+    // Apply behavior based on target format
+    if (context.targetFormat === FORMATS.JSON) {
+      // For JSON output
+      const jsonMeta = node.getMetadata<{
+        convertCase?: 'camel' | 'pascal',
+        addFields?: Record<string, any>
+      }>('jsonFormat');
+      
+      if (jsonMeta) {
+        result.setMetadata('processedForJson', true);
+        
+        // Apply JSON-specific transformations
+        if (jsonMeta.convertCase === 'camel') {
+          // Convert attribute names to camelCase
+          // Implementation details...
+        }
+        
+        if (jsonMeta.addFields) {
+          // Add extra fields for JSON output
+          // Implementation details...
+        }
+      }
+    } else if (context.targetFormat === FORMATS.XML) {
+      // For XML output
+      const xmlMeta = node.getMetadata<{
+        useCDATA?: boolean,
+        addNamespace?: string
+      }>('xmlFormat');
+      
+      if (xmlMeta) {
+        result.setMetadata('processedForXml', true);
+        
+        // Apply XML-specific transformations
+        if (xmlMeta.useCDATA) {
+          // Convert text children to CDATA
+          // Implementation details...
+        }
+        
+        if (xmlMeta.addNamespace) {
+          // Add namespace to element
+          // Implementation details... 
+        }
       }
     }
     
@@ -508,59 +552,29 @@ export class FormatBasedOnMetadataTransform implements Transform {
 Usage:
 
 ```javascript
-// First add formatting metadata
+// Add format-specific metadata
 const result = XJX.fromXml(xml)
   .withTransforms(
-    // Add formatting metadata
+    // Add metadata for different formats
     new MetadataTransform({
-      selector: 'title',
+      selector: 'data',
       metadata: {
-        'formatting': {
-          'casing': 'upper'
+        'jsonFormat': {
+          'convertCase': 'camel',
+          'addFields': {
+            'generatedAt': new Date().toISOString()
+          }
+        },
+        'xmlFormat': {
+          'useCDATA': true,
+          'addNamespace': 'http://example.com/schema'
         }
       }
     }),
-    new MetadataTransform({
-      selector: 'price',
-      metadata: {
-        'formatting': {
-          'prefix': '$'
-        }
-      }
-    }),
-    // Apply formatting based on metadata
-    new FormatBasedOnMetadataTransform()
+    // Apply format-aware transformations based on metadata
+    new FormatBasedMetadataTransform()
   )
-  .toXml();
-```
-
-This would transform title elements to uppercase and add a '$' prefix to price elements.
-
-## Retrieving Metadata After Processing
-
-After processing, you can access the metadata from the XNode tree:
-
-```javascript
-// Process the XML
-const result = XJX.fromXml(xml)
-  .withTransforms(
-    new MetadataTransform({
-      applyToRoot: true,
-      metadata: { 'config': { 'version': '1.0' } }
-    })
-  );
-
-// Access the root node
-const rootNode = result.xnode;
-
-// Get metadata from the root
-const config = rootNode?.getMetadata('config');
-console.log('Config version:', config?.version);
-
-// Find a specific node and get its metadata
-const userNode = rootNode?.findChild('user');
-const validation = userNode?.getMetadata('validation');
-console.log('User validation:', validation);
+  .toJson(); // Will use JSON-specific transformations
 ```
 
 ## Conclusion
@@ -573,7 +587,8 @@ Key benefits of the metadata system:
 2. **Non-Intrusive**: Doesn't affect the serialized XML or JSON
 3. **Extensible**: Can store any type of data
 4. **Hierarchical**: Metadata can be attached at any level of the document tree
-5. **Transformable**: Works seamlessly with the transform pipeline
+5. **Format-Aware**: Can now specify different metadata for different target formats
+6. **Transformable**: Works seamlessly with the transform pipeline
 
 By leveraging metadata, you can build more sophisticated processing pipelines that maintain clean separation between content and processing instructions.
 

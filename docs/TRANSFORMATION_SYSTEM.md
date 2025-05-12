@@ -79,7 +79,7 @@ interface TransformContext {
 }
 ```
 
-The `targetFormat` property identifies which format the node is being transformed toward (e.g., 'xml' or 'json'). This is a key change from the previous direction-based approach and allows for more flexible transformations.
+The `targetFormat` property identifies which format the node is being transformed toward (e.g., 'xml' or 'json'). This is a key feature that allows for more flexible transformations based on the output format.
 
 ### Format Identification
 
@@ -121,7 +121,7 @@ function createTransformResult<T>(value: T, remove: boolean = false): TransformR
 
 ## Built-in Transformers
 
-XJX includes several built-in transformers that have been updated to use the new format-aware approach:
+XJX includes several built-in transformers that use the format-aware approach:
 
 ### BooleanTransform
 
@@ -156,7 +156,7 @@ console.log(json);
 
 ### NumberTransform
 
-Converts string values to numbers:
+Converts string values to numbers with format-specific behavior:
 
 ```javascript
 import { XJX, NumberTransform } from 'xjx';
@@ -176,7 +176,8 @@ const json = XJX.fromXml(xml)
       integers: true,      // Convert integers
       decimals: true,      // Convert decimals
       scientific: true,    // Convert scientific notation
-      strictParsing: true  // Only convert exact matches
+      decimalSeparator: '.',    // Decimal separator character
+      thousandsSeparator: ','   // Thousands separator character
     })
   )
   .toJson();
@@ -185,12 +186,14 @@ console.log(json);
 // Output: All values are converted to their numeric types
 ```
 
+The improved NumberTransform now has better handling of different number formats and separators, with a format-aware approach that converts strings to numbers when transforming to JSON and numbers to strings when transforming to XML.
+
 ### RegexTransform
 
-Performs string replacements using regular expressions and now supports format-specific transformations:
+The improved RegexTransform now supports format-specific transformations and more flexible pattern specification:
 
 ```javascript
-import { XJX, RegexTransform } from 'xjx';
+import { XJX, RegexTransform, FORMATS } from 'xjx';
 
 const xml = `
 <data>
@@ -205,21 +208,43 @@ const result = XJX.fromJson(json)
     new RegexTransform({
       pattern: /<(\w+)>/g,
       replacement: '<$1 xmlns="http://example.com">',
-      format: 'xml'  // Only apply when converting to XML
+      format: FORMATS.XML  // Only apply when converting to XML
     })
   )
   .toXml();
 
-console.log(result);
-// Output: URLs are converted to HTML links, but only in XML output
+// RegExp with flags for case-insensitive global replacement
+const linkified = XJX.fromXml(xml)
+  .withTransforms(
+    new RegexTransform({
+      pattern: /(https?:\/\/[\w-]+(\.[\w-]+)+[\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])/gi,
+      replacement: '<a href="$1">$1</a>'
+    })
+  )
+  .toXml();
+
+// String pattern with embedded flags
+const formatted = XJX.fromXml(xml)
+  .withTransforms(
+    new RegexTransform({
+      pattern: "/world/i",  // String-based pattern with flags
+      replacement: "World"
+    })
+  )
+  .toXml();
 ```
+
+The RegexTransform improvements include:
+- Format-specific replacements using the `format` option
+- Support for string patterns with embedded flags ("/pattern/flags")
+- More robust handling of regular expressions
 
 ## Format-Aware Transformation
 
-With the new format-based approach, transformers can adapt their behavior based on the target format:
+With the format-based approach, transformers can adapt their behavior based on the target format:
 
 ```javascript
-import { Transform, TransformContext, TransformResult, createTransformResult, FORMATS } from 'xjx';
+import { Transform, TransformContext, TransformResult, TransformTarget, createTransformResult, FORMATS } from 'xjx';
 
 class FormattingTransform implements Transform {
   targets = [TransformTarget.Value];

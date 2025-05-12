@@ -203,6 +203,52 @@ const result = XJX.fromXml(xml)
   .toJson();
 ```
 
+## Configuration Management
+
+XJX uses a simplified configuration management system:
+
+```javascript
+// Get a fresh copy of the default configuration
+const defaultConfig = XJX.getConfig();
+
+// Update the global configuration
+XJX.updateConfig({
+  preserveWhitespace: true,
+  outputOptions: {
+    indent: 4
+  }
+});
+
+// Reset the global configuration to defaults
+XJX.resetConfig();
+
+// Apply configuration to a specific builder instance
+const json = XJX.fromXml(xml)
+  .withConfig({
+    preserveComments: false
+  })
+  .toJson();
+```
+
+## Format-Aware Transformations
+
+XJX now uses a format-based approach instead of direction-based:
+
+```javascript
+import { XJX, RegexTransform, FORMATS } from 'xjx';
+
+// This transform will only apply when converting to XML
+const result = XJX.fromJson(json)
+  .withTransforms(
+    new RegexTransform({
+      pattern: /<(\w+)>/g,
+      replacement: '<$1 xmlns="http://example.com">',
+      format: FORMATS.XML  // Only apply when converting to XML
+    })
+  )
+  .toXml();
+```
+
 ## Quick Examples
 
 ### Pretty-Printed XML
@@ -250,6 +296,55 @@ const transformedXml = XJX.fromXml(xmlString)
 // JSON to JSON (transformation roundtrip)
 const transformedJson = XJX.fromJson(jsonObject)
   .withTransforms(/* ... */)
+  .toJson();
+```
+
+### Using the Improved RegexTransform
+
+The RegexTransform has been enhanced with more flexible pattern specification and format-specific transformations:
+
+```javascript
+import { XJX, RegexTransform } from 'xjx';
+
+// Using string-based pattern with embedded flags
+const formatted = XJX.fromXml(xml)
+  .withTransforms(
+    new RegexTransform({
+      pattern: "/world/i",  // String pattern with flags
+      replacement: "World"
+    })
+  )
+  .toXml();
+
+// Format-specific replacement
+const camelCased = XJX.fromXml(xml)
+  .withTransforms(
+    new RegexTransform({
+      pattern: /-([a-z])/g,
+      replacement: (_, letter) => letter.toUpperCase(),
+      format: 'json'  // Only apply when converting to JSON
+    })
+  )
+  .toJson();
+```
+
+### Using the Improved NumberTransform
+
+The NumberTransform now has better support for different number formats:
+
+```javascript
+import { XJX, NumberTransform } from 'xjx';
+
+const json = XJX.fromXml(xml)
+  .withTransforms(
+    new NumberTransform({
+      integers: true,
+      decimals: true,
+      scientific: true,
+      decimalSeparator: '.',
+      thousandsSeparator: ','
+    })
+  )
   .toJson();
 ```
 

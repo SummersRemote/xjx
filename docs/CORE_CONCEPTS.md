@@ -245,7 +245,7 @@ const DEFAULT_CONFIG = {
 
 ### Configuration Management
 
-XJX provides several ways to manage configuration:
+XJX now uses a simplified configuration management approach through the `ConfigManager`:
 
 ```javascript
 // Global configuration update
@@ -266,23 +266,13 @@ XJX.fromXml(xml)
     preserveWhitespace: true
   })
   .toJson();
-
-// Making instance config the global default
-XJX.fromXml(xml)
-  .withConfig({
-    preserveComments: false
-  })
-  .makeConfigGlobal() // Apply this config globally
-  .toJson();
-
-// Reset instance to global config
-XJX.fromXml(xml)
-  .withConfig({
-    preserveComments: false
-  })
-  .resetToGlobalConfig() // Reset to global config
-  .toJson();
 ```
+
+The `ConfigManager` provides functions to:
+1. Get default configurations
+2. Merge configurations
+3. Validate configurations
+4. Access configuration values
 
 ## The XJX Builder
 
@@ -294,7 +284,7 @@ class XjxBuilder {
   public xnode: XNode | null;
   public transforms: Transform[];
   public config: Configuration;
-  public direction: TransformDirection | null;
+  public sourceFormat: FormatId | null;
   
   // Core fluent methods
   fromXml(source: string): XjxBuilder;
@@ -305,9 +295,10 @@ class XjxBuilder {
   toJson(): Record<string, any>;
   toJsonString(indent: number = 2): string;
   
-  // Configuration management
-  resetToGlobalConfig(): XjxBuilder;
-  makeConfigGlobal(): XjxBuilder;
+  // Utility methods
+  validateSource(): void;
+  deepClone<T>(obj: T): T;
+  deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T;
 }
 ```
 
@@ -334,6 +325,8 @@ During this process, transforms can:
 - Add or remove nodes
 - Add metadata
 - Filter content
+
+XJX now uses a format-based transformation approach rather than direction-based. This means transforms receive a `targetFormat` (e.g., `FORMATS.XML` or `FORMATS.JSON`) instead of a direction, allowing for more flexible and extensible transformations.
 
 ## Error Handling
 

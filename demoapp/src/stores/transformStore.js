@@ -65,18 +65,45 @@ export const useTransformStore = defineStore('transform', {
     },
     
     /**
-     * Reorder transforms based on new indices
-     * @param {Array} newOrder - New transform order
-     */
-    reorderTransforms(newOrder) {
-      this.transforms = newOrder;
-    },
-    
-    /**
      * Clear all transforms
      */
     clearTransforms() {
       this.transforms = [];
+    },
+    
+    /**
+     * Get default options for a transform type
+     * @param {string} type - Transform type
+     * @returns {Object} Default options
+     */
+    getDefaultOptions(type) {
+      switch (type) {
+        case 'BooleanTransform':
+          return {
+            trueValues: ['true', 'yes', '1', 'on'],
+            falseValues: ['false', 'no', '0', 'off'],
+            ignoreCase: true,
+            format: undefined
+          };
+        case 'NumberTransform':
+          return {
+            integers: true,
+            decimals: true,
+            scientific: true,
+            strictParsing: true,
+            decimalSeparator: '.',
+            thousandsSeparator: ',',
+            format: undefined
+          };
+        case 'RegexTransform':
+          return {
+            pattern: '',
+            replacement: '',
+            format: undefined
+          };
+        default:
+          return {};
+      }
     }
   }
 });

@@ -7,7 +7,8 @@ import { useEditorStore } from './editorStore';
 
 export const useAPIStore = defineStore('api', {
   state: () => ({
-    fluent: ''
+    fluent: '',
+    lastDirection: 'xml' // Default direction (xml to json)
   }),
   actions: {
     /**
@@ -18,7 +19,8 @@ export const useAPIStore = defineStore('api', {
       const transformStore = useTransformStore();
       const editorStore = useEditorStore();
       
-      const fromType = editorStore.activeEditor;
+      // Use the last direction for API generation
+      const fromType = this.lastDirection;
       const content = fromType === 'xml' ? editorStore.xml : editorStore.json;
       
       this.fluent = XJXService.generateFluentAPI(
@@ -27,6 +29,14 @@ export const useAPIStore = defineStore('api', {
         configStore.config,
         transformStore.transforms
       );
+    },
+    
+    /**
+     * Update the last direction used (xml or json)
+     * @param {string} direction - Direction ('xml' or 'json')
+     */
+    updateLastDirection(direction) {
+      this.lastDirection = direction;
     }
   }
 });

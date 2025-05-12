@@ -41,13 +41,12 @@
             <v-card-title class="py-2 px-4 bg-blue-grey-lighten-5 d-flex align-center">
               <div>XML</div>
               <v-spacer></v-spacer>
-              <v-chip
-                size="small"
-                :color="activeEditor === 'xml' ? 'primary' : 'grey'"
-                :variant="activeEditor === 'xml' ? 'elevated' : 'outlined'"
-              >
-                {{ activeEditor === 'xml' ? 'Active' : 'Inactive' }}
-              </v-chip>
+              <v-btn 
+                icon="mdi-content-copy" 
+                size="small" 
+                variant="text"
+                @click="copyToClipboard(xml)"
+              ></v-btn>
             </v-card-title>
             <v-card-text class="pa-0">
               <v-textarea
@@ -70,13 +69,12 @@
             <v-card-title class="py-2 px-4 bg-blue-grey-lighten-5 d-flex align-center">
               <div>JSON</div>
               <v-spacer></v-spacer>
-              <v-chip
-                size="small"
-                :color="activeEditor === 'json' ? 'primary' : 'grey'"
-                :variant="activeEditor === 'json' ? 'elevated' : 'outlined'"
-              >
-                {{ activeEditor === 'json' ? 'Active' : 'Inactive' }}
-              </v-chip>
+              <v-btn 
+                icon="mdi-content-copy" 
+                size="small" 
+                variant="text"
+                @click="copyToClipboard(jsonText)"
+              ></v-btn>
             </v-card-title>
             <v-card-text class="pa-0">
               <v-textarea
@@ -104,6 +102,15 @@
       >
         {{ error }}
       </v-alert>
+      
+      <!-- Copy Success Snackbar -->
+      <v-snackbar
+        v-model="copySuccess"
+        :timeout="2000"
+        color="success"
+      >
+        Copied to clipboard!
+      </v-snackbar>
     </v-card-text>
   </v-card>
 </template>
@@ -116,7 +123,7 @@ import { storeToRefs } from 'pinia';
 
 const editorStore = useEditorStore();
 const apiStore = useAPIStore();
-const { xml, json, activeEditor, isProcessing, error } = storeToRefs(editorStore);
+const { xml, json, isProcessing, error } = storeToRefs(editorStore);
 
 // Create a computed JSON text representation
 const jsonText = computed({
@@ -139,33 +146,26 @@ const jsonText = computed({
   }
 });
 
-// Update XML content
-const updateXml = (value) => {
-  editorStore.updateXml(value);
-  apiStore.updateFluentAPI();
-};
+// For clipboard operations
+const copySuccess = ref(false);
 
-// Update JSON content
-const updateJson = (value) => {
-  try {
-    const parsed = JSON.parse(value);
-    editorStore.updateJson(parsed);
-  } catch (err) {
-    // If not valid JSON, store as string
-    editorStore.updateJson(value);
-  }
-  apiStore.updateFluentAPI();
+// Copy content to clipboard
+const copyToClipboard = (content) => {
+  navigator.clipboard.writeText(content);
+  copySuccess.value = true;
 };
 
 // Convert XML to JSON
 const convertXmlToJson = async () => {
   await editorStore.convertXmlToJson();
+  apiStore.updateLastDirection('xml');
   apiStore.updateFluentAPI();
 };
 
 // Convert JSON to XML
 const convertJsonToXml = async () => {
   await editorStore.convertJsonToXml();
+  apiStore.updateLastDirection('json');
   apiStore.updateFluentAPI();
 };
 

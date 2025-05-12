@@ -63,10 +63,6 @@
           class="transform-list bg-grey-lighten-5 rounded mt-2"
         >
           <v-list-item v-for="(element, index) in transforms" :key="element.id">
-            <template v-slot:prepend>
-              <v-icon class="handle me-2">mdi-drag-horizontal-variant</v-icon>
-            </template>
-            
             <v-expansion-panels variant="accordion">
               <v-expansion-panel>
                 <v-expansion-panel-title class="py-1">
@@ -223,9 +219,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.cursor-move {
-  cursor: move;
-}
 .transform-list {
   border: 1px solid #e0e0e0;
 }

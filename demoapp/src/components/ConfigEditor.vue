@@ -1,5 +1,9 @@
 <!-- components/ConfigEditor.vue -->
 <template>
+  <v-dialog
+    v-model="dialog"
+    max-width="800px"
+  >
     <v-card>
       <v-card-title class="d-flex align-center">
         Configuration
@@ -12,6 +16,12 @@
         >
           Reset to Default
         </v-btn>
+        <v-btn 
+          icon="mdi-close" 
+          size="small"
+          variant="text"
+          @click="dialog = false"
+        ></v-btn>
       </v-card-title>
       
       <v-card-text>
@@ -260,58 +270,94 @@
               <div class="config-json overflow-auto">
                 <pre>{{ JSON.stringify(localConfig, null, 2) }}</pre>
               </div>
+              <div class="d-flex justify-end mt-2">
+                <v-btn 
+                  icon="mdi-content-copy" 
+                  size="small"
+                  variant="text"
+                  @click="copyConfig"
+                ></v-btn>
+              </div>
             </v-expansion-panel-text>
           </v-expansion-panel>
         </v-expansion-panels>
       </v-card-text>
     </v-card>
-  </template>
+  </v-dialog>
   
-  <script setup>
-  import { ref, reactive, onMounted, watch } from 'vue';
-  import { useConfigStore } from '../stores/configStore';
-  import { useAPIStore } from '../stores/apiStore';
-  import { storeToRefs } from 'pinia';
-  
-  const configStore = useConfigStore();
-  const apiStore = useAPIStore();
-  const { config } = storeToRefs(configStore);
-  
-  // Create a deep copy of the config for local editing
-  const localConfig = reactive(JSON.parse(JSON.stringify(config.value)));
-  
-  // Update the store when the local config changes
-  const updateConfig = () => {
-    configStore.updateConfig(JSON.parse(JSON.stringify(localConfig)));
-    apiStore.updateFluentAPI();
-  };
-  
-  // Reset config to default
-  const resetConfig = () => {
-    configStore.resetToDefault();
-    Object.assign(localConfig, JSON.parse(JSON.stringify(config.value)));
-    apiStore.updateFluentAPI();
-  };
-  
-  // Watch for external config changes
-  watch(config, (newConfig) => {
-    Object.assign(localConfig, JSON.parse(JSON.stringify(newConfig)));
-  }, { deep: true });
-  
-  onMounted(() => {
-    // Update API display when component mounts
-    apiStore.updateFluentAPI();
-  });
-  </script>
-  
-  <style scoped>
-  .config-json {
-    background-color: #f5f5f5;
-    padding: 1rem;
-    border-radius: 4px;
-    white-space: pre-wrap;
-    font-family: monospace;
-    max-height: 300px;
-    overflow-y: auto;
-  }
-  </style>
+  <v-snackbar
+    v-model="copySuccess"
+    :timeout="2000"
+    color="success"
+  >
+    Copied to clipboard!
+  </v-snackbar>
+</template>
+
+<script setup>
+import { ref, reactive, onMounted, watch, defineExpose } from 'vue';
+import { useConfigStore } from '../stores/configStore';
+import { useAPIStore } from '../stores/apiStore';
+import { storeToRefs } from 'pinia';
+
+const dialog = ref(false);
+const copySuccess = ref(false);
+
+const configStore = useConfigStore();
+const apiStore = useAPIStore();
+const { config } = storeToRefs(configStore);
+
+// Create a deep copy of the config for local editing
+const localConfig = reactive(JSON.parse(JSON.stringify(config.value)));
+
+// Update the store when the local config changes
+const updateConfig = () => {
+  configStore.updateConfig(JSON.parse(JSON.stringify(localConfig)));
+  apiStore.updateFluentAPI();
+};
+
+// Reset config to default
+const resetConfig = () => {
+  configStore.resetToDefault();
+  Object.assign(localConfig, JSON.parse(JSON.stringify(config.value)));
+  apiStore.updateFluentAPI();
+};
+
+// Copy configuration to clipboard
+const copyConfig = () => {
+  navigator.clipboard.writeText(JSON.stringify(localConfig, null, 2));
+  copySuccess.value = true;
+};
+
+// Watch for external config changes
+watch(config, (newConfig) => {
+  Object.assign(localConfig, JSON.parse(JSON.stringify(newConfig)));
+}, { deep: true });
+
+// Open dialog
+const open = () => {
+  dialog.value = true;
+};
+
+// Expose methods for external components to call
+defineExpose({
+  open
+});
+
+onMounted(() => {
+  // Update API display when component mounts
+  apiStore.updateFluentAPI();
+});
+</script>
+
+<style scoped>
+.config-json {
+  background-color: #f5f5f5;
+  padding: 1rem;
+  border-radius: 4px;
+  white-space: pre-wrap;
+  font-family: monospace;
+  max-height: 300px;
+  overflow-y: auto;
+}
+</style>

@@ -1,7 +1,5 @@
 /**
- * XNode transformer implementation
- *
- * Applies transformations to XNode using the new static utilities.
+ * XNode transformer implementation with format-only approach
  */
 import { XNodeTransformer } from "./converter-interfaces";
 import {
@@ -11,9 +9,7 @@ import {
   TransformContext,
   TransformResult,
   TransformTarget,
-  TransformDirection,
   FormatId,
-  FORMATS,
   createTransformResult,
 } from "../core/types/transform-interfaces";
 import { NodeType } from "../core/types/dom-types";
@@ -52,14 +48,8 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
           return node; // No transformations to apply
         }
 
-        // Determine direction from the target format (for backward compatibility)
-        const direction =
-          targetFormat === FORMATS.JSON
-            ? TransformDirection.XML_TO_JSON
-            : TransformDirection.JSON_TO_XML;
-
         // Create root context
-        const context = this.createRootContext(node, targetFormat, direction);
+        const context = this.createRootContext(node, targetFormat);
 
         // Apply transformations
         const transformedNode = this.applyTransforms(node, context, transforms);
@@ -78,14 +68,12 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
   /**
    * Create root transformation context
    * @param node Root node
-   * @param targetFormat Target format
-   * @param direction Transformation direction (for backward compatibility)
+   * @param targetFormat Target format identifier
    * @returns Transformation context
    */
   public createRootContext(
     node: XNode,
-    targetFormat: FormatId,
-    direction: TransformDirection
+    targetFormat: FormatId
   ): TransformContext {
     return {
       nodeName: node.name,
@@ -94,8 +82,7 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
       namespace: node.namespace,
       prefix: node.prefix,
       config: this.config,
-      targetFormat,
-      direction,
+      targetFormat
     };
   }
 

@@ -1,7 +1,6 @@
 /**
  * BooleanTransform - Converts string values to booleans
- * 
- * Updated to use target format instead of direction.
+ * Update in src/transforms/boolean-transform.ts
  */
 import { 
   Transform, 

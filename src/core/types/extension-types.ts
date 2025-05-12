@@ -1,11 +1,9 @@
 /**
  * Common type definitions for XJX extensions
- * 
- * This file contains shared interfaces used by extension functions
- * to properly type the 'this' context.
+ * Update in src/core/types/extension-types.ts
  */
 import { Configuration } from "./config-types";
-import { Transform, XNode, TransformDirection } from "./transform-interfaces";
+import { Transform, XNode, FormatId } from "./transform-interfaces";
 import { ConfigService } from "../services/config-service";
 
 /**
@@ -24,7 +22,7 @@ export interface XJXContext {
 export interface TerminalExtensionContext extends XJXContext {
   // These properties are available in the builder context
   xnode: XNode | null;
-  direction: TransformDirection | null;
+  sourceFormat: FormatId | null;
   transforms: Transform[];
   configProvider: ConfigService;
   
@@ -41,7 +39,7 @@ export interface TerminalExtensionContext extends XJXContext {
 export interface NonTerminalExtensionContext extends XJXContext {
   // Properties that can be modified by extensions
   xnode: XNode | null;
-  direction: TransformDirection | null;
+  sourceFormat: FormatId | null;
   transforms: Transform[];
   configProvider: ConfigService;
   

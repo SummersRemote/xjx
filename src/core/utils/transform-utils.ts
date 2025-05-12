@@ -1,10 +1,10 @@
 /**
  * Utility functions for working with transformers
+ * Update this in src/core/utils/transform-utils.ts
  */
 import { 
   Transform, 
   TransformContext, 
-  TransformDirection, 
   TransformTarget, 
   XNode,
   FormatId,
@@ -18,28 +18,22 @@ import { Configuration } from '../types/config-types';
 export class TransformUtils {
   /**
    * Create a root transformation context
-   * @param direction Direction of transformation
+   * @param targetFormat Target format identifier
    * @param rootName Name of the root node
    * @param config Configuration
    * @returns Root transformation context
    */
   static createRootContext(
-    direction: TransformDirection,
+    targetFormat: FormatId,
     rootName: string,
     config: Configuration
   ): TransformContext {
-    // Derive target format from direction
-    const targetFormat: FormatId = direction === TransformDirection.XML_TO_JSON 
-      ? FORMATS.JSON 
-      : FORMATS.XML;
-      
     return {
       nodeName: rootName,
       nodeType: 1, // Element node
       path: rootName,
       config,
-      direction,
-      targetFormat // Add targetFormat property
+      targetFormat
     };
   }
   
@@ -62,8 +56,7 @@ export class TransformUtils {
       prefix: childNode.prefix,
       path: `${parentContext.path}.${childNode.name}[${index}]`,
       config: parentContext.config,
-      direction: parentContext.direction,
-      targetFormat: parentContext.targetFormat, // Add targetFormat property
+      targetFormat: parentContext.targetFormat,
       parent: parentContext,
       isText: childNode.type === 3, // Text node
       isCDATA: childNode.type === 4, // CDATA
@@ -89,8 +82,7 @@ export class TransformUtils {
       prefix: parentContext.prefix,
       path: `${parentContext.path}.@${attributeName}`,
       config: parentContext.config,
-      direction: parentContext.direction,
-      targetFormat: parentContext.targetFormat, // Add targetFormat property
+      targetFormat: parentContext.targetFormat,
       parent: parentContext,
       isAttribute: true,
       attributeName

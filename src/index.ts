@@ -25,7 +25,7 @@ export {
   TransformTarget,
   TransformContext,
   TransformResult,
-  TransformDirection,
+  FormatId,
   createTransformResult,
 } from './core/types/transform-interfaces';
 

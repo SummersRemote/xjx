@@ -12,7 +12,7 @@ import {
   TerminalExtensionContext, 
   NonTerminalExtensionContext 
 } from './core/types/extension-types';
-import { TransformDirection, Transform } from './core/types/transform-interfaces';
+import { Transform } from './core/types/transform-interfaces';
 
 /**
  * Main XJX class - provides access to the fluent API and manages extensions

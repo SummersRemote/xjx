@@ -42,7 +42,7 @@ export {
   TransformTarget,
   TransformContext,
   TransformResult,
-  TransformDirection,
+  FormatId,
   XNode,
   createTransformResult
 } from './transform-interfaces';

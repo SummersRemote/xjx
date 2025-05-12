@@ -4,7 +4,7 @@
 import { XJX } from "../../XJX";
 import { DefaultXmlToXNodeConverter } from "../../converters/xml-to-xnode-converter";
 import { XJXError } from "../../core/types/error-types";
-import { TransformDirection } from "../../core/types/transform-interfaces";
+import { FORMATS } from "../../core/types/transform-interfaces";
 import { NonTerminalExtensionContext } from "../../core/types/extension-types";
 
 /**
@@ -19,7 +19,7 @@ function fromXml(this: NonTerminalExtensionContext, source: string) {
   // Convert XML to XNode using the appropriate converter
   const converter = new DefaultXmlToXNodeConverter(this.config);
   this.xnode = converter.convert(source);
-  this.direction = TransformDirection.XML_TO_JSON;
+  this.sourceFormat = FORMATS.XML;
   
   return this;
 }

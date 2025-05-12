@@ -1,14 +1,14 @@
 /**
  * MetadataTransform - General purpose transform for managing XNode metadata
  * 
- * This transform provides a way to set, update, or remove metadata on XNodes
- * based on various selection criteria.
+ * Updated to use target format instead of direction.
  */
 import { 
   Transform, 
   TransformContext, 
   TransformResult, 
   TransformTarget, 
+  FormatId,
   createTransformResult 
 } from '../core/types/transform-interfaces';
 import { XNode } from '../core/models/xnode';
@@ -18,6 +18,21 @@ import { ErrorUtils } from '../core/utils/error-utils';
  * Type for node selector functions
  */
 export type NodeSelector = string | RegExp | ((node: XNode, context: TransformContext) => boolean);
+
+/**
+ * Format-specific metadata configuration
+ */
+export interface FormatMetadata {
+  /**
+   * Format identifier this metadata applies to
+   */
+  format: FormatId;
+  
+  /**
+   * Metadata to apply for this format
+   */
+  metadata: Record<string, any>;
+}
 
 /**
  * Options for metadata transformer
@@ -40,8 +55,15 @@ export interface MetadataTransformOptions {
   
   /**
    * Metadata to apply to matching nodes
+   * Used when no format-specific metadata is defined
    */
-  metadata: Record<string, any>;
+  metadata?: Record<string, any>;
+  
+  /**
+   * Format-specific metadata configurations
+   * When provided, the appropriate metadata will be applied based on the target format
+   */
+  formatMetadata?: FormatMetadata[];
   
   /**
    * Whether to replace existing metadata (true) or merge with it (false)
@@ -72,11 +94,20 @@ export interface MetadataTransformOptions {
  *    }))
  *    .toXml();
  * 
- * // Add validation metadata to specific elements
+ * // Add format-specific validation metadata to specific elements
  * XJX.fromXml(xml)
  *    .withTransforms(new MetadataTransform({
  *      selector: 'user',
- *      metadata: { 'validate': { required: ['name', 'email'] } }
+ *      formatMetadata: [
+ *        {
+ *          format: 'json',
+ *          metadata: { 'validate': { required: ['name', 'email'] } }
+ *        },
+ *        {
+ *          format: 'xml',
+ *          metadata: { 'schema': 'user.xsd' }
+ *        }
+ *      ]
  *    }))
  *    .toJson();
  * ```
@@ -94,7 +125,8 @@ export class MetadataTransform implements Transform {
   private selector?: NodeSelector;
   private applyToRoot: boolean;
   private applyToAll: boolean;
-  private metadata: Record<string, any>;
+  private metadata?: Record<string, any>;
+  private formatMetadata: Map<FormatId, Record<string, any>>;
   private replace: boolean;
   private removeKeys: string[];
   private maxDepth?: number;
@@ -103,7 +135,7 @@ export class MetadataTransform implements Transform {
    * Create a new metadata transformer
    * @param options Transformer options
    */
-  constructor(options: MetadataTransformOptions) {
+  constructor(options: MetadataTransformOptions = {}) {
     ErrorUtils.validate(
       !!options && typeof options === 'object',
       'MetadataTransform requires options object',
@@ -113,10 +145,20 @@ export class MetadataTransform implements Transform {
     this.selector = options.selector;
     this.applyToRoot = options.applyToRoot || false;
     this.applyToAll = options.applyToAll || false;
-    this.metadata = options.metadata || {};
+    this.metadata = options.metadata;
     this.replace = options.replace || false;
     this.removeKeys = options.removeKeys || [];
     this.maxDepth = options.maxDepth;
+    
+    // Initialize format metadata map
+    this.formatMetadata = new Map<FormatId, Record<string, any>>();
+    
+    // Process format-specific metadata
+    if (options.formatMetadata && options.formatMetadata.length > 0) {
+      for (const formatMeta of options.formatMetadata) {
+        this.formatMetadata.set(formatMeta.format, formatMeta.metadata);
+      }
+    }
     
     // Validate that we have at least one application method
     ErrorUtils.validate(
@@ -125,10 +167,10 @@ export class MetadataTransform implements Transform {
       'general'
     );
     
-    // Validate that metadata is an object
+    // Validate that we have metadata to apply
     ErrorUtils.validate(
-      typeof this.metadata === 'object' && this.metadata !== null,
-      'Metadata must be a non-null object',
+      !!this.metadata || this.formatMetadata.size > 0 || this.removeKeys.length > 0,
+      'MetadataTransform must have metadata to apply or keys to remove',
       'general'
     );
   }
@@ -165,7 +207,7 @@ export class MetadataTransform implements Transform {
     clonedNode.children = node.children;
     
     // Apply metadata modifications
-    this.applyMetadataToNode(clonedNode);
+    this.applyMetadataToNode(clonedNode, context);
     
     return createTransformResult(clonedNode);
   }
@@ -173,9 +215,10 @@ export class MetadataTransform implements Transform {
   /**
    * Apply metadata changes to a node
    * @param node Node to modify
+   * @param context Transformation context
    * @private
    */
-  private applyMetadataToNode(node: XNode): void {
+  private applyMetadataToNode(node: XNode, context: TransformContext): void {
     // Remove keys if specified
     if (this.removeKeys.length > 0 && node.metadata) {
       for (const key of this.removeKeys) {
@@ -188,8 +231,19 @@ export class MetadataTransform implements Transform {
       }
     }
     
+    // Get the metadata to apply based on target format
+    let metadataToApply: Record<string, any> | undefined;
+    
+    // Check for format-specific metadata first
+    if (this.formatMetadata.has(context.targetFormat)) {
+      metadataToApply = this.formatMetadata.get(context.targetFormat);
+    } else {
+      // Fall back to general metadata
+      metadataToApply = this.metadata;
+    }
+    
     // If no metadata to add, we're done
-    if (Object.keys(this.metadata).length === 0) {
+    if (!metadataToApply || Object.keys(metadataToApply).length === 0) {
       return;
     }
     
@@ -201,10 +255,10 @@ export class MetadataTransform implements Transform {
     // Apply new metadata
     if (this.replace) {
       // Replace mode: overwrite with new metadata
-      Object.assign(node.metadata, this.metadata);
+      Object.assign(node.metadata, metadataToApply);
     } else {
       // Merge mode: deep merge with existing metadata
-      for (const [key, value] of Object.entries(this.metadata)) {
+      for (const [key, value] of Object.entries(metadataToApply)) {
         if (typeof value === 'object' && value !== null && 
             typeof node.metadata[key] === 'object' && node.metadata[key] !== null) {
           // Deep merge objects

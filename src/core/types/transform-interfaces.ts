@@ -1,5 +1,6 @@
 /**
  * Core interfaces for the XJX transformation system
+ * Update this in src/core/types/transform-interfaces.ts
  */
 import { Configuration } from './config-types';
 import { NodeType } from './dom-types';
@@ -10,6 +11,19 @@ export { Configuration, NodeType };
 
 // Also re-export XNode for backward compatibility
 export { XNode };
+
+/**
+ * Format identifier type
+ */
+export type FormatId = string;
+
+/**
+ * Standard formats
+ */
+export const FORMATS = {
+  XML: 'xml' as FormatId,
+  JSON: 'json' as FormatId
+};
 
 /**
  * Transform target types enum - specifies which nodes a transformer can target
@@ -23,14 +37,6 @@ export enum TransformTarget {
   Comment = 'comment',
   ProcessingInstruction = 'processingInstruction',
   Namespace = 'namespace'
-}
-
-/**
- * Direction of transformation
- */
-export enum TransformDirection {
-  XML_TO_JSON = 'xml-to-json',
-  JSON_TO_XML = 'json-to-xml'
 }
 
 /**
@@ -60,8 +66,8 @@ export interface TransformContext {
   // Configuration
   config: Configuration;
   
-  // Direction of transformation
-  direction: TransformDirection;
+  // Target format
+  targetFormat: FormatId;
 }
 
 /**
@@ -72,7 +78,7 @@ export interface TransformResult<T> {
   value: T;
   
   // Whether the node/value should be removed
-  remove: boolean; // Change from optional to required
+  remove: boolean;
 }
 
 /**

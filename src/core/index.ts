@@ -37,7 +37,7 @@ export {
   TransformTarget,
   TransformContext,
   TransformResult,
-  TransformDirection,
+  FormatId,
   createTransformResult
 } from './types';
 

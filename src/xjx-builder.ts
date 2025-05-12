@@ -1,13 +1,12 @@
 /**
  * XJX Builder implementation - Fluent API for XML/JSON transformations
- * 
- * This builder provides a fluent interface for transforming between XML and JSON,
- * utilizing the new static utility classes.
+ * Update in src/xjx-builder.ts
  */
 import {
   Configuration,
   Transform,
-  TransformDirection
+  FormatId,
+  FORMATS
 } from './core/types/transform-interfaces';
 import { XNode } from './core/models/xnode';
 import { ConfigService } from './core/services/config-service';
@@ -27,7 +26,7 @@ export class XjxBuilder {
   public xnode: XNode | null = null;
   public transforms: Transform[] = [];
   public config: Configuration;
-  public direction: TransformDirection | null = null;
+  public sourceFormat: FormatId | null = null;
   public configProvider: ConfigService;
   
   /**
@@ -56,7 +55,7 @@ export class XjxBuilder {
     // Convert XML to XNode using the appropriate converter
     const converter = new DefaultXmlToXNodeConverter(this.config);
     this.xnode = converter.convert(source);
-    this.direction = TransformDirection.XML_TO_JSON;
+    this.sourceFormat = FORMATS.XML;
     
     return this;
   }
@@ -76,7 +75,7 @@ export class XjxBuilder {
     // Convert JSON to XNode using the appropriate converter
     const converter = new DefaultJsonToXNodeConverter(this.config);
     this.xnode = converter.convert(source);
-    this.direction = TransformDirection.JSON_TO_XML;
+    this.sourceFormat = FORMATS.JSON;
     
     return this;
   }
@@ -152,8 +151,7 @@ export class XjxBuilder {
       this.xnode = transformer.transform(
         this.xnode!, 
         this.transforms, 
-        // Always use XML_TO_JSON direction for output to JSON
-        TransformDirection.XML_TO_JSON
+        FORMATS.JSON
       );
     }
     
@@ -189,8 +187,7 @@ export class XjxBuilder {
       this.xnode = transformer.transform(
         this.xnode!, 
         this.transforms, 
-        // Always use JSON_TO_XML direction for output to XML
-        TransformDirection.JSON_TO_XML
+        FORMATS.XML
       );
     }
     
@@ -205,7 +202,7 @@ export class XjxBuilder {
    */
   public validateSource(): void {
     ErrorUtils.validate(
-      !!this.xnode && !!this.direction,
+      !!this.xnode && !!this.sourceFormat,
       'No source set: call fromXml() or fromJson() before transformation',
       'general'
     );

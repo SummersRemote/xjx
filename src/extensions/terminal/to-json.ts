@@ -5,7 +5,7 @@ import { XJX } from "../../XJX";
 import { DefaultXNodeToJsonConverter } from "../../converters/xnode-to-json-converter";
 import { DefaultXNodeTransformer } from "../../converters/xnode-transformer";
 import { TerminalExtensionContext } from "../../core/types/extension-types";
-import { TransformDirection } from "../../core/types/transform-interfaces";
+import { FORMATS } from "../../core/types/transform-interfaces";
 import { XNode } from "../../core/models/xnode";
 
 /**
@@ -22,8 +22,8 @@ function toJson(this: TerminalExtensionContext): Record<string, any> {
     this.xnode = transformer.transform(
       this.xnode! as XNode, 
       this.transforms, 
-      // Always use XML_TO_JSON direction for output to JSON
-      TransformDirection.XML_TO_JSON
+      // Use format identifier instead of direction
+      FORMATS.JSON
     );
   }
   

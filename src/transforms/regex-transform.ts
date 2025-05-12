@@ -1,13 +1,14 @@
 /**
  * RegexTransform - Performs regex replacements on values
  * 
- * Refactored to use the new static utilities.
+ * Updated to support format-specific regex replacements.
  */
 import { 
   Transform, 
   TransformContext, 
   TransformResult, 
   TransformTarget, 
+  FormatId,
   createTransformResult 
 } from '../core/types/transform-interfaces';
 import { ErrorUtils } from '../core/utils/error-utils';
@@ -27,6 +28,13 @@ export interface RegexOptions {
    * Can use RegExp capture groups with $1, $2, etc.
    */
   replacement: string;
+  
+  /**
+   * Optional format this regex applies to
+   * If provided, the transform will only be applied for this format
+   * If not provided, the transform will be applied for all formats
+   */
+  format?: FormatId;
 }
 
 /**
@@ -49,6 +57,15 @@ export interface RegexOptions {
  *      replacement: '<a href="$1">$1</a>'
  *    }))
  *    .toJson();
+ * 
+ * // Format-specific replacement (only applied when converting to XML)
+ * XJX.fromJson(json)
+ *    .withTransforms(new RegexTransform({
+ *      pattern: /([A-Z])/g,
+ *      replacement: '-$1',
+ *      format: 'xml' // Only apply when converting to XML
+ *    }))
+ *    .toXml();
  * ```
  */
 export class RegexTransform implements Transform {
@@ -62,6 +79,7 @@ export class RegexTransform implements Transform {
   
   private regex: RegExp;
   private replacement: string;
+  private format?: FormatId;
   
   /**
    * Create a new regex transformer
@@ -81,6 +99,7 @@ export class RegexTransform implements Transform {
     );
     
     this.replacement = options.replacement;
+    this.format = options.format;
     
     // Create regex from pattern
     if (options.pattern instanceof RegExp) {
@@ -101,6 +120,11 @@ export class RegexTransform implements Transform {
    * @returns Transformed value result
    */
   transform(value: any, context: TransformContext): TransformResult<any> {
+    // If format-specific and doesn't match current format, skip
+    if (this.format !== undefined && this.format !== context.targetFormat) {
+      return createTransformResult(value);
+    }
+    
     // Skip non-string values
     if (typeof value !== 'string') {
       return createTransformResult(value);

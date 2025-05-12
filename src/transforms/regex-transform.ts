@@ -1,7 +1,7 @@
 /**
  * RegexTransform - Performs regex replacements on values
  * 
- * Updated to support format-specific regex replacements.
+ * Updated to support format-specific regex replacements and string patterns with flags.
  */
 import { 
   Transform, 
@@ -19,7 +19,7 @@ import { ErrorUtils } from '../core/utils/error-utils';
 export interface RegexOptions {
   /**
    * The pattern to search for
-   * Can be a RegExp (with flags) or a string
+   * Can be a RegExp (with flags), a string, or a string in the format "/pattern/flags"
    */
   pattern: RegExp | string;
   
@@ -55,6 +55,14 @@ export interface RegexOptions {
  *    .withTransforms(new RegexTransform({
  *      pattern: /(https?:\/\/[\w-]+(\.[\w-]+)+[\w.,@?^=%&:/~+#-]*[\w@?^=%&/~+#-])/gi,
  *      replacement: '<a href="$1">$1</a>'
+ *    }))
+ *    .toJson();
+ * 
+ * // String pattern with embedded flags - NEW!
+ * XJX.fromXml(xml)
+ *    .withTransforms(new RegexTransform({
+ *      pattern: "/world/i",
+ *      replacement: "World"
  *    }))
  *    .toJson();
  * 
@@ -105,10 +113,27 @@ export class RegexTransform implements Transform {
     if (options.pattern instanceof RegExp) {
       // Use the RegExp directly with its flags
       this.regex = options.pattern;
+    } else if (typeof options.pattern === 'string') {
+      // Check if the string is in the format /pattern/flags
+      const regexMatch = options.pattern.match(/^\/(.*)\/([gimsy]*)$/);
+      if (regexMatch) {
+        // Create a RegExp from the pattern and flags
+        try {
+          this.regex = new RegExp(regexMatch[1], regexMatch[2] || 'g');
+        } catch (error) {
+          // If RegExp creation fails, fall back to treating it as a plain string
+          const escapedPattern = this.escapeRegExp(options.pattern);
+          this.regex = new RegExp(escapedPattern, 'g');
+        }
+      } else {
+        // For string patterns, create a RegExp with global flag by default
+        // This ensures all occurrences are replaced
+        const escapedPattern = this.escapeRegExp(options.pattern);
+        this.regex = new RegExp(escapedPattern, 'g');
+      }
     } else {
-      // For string patterns, create a RegExp with global flag by default
-      // This ensures all occurrences are replaced
-      const escapedPattern = this.escapeRegExp(options.pattern);
+      // Fallback for any other type
+      const escapedPattern = this.escapeRegExp(String(options.pattern));
       this.regex = new RegExp(escapedPattern, 'g');
     }
   }

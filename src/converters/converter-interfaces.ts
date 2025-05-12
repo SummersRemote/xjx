@@ -7,7 +7,8 @@ import {
   Configuration, 
   Transform, 
   TransformContext,
-  TransformDirection
+  TransformDirection,
+  FormatId
 } from '../core/types/transform-interfaces';
 import { XNode } from '../core/models/xnode';
   
@@ -67,16 +68,17 @@ export interface XNodeTransformer {
    * Apply transformations to XNode
    * @param node XNode to transform
    * @param transforms Transformations to apply
-   * @param direction Direction of transformation
+   * @param targetFormat Target format identifier
    * @returns Transformed XNode
    */
-  transform(node: XNode, transforms: Transform[], direction: TransformDirection): XNode;
+  transform(node: XNode, transforms: Transform[], targetFormat: FormatId): XNode;
   
   /**
    * Create root transformation context
    * @param node Root node
-   * @param direction Direction of transformation
+   * @param targetFormat Target format
+   * @param direction Transformation direction (for backward compatibility)
    * @returns Transformation context
    */
-  createRootContext(node: XNode, direction: TransformDirection): TransformContext;
+  createRootContext(node: XNode, targetFormat: FormatId, direction: TransformDirection): TransformContext;
 }

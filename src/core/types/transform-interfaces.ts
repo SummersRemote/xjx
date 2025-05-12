@@ -12,6 +12,19 @@ export { Configuration, NodeType };
 export { XNode };
 
 /**
+ * Format identifier type
+ */
+export type FormatId = string;
+
+/**
+ * Standard formats
+ */
+export const FORMATS = {
+  XML: 'xml' as FormatId,
+  JSON: 'json' as FormatId
+};
+
+/**
  * Transform target types enum - specifies which nodes a transformer can target
  */
 export enum TransformTarget {
@@ -26,7 +39,7 @@ export enum TransformTarget {
 }
 
 /**
- * Direction of transformation
+ * Direction of transformation (kept for backward compatibility)
  */
 export enum TransformDirection {
   XML_TO_JSON = 'xml-to-json',
@@ -60,7 +73,10 @@ export interface TransformContext {
   // Configuration
   config: Configuration;
   
-  // Direction of transformation
+  // Target format (new property)
+  targetFormat: FormatId;
+  
+  // Direction of transformation (kept for backward compatibility)
   direction: TransformDirection;
 }
 

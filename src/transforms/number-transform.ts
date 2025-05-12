@@ -1,14 +1,15 @@
 /**
  * NumberTransform - Converts string values to numbers
  * 
- * Refactored to use the new static utilities.
+ * Updated to use target format instead of direction.
  */
 import { 
   Transform, 
   TransformContext, 
   TransformResult, 
   TransformTarget, 
-  createTransformResult 
+  createTransformResult,
+  FORMATS
 } from '../core/types/transform-interfaces';
 import { CommonUtils } from '../core/utils/common-utils';
   
@@ -90,11 +91,34 @@ export class NumberTransform implements Transform {
   
   /**
    * Transform a value to number if it matches criteria
+   * 
+   * Uses the target format to determine transformation direction:
+   * - For JSON format: strings -> numbers
+   * - For XML format: numbers -> strings
+   * 
    * @param value Value to transform
    * @param context Transformation context
    * @returns Transformed value result
    */
   transform(value: any, context: TransformContext): TransformResult<any> {
+    // Check if we're transforming to JSON or XML
+    if (context.targetFormat === FORMATS.JSON) {
+      // To JSON: Convert strings to numbers
+      return this.stringToNumber(value, context);
+    } else if (context.targetFormat === FORMATS.XML) {
+      // To XML: Convert numbers to strings
+      return this.numberToString(value, context);
+    }
+    
+    // For any other format, keep as is
+    return createTransformResult(value);
+  }
+  
+  /**
+   * Convert a string to number
+   * @private
+   */
+  private stringToNumber(value: any, context: TransformContext): TransformResult<any> {
     // Already a number, return as is
     if (typeof value === 'number') {
       return createTransformResult(value);
@@ -122,6 +146,20 @@ export class NumberTransform implements Transform {
     
     // For more complex cases or custom options, use the full implementation
     return this.transformComplex(value);
+  }
+  
+  /**
+   * Convert a number to string
+   * @private
+   */
+  private numberToString(value: any, context: TransformContext): TransformResult<any> {
+    // Only convert number values
+    if (typeof value === 'number') {
+      return createTransformResult(String(value));
+    }
+    
+    // Otherwise return unchanged
+    return createTransformResult(value);
   }
 
   /**

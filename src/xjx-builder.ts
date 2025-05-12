@@ -7,7 +7,9 @@
 import {
   Configuration,
   Transform,
-  TransformDirection
+  TransformDirection,
+  FormatId,
+  FORMATS
 } from './core/types/transform-interfaces';
 import { XNode } from './core/models/xnode';
 import { ConfigService } from './core/services/config-service';
@@ -152,8 +154,7 @@ export class XjxBuilder {
       this.xnode = transformer.transform(
         this.xnode!, 
         this.transforms, 
-        // Always use XML_TO_JSON direction for output to JSON
-        TransformDirection.XML_TO_JSON
+        FORMATS.JSON // Use format identifier instead of direction
       );
     }
     
@@ -189,8 +190,7 @@ export class XjxBuilder {
       this.xnode = transformer.transform(
         this.xnode!, 
         this.transforms, 
-        // Always use JSON_TO_XML direction for output to XML
-        TransformDirection.JSON_TO_XML
+        FORMATS.XML // Use format identifier instead of direction
       );
     }
     

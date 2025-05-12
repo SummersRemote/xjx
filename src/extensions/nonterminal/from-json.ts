@@ -4,7 +4,7 @@
 import { XJX } from "../../XJX";
 import { DefaultJsonToXNodeConverter } from "../../converters/json-to-xnode-converter";
 import { XJXError } from "../../core/types/error-types";
-import { TransformDirection } from "../../core/types/transform-interfaces";
+import { FORMATS } from "../../core/types/transform-interfaces";
 import { NonTerminalExtensionContext } from "../../core/types/extension-types";
 
 /**
@@ -19,7 +19,7 @@ function fromJson(this: NonTerminalExtensionContext, source: Record<string, any>
   // Convert JSON to XNode using the appropriate converter
   const converter = new DefaultJsonToXNodeConverter(this.config);
   this.xnode = converter.convert(source);
-  this.direction = TransformDirection.JSON_TO_XML;
+  this.sourceFormat = FORMATS.JSON;
   
   return this;
 }

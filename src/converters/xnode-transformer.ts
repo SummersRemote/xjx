@@ -230,16 +230,16 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
     transforms: Transform[]
   ): void {
     if (!node.attributes) return;
-
+  
     const newAttributes: Record<string, any> = {};
-
+  
     for (const [name, value] of Object.entries(node.attributes)) {
       // Skip xmlns attributes since they're handled separately
       if (name === "xmlns" || name.startsWith("xmlns:")) {
         newAttributes[name] = value;
         continue;
       }
-
+  
       // Create attribute context
       const attrContext: TransformContext = {
         ...context,
@@ -247,7 +247,7 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
         attributeName: name,
         path: `${context.path}.@${name}`,
       };
-
+  
       // Apply attribute transforms
       const result = this.applyAttributeTransforms(
         name,
@@ -255,14 +255,14 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
         attrContext,
         transforms
       );
-
+  
       // Add transformed attribute if not removed
       if (!result.remove) {
         const [newName, newValue] = result.value;
         newAttributes[newName] = newValue;
       }
     }
-
+  
     node.attributes = newAttributes;
   }
 
@@ -328,6 +328,10 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
    * @param transforms Transforms to apply
    * @private
    */
+  /**
+   * Fix for DefaultXNodeTransformer's transformChildren method
+   * Replace the transformChildren method in src/converters/xnode-transformer.ts
+   */
   private transformChildren(
     node: XNode,
     context: TransformContext,
@@ -348,8 +352,7 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
         prefix: child.prefix,
         path: `${context.path}.${child.name}[${i}]`,
         config: context.config,
-        direction: context.direction,
-        targetFormat: context.targetFormat, // Add the targetFormat property
+        targetFormat: context.targetFormat, // Maintain targetFormat from parent
         parent: context,
         isText: child.type === NodeType.TEXT_NODE,
         isCDATA: child.type === NodeType.CDATA_SECTION_NODE,

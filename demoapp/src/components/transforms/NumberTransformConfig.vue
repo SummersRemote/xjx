@@ -49,15 +49,6 @@
     </v-row>
     
     <v-row dense class="mt-2">
-      <v-col cols="12" sm="4">
-        <v-switch
-          v-model="localOptions.strictParsing"
-          label="Strict Parsing"
-          hint="Only convert exact matches"
-          density="compact"
-          @update:model-value="updateOptions"
-        ></v-switch>
-      </v-col>
       
       <v-col cols="12" sm="4">
         <v-text-field
@@ -115,7 +106,6 @@ const localOptions = reactive({
   integers: props.value.integers !== undefined ? props.value.integers : true,
   decimals: props.value.decimals !== undefined ? props.value.decimals : true,
   scientific: props.value.scientific !== undefined ? props.value.scientific : true,
-  strictParsing: props.value.strictParsing !== undefined ? props.value.strictParsing : true,
   decimalSeparator: props.value.decimalSeparator || '.',
   thousandsSeparator: props.value.thousandsSeparator || ',',
   format: props.value.format
@@ -133,7 +123,6 @@ watch(() => props.value, (newValue) => {
       integers: newValue.integers !== undefined ? newValue.integers : true,
       decimals: newValue.decimals !== undefined ? newValue.decimals : true,
       scientific: newValue.scientific !== undefined ? newValue.scientific : true,
-      strictParsing: newValue.strictParsing !== undefined ? newValue.strictParsing : true,
       decimalSeparator: newValue.decimalSeparator || '.',
       thousandsSeparator: newValue.thousandsSeparator || ',',
       format: newValue.format

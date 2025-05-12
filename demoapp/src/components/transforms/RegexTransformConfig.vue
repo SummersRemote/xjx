@@ -22,7 +22,7 @@
           v-model="localOptions.pattern"
           label="Pattern"
           placeholder="Enter regex pattern"
-          hint="Regular expression or string to search for"
+          hint="/Regular expression/ or simple string to match"
           persistent-hint
           density="compact"
           @update:model-value="updateOptions"
@@ -41,12 +41,6 @@
         ></v-text-field>
       </v-col>
       
-      <v-col cols="12" class="text-caption mt-1">
-        <div class="text-grey">
-          Note: To use a regular expression with flags, you'll need to create a RegExp object in your code.
-          The current interface supports string patterns only.
-        </div>
-      </v-col>
     </v-row>
   </v-container>
 </template>

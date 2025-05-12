@@ -1,17 +1,17 @@
 /**
  * RegexTransform - Performs regex replacements on values
- * 
+ *
  * Updated to support format-specific regex replacements and string patterns with flags.
  */
-import { 
-  Transform, 
-  TransformContext, 
-  TransformResult, 
-  TransformTarget, 
+import {
+  Transform,
+  TransformContext,
+  TransformResult,
+  TransformTarget,
   FormatId,
-  createTransformResult 
-} from '../core/types/transform-interfaces';
-import { ErrorUtils } from '../core/utils/error-utils';
+  createTransformResult,
+} from "../core/types/transform-interfaces";
+import { ErrorUtils } from "../core/utils/error-utils";
 
 /**
  * Options for regex transformer
@@ -22,13 +22,13 @@ export interface RegexOptions {
    * Can be a RegExp (with flags), a string, or a string in the format "/pattern/flags"
    */
   pattern: RegExp | string;
-  
+
   /**
    * The replacement string
    * Can use RegExp capture groups with $1, $2, etc.
    */
   replacement: string;
-  
+
   /**
    * Optional format this regex applies to
    * If provided, the transform will only be applied for this format
@@ -39,7 +39,7 @@ export interface RegexOptions {
 
 /**
  * RegexTransform - Performs regex replacements on text and attribute values
- * 
+ *
  * Example usage:
  * ```
  * // Simple string replacement
@@ -49,7 +49,7 @@ export interface RegexOptions {
  *      replacement: "bar"
  *    }))
  *    .toJson();
- * 
+ *
  * // RegExp with flags for case-insensitive global replacement
  * XJX.fromXml(xml)
  *    .withTransforms(new RegexTransform({
@@ -57,7 +57,7 @@ export interface RegexOptions {
  *      replacement: '<a href="$1">$1</a>'
  *    }))
  *    .toJson();
- * 
+ *
  * // String pattern with embedded flags - NEW!
  * XJX.fromXml(xml)
  *    .withTransforms(new RegexTransform({
@@ -65,7 +65,7 @@ export interface RegexOptions {
  *      replacement: "World"
  *    }))
  *    .toJson();
- * 
+ *
  * // Format-specific replacement (only applied when converting to XML)
  * XJX.fromJson(json)
  *    .withTransforms(new RegexTransform({
@@ -79,16 +79,16 @@ export interface RegexOptions {
 export class RegexTransform implements Transform {
   // Target text values, CDATA, and comments
   targets = [
-    TransformTarget.Value, 
-    TransformTarget.Text, 
-    TransformTarget.CDATA, 
-    TransformTarget.Comment
+    TransformTarget.Value,
+    TransformTarget.Text,
+    TransformTarget.CDATA,
+    TransformTarget.Comment,
   ];
-  
-  private regex: RegExp;
+
+  private regex!: RegExp;
   private replacement: string;
   private format?: FormatId;
-  
+
   /**
    * Create a new regex transformer
    * @param options Transformer options
@@ -96,48 +96,39 @@ export class RegexTransform implements Transform {
   constructor(options: RegexOptions) {
     ErrorUtils.validate(
       !!options.pattern,
-      'RegexTransform requires a pattern option',
-      'general'
+      "RegexTransform requires a pattern option",
+      "general"
     );
-    
+
     ErrorUtils.validate(
       options.replacement !== undefined,
-      'RegexTransform requires a replacement option',
-      'general'
+      "RegexTransform requires a replacement option",
+      "general"
     );
-    
+
     this.replacement = options.replacement;
     this.format = options.format;
-    
+
     // Create regex from pattern
     if (options.pattern instanceof RegExp) {
       // Use the RegExp directly with its flags
       this.regex = options.pattern;
-    } else if (typeof options.pattern === 'string') {
-      // Check if the string is in the format /pattern/flags
-      const regexMatch = options.pattern.match(/^\/(.*)\/([gimsy]*)$/);
-      if (regexMatch) {
-        // Create a RegExp from the pattern and flags
+    } else if (typeof options.pattern === "string") {
+      const parsed = this.parseRegExpString(options.pattern);
+      if (parsed) {
         try {
-          this.regex = new RegExp(regexMatch[1], regexMatch[2] || 'g');
-        } catch (error) {
-          // If RegExp creation fails, fall back to treating it as a plain string
+          this.regex = new RegExp(parsed.source, parsed.flags || "g");
+        } catch (err) {
           const escapedPattern = this.escapeRegExp(options.pattern);
-          this.regex = new RegExp(escapedPattern, 'g');
+          this.regex = new RegExp(escapedPattern, "g");
         }
       } else {
-        // For string patterns, create a RegExp with global flag by default
-        // This ensures all occurrences are replaced
         const escapedPattern = this.escapeRegExp(options.pattern);
-        this.regex = new RegExp(escapedPattern, 'g');
+        this.regex = new RegExp(escapedPattern, "g");
       }
-    } else {
-      // Fallback for any other type
-      const escapedPattern = this.escapeRegExp(String(options.pattern));
-      this.regex = new RegExp(escapedPattern, 'g');
     }
   }
-  
+
   /**
    * Transform a string value using the configured regex replacement
    * @param value Value to transform
@@ -149,19 +140,19 @@ export class RegexTransform implements Transform {
     if (this.format !== undefined && this.format !== context.targetFormat) {
       return createTransformResult(value);
     }
-    
+
     // Skip non-string values
-    if (typeof value !== 'string') {
+    if (typeof value !== "string") {
       return createTransformResult(value);
     }
-    
+
     // Perform the replacement
     const result = value.replace(this.regex, this.replacement);
-    
+
     // Only return the new value if something changed
     return createTransformResult(result !== value ? result : value);
   }
-  
+
   /**
    * Escape special characters in a string for use in a RegExp
    * @param string String to escape
@@ -169,6 +160,35 @@ export class RegexTransform implements Transform {
    * @private
    */
   private escapeRegExp(string: string): string {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  /**
+   * Parses a string in the format /pattern/flags, respecting escaped slashes.
+   * Returns null if the string isn't a valid regex string.
+   */
+  private parseRegExpString(
+    input: string
+  ): { source: string; flags: string } | null {
+    if (!input.startsWith("/")) return null;
+
+    let i = 1;
+    let inEscape = false;
+    while (i < input.length) {
+      const char = input[i];
+
+      if (!inEscape && char === "/") {
+        // End of pattern, everything after is flags
+        const source = input.slice(1, i);
+        const flags = input.slice(i + 1);
+        return { source, flags };
+      }
+
+      inEscape = !inEscape && char === "\\";
+      i++;
+    }
+
+    // If no closing / found
+    return null;
   }
 }

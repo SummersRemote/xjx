@@ -12,9 +12,6 @@ export * from './utils';
 // Export models
 export * from './models';
 
-// Export services
-export * from './services';
-
 // Export types - use explicit re-exports to avoid name conflicts with models
 export {
   Configuration,

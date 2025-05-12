@@ -1,6 +1,6 @@
 /**
  * XJX Builder implementation - Fluent API for XML/JSON transformations
- * Update in src/xjx-builder.ts
+ * Updated to remove ConfigService dependency and config management extensions
  */
 import {
   Configuration,
@@ -9,7 +9,7 @@ import {
   FORMATS
 } from './core/types/transform-interfaces';
 import { XNode } from './core/models/xnode';
-import { ConfigService } from './core/services/config-service';
+import { ConfigManager } from './core/config/config-manager';
 import { ErrorUtils } from './core/utils/error-utils';
 import { CommonUtils } from './core/utils/common-utils';
 import { DefaultXmlToXNodeConverter } from './converters/xml-to-xnode-converter'; 
@@ -27,17 +27,13 @@ export class XjxBuilder {
   public transforms: Transform[] = [];
   public config: Configuration;
   public sourceFormat: FormatId | null = null;
-  public configProvider: ConfigService;
   
   /**
    * Create a new builder instance
    */
   constructor() {
-    // Get the singleton config provider
-    this.configProvider = ConfigService.getInstance();
-    
-    // Initialize with a deep clone of the global configuration
-    this.config = CommonUtils.deepClone(this.configProvider.getMutableConfig());
+    // Initialize with a fresh copy of the default configuration
+    this.config = ConfigManager.getDefaultConfig();
   }
   
   /**
@@ -91,7 +87,7 @@ export class XjxBuilder {
     }
     
     // Merge with current config
-    this.config = CommonUtils.deepMerge(this.config, config);
+    this.config = ConfigManager.mergeConfig(this.config, config);
     return this;
   }
   
@@ -116,24 +112,6 @@ export class XjxBuilder {
     
     // Add transforms to the pipeline
     this.transforms.push(...transforms);
-    return this;
-  }
-  
-  /**
-   * Reset this builder's configuration to match global configuration
-   * @returns This builder for chaining
-   */
-  public resetToGlobalConfig(): XjxBuilder {
-    this.config = CommonUtils.deepClone(this.configProvider.getMutableConfig());
-    return this;
-  }
-  
-  /**
-   * Make this builder's configuration the global default
-   * @returns This builder for chaining
-   */
-  public makeConfigGlobal(): XjxBuilder {
-    this.configProvider.setConfig(CommonUtils.deepClone(this.config));
     return this;
   }
   
@@ -206,5 +184,24 @@ export class XjxBuilder {
       'No source set: call fromXml() or fromJson() before transformation',
       'general'
     );
+  }
+  
+  /**
+   * Deep clone an object (utility method exposed for extension context)
+   * @param obj Object to clone
+   * @returns Deep clone of the object
+   */
+  public deepClone<T>(obj: T): T {
+    return CommonUtils.deepClone(obj);
+  }
+  
+  /**
+   * Deep merge two objects (utility method exposed for extension context)
+   * @param target Target object
+   * @param source Source object to merge into target
+   * @returns New object with merged properties
+   */
+  public deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
+    return CommonUtils.deepMerge(target, source);
   }
 }

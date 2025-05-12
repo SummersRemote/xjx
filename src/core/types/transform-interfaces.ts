@@ -1,6 +1,5 @@
 /**
  * Core interfaces for the XJX transformation system
- * Update this in src/core/types/transform-interfaces.ts
  */
 import { Configuration } from './config-types';
 import { NodeType } from './dom-types';
@@ -11,6 +10,21 @@ export { Configuration, NodeType };
 
 // Also re-export XNode for backward compatibility
 export { XNode };
+
+/**
+ * Interface for XML validation result
+ */
+export interface ValidationResult {
+  /**
+   * Whether the XML is valid
+   */
+  isValid: boolean;
+
+  /**
+   * Error message if the XML is invalid
+   */
+  message?: string;
+}
 
 /**
  * Format identifier type

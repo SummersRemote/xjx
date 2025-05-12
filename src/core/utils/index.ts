@@ -15,7 +15,7 @@ export { ErrorUtils, ErrorType } from './error-utils';
 export { DomUtils } from './dom-utils';
 
 // XML-specific utilities
-export { XmlUtils, ValidationResult } from './xml-utils';
+export { XmlUtils } from './xml-utils';
 export { EntityUtils } from './entity-utils';
 export { NamespaceUtils } from './namespace-utils';
 

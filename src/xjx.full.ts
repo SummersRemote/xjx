@@ -23,7 +23,7 @@ export * from './transforms';
 // Ensure all extensions are registered
 import './extensions';
 
-// Export services (for advanced usage)
-export * from './core/services';
+// Export config
+export * from './core/config';
 
 // Note: Any additional extensions should be added here

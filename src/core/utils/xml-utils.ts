@@ -2,30 +2,16 @@
  * XmlUtils - Static utility for XML operations
  * 
  * Centralized XML processing utilities for the XJX library.
+ * Updated to use simplified configuration.
  */
 import { Configuration } from '../types/config-types';
-// import { ValidationResult } from '../types/transform-interfaces';
+import { ValidationResult } from '../types/transform-interfaces';
 import { ErrorUtils } from './error-utils';
 import { EntityUtils } from './entity-utils';
 import { DomUtils } from './dom-utils';
 import { NamespaceUtils } from './namespace-utils';
 import { NodeType } from '../types/dom-types';
-import { ConfigService } from '../services/config-service';
-
-/**
- * Interface for XML validation result
- */
-export interface ValidationResult {
-  /**
-   * Whether the XML is valid
-   */
-  isValid: boolean;
-
-  /**
-   * Error message if the XML is invalid
-   */
-  message?: string;
-}
+import { ConfigManager } from '../config/config-manager';
 
 export class XmlUtils {
   /**
@@ -88,7 +74,8 @@ export class XmlUtils {
    */
   public static prettyPrintXml(xmlString: string, indent: number = 2): string {
     const INDENT = " ".repeat(indent);
-    const config = ConfigService.getInstance().getConfig();
+    // Use default config for formatting preferences
+    const defaultConfig = ConfigManager.getDefaultConfig();
 
     return ErrorUtils.try(
       () => {
@@ -152,7 +139,7 @@ export class XmlUtils {
 
                 // Trim and normalize whitespace for text-only content
                 // but only if preserveWhitespace is false
-                if (!config.preserveWhitespace) {
+                if (!defaultConfig.preserveWhitespace) {
                   inner = inner.trim().replace(/\s+/g, " ");
                 }
 
@@ -185,12 +172,12 @@ export class XmlUtils {
               const text = node.textContent || "";
               // Skip whitespace-only text nodes in indented output unless preserveWhitespace is true
               const trimmed = text.trim();
-              if (!trimmed && !config.preserveWhitespace) {
+              if (!trimmed && !defaultConfig.preserveWhitespace) {
                 return "";
               }
 
               // For text nodes, normalize whitespace according to configuration
-              const normalized = config.preserveWhitespace
+              const normalized = defaultConfig.preserveWhitespace
                 ? text
                 : trimmed.replace(/\s+/g, " ");
 

@@ -2,12 +2,13 @@
  * XJX - Main class with entry points to fluent API and extension registration
  * 
  * Provides static utilities and extension registration for the XJX library.
+ * Updated to simplify configuration management.
  */
 import { Configuration } from './core/types/config-types';
 import { XjxBuilder } from './xjx-builder';
 import { XmlUtils } from './core/utils/xml-utils';
-import { ConfigService } from './core/services/config-service';
 import { DomUtils } from './core/utils/dom-utils';
+import { ConfigManager } from './core/config/config-manager';
 import { 
   TerminalExtensionContext, 
   NonTerminalExtensionContext 
@@ -18,6 +19,9 @@ import { Transform } from './core/types/transform-interfaces';
  * Main XJX class - provides access to the fluent API and manages extensions
  */
 export class XJX {
+  // Global configuration - mutable reference for backward compatibility
+  private static globalConfig: Configuration = ConfigManager.getDefaultConfig();
+  
   /**
    * Utility method to validate XML string
    * @param xmlString XML string to validate
@@ -41,7 +45,7 @@ export class XJX {
    * Reset global configuration to defaults
    */
   public static resetConfig(): void {
-    ConfigService.getInstance().resetToDefaults();
+    this.globalConfig = ConfigManager.getDefaultConfig();
   }
   
   /**
@@ -49,15 +53,23 @@ export class XJX {
    * @param config Configuration to apply
    */
   public static updateConfig(config: Partial<Configuration>): void {
-    ConfigService.getInstance().updateConfig(config);
+    this.globalConfig = ConfigManager.mergeConfig(this.globalConfig, config);
   }
   
   /**
-   * Get current global configuration
+   * Get current global configuration (deep clone to prevent mutation)
    * @returns Current configuration
    */
   public static getConfig(): Configuration {
-    return ConfigService.getInstance().getConfig();
+    return ConfigManager.getDefaultConfig();
+  }
+  
+  /**
+   * Get mutable reference to global configuration (for backward compatibility)
+   * @returns Reference to global configuration
+   */
+  public static getMutableConfig(): Configuration {
+    return this.globalConfig;
   }
   
   /**

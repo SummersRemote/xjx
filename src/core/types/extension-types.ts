@@ -1,10 +1,11 @@
 /**
  * Common type definitions for XJX extensions
- * Update in src/core/types/extension-types.ts
+ * Updated to use ConfigManager instead of ConfigService
  */
 import { Configuration } from "./config-types";
 import { Transform, XNode, FormatId } from "./transform-interfaces";
-import { ConfigService } from "../services/config-service";
+import { ConfigManager } from "../config/config-manager";
+import { XJX } from "../../XJX";
 
 /**
  * Base context interface for extension functions
@@ -24,7 +25,6 @@ export interface TerminalExtensionContext extends XJXContext {
   xnode: XNode | null;
   sourceFormat: FormatId | null;
   transforms: Transform[];
-  configProvider: ConfigService;
   
   // Common utility methods required by terminal extensions
   validateSource: () => void;
@@ -41,7 +41,6 @@ export interface NonTerminalExtensionContext extends XJXContext {
   xnode: XNode | null;
   sourceFormat: FormatId | null;
   transforms: Transform[];
-  configProvider: ConfigService;
   
   // Utility methods
   validateSource: () => void;

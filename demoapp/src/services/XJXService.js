@@ -1,6 +1,13 @@
 // services/XJXService.js
 // Wrapper service for the XJX library
-import { XJX } from '../../../dist/esm'; // Path to the XJX library
+import { XJX, BooleanTransform, NumberTransform, RegexTransform } from '../../../dist/esm'; // Path to the XJX library
+
+// Create a map of transformer types to their constructors
+const transformerMap = {
+  'BooleanTransform': BooleanTransform,
+  'NumberTransform': NumberTransform,
+  'RegexTransform': RegexTransform
+};
 
 class XJXService {
   /**
@@ -29,10 +36,17 @@ class XJXService {
     // Apply transforms if provided
     if (transforms && transforms.length > 0) {
       const transformInstances = transforms.map(t => {
-        const TransformerClass = XJX[t.type];
+        const TransformerClass = transformerMap[t.type];
+        if (!TransformerClass) {
+          console.error(`Transformer class not found for type: ${t.type}`);
+          return null;
+        }
         return new TransformerClass(t.options);
-      });
-      builder = builder.withTransforms(...transformInstances);
+      }).filter(Boolean); // Remove any null entries
+      
+      if (transformInstances.length > 0) {
+        builder = builder.withTransforms(...transformInstances);
+      }
     }
     
     return builder.toJson();
@@ -56,10 +70,17 @@ class XJXService {
     // Apply transforms if provided
     if (transforms && transforms.length > 0) {
       const transformInstances = transforms.map(t => {
-        const TransformerClass = XJX[t.type];
+        const TransformerClass = transformerMap[t.type];
+        if (!TransformerClass) {
+          console.error(`Transformer class not found for type: ${t.type}`);
+          return null;
+        }
         return new TransformerClass(t.options);
-      });
-      builder = builder.withTransforms(...transformInstances);
+      }).filter(Boolean); // Remove any null entries
+      
+      if (transformInstances.length > 0) {
+        builder = builder.withTransforms(...transformInstances);
+      }
     }
     
     return builder.toXml();

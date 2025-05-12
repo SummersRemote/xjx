@@ -33,13 +33,6 @@ export interface NumberTransformOptions {
   scientific?: boolean;
   
   /**
-   * Only convert strings that look exactly like numbers
-   * If false, will extract numbers from strings with non-numeric characters
-   * (default: true)
-   */
-  strictParsing?: boolean;
-  
-  /**
    * Decimal separator character (default: ".")
    */
   decimalSeparator?: string;
@@ -72,7 +65,6 @@ export class NumberTransform implements Transform {
   private integers: boolean;
   private decimals: boolean;
   private scientific: boolean;
-  private strictParsing: boolean;
   private decimalSeparator: string;
   private thousandsSeparator: string;
   
@@ -84,7 +76,6 @@ export class NumberTransform implements Transform {
     this.integers = options.integers !== false; // Default to true
     this.decimals = options.decimals !== false; // Default to true
     this.scientific = options.scientific !== false; // Default to true
-    this.strictParsing = options.strictParsing !== false; // Default to true
     this.decimalSeparator = options.decimalSeparator || '.';
     this.thousandsSeparator = options.thousandsSeparator || ',';
   }
@@ -131,16 +122,7 @@ export class NumberTransform implements Transform {
       
       // Only transform if it was actually a number
       if (typeof numValue === 'number' && !isNaN(numValue)) {
-        // When using strict parsing, check that the original was a clean number
-        if (this.strictParsing) {
-          const strValue = String(value).trim();
-          // Simple regex to check for clean numeric format
-          if (/^-?(\d+|\d*\.\d+|\d+\.\d*)(e[+-]?\d+)?$/i.test(strValue)) {
-            return createTransformResult(numValue);
-          }
-        } else {
           return createTransformResult(numValue);
-        }
       }
     }
     
@@ -171,7 +153,6 @@ export class NumberTransform implements Transform {
     return this.integers === true && 
            this.decimals === true && 
            this.scientific === true && 
-           this.strictParsing === true && 
            this.decimalSeparator === '.' &&
            this.thousandsSeparator === ',';
   }
@@ -183,56 +164,53 @@ export class NumberTransform implements Transform {
    * @private
    */
   private transformComplex(value: any): TransformResult<any> {
-    // Convert to string for parsing
-    const strValue = String(value);
-    
-    // Skip empty strings
-    if (!strValue.trim()) {
+    const strValue = String(value).trim();
+    if (!strValue) return createTransformResult(value);
+  
+    let patternParts: string[] = [];
+    let escapedDecimal = this.decimalSeparator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    let escapedThousands = this.thousandsSeparator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  
+    // Build integer pattern with proper thousands separator grouping
+    if (this.integers) {
+      let intPattern = `(?:-?(?:\\d{1,3}(?:${escapedThousands}\\d{3})*))`;
+      patternParts.push(intPattern);
+    }
+  
+    // Build decimal pattern
+    if (this.decimals) {
+      let decPattern = `(?:-?(?:\\d{1,3}(?:${escapedThousands}\\d{3})*|\\d*)${escapedDecimal}\\d+)`;
+      patternParts.push(decPattern);
+    }
+  
+    // Build scientific notation pattern (with optional decimal)
+    if (this.scientific) {
+      let sciPattern = `(?:-?(?:\\d+(?:${escapedDecimal}\\d+)?|\\d*${escapedDecimal}\\d+)[eE][+-]?\\d+)`;
+      patternParts.push(sciPattern);
+    }
+  
+    const fullPattern = `^(${patternParts.join('|')})$`;
+    const regex = new RegExp(fullPattern);
+  
+    if (!regex.test(strValue)) {
       return createTransformResult(value);
     }
-    
-    // Remove thousands separators
+  
+    // Normalize to JS-parsable format
     let normalized = strValue;
+  
     if (this.thousandsSeparator) {
-      const thousandSepRegex = new RegExp(`\\${this.thousandsSeparator}`, 'g');
-      normalized = normalized.replace(thousandSepRegex, '');
+      const sepRegex = new RegExp(escapedThousands, 'g');
+      normalized = normalized.replace(sepRegex, '');
     }
-    
-    // Replace custom decimal separator with dot
-    if (this.decimalSeparator && this.decimalSeparator !== '.') {
-      const decimalSepRegex = new RegExp(`\\${this.decimalSeparator}`, 'g');
-      normalized = normalized.replace(decimalSepRegex, '.');
+  
+    if (this.decimalSeparator !== '.') {
+      const decRegex = new RegExp(escapedDecimal, 'g');
+      normalized = normalized.replace(decRegex, '.');
     }
-    
-    // If strict parsing is enabled, check if the value is a valid number
-    if (this.strictParsing) {
-      // Create regex based on enabled options
-      let regexParts = [];
-      
-      if (this.integers) {
-        regexParts.push('-?\\d+');
-      }
-      
-      if (this.decimals) {
-        regexParts.push('-?\\d*\\.\\d+');
-      }
-      
-      if (this.scientific) {
-        regexParts.push('-?\\d*\\.?\\d+[eE][+-]?\\d+');
-      }
-      
-      // Combine regexes with OR operator
-      const regex = new RegExp(`^(${regexParts.join('|')})$`);
-      
-      if (!regex.test(normalized)) {
-        return createTransformResult(value);
-      }
-    }
-    
-    // Parse the number
+  
     const parsed = parseFloat(normalized);
-    
-    // Return the parsed number if it's valid, otherwise original value
     return createTransformResult(isNaN(parsed) ? value : parsed);
   }
+
 }

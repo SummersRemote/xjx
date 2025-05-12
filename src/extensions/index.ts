@@ -12,14 +12,13 @@
 import './terminal/to-xml';
 import './terminal/to-json';
 import './terminal/to-json-string';
-import './terminal/get-json-schema';
-import './terminal/get-path';
+// import './terminal/get-json-schema';
+// import './terminal/get-path';
 
 // Non-terminal extensions (methods that return the builder for chaining)
 import './nonterminal/from-xml';
 import './nonterminal/from-json';
 import './nonterminal/with-config';
 import './nonterminal/with-transforms';
-import './nonterminal/config-management';
 
 // No exports - this file is only imported for its side effects

@@ -3,7 +3,7 @@
  */
 import { Configuration } from '../config';
 import { DOM } from '../dom';
-import { ErrorHandler } from '../error';
+import { catchAndRelease, ErrorType } from '../error';
 import { ValidationResult } from '../transform';
 import { XmlEntity } from './entity';
 
@@ -23,25 +23,25 @@ export class XmlParser {
     config?: Configuration, 
     contentType: string = 'text/xml'
   ): Document {
-    return ErrorHandler.try(
-      () => {
-        // Pre-process XML string to handle entity issues
-        const preprocessedXml = XmlEntity.preprocess(xmlString);
-        
-        // Parse using DOM
-        const doc = DOM.parseFromString(preprocessedXml, contentType);
-        
-        // Check for parsing errors
-        const errors = doc.getElementsByTagName("parsererror");
-        if (errors.length > 0) {
-          throw new Error(`XML parsing error: ${errors[0].textContent}`);
-        }
-        
-        return doc;
-      },
-      'Failed to parse XML',
-      'xml-to-json'
-    );
+    try {
+      // Pre-process XML string to handle entity issues
+      const preprocessedXml = XmlEntity.preprocess(xmlString);
+      
+      // Parse using DOM
+      const doc = DOM.parseFromString(preprocessedXml, contentType);
+      
+      // Check for parsing errors
+      const errors = doc.getElementsByTagName("parsererror");
+      if (errors.length > 0) {
+        throw new Error(`XML parsing error: ${errors[0].textContent}`);
+      }
+      
+      return doc;
+    } catch (error) {
+      return catchAndRelease(error, 'Failed to parse XML', {
+        errorType: ErrorType.PARSE
+      });
+    }
   }
 
   /**

@@ -30,13 +30,11 @@ export {
   createTransformResult,
 } from './core/transform';
 
-// Error types
+// Error handling
 export { 
-  XJXError, 
-  XmlToJsonError, 
-  JsonToXmlError, 
-  EnvironmentError, 
-  ConfigurationError 
+  catchAndRelease,
+  LogLevel,
+  ErrorType
 } from './core/error';
 
 // Key model classes

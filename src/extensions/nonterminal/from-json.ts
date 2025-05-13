@@ -3,7 +3,7 @@
  */
 import { XJX } from "../../XJX";
 import { DefaultJsonToXNodeConverter } from "../../converters/json-to-xnode-converter";
-import { XJXError } from "../../core/error";
+import { catchAndRelease, validate, ErrorType } from "../../core/error";
 import { FORMATS } from "../../core/transform";
 import { NonTerminalExtensionContext } from "../../core/extension";
 
@@ -13,7 +13,10 @@ import { NonTerminalExtensionContext } from "../../core/extension";
  */
 function fromJson(this: NonTerminalExtensionContext, source: Record<string, any>) {
   if (!source || typeof source !== 'object' || Array.isArray(source)) {
-    throw new XJXError('Invalid JSON source: must be a non-empty object');
+    let msg = "Invalid JSON source: must be a non-empty object"
+    catchAndRelease(new Error(msg), msg, {
+      errorType: ErrorType.VALIDATION,
+    });
   }
   
   // Convert JSON to XNode using the appropriate converter

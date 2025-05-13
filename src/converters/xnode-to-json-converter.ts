@@ -6,7 +6,7 @@
 import { XNodeToJsonConverter } from './converter-interfaces';
 import { Configuration } from '../core/config';
 import { NodeType } from '../core/dom';
-import { ErrorHandler } from '../core/error';
+import { catchAndRelease, ErrorType } from '../core/error';
 import { JSON } from '../core/json';
 import { XNode } from '../core/xnode';
 
@@ -30,28 +30,29 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
    * @returns JSON object
    */
   public convert(node: XNode): Record<string, any> {
-    return ErrorHandler.try(
-      () => {
-        // First perform the basic conversion
-        let jsonResult = this.xnodeToJson(node);
+    try {
+      // First perform the basic conversion
+      let jsonResult = this.xnodeToJson(node);
+      
+      // Apply compact mode if configured
+      if (this.config.outputOptions.compact) {
+        const compactedJson = JSON.compact(jsonResult);
         
-        // Apply compact mode if configured
-        if (this.config.outputOptions.compact) {
-          const compactedJson = JSON.compact(jsonResult);
-          
-          // If compaction returns undefined (completely empty), return an empty object
-          if (compactedJson === undefined) {
-            return {};
-          }
-          
-          jsonResult = compactedJson as Record<string, any>;
+        // If compaction returns undefined (completely empty), return an empty object
+        if (compactedJson === undefined) {
+          return {};
         }
         
-        return jsonResult;
-      },
-      'Failed to convert XNode to JSON',
-      'xml-to-json'
-    );
+        jsonResult = compactedJson as Record<string, any>;
+      }
+      
+      return jsonResult;
+    } catch (error) {
+      return catchAndRelease(error, 'Failed to convert XNode to JSON', {
+        errorType: ErrorType.SERIALIZE,
+        defaultValue: {}
+      });
+    }
   }
 
   /**
@@ -60,104 +61,111 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
    * @returns JSON object
    */
   private xnodeToJson(node: XNode): Record<string, any> {
-    const result: Record<string, any> = {};
-    const nodeObj: Record<string, any> = {};
+    try {
+      const result: Record<string, any> = {};
+      const nodeObj: Record<string, any> = {};
 
-    // Add namespace and prefix if present
-    if (node.namespace && this.config.preserveNamespaces) {
-      nodeObj[this.config.propNames.namespace] = node.namespace;
-    }
-
-    if (node.prefix && this.config.preserveNamespaces) {
-      nodeObj[this.config.propNames.prefix] = node.prefix;
-    }
-
-    // Add value if present
-    if (node.value !== undefined && this.config.preserveTextNodes) {
-      nodeObj[this.config.propNames.value] = node.value;
-    }
-
-    // Add attributes
-    if (
-      this.config.preserveAttributes &&
-      node.attributes &&
-      Object.keys(node.attributes).length > 0
-    ) {
-      const attrs: Array<Record<string, any>> = [];
-
-      // Add regular attributes
-      for (const [name, value] of Object.entries(node.attributes)) {
-        const attrObj: Record<string, any> = {
-          [name]: { [this.config.propNames.value]: value },
-        };
-        attrs.push(attrObj);
+      // Add namespace and prefix if present
+      if (node.namespace && this.config.preserveNamespaces) {
+        nodeObj[this.config.propNames.namespace] = node.namespace;
       }
 
-      // Add namespace declarations
-      if (node.namespaceDeclarations && this.config.preserveNamespaces) {
-        for (const [prefix, uri] of Object.entries(
-          node.namespaceDeclarations
-        )) {
-          const attrName = prefix === "" ? "xmlns" : `xmlns:${prefix}`;
+      if (node.prefix && this.config.preserveNamespaces) {
+        nodeObj[this.config.propNames.prefix] = node.prefix;
+      }
+
+      // Add value if present
+      if (node.value !== undefined && this.config.preserveTextNodes) {
+        nodeObj[this.config.propNames.value] = node.value;
+      }
+
+      // Add attributes
+      if (
+        this.config.preserveAttributes &&
+        node.attributes &&
+        Object.keys(node.attributes).length > 0
+      ) {
+        const attrs: Array<Record<string, any>> = [];
+
+        // Add regular attributes
+        for (const [name, value] of Object.entries(node.attributes)) {
           const attrObj: Record<string, any> = {
-            [attrName]: { [this.config.propNames.value]: uri },
+            [name]: { [this.config.propNames.value]: value },
           };
           attrs.push(attrObj);
         }
-      }
 
-      if (attrs.length > 0) {
-        nodeObj[this.config.propNames.attributes] = attrs;
-      }
-    }
+        // Add namespace declarations
+        if (node.namespaceDeclarations && this.config.preserveNamespaces) {
+          for (const [prefix, uri] of Object.entries(
+            node.namespaceDeclarations
+          )) {
+            const attrName = prefix === "" ? "xmlns" : `xmlns:${prefix}`;
+            const attrObj: Record<string, any> = {
+              [attrName]: { [this.config.propNames.value]: uri },
+            };
+            attrs.push(attrObj);
+          }
+        }
 
-    // Add children
-    if (node.children && node.children.length > 0) {
-      const children: Array<Record<string, any>> = [];
-
-      for (const child of node.children) {
-        switch (child.type) {
-          case NodeType.TEXT_NODE:
-            if (this.config.preserveTextNodes) {
-              children.push({ [this.config.propNames.value]: child.value });
-            }
-            break;
-
-          case NodeType.CDATA_SECTION_NODE:
-            if (this.config.preserveCDATA) {
-              children.push({ [this.config.propNames.cdata]: child.value });
-            }
-            break;
-
-          case NodeType.COMMENT_NODE:
-            if (this.config.preserveComments) {
-              children.push({ [this.config.propNames.comments]: child.value });
-            }
-            break;
-
-          case NodeType.PROCESSING_INSTRUCTION_NODE:
-            if (this.config.preserveProcessingInstr) {
-              children.push({
-                [this.config.propNames.instruction]: {
-                  [this.config.propNames.target]: child.attributes?.target,
-                  [this.config.propNames.value]: child.value,
-                },
-              });
-            }
-            break;
-
-          case NodeType.ELEMENT_NODE:
-            children.push(this.xnodeToJson(child));
-            break;
+        if (attrs.length > 0) {
+          nodeObj[this.config.propNames.attributes] = attrs;
         }
       }
 
-      if (children.length > 0) {
-        nodeObj[this.config.propNames.children] = children;
-      }
-    }
+      // Add children
+      if (node.children && node.children.length > 0) {
+        const children: Array<Record<string, any>> = [];
 
-    result[node.name] = nodeObj;
-    return result;
+        for (const child of node.children) {
+          switch (child.type) {
+            case NodeType.TEXT_NODE:
+              if (this.config.preserveTextNodes) {
+                children.push({ [this.config.propNames.value]: child.value });
+              }
+              break;
+
+            case NodeType.CDATA_SECTION_NODE:
+              if (this.config.preserveCDATA) {
+                children.push({ [this.config.propNames.cdata]: child.value });
+              }
+              break;
+
+            case NodeType.COMMENT_NODE:
+              if (this.config.preserveComments) {
+                children.push({ [this.config.propNames.comments]: child.value });
+              }
+              break;
+
+            case NodeType.PROCESSING_INSTRUCTION_NODE:
+              if (this.config.preserveProcessingInstr) {
+                children.push({
+                  [this.config.propNames.instruction]: {
+                    [this.config.propNames.target]: child.attributes?.target,
+                    [this.config.propNames.value]: child.value,
+                  },
+                });
+              }
+              break;
+
+            case NodeType.ELEMENT_NODE:
+              children.push(this.xnodeToJson(child));
+              break;
+          }
+        }
+
+        if (children.length > 0) {
+          nodeObj[this.config.propNames.children] = children;
+        }
+      }
+
+      result[node.name] = nodeObj;
+      return result;
+    } catch (error) {
+      return catchAndRelease(error, 'Failed to convert XNode to JSON structure', {
+        errorType: ErrorType.SERIALIZE,
+        defaultValue: { [node.name]: {} }
+      });
+    }
   }
 }

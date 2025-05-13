@@ -6,7 +6,7 @@
 import { JsonToXNodeConverter } from './converter-interfaces';
 import { Configuration } from '../core/config';
 import { NodeType } from '../core/dom';
-import { ErrorHandler } from '../core/error';
+import { catchAndRelease, ErrorType } from '../core/error';
 import { JSON } from '../core/json';
 import { XNode } from '../core/xnode';
 
@@ -31,20 +31,20 @@ export class DefaultJsonToXNodeConverter implements JsonToXNodeConverter {
    * @returns XNode representation
    */
   public convert(json: Record<string, any>): XNode {
-    return ErrorHandler.try(
-      () => {
-        // Reset namespace map
-        this.namespaceMap = {};
-        
-        // Validate JSON
-        this.validateJsonObject(json);
-        
-        // Convert to XNode
-        return this.jsonToXNode(json);
-      },
-      'Failed to convert JSON to XNode',
-      'json-to-xml'
-    );
+    try {
+      // Reset namespace map
+      this.namespaceMap = {};
+      
+      // Validate JSON
+      this.validateJsonObject(json);
+      
+      // Convert to XNode
+      return this.jsonToXNode(json);
+    } catch (error) {
+      return catchAndRelease(error, 'Failed to convert JSON to XNode', {
+        errorType: ErrorType.PARSE
+      });
+    }
   }
 
   /**
@@ -55,74 +55,80 @@ export class DefaultJsonToXNodeConverter implements JsonToXNodeConverter {
    * @private
    */
   private jsonToXNode(jsonObj: Record<string, any>, parentNode?: XNode): XNode {
-    // Get the node name (first key in the object)
-    const nodeName = Object.keys(jsonObj)[0];
-    if (!nodeName) {
-      throw new Error("Empty JSON object");
-    }
+    try {
+      // Get the node name (first key in the object)
+      const nodeName = Object.keys(jsonObj)[0];
+      if (!nodeName) {
+        throw new Error("Empty JSON object");
+      }
 
-    const nodeData = jsonObj[nodeName];
+      const nodeData = jsonObj[nodeName];
 
-    // Create base XNode
-    const xnode = new XNode(nodeName, NodeType.ELEMENT_NODE);
-    xnode.parent = parentNode;
+      // Create base XNode
+      const xnode = new XNode(nodeName, NodeType.ELEMENT_NODE);
+      xnode.parent = parentNode;
 
-    // Process namespace and prefix
-    const namespaceKey = this.config.propNames.namespace;
-    const prefixKey = this.config.propNames.prefix;
-    
-    if (nodeData[namespaceKey] && this.config.preserveNamespaces) {
-      xnode.namespace = nodeData[namespaceKey];
-    }
-
-    if (nodeData[prefixKey] && this.config.preserveNamespaces) {
-      xnode.prefix = nodeData[prefixKey];
-    }
-
-    // Process value
-    const valueKey = this.config.propNames.value;
-    if (nodeData[valueKey] !== undefined) {
-      xnode.value = nodeData[valueKey];
-    }
-
-    // Process attributes
-    const attributesKey = this.config.propNames.attributes;
-    if (this.config.preserveAttributes && 
-        nodeData[attributesKey] && 
-        Array.isArray(nodeData[attributesKey])) {
+      // Process namespace and prefix
+      const namespaceKey = this.config.propNames.namespace;
+      const prefixKey = this.config.propNames.prefix;
       
-      xnode.attributes = {};
-      const namespaceDecls: Record<string, string> = {};
-      let hasNamespaceDecls = false;
+      if (nodeData[namespaceKey] && this.config.preserveNamespaces) {
+        xnode.namespace = nodeData[namespaceKey];
+      }
 
-      for (const attrObj of nodeData[attributesKey]) {
-        const attrName = Object.keys(attrObj)[0];
-        if (!attrName) continue;
+      if (nodeData[prefixKey] && this.config.preserveNamespaces) {
+        xnode.prefix = nodeData[prefixKey];
+      }
 
-        const attrData = attrObj[attrName];
-        const attrValue = attrData[valueKey];
+      // Process value
+      const valueKey = this.config.propNames.value;
+      if (nodeData[valueKey] !== undefined) {
+        xnode.value = nodeData[valueKey];
+      }
 
-        if (this.processNamespaceDeclaration(attrName, attrValue, namespaceDecls)) {
-          hasNamespaceDecls = true;
-        } else {
-          // Regular attribute
-          xnode.attributes[attrName] = attrValue;
+      // Process attributes
+      const attributesKey = this.config.propNames.attributes;
+      if (this.config.preserveAttributes && 
+          nodeData[attributesKey] && 
+          Array.isArray(nodeData[attributesKey])) {
+        
+        xnode.attributes = {};
+        const namespaceDecls: Record<string, string> = {};
+        let hasNamespaceDecls = false;
+
+        for (const attrObj of nodeData[attributesKey]) {
+          const attrName = Object.keys(attrObj)[0];
+          if (!attrName) continue;
+
+          const attrData = attrObj[attrName];
+          const attrValue = attrData[valueKey];
+
+          if (this.processNamespaceDeclaration(attrName, attrValue, namespaceDecls)) {
+            hasNamespaceDecls = true;
+          } else {
+            // Regular attribute
+            xnode.attributes[attrName] = attrValue;
+          }
+        }
+
+        // Add namespace declarations if any were found
+        if (hasNamespaceDecls) {
+          xnode.namespaceDeclarations = namespaceDecls;
         }
       }
 
-      // Add namespace declarations if any were found
-      if (hasNamespaceDecls) {
-        xnode.namespaceDeclarations = namespaceDecls;
+      // Process children
+      const childrenKey = this.config.propNames.children;
+      if (nodeData[childrenKey] && Array.isArray(nodeData[childrenKey])) {
+        xnode.children = this.processChildren(nodeData[childrenKey], xnode);
       }
-    }
 
-    // Process children
-    const childrenKey = this.config.propNames.children;
-    if (nodeData[childrenKey] && Array.isArray(nodeData[childrenKey])) {
-      xnode.children = this.processChildren(nodeData[childrenKey], xnode);
+      return xnode;
+    } catch (error) {
+      return catchAndRelease(error, 'Failed to convert JSON object to XNode', {
+        errorType: ErrorType.PARSE
+      });
     }
-
-    return xnode;
   }
 
   /**
@@ -247,16 +253,12 @@ export class DefaultJsonToXNodeConverter implements JsonToXNodeConverter {
    * @private
    */
   private validateJsonObject(jsonObj: Record<string, any>): void {
-    ErrorHandler.validate(
-      JSON.isValidObject(jsonObj),
-      'Invalid JSON object: must be a non-array object',
-      'json-to-xml'
-    );
+    if (!JSON.isValidObject(jsonObj)) {
+      throw new Error('Invalid JSON object: must be a non-array object');
+    }
     
-    ErrorHandler.validate(
-      Object.keys(jsonObj).length === 1,
-      'Invalid JSON object: must have exactly one root element',
-      'json-to-xml'
-    );
+    if (Object.keys(jsonObj).length !== 1) {
+      throw new Error('Invalid JSON object: must have exactly one root element');
+    }
   }
 }

@@ -11,7 +11,7 @@ import {
   FORMATS
 } from './core/transform';
 import { XNode } from './core/xnode';
-import { XJXError, ErrorHandler } from './core/error';
+import { catchAndRelease, ErrorType } from './core/error';
 import { Common } from './core/common';
 import { DefaultXmlToXNodeConverter } from './converters/xml-to-xnode-converter'; 
 import { DefaultJsonToXNodeConverter } from './converters/json-to-xnode-converter';
@@ -43,18 +43,22 @@ export class XjxBuilder {
    * @returns This builder for chaining
    */
   public fromXml(source: string): XjxBuilder {
-    ErrorHandler.validate(
-      !!source && typeof source === 'string',
-      'Invalid XML source: must be a non-empty string',
-      'xml-to-json'
-    );
-    
-    // Convert XML to XNode using the appropriate converter
-    const converter = new DefaultXmlToXNodeConverter(this.config);
-    this.xnode = converter.convert(source);
-    this.sourceFormat = FORMATS.XML;
-    
-    return this;
+    try {
+      if (!source || typeof source !== 'string') {
+        throw new Error('Invalid XML source: must be a non-empty string');
+      }
+      
+      // Convert XML to XNode using the appropriate converter
+      const converter = new DefaultXmlToXNodeConverter(this.config);
+      this.xnode = converter.convert(source);
+      this.sourceFormat = FORMATS.XML;
+      
+      return this;
+    } catch (error) {
+      return catchAndRelease(error, 'Failed to set XML source', {
+        errorType: ErrorType.PARSE
+      });
+    }
   }
   
   /**
@@ -63,18 +67,22 @@ export class XjxBuilder {
    * @returns This builder for chaining
    */
   public fromJson(source: Record<string, any>): XjxBuilder {
-    ErrorHandler.validate(
-      !!source && typeof source === 'object' && !Array.isArray(source),
-      'Invalid JSON source: must be a non-empty object',
-      'json-to-xml'
-    );
-    
-    // Convert JSON to XNode using the appropriate converter
-    const converter = new DefaultJsonToXNodeConverter(this.config);
-    this.xnode = converter.convert(source);
-    this.sourceFormat = FORMATS.JSON;
-    
-    return this;
+    try {
+      if (!source || typeof source !== 'object' || Array.isArray(source)) {
+        throw new Error('Invalid JSON source: must be a non-empty object');
+      }
+      
+      // Convert JSON to XNode using the appropriate converter
+      const converter = new DefaultJsonToXNodeConverter(this.config);
+      this.xnode = converter.convert(source);
+      this.sourceFormat = FORMATS.JSON;
+      
+      return this;
+    } catch (error) {
+      return catchAndRelease(error, 'Failed to set JSON source', {
+        errorType: ErrorType.PARSE
+      });
+    }
   }
   
   /**
@@ -87,9 +95,16 @@ export class XjxBuilder {
       return this;
     }
     
-    // Merge with current config
-    this.config = Config.merge(this.config, config);
-    return this;
+    try {
+      // Merge with current config
+      this.config = Config.merge(this.config, config);
+      return this;
+    } catch (error) {
+      return catchAndRelease(error, 'Failed to apply configuration', {
+        errorType: ErrorType.CONFIG,
+        defaultValue: this
+      });
+    }
   }
   
   /**
@@ -102,18 +117,23 @@ export class XjxBuilder {
       return this;
     }
     
-    // Validate transforms
-    for (const transform of transforms) {
-      ErrorHandler.validate(
-        !!transform && !!transform.targets && !!transform.transform,
-        'Invalid transform: must implement the Transform interface',
-        'general'
-      );
+    try {
+      // Validate transforms
+      for (const transform of transforms) {
+        if (!transform || !transform.targets || !transform.transform) {
+          throw new Error('Invalid transform: must implement the Transform interface');
+        }
+      }
+      
+      // Add transforms to the pipeline
+      this.transforms.push(...transforms);
+      return this;
+    } catch (error) {
+      return catchAndRelease(error, 'Failed to add transforms', {
+        errorType: ErrorType.TRANSFORM,
+        defaultValue: this
+      });
     }
-    
-    // Add transforms to the pipeline
-    this.transforms.push(...transforms);
-    return this;
   }
   
   /**
@@ -121,22 +141,29 @@ export class XjxBuilder {
    * @returns JSON object representation
    */
   public toJson(): Record<string, any> {
-    // Validate source is set
-    this.validateSource();
-    
-    // Apply transformations if any are registered
-    if (this.transforms && this.transforms.length > 0) {
-      const transformer = new DefaultXNodeTransformer(this.config);
-      this.xnode = transformer.transform(
-        this.xnode!, 
-        this.transforms, 
-        FORMATS.JSON
-      );
+    try {
+      // Validate source is set
+      this.validateSource();
+      
+      // Apply transformations if any are registered
+      if (this.transforms && this.transforms.length > 0) {
+        const transformer = new DefaultXNodeTransformer(this.config);
+        this.xnode = transformer.transform(
+          this.xnode!, 
+          this.transforms, 
+          FORMATS.JSON
+        );
+      }
+      
+      // Convert XNode to JSON
+      const converter = new DefaultXNodeToJsonConverter(this.config);
+      return converter.convert(this.xnode!);
+    } catch (error) {
+      return catchAndRelease(error, 'Failed to convert to JSON', {
+        errorType: ErrorType.SERIALIZE,
+        defaultValue: {}
+      });
     }
-    
-    // Convert XNode to JSON
-    const converter = new DefaultXNodeToJsonConverter(this.config);
-    return converter.convert(this.xnode!);
   }
   
   /**
@@ -145,11 +172,18 @@ export class XjxBuilder {
    * @returns Formatted JSON string
    */
   public toJsonString(indent: number = 2): string {
-    // Get JSON object
-    const jsonObject = this.toJson();
-    
-    // Return as formatted string
-    return JSON.stringify(jsonObject, null, indent);
+    try {
+      // Get JSON object
+      const jsonObject = this.toJson();
+      
+      // Return as formatted string
+      return JSON.stringify(jsonObject, null, indent);
+    } catch (error) {
+      return catchAndRelease(error, 'Failed to convert to JSON string', {
+        errorType: ErrorType.SERIALIZE,
+        defaultValue: '{}'
+      });
+    }
   }
   
   /**
@@ -157,34 +191,39 @@ export class XjxBuilder {
    * @returns XML string representation
    */
   public toXml(): string {
-    // Validate source is set
-    this.validateSource();
-    
-    // Apply transformations if any are registered
-    if (this.transforms && this.transforms.length > 0) {
-      const transformer = new DefaultXNodeTransformer(this.config);
-      this.xnode = transformer.transform(
-        this.xnode!, 
-        this.transforms, 
-        FORMATS.XML
-      );
+    try {
+      // Validate source is set
+      this.validateSource();
+      
+      // Apply transformations if any are registered
+      if (this.transforms && this.transforms.length > 0) {
+        const transformer = new DefaultXNodeTransformer(this.config);
+        this.xnode = transformer.transform(
+          this.xnode!, 
+          this.transforms, 
+          FORMATS.XML
+        );
+      }
+      
+      // Convert XNode to XML
+      const converter = new DefaultXNodeToXmlConverter(this.config);
+      return converter.convert(this.xnode!);
+    } catch (error) {
+      return catchAndRelease(error, 'Failed to convert to XML', {
+        errorType: ErrorType.SERIALIZE,
+        defaultValue: '<root/>'
+      });
     }
-    
-    // Convert XNode to XML
-    const converter = new DefaultXNodeToXmlConverter(this.config);
-    return converter.convert(this.xnode!);
   }
   
   /**
    * Validate that a source has been set before transformation
-   * @throws XJXError if no source has been set
+   * @throws Error if no source has been set
    */
   public validateSource(): void {
-    ErrorHandler.validate(
-      !!this.xnode && !!this.sourceFormat,
-      'No source set: call fromXml() or fromJson() before transformation',
-      'general'
-    );
+    if (!this.xnode || !this.sourceFormat) {
+      throw new Error('No source set: call fromXml() or fromJson() before transformation');
+    }
   }
   
   /**

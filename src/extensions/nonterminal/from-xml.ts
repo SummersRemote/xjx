@@ -3,7 +3,7 @@
  */
 import { XJX } from "../../XJX";
 import { DefaultXmlToXNodeConverter } from "../../converters/xml-to-xnode-converter";
-import { XJXError } from "../../core/error";
+import { catchAndRelease, validate, ErrorType } from "../../core/error";
 import { FORMATS } from "../../core/transform";
 import { NonTerminalExtensionContext } from "../../core/extension";
 
@@ -13,7 +13,10 @@ import { NonTerminalExtensionContext } from "../../core/extension";
  */
 function fromXml(this: NonTerminalExtensionContext, source: string) {
   if (!source || typeof source !== 'string') {
-    throw new XJXError('Invalid XML source: must be a non-empty string');
+    let msg = "Invalid XML source: must be a non-empty string"
+    catchAndRelease(new Error(msg), msg, {
+      errorType: ErrorType.VALIDATION,
+    });
   }
   
   // Convert XML to XNode using the appropriate converter

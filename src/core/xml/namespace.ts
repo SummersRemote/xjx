@@ -1,8 +1,8 @@
 /**
  * XML namespace management utilities
  */
-import { ErrorHandler } from '../error';
-import { XNode } from '../xnode';
+import { catchAndRelease, ErrorType } from "../error";
+import { XNode } from "../xnode";
 
 /**
  * XML namespace utilities
@@ -36,36 +36,42 @@ export class XmlNamespace {
     // If not found in ancestry, try the global map as fallback
     return namespaceMap?.[prefix];
   }
-  
+
   /**
    * Create a qualified name from namespace prefix and local name
    * @param prefix Namespace prefix (can be null/undefined)
    * @param localName Local name
    * @returns Qualified name
    */
-  static createQualifiedName(prefix: string | null | undefined, localName: string): string {
+  static createQualifiedName(
+    prefix: string | null | undefined,
+    localName: string
+  ): string {
     return prefix ? `${prefix}:${localName}` : localName;
   }
-  
+
   /**
    * Parse a qualified name into prefix and local name parts
    * @param qualifiedName Qualified name (e.g., "ns:element")
    * @returns Object with prefix and localName
    */
-  static parseQualifiedName(qualifiedName: string): { prefix: string | null, localName: string } {
-    const colonIndex = qualifiedName.indexOf(':');
+  static parseQualifiedName(qualifiedName: string): {
+    prefix: string | null;
+    localName: string;
+  } {
+    const colonIndex = qualifiedName.indexOf(":");
     if (colonIndex > 0) {
       return {
         prefix: qualifiedName.substring(0, colonIndex),
-        localName: qualifiedName.substring(colonIndex + 1)
+        localName: qualifiedName.substring(colonIndex + 1),
       };
     }
     return {
       prefix: null,
-      localName: qualifiedName
+      localName: qualifiedName,
     };
   }
-  
+
   /**
    * Get namespace declarations from DOM Element
    * @param element DOM Element
@@ -73,59 +79,62 @@ export class XmlNamespace {
    */
   static getNamespaceDeclarations(element: Element): Record<string, string> {
     const result: Record<string, string> = {};
-    
+
     for (let i = 0; i < element.attributes.length; i++) {
       const attr = element.attributes[i];
-      
-      if (attr.name === 'xmlns') {
+
+      if (attr.name === "xmlns") {
         // Default namespace
-        result[''] = attr.value;
-      } else if (attr.name.startsWith('xmlns:')) {
+        result[""] = attr.value;
+      } else if (attr.name.startsWith("xmlns:")) {
         // Prefixed namespace
         const prefix = attr.name.substring(6); // Remove 'xmlns:'
         result[prefix] = attr.value;
       }
     }
-    
+
     return result;
   }
-  
+
   /**
    * Check if an element declares a default namespace
    * @param element DOM Element
    * @returns True if element has a default namespace declaration
    */
   static hasDefaultNamespace(element: Element): boolean {
-    return element.hasAttribute('xmlns');
+    return element.hasAttribute("xmlns");
   }
-  
+
   /**
    * Add namespace declarations to a DOM element
    * @param element Target DOM element
    * @param declarations Namespace declarations to add
    */
-  static addNamespaceDeclarations(element: Element, declarations: Record<string, string>): void {
-    ErrorHandler.try(
-      () => {
-        for (const [prefix, uri] of Object.entries(declarations)) {
-          if (prefix === '') {
-            // Default namespace
-            element.setAttribute('xmlns', uri);
-          } else {
-            // Prefixed namespace
-            element.setAttributeNS(
-              'http://www.w3.org/2000/xmlns/',
-              `xmlns:${prefix}`,
-              uri
-            );
-          }
+  static addNamespaceDeclarations(
+    element: Element,
+    declarations: Record<string, string>
+  ): void {
+    try {
+      for (const [prefix, uri] of Object.entries(declarations)) {
+        if (prefix === "") {
+          // Default namespace
+          element.setAttribute("xmlns", uri);
+        } else {
+          // Prefixed namespace
+          element.setAttributeNS(
+            "http://www.w3.org/2000/xmlns/",
+            `xmlns:${prefix}`,
+            uri
+          );
         }
-      },
-      'Failed to add namespace declarations',
-      'general'
-    );
+      }
+    } catch (error) {
+      return catchAndRelease(error, "Failed to add namespace declarations", {
+        errorType: ErrorType.GENERAL,
+      });
+    }
   }
-  
+
   /**
    * Collect all namespace declarations from an XNode and its ancestors
    * @param node XNode to start from
@@ -134,11 +143,13 @@ export class XmlNamespace {
   static collectNamespaceDeclarations(node: XNode): Record<string, string> {
     const result: Record<string, string> = {};
     let current: XNode | undefined = node;
-    
+
     // Walk up the parent chain and collect all namespace declarations
     while (current) {
       if (current.namespaceDeclarations) {
-        for (const [prefix, uri] of Object.entries(current.namespaceDeclarations)) {
+        for (const [prefix, uri] of Object.entries(
+          current.namespaceDeclarations
+        )) {
           // Only add if not already in result (child declarations take precedence)
           if (result[prefix] === undefined) {
             result[prefix] = uri;
@@ -147,19 +158,22 @@ export class XmlNamespace {
       }
       current = current.parent;
     }
-    
+
     return result;
   }
-  
+
   /**
    * Resolve a DOM Element's namespace and prefix
    * @param element DOM Element
    * @returns Object containing namespace URI and prefix
    */
-  static resolveElementNamespace(element: Element): { namespace: string | null, prefix: string | null } {
+  static resolveElementNamespace(element: Element): {
+    namespace: string | null;
+    prefix: string | null;
+  } {
     return {
       namespace: element.namespaceURI,
-      prefix: element.prefix
+      prefix: element.prefix,
     };
   }
 
@@ -169,7 +183,7 @@ export class XmlNamespace {
    * @returns True if the name has a prefix
    */
   static hasPrefix(qualifiedName: string): boolean {
-    return qualifiedName.indexOf(':') > 0;
+    return qualifiedName.indexOf(":") > 0;
   }
 
   /**
@@ -178,7 +192,7 @@ export class XmlNamespace {
    * @returns Default namespace URI or null if not defined
    */
   static getDefaultNamespace(element: Element): string | null {
-    return element.getAttribute('xmlns');
+    return element.getAttribute("xmlns");
   }
 
   /**
@@ -189,20 +203,20 @@ export class XmlNamespace {
    * @returns New element with proper namespace
    */
   static createElementNS(
-    doc: Document, 
-    qualifiedName: string, 
+    doc: Document,
+    qualifiedName: string,
     namespace: string | null
   ): Element {
-    return ErrorHandler.try(
-      () => {
+    try {
         if (namespace) {
           return doc.createElementNS(namespace, qualifiedName);
         } else {
           return doc.createElement(qualifiedName);
         }
-      },
-      `Failed to create element ${qualifiedName}`,
-      'general'
-    );
+      } catch (error) {
+        return catchAndRelease(error, "Failed to create element", {
+          errorType: ErrorType.GENERAL,
+        });
+      }
   }
 }

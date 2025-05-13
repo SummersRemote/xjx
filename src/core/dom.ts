@@ -1,7 +1,7 @@
 /**
  * DOM operations with unified interface for browser and Node.js
  */
-import { ErrorHandler } from './error';
+import { catchAndRelease, ErrorType, LogLevel } from './error';
 
 /**
  * DOM node types as an enum for better type safety
@@ -71,19 +71,17 @@ export class DOM {
             const implementation = new DOMImplementation();
             DOM.docImplementation = implementation;
           } catch (xmldomError) {
-            throw ErrorHandler.environment(
-              "Node.js environment detected but neither 'jsdom' nor '@xmldom/xmldom' are available."
-            );
+            throw new Error("Node.js environment detected but neither 'jsdom' nor '@xmldom/xmldom' are available.");
           }
         }
       } else {
         // Browser environment
         if (!window.DOMParser) {
-          throw ErrorHandler.environment("DOMParser is not available in this environment");
+          throw new Error("DOMParser is not available in this environment");
         }
 
         if (!window.XMLSerializer) {
-          throw ErrorHandler.environment("XMLSerializer is not available in this environment");
+          throw new Error("XMLSerializer is not available in this environment");
         }
 
         DOM.domParser = window.DOMParser;
@@ -91,7 +89,9 @@ export class DOM {
         DOM.docImplementation = document.implementation;
       }
     } catch (error) {
-      throw ErrorHandler.environment("DOM environment initialization failed", error);
+      throw catchAndRelease(error, "DOM environment initialization failed", {
+        errorType: ErrorType.ENV
+      });
     }
   }
   
@@ -100,11 +100,13 @@ export class DOM {
    * @returns New DOM parser instance
    */
   static createParser(): any {
-    return ErrorHandler.try(
-      () => new DOM.domParser(),
-      'Failed to create DOM parser',
-      'environment'
-    );
+    try {
+      return new DOM.domParser();
+    } catch (error) {
+      return catchAndRelease(error, 'Failed to create DOM parser', {
+        errorType: ErrorType.ENV
+      });
+    }
   }
   
   /**
@@ -112,11 +114,13 @@ export class DOM {
    * @returns New XML serializer instance
    */
   static createSerializer(): any {
-    return ErrorHandler.try(
-      () => new DOM.xmlSerializer(),
-      'Failed to create XML serializer',
-      'environment'
-    );
+    try {
+      return new DOM.xmlSerializer();
+    } catch (error) {
+      return catchAndRelease(error, 'Failed to create XML serializer', {
+        errorType: ErrorType.ENV
+      });
+    }
   }
   
   /**
@@ -126,14 +130,14 @@ export class DOM {
    * @returns Parsed DOM document
    */
   static parseFromString(xmlString: string, contentType: string = 'text/xml'): Document {
-    return ErrorHandler.try(
-      () => {
-        const parser = new DOM.domParser();
-        return parser.parseFromString(xmlString, contentType);
-      },
-      'Failed to parse XML',
-      'xml-to-json'
-    );
+    try {
+      const parser = new DOM.domParser();
+      return parser.parseFromString(xmlString, contentType);
+    } catch (error) {
+      return catchAndRelease(error, 'Failed to parse XML', {
+        errorType: ErrorType.PARSE
+      });
+    }
   }
     
   /**
@@ -142,14 +146,14 @@ export class DOM {
    * @returns Serialized XML string
    */
   static serializeToString(node: Node): string {
-    return ErrorHandler.try(
-      () => {
-        const serializer = new DOM.xmlSerializer();
-        return serializer.serializeToString(node);
-      },
-      'Failed to serialize XML',
-      'json-to-xml'
-    );
+    try {
+      const serializer = new DOM.xmlSerializer();
+      return serializer.serializeToString(node);
+    } catch (error) {
+      return catchAndRelease(error, 'Failed to serialize XML', {
+        errorType: ErrorType.SERIALIZE
+      });
+    }
   }
     
   /**
@@ -157,19 +161,19 @@ export class DOM {
    * @returns New document
    */
   static createDocument(): Document {
-    return ErrorHandler.try(
-      () => {
-        // For browsers, create a document with a root element to avoid issues
-        if (typeof window !== "undefined") {
-          const parser = new DOM.domParser();
-          return parser.parseFromString('<temp></temp>', 'text/xml');
-        } else {
-          return DOM.docImplementation.createDocument(null, null, null);
-        }
-      },
-      'Failed to create document',
-      'general'
-    );
+    try {
+      // For browsers, create a document with a root element to avoid issues
+      if (typeof window !== "undefined") {
+        const parser = new DOM.domParser();
+        return parser.parseFromString('<temp></temp>', 'text/xml');
+      } else {
+        return DOM.docImplementation.createDocument(null, null, null);
+      }
+    } catch (error) {
+      return catchAndRelease(error, 'Failed to create document', {
+        errorType: ErrorType.GENERAL
+      });
+    }
   }
     
   /**
@@ -178,18 +182,18 @@ export class DOM {
    * @returns New element
    */
   static createElement(tagName: string): Element {
-    return ErrorHandler.try(
-      () => {
-        if (typeof window !== "undefined") {
-          return document.createElement(tagName);
-        } else {
-          const doc = DOM.docImplementation.createDocument(null, null, null);
-          return doc.createElement(tagName);
-        }
-      },
-      `Failed to create element: ${tagName}`,
-      'general'
-    );
+    try {
+      if (typeof window !== "undefined") {
+        return document.createElement(tagName);
+      } else {
+        const doc = DOM.docImplementation.createDocument(null, null, null);
+        return doc.createElement(tagName);
+      }
+    } catch (error) {
+      return catchAndRelease(error, `Failed to create element: ${tagName}`, {
+        errorType: ErrorType.GENERAL
+      });
+    }
   }
     
   /**
@@ -199,18 +203,18 @@ export class DOM {
    * @returns New element with namespace
    */
   static createElementNS(namespaceURI: string, qualifiedName: string): Element {
-    return ErrorHandler.try(
-      () => {
-        if (typeof window !== "undefined") {
-          return document.createElementNS(namespaceURI, qualifiedName);
-        } else {
-          const doc = DOM.docImplementation.createDocument(null, null, null);
-          return doc.createElementNS(namespaceURI, qualifiedName);
-        }
-      },
-      `Failed to create element with namespace: ${qualifiedName}`,
-      'general'
-    );
+    try {
+      if (typeof window !== "undefined") {
+        return document.createElementNS(namespaceURI, qualifiedName);
+      } else {
+        const doc = DOM.docImplementation.createDocument(null, null, null);
+        return doc.createElementNS(namespaceURI, qualifiedName);
+      }
+    } catch (error) {
+      return catchAndRelease(error, `Failed to create element with namespace: ${qualifiedName}`, {
+        errorType: ErrorType.GENERAL
+      });
+    }
   }
     
   /**
@@ -219,18 +223,18 @@ export class DOM {
    * @returns New text node
    */
   static createTextNode(data: string): Text {
-    return ErrorHandler.try(
-      () => {
-        if (typeof window !== "undefined") {
-          return document.createTextNode(data);
-        } else {
-          const doc = DOM.docImplementation.createDocument(null, null, null);
-          return doc.createTextNode(data);
-        }
-      },
-      'Failed to create text node',
-      'general'
-    );
+    try {
+      if (typeof window !== "undefined") {
+        return document.createTextNode(data);
+      } else {
+        const doc = DOM.docImplementation.createDocument(null, null, null);
+        return doc.createTextNode(data);
+      }
+    } catch (error) {
+      return catchAndRelease(error, 'Failed to create text node', {
+        errorType: ErrorType.GENERAL
+      });
+    }
   }
     
   /**
@@ -239,20 +243,20 @@ export class DOM {
    * @returns New CDATA section
    */
   static createCDATASection(data: string): CDATASection {
-    return ErrorHandler.try(
-      () => {
-        // For browser compatibility, use document.implementation to create CDATA
-        if (typeof window !== "undefined") {
-          const doc = document.implementation.createDocument(null, null, null);
-          return doc.createCDATASection(data);
-        } else {
-          const doc = DOM.docImplementation.createDocument(null, null, null);
-          return doc.createCDATASection(data);
-        }
-      },
-      'Failed to create CDATA section',
-      'general'
-    );
+    try {
+      // For browser compatibility, use document.implementation to create CDATA
+      if (typeof window !== "undefined") {
+        const doc = document.implementation.createDocument(null, null, null);
+        return doc.createCDATASection(data);
+      } else {
+        const doc = DOM.docImplementation.createDocument(null, null, null);
+        return doc.createCDATASection(data);
+      }
+    } catch (error) {
+      return catchAndRelease(error, 'Failed to create CDATA section', {
+        errorType: ErrorType.GENERAL
+      });
+    }
   }
     
   /**
@@ -261,18 +265,18 @@ export class DOM {
    * @returns New comment node
    */
   static createComment(data: string): Comment {
-    return ErrorHandler.try(
-      () => {
-        if (typeof window !== "undefined") {
-          return document.createComment(data);
-        } else {
-          const doc = DOM.docImplementation.createDocument(null, null, null);
-          return doc.createComment(data);
-        }
-      },
-      'Failed to create comment',
-      'general'
-    );
+    try {
+      if (typeof window !== "undefined") {
+        return document.createComment(data);
+      } else {
+        const doc = DOM.docImplementation.createDocument(null, null, null);
+        return doc.createComment(data);
+      }
+    } catch (error) {
+      return catchAndRelease(error, 'Failed to create comment', {
+        errorType: ErrorType.GENERAL
+      });
+    }
   }
     
   /**
@@ -282,19 +286,19 @@ export class DOM {
    * @returns New processing instruction
    */
   static createProcessingInstruction(target: string, data: string): ProcessingInstruction {
-    return ErrorHandler.try(
-      () => {
-        if (typeof window !== "undefined") {
-          const doc = document.implementation.createDocument(null, null, null);
-          return doc.createProcessingInstruction(target, data);
-        } else {
-          const doc = DOM.docImplementation.createDocument(null, null, null);
-          return doc.createProcessingInstruction(target, data);
-        }
-      },
-      'Failed to create processing instruction',
-      'general'
-    );
+    try {
+      if (typeof window !== "undefined") {
+        const doc = document.implementation.createDocument(null, null, null);
+        return doc.createProcessingInstruction(target, data);
+      } else {
+        const doc = DOM.docImplementation.createDocument(null, null, null);
+        return doc.createProcessingInstruction(target, data);
+      }
+    } catch (error) {
+      return catchAndRelease(error, 'Failed to create processing instruction', {
+        errorType: ErrorType.GENERAL
+      });
+    }
   }
     
   /**
@@ -310,17 +314,17 @@ export class DOM {
     qualifiedName: string, 
     value: string
   ): void {
-    ErrorHandler.try(
-      () => {
-        if (namespaceURI) {
-          element.setAttributeNS(namespaceURI, qualifiedName, value);
-        } else {
-          element.setAttribute(qualifiedName, value);
-        }
-      },
-      `Failed to set attribute: ${qualifiedName}`,
-      'general'
-    );
+    try {
+      if (namespaceURI) {
+        element.setAttributeNS(namespaceURI, qualifiedName, value);
+      } else {
+        element.setAttribute(qualifiedName, value);
+      }
+    } catch (error) {
+      catchAndRelease(error, `Failed to set attribute: ${qualifiedName}`, {
+        errorType: ErrorType.GENERAL
+      });
+    }
   }
     
   /**
@@ -332,7 +336,10 @@ export class DOM {
     try {
       return obj && typeof obj === 'object' && typeof obj.nodeType === 'number';
     } catch (error) {
-      return false;
+      return catchAndRelease(error, 'Failed to check if object is a DOM node', {
+        errorType: ErrorType.GENERAL,
+        defaultValue: false
+      });
     }
   }
     

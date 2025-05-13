@@ -11,7 +11,7 @@ import {
   FormatId,
   createTransformResult,
 } from "../core/transform";
-import { ErrorHandler } from "../core/error";
+import { catchAndRelease, validate, ErrorType } from "../core/error";
 
 /**
  * Options for regex transformer
@@ -94,16 +94,14 @@ export class RegexTransform implements Transform {
    * @param options Transformer options
    */
   constructor(options: RegexOptions) {
-    ErrorHandler.validate(
+    validate(
       !!options.pattern,
-      "RegexTransform requires a pattern option",
-      "general"
+      "RegexTransform requires a pattern option"
     );
 
-    ErrorHandler.validate(
+    validate(
       options.replacement !== undefined,
-      "RegexTransform requires a replacement option",
-      "general"
+      "RegexTransform requires a replacement option"
     );
 
     this.replacement = options.replacement;

@@ -3,7 +3,7 @@
  */
 import { XJX } from "../../XJX";
 import { Transform } from "../../core/transform";
-import { XJXError } from "../../core/error";
+import { catchAndRelease, validate, ErrorType } from "../../core/error";
 import { NonTerminalExtensionContext } from "../../core/extension";
 
 /**
@@ -18,7 +18,10 @@ function withTransforms(this: NonTerminalExtensionContext, ...transforms: Transf
   // Validate transforms
   for (const transform of transforms) {
     if (!transform || !transform.targets || !transform.transform) {
-      throw new XJXError('Invalid transform: must implement the Transform interface');
+      let msg = "Invalid transform: must implement the Transform interface"
+      catchAndRelease(new Error(msg), msg, {
+        errorType: ErrorType.VALIDATION,
+      });
     }
   }
   

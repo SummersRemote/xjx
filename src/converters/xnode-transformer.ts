@@ -13,7 +13,7 @@ import {
   createTransformResult,
 } from "../core/transform";
 import { NodeType } from "../core/dom";
-import { ErrorHandler } from "../core/error";
+import { catchAndRelease, ErrorType } from "../core/error";
 import { Common } from "../core/common";
 
 /**
@@ -42,27 +42,28 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
     transforms: Transform[],
     targetFormat: FormatId
   ): XNode {
-    return ErrorHandler.try(
-      () => {
-        if (!transforms || transforms.length === 0) {
-          return node; // No transformations to apply
-        }
+    try {
+      if (!transforms || transforms.length === 0) {
+        return node; // No transformations to apply
+      }
 
-        // Create root context
-        const context = this.createRootContext(node, targetFormat);
+      // Create root context
+      const context = this.createRootContext(node, targetFormat);
 
-        // Apply transformations
-        const transformedNode = this.applyTransforms(node, context, transforms);
+      // Apply transformations
+      const transformedNode = this.applyTransforms(node, context, transforms);
 
-        if (!transformedNode) {
-          throw new Error("Root node was removed during transformation");
-        }
+      if (!transformedNode) {
+        throw new Error("Root node was removed during transformation");
+      }
 
-        return transformedNode;
-      },
-      "Transformation failed",
-      "general"
-    );
+      return transformedNode;
+    } catch (error) {
+      return catchAndRelease(error, "Transformation failed", {
+        errorType: ErrorType.TRANSFORM,
+        defaultValue: node // Return original node if transformation fails
+      });
+    }
   }
 
   /**
@@ -99,46 +100,53 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
     context: TransformContext,
     transforms: Transform[]
   ): XNode | null {
-    // 1. Apply element transforms first
-    const elementResult = this.applyElementTransforms(
-      node,
-      context,
-      transforms
-    );
-
-    if (elementResult.remove) {
-      return null;
-    }
-
-    const transformedNode = elementResult.value as XNode;
-
-    // 2. Transform node value if present
-    if (transformedNode.value !== undefined) {
-      const textContext: TransformContext = {
-        ...context,
-        isText: true,
-      };
-
-      const valueResult = this.applyValueTransforms(
-        transformedNode.value,
-        textContext,
+    try {
+      // 1. Apply element transforms first
+      const elementResult = this.applyElementTransforms(
+        node,
+        context,
         transforms
       );
 
-      if (valueResult.remove) {
-        delete transformedNode.value;
-      } else {
-        transformedNode.value = valueResult.value;
+      if (elementResult.remove) {
+        return null;
       }
+
+      const transformedNode = elementResult.value as XNode;
+
+      // 2. Transform node value if present
+      if (transformedNode.value !== undefined) {
+        const textContext: TransformContext = {
+          ...context,
+          isText: true,
+        };
+
+        const valueResult = this.applyValueTransforms(
+          transformedNode.value,
+          textContext,
+          transforms
+        );
+
+        if (valueResult.remove) {
+          delete transformedNode.value;
+        } else {
+          transformedNode.value = valueResult.value;
+        }
+      }
+
+      // 3. Transform attributes
+      this.transformAttributes(transformedNode, context, transforms);
+
+      // 4. Transform children
+      this.transformChildren(transformedNode, context, transforms);
+
+      return transformedNode;
+    } catch (error) {
+      return catchAndRelease(error, `Failed to transform node: ${node.name}`, {
+        errorType: ErrorType.TRANSFORM,
+        defaultValue: node // Return original node if transformation fails
+      });
     }
-
-    // 3. Transform attributes
-    this.transformAttributes(transformedNode, context, transforms);
-
-    // 4. Transform children
-    this.transformChildren(transformedNode, context, transforms);
-
-    return transformedNode;
   }
 
   /**
@@ -154,29 +162,36 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
     context: TransformContext,
     transforms: Transform[]
   ): TransformResult<XNode> {
-    // Filter transforms that target elements
-    const applicableTransforms = transforms.filter((transform) =>
-      transform.targets.includes(TransformTarget.Element)
-    );
+    try {
+      // Filter transforms that target elements
+      const applicableTransforms = transforms.filter((transform) =>
+        transform.targets.includes(TransformTarget.Element)
+      );
 
-    // If no applicable transforms, return original value
-    if (applicableTransforms.length === 0) {
-      return createTransformResult(node);
-    }
-
-    // Apply each applicable transform in sequence
-    let result: TransformResult<XNode> = createTransformResult(node);
-
-    for (const transform of applicableTransforms) {
-      result = transform.transform(result.value, context);
-
-      // If a transform says to remove, we're done
-      if (result.remove) {
-        return result;
+      // If no applicable transforms, return original value
+      if (applicableTransforms.length === 0) {
+        return createTransformResult(node);
       }
-    }
 
-    return result;
+      // Apply each applicable transform in sequence
+      let result: TransformResult<XNode> = createTransformResult(node);
+
+      for (const transform of applicableTransforms) {
+        result = transform.transform(result.value, context);
+
+        // If a transform says to remove, we're done
+        if (result.remove) {
+          return result;
+        }
+      }
+
+      return result;
+    } catch (error) {
+      return catchAndRelease(error, `Failed to apply element transforms to node: ${node.name}`, {
+        errorType: ErrorType.TRANSFORM,
+        defaultValue: createTransformResult(node)
+      });
+    }
   }
 
   /**
@@ -192,29 +207,36 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
     context: TransformContext,
     transforms: Transform[]
   ): TransformResult<any> {
-    // Filter transforms that target values
-    const applicableTransforms = transforms.filter((transform) =>
-      transform.targets.includes(TransformTarget.Value)
-    );
+    try {
+      // Filter transforms that target values
+      const applicableTransforms = transforms.filter((transform) =>
+        transform.targets.includes(TransformTarget.Value)
+      );
 
-    // If no applicable transforms, return original value
-    if (applicableTransforms.length === 0) {
-      return createTransformResult(value);
-    }
-
-    // Apply each applicable transform in sequence
-    let result: TransformResult<any> = createTransformResult(value);
-
-    for (const transform of applicableTransforms) {
-      result = transform.transform(result.value, context);
-
-      // If a transform says to remove, we're done
-      if (result.remove) {
-        return result;
+      // If no applicable transforms, return original value
+      if (applicableTransforms.length === 0) {
+        return createTransformResult(value);
       }
-    }
 
-    return result;
+      // Apply each applicable transform in sequence
+      let result: TransformResult<any> = createTransformResult(value);
+
+      for (const transform of applicableTransforms) {
+        result = transform.transform(result.value, context);
+
+        // If a transform says to remove, we're done
+        if (result.remove) {
+          return result;
+        }
+      }
+
+      return result;
+    } catch (error) {
+      return catchAndRelease(error, 'Failed to apply value transforms', {
+        errorType: ErrorType.TRANSFORM,
+        defaultValue: createTransformResult(value)
+      });
+    }
   }
 
   /**
@@ -231,39 +253,46 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
   ): void {
     if (!node.attributes) return;
 
-    const newAttributes: Record<string, any> = {};
+    try {
+      const newAttributes: Record<string, any> = {};
 
-    for (const [name, value] of Object.entries(node.attributes)) {
-      // Skip xmlns attributes since they're handled separately
-      if (name === "xmlns" || name.startsWith("xmlns:")) {
-        newAttributes[name] = value;
-        continue;
+      for (const [name, value] of Object.entries(node.attributes)) {
+        // Skip xmlns attributes since they're handled separately
+        if (name === "xmlns" || name.startsWith("xmlns:")) {
+          newAttributes[name] = value;
+          continue;
+        }
+
+        // Create attribute context
+        const attrContext: TransformContext = {
+          ...context,
+          isAttribute: true,
+          attributeName: name,
+          path: `${context.path}.@${name}`,
+        };
+
+        // Apply attribute transforms
+        const result = this.applyAttributeTransforms(
+          name,
+          value,
+          attrContext,
+          transforms
+        );
+
+        // Add transformed attribute if not removed
+        if (!result.remove) {
+          const [newName, newValue] = result.value;
+          newAttributes[newName] = newValue;
+        }
       }
 
-      // Create attribute context
-      const attrContext: TransformContext = {
-        ...context,
-        isAttribute: true,
-        attributeName: name,
-        path: `${context.path}.@${name}`,
-      };
-
-      // Apply attribute transforms
-      const result = this.applyAttributeTransforms(
-        name,
-        value,
-        attrContext,
-        transforms
-      );
-
-      // Add transformed attribute if not removed
-      if (!result.remove) {
-        const [newName, newValue] = result.value;
-        newAttributes[newName] = newValue;
-      }
+      node.attributes = newAttributes;
+    } catch (error) {
+      catchAndRelease(error, 'Failed to transform attributes', {
+        errorType: ErrorType.TRANSFORM,
+        defaultValue: undefined // Void function, no return value needed
+      });
     }
-
-    node.attributes = newAttributes;
   }
 
   /**
@@ -281,44 +310,51 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
     context: TransformContext,
     transforms: Transform[]
   ): TransformResult<[string, any]> {
-    // First transform the value
-    const valueResult = this.applyValueTransforms(value, context, transforms);
+    try {
+      // First transform the value
+      const valueResult = this.applyValueTransforms(value, context, transforms);
 
-    if (valueResult.remove) {
-      return createTransformResult([name, null], true);
-    }
-
-    // Then apply attribute transformers
-    const attributeTransformers = transforms.filter((transform) =>
-      transform.targets.includes(TransformTarget.Attribute)
-    );
-
-    if (attributeTransformers.length === 0) {
-      return createTransformResult([name, valueResult.value]);
-    }
-
-    // Create tuple for attribute transformers
-    let result: [string, any] = [name, valueResult.value];
-
-    // Apply each attribute transformer
-    for (const transform of attributeTransformers) {
-      const transformResult = transform.transform(result, context);
-
-      // Ensure remove has a value
-      const removeValue =
-        transformResult.remove === undefined ? false : transformResult.remove;
-
-      if (removeValue) {
-        return createTransformResult(
-          transformResult.value as [string, any],
-          true
-        );
+      if (valueResult.remove) {
+        return createTransformResult([name, null], true);
       }
 
-      result = transformResult.value as [string, any];
-    }
+      // Then apply attribute transformers
+      const attributeTransformers = transforms.filter((transform) =>
+        transform.targets.includes(TransformTarget.Attribute)
+      );
 
-    return createTransformResult(result);
+      if (attributeTransformers.length === 0) {
+        return createTransformResult([name, valueResult.value]);
+      }
+
+      // Create tuple for attribute transformers
+      let result: [string, any] = [name, valueResult.value];
+
+      // Apply each attribute transformer
+      for (const transform of attributeTransformers) {
+        const transformResult = transform.transform(result, context);
+
+        // Ensure remove has a value
+        const removeValue =
+          transformResult.remove === undefined ? false : transformResult.remove;
+
+        if (removeValue) {
+          return createTransformResult(
+            transformResult.value as [string, any],
+            true
+          );
+        }
+
+        result = transformResult.value as [string, any];
+      }
+
+      return createTransformResult(result);
+    } catch (error) {
+      return catchAndRelease(error, `Failed to transform attribute: ${name}`, {
+        errorType: ErrorType.TRANSFORM,
+        defaultValue: createTransformResult([name, value])
+      });
+    }
   }
 
   /**
@@ -328,10 +364,6 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
    * @param transforms Transforms to apply
    * @private
    */
-  /**
-   * Fix for DefaultXNodeTransformer's transformChildren method
-   * Replace the transformChildren method in src/converters/xnode-transformer.ts
-   */
   private transformChildren(
     node: XNode,
     context: TransformContext,
@@ -339,79 +371,86 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
   ): void {
     if (!node.children) return;
 
-    const newChildren: XNode[] = [];
+    try {
+      const newChildren: XNode[] = [];
 
-    for (let i = 0; i < node.children.length; i++) {
-      const child = node.children[i];
+      for (let i = 0; i < node.children.length; i++) {
+        const child = node.children[i];
 
-      // Create child context with appropriate type flags
-      const childContext: TransformContext = {
-        nodeName: child.name,
-        nodeType: child.type,
-        namespace: child.namespace,
-        prefix: child.prefix,
-        path: `${context.path}.${child.name}[${i}]`,
-        config: context.config,
-        targetFormat: context.targetFormat, // Maintain targetFormat from parent
-        parent: context,
-        isText: child.type === NodeType.TEXT_NODE,
-        isCDATA: child.type === NodeType.CDATA_SECTION_NODE,
-        isComment: child.type === NodeType.COMMENT_NODE,
-        isProcessingInstruction:
-          child.type === NodeType.PROCESSING_INSTRUCTION_NODE,
-      };
+        // Create child context with appropriate type flags
+        const childContext: TransformContext = {
+          nodeName: child.name,
+          nodeType: child.type,
+          namespace: child.namespace,
+          prefix: child.prefix,
+          path: `${context.path}.${child.name}[${i}]`,
+          config: context.config,
+          targetFormat: context.targetFormat, // Maintain targetFormat from parent
+          parent: context,
+          isText: child.type === NodeType.TEXT_NODE,
+          isCDATA: child.type === NodeType.CDATA_SECTION_NODE,
+          isComment: child.type === NodeType.COMMENT_NODE,
+          isProcessingInstruction:
+            child.type === NodeType.PROCESSING_INSTRUCTION_NODE,
+        };
 
-      // Apply transforms based on node type
-      let transformedChild: XNode | null = null;
+        // Apply transforms based on node type
+        let transformedChild: XNode | null = null;
 
-      switch (child.type) {
-        case NodeType.TEXT_NODE:
-          transformedChild = this.transformTextNode(
-            child,
-            childContext,
-            transforms
-          );
-          break;
+        switch (child.type) {
+          case NodeType.TEXT_NODE:
+            transformedChild = this.transformTextNode(
+              child,
+              childContext,
+              transforms
+            );
+            break;
 
-        case NodeType.CDATA_SECTION_NODE:
-          transformedChild = this.transformCDATANode(
-            child,
-            childContext,
-            transforms
-          );
-          break;
+          case NodeType.CDATA_SECTION_NODE:
+            transformedChild = this.transformCDATANode(
+              child,
+              childContext,
+              transforms
+            );
+            break;
 
-        case NodeType.COMMENT_NODE:
-          transformedChild = this.transformCommentNode(
-            child,
-            childContext,
-            transforms
-          );
-          break;
+          case NodeType.COMMENT_NODE:
+            transformedChild = this.transformCommentNode(
+              child,
+              childContext,
+              transforms
+            );
+            break;
 
-        case NodeType.PROCESSING_INSTRUCTION_NODE:
-          transformedChild = this.transformProcessingInstructionNode(
-            child,
-            childContext,
-            transforms
-          );
-          break;
+          case NodeType.PROCESSING_INSTRUCTION_NODE:
+            transformedChild = this.transformProcessingInstructionNode(
+              child,
+              childContext,
+              transforms
+            );
+            break;
 
-        case NodeType.ELEMENT_NODE:
-          transformedChild = this.applyTransforms(
-            child,
-            childContext,
-            transforms
-          );
-          break;
+          case NodeType.ELEMENT_NODE:
+            transformedChild = this.applyTransforms(
+              child,
+              childContext,
+              transforms
+            );
+            break;
+        }
+
+        if (transformedChild) {
+          newChildren.push(transformedChild);
+        }
       }
 
-      if (transformedChild) {
-        newChildren.push(transformedChild);
-      }
+      node.children = newChildren;
+    } catch (error) {
+      catchAndRelease(error, 'Failed to transform children', {
+        errorType: ErrorType.TRANSFORM,
+        defaultValue: undefined // Void function, no return value needed
+      });
     }
-
-    node.children = newChildren;
   }
 
   /**
@@ -427,47 +466,54 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
     context: TransformContext,
     transforms: Transform[]
   ): XNode | null {
-    // Apply text node transforms
-    const textTransforms = transforms.filter((transform) =>
-      transform.targets.includes(TransformTarget.Text)
-    );
+    try {
+      // Apply text node transforms
+      const textTransforms = transforms.filter((transform) =>
+        transform.targets.includes(TransformTarget.Text)
+      );
 
-    let transformedNode = Common.deepClone(node);
-    let shouldRemove = false;
+      let transformedNode = Common.deepClone(node);
+      let shouldRemove = false;
 
-    if (textTransforms.length > 0) {
-      let result: TransformResult<XNode> =
-        createTransformResult(transformedNode);
+      if (textTransforms.length > 0) {
+        let result: TransformResult<XNode> =
+          createTransformResult(transformedNode);
 
-      for (const transform of textTransforms) {
-        result = transform.transform(result.value, context);
+        for (const transform of textTransforms) {
+          result = transform.transform(result.value, context);
 
-        if (result.remove) {
-          shouldRemove = true;
-          break;
+          if (result.remove) {
+            shouldRemove = true;
+            break;
+          }
+
+          transformedNode = result.value as XNode;
         }
-
-        transformedNode = result.value as XNode;
       }
+
+      if (shouldRemove) {
+        return null;
+      }
+
+      // Also transform the value
+      const valueResult = this.applyValueTransforms(
+        transformedNode.value,
+        context,
+        transforms
+      );
+
+      if (valueResult.remove) {
+        return null;
+      }
+
+      transformedNode.value = valueResult.value;
+      return transformedNode;
+    } catch (error) {
+      return catchAndRelease(error, 'Failed to transform text node', {
+        errorType: ErrorType.TRANSFORM,
+        defaultValue: node // Return original node if transformation fails
+      });
     }
-
-    if (shouldRemove) {
-      return null;
-    }
-
-    // Also transform the value
-    const valueResult = this.applyValueTransforms(
-      transformedNode.value,
-      context,
-      transforms
-    );
-
-    if (valueResult.remove) {
-      return null;
-    }
-
-    transformedNode.value = valueResult.value;
-    return transformedNode;
   }
 
   /**
@@ -483,47 +529,54 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
     context: TransformContext,
     transforms: Transform[]
   ): XNode | null {
-    // Apply CDATA transforms
-    const cdataTransforms = transforms.filter((transform) =>
-      transform.targets.includes(TransformTarget.CDATA)
-    );
+    try {
+      // Apply CDATA transforms
+      const cdataTransforms = transforms.filter((transform) =>
+        transform.targets.includes(TransformTarget.CDATA)
+      );
 
-    let transformedNode = Common.deepClone(node);
-    let shouldRemove = false;
+      let transformedNode = Common.deepClone(node);
+      let shouldRemove = false;
 
-    if (cdataTransforms.length > 0) {
-      let result: TransformResult<XNode> =
-        createTransformResult(transformedNode);
+      if (cdataTransforms.length > 0) {
+        let result: TransformResult<XNode> =
+          createTransformResult(transformedNode);
 
-      for (const transform of cdataTransforms) {
-        result = transform.transform(result.value, context);
+        for (const transform of cdataTransforms) {
+          result = transform.transform(result.value, context);
 
-        if (result.remove) {
-          shouldRemove = true;
-          break;
+          if (result.remove) {
+            shouldRemove = true;
+            break;
+          }
+
+          transformedNode = result.value as XNode;
         }
-
-        transformedNode = result.value as XNode;
       }
+
+      if (shouldRemove) {
+        return null;
+      }
+
+      // Also transform the value
+      const valueResult = this.applyValueTransforms(
+        transformedNode.value,
+        context,
+        transforms
+      );
+
+      if (valueResult.remove) {
+        return null;
+      }
+
+      transformedNode.value = valueResult.value;
+      return transformedNode;
+    } catch (error) {
+      return catchAndRelease(error, 'Failed to transform CDATA node', {
+        errorType: ErrorType.TRANSFORM,
+        defaultValue: node // Return original node if transformation fails
+      });
     }
-
-    if (shouldRemove) {
-      return null;
-    }
-
-    // Also transform the value
-    const valueResult = this.applyValueTransforms(
-      transformedNode.value,
-      context,
-      transforms
-    );
-
-    if (valueResult.remove) {
-      return null;
-    }
-
-    transformedNode.value = valueResult.value;
-    return transformedNode;
   }
 
   /**
@@ -539,26 +592,33 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
     context: TransformContext,
     transforms: Transform[]
   ): XNode | null {
-    // Apply comment transforms
-    const commentTransforms = transforms.filter((transform) =>
-      transform.targets.includes(TransformTarget.Comment)
-    );
+    try {
+      // Apply comment transforms
+      const commentTransforms = transforms.filter((transform) =>
+        transform.targets.includes(TransformTarget.Comment)
+      );
 
-    if (commentTransforms.length === 0) {
-      return node;
-    }
-
-    let result: TransformResult<XNode> = createTransformResult(node);
-
-    for (const transform of commentTransforms) {
-      result = transform.transform(result.value, context);
-
-      if (result.remove) {
-        return null;
+      if (commentTransforms.length === 0) {
+        return node;
       }
-    }
 
-    return result.value as XNode;
+      let result: TransformResult<XNode> = createTransformResult(node);
+
+      for (const transform of commentTransforms) {
+        result = transform.transform(result.value, context);
+
+        if (result.remove) {
+          return null;
+        }
+      }
+
+      return result.value as XNode;
+    } catch (error) {
+      return catchAndRelease(error, 'Failed to transform comment node', {
+        errorType: ErrorType.TRANSFORM,
+        defaultValue: node // Return original node if transformation fails
+      });
+    }
   }
 
   /**
@@ -574,25 +634,32 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
     context: TransformContext,
     transforms: Transform[]
   ): XNode | null {
-    // Apply PI transforms
-    const piTransforms = transforms.filter((transform) =>
-      transform.targets.includes(TransformTarget.ProcessingInstruction)
-    );
+    try {
+      // Apply PI transforms
+      const piTransforms = transforms.filter((transform) =>
+        transform.targets.includes(TransformTarget.ProcessingInstruction)
+      );
 
-    if (piTransforms.length === 0) {
-      return node;
-    }
-
-    let result: TransformResult<XNode> = createTransformResult(node);
-
-    for (const transform of piTransforms) {
-      result = transform.transform(result.value, context);
-
-      if (result.remove) {
-        return null;
+      if (piTransforms.length === 0) {
+        return node;
       }
-    }
 
-    return result.value as XNode;
+      let result: TransformResult<XNode> = createTransformResult(node);
+
+      for (const transform of piTransforms) {
+        result = transform.transform(result.value, context);
+
+        if (result.remove) {
+          return null;
+        }
+      }
+
+      return result.value as XNode;
+    } catch (error) {
+      return catchAndRelease(error, 'Failed to transform processing instruction node', {
+        errorType: ErrorType.TRANSFORM,
+        defaultValue: node // Return original node if transformation fails
+      });
+    }
   }
 }

@@ -12,7 +12,7 @@ import {
   createTransformResult 
 } from '../core/transform';
 import { XNode } from '../core/xnode';
-import { ErrorHandler } from '../core/error';
+import { catchAndRelease, validate, ErrorType } from "../core/error";
 
 /**
  * Type for node selector functions
@@ -136,10 +136,9 @@ export class MetadataTransform implements Transform {
    * @param options Transformer options
    */
   constructor(options: MetadataTransformOptions = {}) {
-    ErrorHandler.validate(
+    validate(
       !!options && typeof options === 'object',
-      'MetadataTransform requires options object',
-      'general'
+      'MetadataTransform requires options object'
     );
     
     this.selector = options.selector;
@@ -161,17 +160,15 @@ export class MetadataTransform implements Transform {
     }
     
     // Validate that we have at least one application method
-    ErrorHandler.validate(
+    validate(
       this.applyToAll || this.applyToRoot || !!this.selector,
-      'MetadataTransform must have at least one application method (applyToAll, applyToRoot, or selector)',
-      'general'
+      'MetadataTransform must have at least one application method (applyToAll, applyToRoot, or selector)'
     );
     
     // Validate that we have metadata to apply
-    ErrorHandler.validate(
+    validate(
       !!this.metadata || this.formatMetadata.size > 0 || this.removeKeys.length > 0,
-      'MetadataTransform must have metadata to apply or keys to remove',
-      'general'
+      'MetadataTransform must have metadata to apply or keys to remove'
     );
   }
   

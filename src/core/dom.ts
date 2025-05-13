@@ -1,11 +1,20 @@
 /**
- * DomUtils - Static utility for DOM operations with unified interface for browser and Node.js
- * 
- * Provides a consistent DOM API across different environments, handling the necessary
- * abstractions and adapter logic to work in both browser and Node.js environments.
+ * DOM operations with unified interface for browser and Node.js
  */
-import { ErrorUtils } from './error-utils';
-import { NodeType } from '../types/dom-types';
+import { ErrorHandler } from './error';
+
+/**
+ * DOM node types as an enum for better type safety
+ */
+export enum NodeType {
+  ELEMENT_NODE = 1,
+  ATTRIBUTE_NODE = 2,
+  TEXT_NODE = 3, 
+  CDATA_SECTION_NODE = 4,
+  PROCESSING_INSTRUCTION_NODE = 7,
+  COMMENT_NODE = 8,
+  DOCUMENT_NODE = 9
+}
 
 /**
  * DOM Window interface for compatibility
@@ -25,9 +34,9 @@ interface JSDOMInstance {
 }
 
 /**
- * Static DOM adapter utilities
+ * DOM utilities for consistent DOM operations across environments
  */
-export class DomUtils {
+export class DOM {
   // Environment-specific DOM implementation
   private static domParser: any;
   private static xmlSerializer: any;
@@ -43,23 +52,23 @@ export class DomUtils {
         // Node.js environment - try JSDOM first
         try {
           const { JSDOM } = require("jsdom");
-          DomUtils.jsdomInstance = new JSDOM("<!DOCTYPE html><html><body></body></html>", {
+          DOM.jsdomInstance = new JSDOM("<!DOCTYPE html><html><body></body></html>", {
             contentType: "text/xml",
           }) as JSDOMInstance;
 
-          DomUtils.domParser = DomUtils.jsdomInstance.window.DOMParser;
-          DomUtils.xmlSerializer = DomUtils.jsdomInstance.window.XMLSerializer;
-          DomUtils.docImplementation = DomUtils.jsdomInstance.window.document.implementation;
+          DOM.domParser = DOM.jsdomInstance.window.DOMParser;
+          DOM.xmlSerializer = DOM.jsdomInstance.window.XMLSerializer;
+          DOM.docImplementation = DOM.jsdomInstance.window.document.implementation;
         } catch (jsdomError) {
           // Fall back to xmldom if JSDOM isn't available
           try {
             const { DOMParser, XMLSerializer, DOMImplementation } = require('@xmldom/xmldom');
-            DomUtils.domParser = DOMParser;
-            DomUtils.xmlSerializer = XMLSerializer;
+            DOM.domParser = DOMParser;
+            DOM.xmlSerializer = XMLSerializer;
             const implementation = new DOMImplementation();
-            DomUtils.docImplementation = implementation;
+            DOM.docImplementation = implementation;
           } catch (xmldomError) {
-            throw ErrorUtils.environment(
+            throw ErrorHandler.environment(
               "Node.js environment detected but neither 'jsdom' nor '@xmldom/xmldom' are available."
             );
           }
@@ -67,34 +76,29 @@ export class DomUtils {
       } else {
         // Browser environment
         if (!window.DOMParser) {
-          throw ErrorUtils.environment("DOMParser is not available in this environment");
+          throw ErrorHandler.environment("DOMParser is not available in this environment");
         }
 
         if (!window.XMLSerializer) {
-          throw ErrorUtils.environment("XMLSerializer is not available in this environment");
+          throw ErrorHandler.environment("XMLSerializer is not available in this environment");
         }
 
-        DomUtils.domParser = window.DOMParser;
-        DomUtils.xmlSerializer = window.XMLSerializer;
-        DomUtils.docImplementation = document.implementation;
+        DOM.domParser = window.DOMParser;
+        DOM.xmlSerializer = window.XMLSerializer;
+        DOM.docImplementation = document.implementation;
       }
     } catch (error) {
-      throw ErrorUtils.environment("DOM environment initialization failed", error);
+      throw ErrorHandler.environment("DOM environment initialization failed", error);
     }
   }
-
-  /**
-   * Expose NodeType enum for convenience
-   */
-  public static readonly NodeType = NodeType;
   
   /**
    * Create a new DOM parser
    * @returns New DOM parser instance
    */
-  public static createParser(): any {
-    return ErrorUtils.try(
-      () => new DomUtils.domParser(),
+  static createParser(): any {
+    return ErrorHandler.try(
+      () => new DOM.domParser(),
       'Failed to create DOM parser',
       'environment'
     );
@@ -104,9 +108,9 @@ export class DomUtils {
    * Create a new XML serializer
    * @returns New XML serializer instance
    */
-  public static createSerializer(): any {
-    return ErrorUtils.try(
-      () => new DomUtils.xmlSerializer(),
+  static createSerializer(): any {
+    return ErrorHandler.try(
+      () => new DOM.xmlSerializer(),
       'Failed to create XML serializer',
       'environment'
     );
@@ -118,10 +122,10 @@ export class DomUtils {
    * @param contentType Content type (default: text/xml)
    * @returns Parsed DOM document
    */
-  public static parseFromString(xmlString: string, contentType: string = 'text/xml'): Document {
-    return ErrorUtils.try(
+  static parseFromString(xmlString: string, contentType: string = 'text/xml'): Document {
+    return ErrorHandler.try(
       () => {
-        const parser = new DomUtils.domParser();
+        const parser = new DOM.domParser();
         return parser.parseFromString(xmlString, contentType);
       },
       'Failed to parse XML',
@@ -134,10 +138,10 @@ export class DomUtils {
    * @param node DOM node to serialize
    * @returns Serialized XML string
    */
-  public static serializeToString(node: Node): string {
-    return ErrorUtils.try(
+  static serializeToString(node: Node): string {
+    return ErrorHandler.try(
       () => {
-        const serializer = new DomUtils.xmlSerializer();
+        const serializer = new DOM.xmlSerializer();
         return serializer.serializeToString(node);
       },
       'Failed to serialize XML',
@@ -149,15 +153,15 @@ export class DomUtils {
    * Create a new XML document
    * @returns New document
    */
-  public static createDocument(): Document {
-    return ErrorUtils.try(
+  static createDocument(): Document {
+    return ErrorHandler.try(
       () => {
         // For browsers, create a document with a root element to avoid issues
         if (typeof window !== "undefined") {
-          const parser = new DomUtils.domParser();
+          const parser = new DOM.domParser();
           return parser.parseFromString('<temp></temp>', 'text/xml');
         } else {
-          return DomUtils.docImplementation.createDocument(null, null, null);
+          return DOM.docImplementation.createDocument(null, null, null);
         }
       },
       'Failed to create document',
@@ -170,13 +174,13 @@ export class DomUtils {
    * @param tagName Tag name for the element
    * @returns New element
    */
-  public static createElement(tagName: string): Element {
-    return ErrorUtils.try(
+  static createElement(tagName: string): Element {
+    return ErrorHandler.try(
       () => {
         if (typeof window !== "undefined") {
           return document.createElement(tagName);
         } else {
-          const doc = DomUtils.docImplementation.createDocument(null, null, null);
+          const doc = DOM.docImplementation.createDocument(null, null, null);
           return doc.createElement(tagName);
         }
       },
@@ -191,13 +195,13 @@ export class DomUtils {
    * @param qualifiedName Qualified name with optional prefix
    * @returns New element with namespace
    */
-  public static createElementNS(namespaceURI: string, qualifiedName: string): Element {
-    return ErrorUtils.try(
+  static createElementNS(namespaceURI: string, qualifiedName: string): Element {
+    return ErrorHandler.try(
       () => {
         if (typeof window !== "undefined") {
           return document.createElementNS(namespaceURI, qualifiedName);
         } else {
-          const doc = DomUtils.docImplementation.createDocument(null, null, null);
+          const doc = DOM.docImplementation.createDocument(null, null, null);
           return doc.createElementNS(namespaceURI, qualifiedName);
         }
       },
@@ -211,13 +215,13 @@ export class DomUtils {
    * @param data Text content
    * @returns New text node
    */
-  public static createTextNode(data: string): Text {
-    return ErrorUtils.try(
+  static createTextNode(data: string): Text {
+    return ErrorHandler.try(
       () => {
         if (typeof window !== "undefined") {
           return document.createTextNode(data);
         } else {
-          const doc = DomUtils.docImplementation.createDocument(null, null, null);
+          const doc = DOM.docImplementation.createDocument(null, null, null);
           return doc.createTextNode(data);
         }
       },
@@ -231,15 +235,15 @@ export class DomUtils {
    * @param data CDATA content
    * @returns New CDATA section
    */
-  public static createCDATASection(data: string): CDATASection {
-    return ErrorUtils.try(
+  static createCDATASection(data: string): CDATASection {
+    return ErrorHandler.try(
       () => {
         // For browser compatibility, use document.implementation to create CDATA
         if (typeof window !== "undefined") {
           const doc = document.implementation.createDocument(null, null, null);
           return doc.createCDATASection(data);
         } else {
-          const doc = DomUtils.docImplementation.createDocument(null, null, null);
+          const doc = DOM.docImplementation.createDocument(null, null, null);
           return doc.createCDATASection(data);
         }
       },
@@ -253,13 +257,13 @@ export class DomUtils {
    * @param data Comment content
    * @returns New comment node
    */
-  public static createComment(data: string): Comment {
-    return ErrorUtils.try(
+  static createComment(data: string): Comment {
+    return ErrorHandler.try(
       () => {
         if (typeof window !== "undefined") {
           return document.createComment(data);
         } else {
-          const doc = DomUtils.docImplementation.createDocument(null, null, null);
+          const doc = DOM.docImplementation.createDocument(null, null, null);
           return doc.createComment(data);
         }
       },
@@ -274,14 +278,14 @@ export class DomUtils {
    * @param data Processing instruction data
    * @returns New processing instruction
    */
-  public static createProcessingInstruction(target: string, data: string): ProcessingInstruction {
-    return ErrorUtils.try(
+  static createProcessingInstruction(target: string, data: string): ProcessingInstruction {
+    return ErrorHandler.try(
       () => {
         if (typeof window !== "undefined") {
           const doc = document.implementation.createDocument(null, null, null);
           return doc.createProcessingInstruction(target, data);
         } else {
-          const doc = DomUtils.docImplementation.createDocument(null, null, null);
+          const doc = DOM.docImplementation.createDocument(null, null, null);
           return doc.createProcessingInstruction(target, data);
         }
       },
@@ -297,13 +301,13 @@ export class DomUtils {
    * @param qualifiedName Qualified name
    * @param value Attribute value
    */
-  public static setNamespacedAttribute(
+  static setNamespacedAttribute(
     element: Element, 
     namespaceURI: string | null, 
     qualifiedName: string, 
     value: string
   ): void {
-    ErrorUtils.try(
+    ErrorHandler.try(
       () => {
         if (namespaceURI) {
           element.setAttributeNS(namespaceURI, qualifiedName, value);
@@ -321,7 +325,7 @@ export class DomUtils {
    * @param obj Object to check
    * @returns True if the object is a DOM node
    */
-  public static isNode(obj: any): boolean {
+  static isNode(obj: any): boolean {
     try {
       return obj && typeof obj === 'object' && typeof obj.nodeType === 'number';
     } catch (error) {
@@ -334,7 +338,7 @@ export class DomUtils {
    * @param nodeType Node type number
    * @returns Human-readable node type
    */
-  public static getNodeTypeName(nodeType: number): string {
+  static getNodeTypeName(nodeType: number): string {
     switch (nodeType) {
       case NodeType.ELEMENT_NODE: return 'ELEMENT_NODE';
       case NodeType.ATTRIBUTE_NODE: return 'ATTRIBUTE_NODE';
@@ -352,7 +356,7 @@ export class DomUtils {
    * @param node DOM element
    * @returns Object with attribute name-value pairs
    */
-  public static getNodeAttributes(node: Element): Record<string, string> {
+  static getNodeAttributes(node: Element): Record<string, string> {
     const result: Record<string, string> = {};
     for (let i = 0; i < node.attributes.length; i++) {
       const attr = node.attributes[i];
@@ -364,9 +368,9 @@ export class DomUtils {
   /**
    * Cleanup method for releasing resources (mainly for JSDOM)
    */
-  public static cleanup(): void {
-    if (DomUtils.jsdomInstance && typeof DomUtils.jsdomInstance.window.close === 'function') {
-      DomUtils.jsdomInstance.window.close();
+  static cleanup(): void {
+    if (DOM.jsdomInstance && typeof DOM.jsdomInstance.window.close === 'function') {
+      DOM.jsdomInstance.window.close();
     }
   }
 }

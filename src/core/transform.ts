@@ -1,19 +1,98 @@
 /**
- * Utility functions for working with transformers
- * Update this in src/core/utils/transform-utils.ts
+ * Core transform interfaces and utilities
  */
-import { 
-  Transform, 
-  TransformContext, 
-  TransformTarget, 
-  XNode,
-  FormatId,
-  FORMATS
-} from '../types/transform-interfaces';
-import { Configuration } from '../types/config-types';
+import { Configuration } from './config';
+import { XNode } from './xnode';
 
 /**
- * Utilities for working with transformations
+ * Format identifier type
+ */
+export type FormatId = string;
+
+/**
+ * Standard formats
+ */
+export const FORMATS = {
+  XML: 'xml' as FormatId,
+  JSON: 'json' as FormatId
+};
+
+/**
+ * Transform target types enum - specifies which nodes a transformer can target
+ */
+export enum TransformTarget {
+  Value = 'value',
+  Attribute = 'attribute',
+  Element = 'element',
+  Text = 'text',
+  CDATA = 'cdata',
+  Comment = 'comment',
+  ProcessingInstruction = 'processingInstruction',
+  Namespace = 'namespace'
+}
+
+/**
+ * Context for transformation operations
+ */
+export interface TransformContext {
+  // Node information
+  nodeName: string;
+  nodeType: number;
+  path: string;
+  
+  // Type-specific information
+  isAttribute?: boolean;
+  attributeName?: string;
+  isText?: boolean;
+  isCDATA?: boolean;
+  isComment?: boolean;
+  isProcessingInstruction?: boolean;
+  
+  // Namespace information
+  namespace?: string;
+  prefix?: string;
+  
+  // Hierarchical context
+  parent?: TransformContext;
+  
+  // Configuration
+  config: Configuration;
+  
+  // Target format
+  targetFormat: FormatId;
+}
+
+/**
+ * Result of a transformation operation
+ */
+export interface TransformResult<T> {
+  // The transformed value
+  value: T;
+  
+  // Whether the node/value should be removed
+  remove: boolean;
+}
+
+/**
+ * Unified Transform interface
+ */
+export interface Transform {
+  // Target types this transformer can handle
+  targets: TransformTarget[];
+  
+  // Transform method with context
+  transform(value: any, context: TransformContext): TransformResult<any>;
+}
+
+/**
+ * Helper function to create a transform result
+ */
+export function createTransformResult<T>(value: T, remove: boolean = false): TransformResult<T> {
+  return { value, remove };
+}
+
+/**
+ * Transform utilities for working with transformers
  */
 export class TransformUtils {
   /**
@@ -109,7 +188,7 @@ export class TransformUtils {
       targets: allTargets,
       transform: (value, context) => {
         // Find transforms that match this context's target
-        const targetType = getContextTargetType(context);
+        const targetType = TransformUtils.getContextTargetType(context);
         const applicableTransforms = transforms.filter(t => 
           t.targets.includes(targetType)
         );
@@ -165,38 +244,54 @@ export class TransformUtils {
       transform: transform.transform
     };
   }
+
+  /**
+   * Get the appropriate transform target type based on context
+   * @param context Transform context
+   * @returns Target type
+   * @private
+   */
+  private static getContextTargetType(context: TransformContext): TransformTarget {
+    if (context.isAttribute) {
+      return TransformTarget.Attribute;
+    }
+    
+    if (context.isText) {
+      return TransformTarget.Text;
+    }
+    
+    if (context.isCDATA) {
+      return TransformTarget.CDATA;
+    }
+    
+    if (context.isComment) {
+      return TransformTarget.Comment;
+    }
+    
+    if (context.isProcessingInstruction) {
+      return TransformTarget.ProcessingInstruction;
+    }
+    
+    if (context.nodeType === 1) { // Element node
+      return TransformTarget.Element;
+    }
+    
+    // Default to Value
+    return TransformTarget.Value;
+  }
 }
 
 /**
- * Get the appropriate transform target type based on context
- * @param context Transform context
- * @returns Target type
+ * Interface for XML validation result
  */
-function getContextTargetType(context: TransformContext): TransformTarget {
-  if (context.isAttribute) {
-    return TransformTarget.Attribute;
-  }
-  
-  if (context.isText) {
-    return TransformTarget.Text;
-  }
-  
-  if (context.isCDATA) {
-    return TransformTarget.CDATA;
-  }
-  
-  if (context.isComment) {
-    return TransformTarget.Comment;
-  }
-  
-  if (context.isProcessingInstruction) {
-    return TransformTarget.ProcessingInstruction;
-  }
-  
-  if (context.nodeType === 1) { // Element node
-    return TransformTarget.Element;
-  }
-  
-  // Default to Value
-  return TransformTarget.Value;
+export interface ValidationResult {
+  /**
+   * Whether the XML is valid
+   */
+  isValid: boolean;
+
+  /**
+   * Error message if the XML is invalid
+   */
+  message?: string;
 }

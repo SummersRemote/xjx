@@ -1,15 +1,12 @@
 /**
- * Common type definitions for XJX extensions
- * Updated to use ConfigManager instead of ConfigService
+ * Extension system for the XJX library
  */
-import { Configuration } from "./config-types";
-import { Transform, XNode, FormatId } from "./transform-interfaces";
-import { ConfigManager } from "../config/config-manager";
-import { XJX } from "../../XJX";
+import { Configuration } from './config';
+import { Transform, FormatId } from './transform';
+import { XNode } from './xnode';
 
 /**
  * Base context interface for extension functions
- * Provides typing for 'this' in extension methods
  */
 export interface XJXContext {
   // Configuration is available in all contexts
@@ -18,7 +15,6 @@ export interface XJXContext {
 
 /**
  * Context for terminal extensions
- * Terminal extensions return a value (not the builder)
  */
 export interface TerminalExtensionContext extends XJXContext {
   // These properties are available in the builder context
@@ -34,7 +30,6 @@ export interface TerminalExtensionContext extends XJXContext {
 
 /**
  * Context for non-terminal extensions
- * Non-terminal extensions return the builder for chaining
  */
 export interface NonTerminalExtensionContext extends XJXContext {
   // Properties that can be modified by extensions
@@ -46,4 +41,30 @@ export interface NonTerminalExtensionContext extends XJXContext {
   validateSource: () => void;
   deepClone: <T>(obj: T) => T;
   deepMerge: <T extends Record<string, any>>(target: T, source: Partial<T>) => T;
+}
+
+/**
+ * Extension registration utilities
+ * 
+ * Note: The actual registration logic is implemented in the XJX class.
+ * This interface is provided for documentation purposes.
+ */
+export class Extension {
+  /**
+   * Register a terminal extension method (returns a value)
+   * @param name Extension name (e.g., 'toXml')
+   * @param method Implementation function
+   */
+  static registerTerminal(name: string, method: (this: TerminalExtensionContext, ...args: any[]) => any): void {
+    // Implemented in XJX class
+  }
+
+  /**
+   * Register a non-terminal extension method (returns this for chaining)
+   * @param name Extension name (e.g., 'withConfig')
+   * @param method Implementation function
+   */
+  static registerNonTerminal(name: string, method: (this: NonTerminalExtensionContext, ...args: any[]) => any): void {
+    // Implemented in XJX class
+  }
 }

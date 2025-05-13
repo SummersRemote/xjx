@@ -1,13 +1,13 @@
 /**
- * NamespaceUtils - Static utility for XML namespace operations
- * 
- * Centralizes all namespace resolution logic to ensure consistent handling
- * of namespaces throughout the library.
+ * XML namespace management utilities
  */
-import { XNode } from '../models/xnode';
-import { ErrorUtils } from './error-utils';
+import { ErrorHandler } from '../error';
+import { XNode } from '../xnode';
 
-export class NamespaceUtils {
+/**
+ * XML namespace utilities
+ */
+export class XmlNamespace {
   /**
    * Find namespace URI for a prefix by searching up the node hierarchy
    * @param node Starting node
@@ -15,7 +15,7 @@ export class NamespaceUtils {
    * @param namespaceMap Optional global namespace map for fallback
    * @returns Namespace URI or undefined if not found
    */
-  public static findNamespaceForPrefix(
+  static findNamespaceForPrefix(
     node: XNode,
     prefix: string,
     namespaceMap?: Record<string, string>
@@ -43,7 +43,7 @@ export class NamespaceUtils {
    * @param localName Local name
    * @returns Qualified name
    */
-  public static createQualifiedName(prefix: string | null | undefined, localName: string): string {
+  static createQualifiedName(prefix: string | null | undefined, localName: string): string {
     return prefix ? `${prefix}:${localName}` : localName;
   }
   
@@ -52,7 +52,7 @@ export class NamespaceUtils {
    * @param qualifiedName Qualified name (e.g., "ns:element")
    * @returns Object with prefix and localName
    */
-  public static parseQualifiedName(qualifiedName: string): { prefix: string | null, localName: string } {
+  static parseQualifiedName(qualifiedName: string): { prefix: string | null, localName: string } {
     const colonIndex = qualifiedName.indexOf(':');
     if (colonIndex > 0) {
       return {
@@ -71,7 +71,7 @@ export class NamespaceUtils {
    * @param element DOM Element
    * @returns Map of prefixes to namespace URIs
    */
-  public static getNamespaceDeclarations(element: Element): Record<string, string> {
+  static getNamespaceDeclarations(element: Element): Record<string, string> {
     const result: Record<string, string> = {};
     
     for (let i = 0; i < element.attributes.length; i++) {
@@ -95,7 +95,7 @@ export class NamespaceUtils {
    * @param element DOM Element
    * @returns True if element has a default namespace declaration
    */
-  public static hasDefaultNamespace(element: Element): boolean {
+  static hasDefaultNamespace(element: Element): boolean {
     return element.hasAttribute('xmlns');
   }
   
@@ -104,8 +104,8 @@ export class NamespaceUtils {
    * @param element Target DOM element
    * @param declarations Namespace declarations to add
    */
-  public static addNamespaceDeclarations(element: Element, declarations: Record<string, string>): void {
-    ErrorUtils.try(
+  static addNamespaceDeclarations(element: Element, declarations: Record<string, string>): void {
+    ErrorHandler.try(
       () => {
         for (const [prefix, uri] of Object.entries(declarations)) {
           if (prefix === '') {
@@ -131,7 +131,7 @@ export class NamespaceUtils {
    * @param node XNode to start from
    * @returns Combined namespace declarations
    */
-  public static collectNamespaceDeclarations(node: XNode): Record<string, string> {
+  static collectNamespaceDeclarations(node: XNode): Record<string, string> {
     const result: Record<string, string> = {};
     let current: XNode | undefined = node;
     
@@ -156,7 +156,7 @@ export class NamespaceUtils {
    * @param element DOM Element
    * @returns Object containing namespace URI and prefix
    */
-  public static resolveElementNamespace(element: Element): { namespace: string | null, prefix: string | null } {
+  static resolveElementNamespace(element: Element): { namespace: string | null, prefix: string | null } {
     return {
       namespace: element.namespaceURI,
       prefix: element.prefix
@@ -168,7 +168,7 @@ export class NamespaceUtils {
    * @param qualifiedName Qualified name to check
    * @returns True if the name has a prefix
    */
-  public static hasPrefix(qualifiedName: string): boolean {
+  static hasPrefix(qualifiedName: string): boolean {
     return qualifiedName.indexOf(':') > 0;
   }
 
@@ -177,7 +177,7 @@ export class NamespaceUtils {
    * @param element DOM Element
    * @returns Default namespace URI or null if not defined
    */
-  public static getDefaultNamespace(element: Element): string | null {
+  static getDefaultNamespace(element: Element): string | null {
     return element.getAttribute('xmlns');
   }
 
@@ -188,12 +188,12 @@ export class NamespaceUtils {
    * @param namespace Namespace URI
    * @returns New element with proper namespace
    */
-  public static createElementNS(
+  static createElementNS(
     doc: Document, 
     qualifiedName: string, 
     namespace: string | null
   ): Element {
-    return ErrorUtils.try(
+    return ErrorHandler.try(
       () => {
         if (namespace) {
           return doc.createElementNS(namespace, qualifiedName);

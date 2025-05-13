@@ -4,11 +4,8 @@
  * Represents an XML node in the XJX object model with rich instance methods
  * for manipulation and traversal, plus metadata capabilities.
  */
-import { NodeType } from '../types/dom-types';
-import { CommonUtils } from '../utils/common-utils';
-import { EntityUtils } from '../utils/entity-utils';
-import { NamespaceUtils } from '../utils/namespace-utils';
-import { ErrorUtils } from '../utils/error-utils';
+import { Common } from './common';
+import { NodeType, DOM } from './dom';
 
 /**
  * XNode class representing an XML node in the object model
@@ -176,7 +173,7 @@ export class XNode {
     return this; // For chaining
   }
   
-  // --- Existing XNode Methods ---
+  // --- Node Manipulation Methods ---
   
   /**
    * Add a child node
@@ -301,7 +298,7 @@ export class XNode {
    * @returns Qualified name
    */
   public getQualifiedName(): string {
-    return NamespaceUtils.createQualifiedName(this.prefix, this.name);
+    return this.prefix ? `${this.prefix}:${this.name}` : this.name;
   }
   
   /**
@@ -372,8 +369,8 @@ export class XNode {
    */
   public clone(deep: boolean = false): XNode {
     if (deep) {
-      // Deep clone using CommonUtils
-      const clone = CommonUtils.deepClone(this) as XNode;
+      // Deep clone using Common
+      const clone = Common.deepClone(this) as XNode;
       
       // Fix parent references (should be null in a clone)
       const fixParents = (node: XNode) => {
@@ -446,15 +443,7 @@ export class XNode {
    * @returns Human-readable node type
    */
   public getNodeTypeName(): string {
-    switch (this.type) {
-      case NodeType.ELEMENT_NODE: return 'ELEMENT_NODE';
-      case NodeType.TEXT_NODE: return 'TEXT_NODE';
-      case NodeType.CDATA_SECTION_NODE: return 'CDATA_SECTION_NODE';
-      case NodeType.PROCESSING_INSTRUCTION_NODE: return 'PROCESSING_INSTRUCTION_NODE';
-      case NodeType.COMMENT_NODE: return 'COMMENT_NODE';
-      case NodeType.DOCUMENT_NODE: return 'DOCUMENT_NODE';
-      default: return `UNKNOWN_NODE_TYPE(${this.type})`;
-    }
+    return DOM.getNodeTypeName(this.type);
   }
   
   /**

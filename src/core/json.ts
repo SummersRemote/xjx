@@ -1,20 +1,51 @@
 /**
- * JsonUtils - Static utility for JSON operations
- * 
- * Provides utilities for working with JSON structures in the XJX library.
+ * JSON utilities and type definitions
  */
-import { Configuration } from "../types/config-types";
-import { ErrorUtils } from "./error-utils";
-import { CommonUtils } from "./common-utils";
-import {
-  JSONValue,
-  JSONObject,
-  JSONArray,
-  XMLJSONNode,
-  XMLJSONElement,
-} from "../types/json-types";
+import { Common } from './common';
+import { Configuration } from './config';
 
-export class JsonUtils {
+/**
+ * Basic JSON primitive types
+ */
+export type JSONPrimitive = string | number | boolean | null;
+
+/**
+ * JSON array type (recursive definition)
+ */
+export type JSONArray = JSONValue[];
+
+/**
+ * JSON object type (recursive definition)
+ */
+export interface JSONObject {
+  [key: string]: JSONValue;
+}
+
+/**
+ * Combined JSON value type that can be any valid JSON structure
+ */
+export type JSONValue = JSONPrimitive | JSONArray | JSONObject;
+
+/**
+ * Type for XML-in-JSON structure based on the library's configuration
+ * This is a generic template that will use the actual property names from config
+ */
+export interface XMLJSONNode {
+  [tagName: string]: XMLJSONElement;
+}
+
+/**
+ * Structure of an XML element in JSON representation
+ */
+export interface XMLJSONElement {
+  // These fields will match the propNames in Configuration
+  [key: string]: JSONValue | XMLJSONNode[];
+}
+
+/**
+ * JSON utilities
+ */
+export class JSON {
   /**
    * Converts a plain JSON object to the XML-like JSON structure.
    * Optionally wraps the result in a root element with attributes and namespaces.
@@ -24,12 +55,12 @@ export class JsonUtils {
    * @param root Optional root element configuration (either a string or object with $ keys)
    * @returns XML-like JSON object
    */
-  public static objectToXJX(
+  static objectToXJX(
     obj: JSONValue, 
     config: Configuration,
     root?: string | JSONObject
   ): XMLJSONNode {
-    const wrappedObject = JsonUtils.wrapObject(obj, config);
+    const wrappedObject = JSON.wrapObject(obj, config);
 
     if (typeof root === "string") {
       // Root is a simple string: wrap result with this root tag
@@ -106,7 +137,7 @@ export class JsonUtils {
       // For arrays, wrap each item and return as a children-style array of repeated elements
       return {
         [childrenKey]: value.map((item) => {
-          return JsonUtils.wrapObject(item, config);
+          return JSON.wrapObject(item, config);
         }),
       };
     }
@@ -115,7 +146,7 @@ export class JsonUtils {
       // It's an object: wrap its properties in children
       const children = Object.entries(value as JSONObject).map(
         ([key, val]) => ({
-          [key]: JsonUtils.wrapObject(val, config),
+          [key]: JSON.wrapObject(val, config),
         })
       );
 
@@ -133,7 +164,7 @@ export class JsonUtils {
    * @param value JSON value to compact
    * @returns Compacted JSON value or undefined if the value is completely empty
    */
-  public static compactJson(value: JSONValue): JSONValue | undefined {
+  static compact(value: JSONValue): JSONValue | undefined {
     // Handle null/undefined
     if (value === null || value === undefined) {
       return undefined;
@@ -149,7 +180,7 @@ export class JsonUtils {
       const compactedArray: JSONValue[] = [];
 
       for (const item of value) {
-        const compactedItem = JsonUtils.compactJson(item);
+        const compactedItem = JSON.compact(item);
         if (compactedItem !== undefined) {
           compactedArray.push(compactedItem);
         }
@@ -163,7 +194,7 @@ export class JsonUtils {
     let hasProperties = false;
 
     for (const [key, propValue] of Object.entries(value as JSONObject)) {
-      const compactedValue = JsonUtils.compactJson(propValue);
+      const compactedValue = JSON.compact(propValue);
       if (compactedValue !== undefined) {
         compactedObj[key] = compactedValue;
         hasProperties = true;
@@ -179,9 +210,9 @@ export class JsonUtils {
    * @param indent Optional indentation level
    * @returns JSON string representation
    */
-  public static safeStringify(obj: JSONValue, indent: number = 2): string {
+  static safeStringify(obj: JSONValue, indent: number = 2): string {
     try {
-      return JSON.stringify(obj, null, indent);
+      return global.JSON.stringify(obj, null, indent);
     } catch (error) {
       return "[Cannot stringify object]";
     }
@@ -192,9 +223,9 @@ export class JsonUtils {
    * @param text JSON string to parse
    * @returns Parsed object or null if parsing fails
    */
-  public static safeParse(text: string): JSONValue | null {
+  static safeParse(text: string): JSONValue | null {
     try {
-      return JSON.parse(text);
+      return global.JSON.parse(text);
     } catch (error) {
       return null;
     }
@@ -205,7 +236,7 @@ export class JsonUtils {
    * @param value Value to validate
    * @returns True if the value is a valid JSON object
    */
-  public static isValidJsonObject(value: any): boolean {
+  static isValidObject(value: any): boolean {
     return value !== null && 
            typeof value === 'object' && 
            !Array.isArray(value);
@@ -216,7 +247,7 @@ export class JsonUtils {
    * @param value Value to validate
    * @returns True if the value is a valid JSON array
    */
-  public static isValidJsonArray(value: any): boolean {
+  static isValidArray(value: any): boolean {
     return Array.isArray(value);
   }
 
@@ -225,7 +256,7 @@ export class JsonUtils {
    * @param value Value to validate
    * @returns True if the value is a valid JSON primitive
    */
-  public static isValidJsonPrimitive(value: any): boolean {
+  static isValidPrimitive(value: any): boolean {
     return value === null || 
            typeof value === 'string' || 
            typeof value === 'number' || 
@@ -237,17 +268,17 @@ export class JsonUtils {
    * @param value Value to validate
    * @returns True if the value is a valid JSON value
    */
-  public static isValidJsonValue(value: any): boolean {
-    if (JsonUtils.isValidJsonPrimitive(value)) {
+  static isValidValue(value: any): boolean {
+    if (JSON.isValidPrimitive(value)) {
       return true;
     }
 
-    if (JsonUtils.isValidJsonArray(value)) {
-      return (value as any[]).every(item => JsonUtils.isValidJsonValue(item));
+    if (JSON.isValidArray(value)) {
+      return (value as any[]).every(item => JSON.isValidValue(item));
     }
 
-    if (JsonUtils.isValidJsonObject(value)) {
-      return Object.values(value).every(item => JsonUtils.isValidJsonValue(item));
+    if (JSON.isValidObject(value)) {
+      return Object.values(value).every(item => JSON.isValidValue(item));
     }
 
     return false;
@@ -260,8 +291,8 @@ export class JsonUtils {
    * @param defaultValue Default value if path not found
    * @returns Value at path or default value
    */
-  public static getPath<T>(obj: JSONValue, path: string, defaultValue?: T): T | undefined {
-    return CommonUtils.getPath(obj, path, defaultValue);
+  static getPath<T>(obj: JSONValue, path: string, defaultValue?: T): T | undefined {
+    return Common.getPath(obj, path, defaultValue);
   }
 
   /**
@@ -271,33 +302,7 @@ export class JsonUtils {
    * @param value Value to set
    * @returns New object with value set (original object is not modified)
    */
-  public static setPath<T extends JSONValue>(obj: T, path: string, value: JSONValue): T {
-    if (!obj || typeof obj !== 'object') {
-      // Cannot set path on a primitive
-      return obj;
-    }
-
-    const result = CommonUtils.deepClone(obj);
-    const segments = path.split('.');
-    let current: any = result;
-
-    // Navigate to the parent of the property to set
-    for (let i = 0; i < segments.length - 1; i++) {
-      const segment = segments[i];
-
-      // Create parent objects if they don't exist
-      if (current[segment] === undefined || current[segment] === null) {
-        current[segment] = {};
-      } else if (typeof current[segment] !== 'object' || Array.isArray(current[segment])) {
-        // Cannot set property on a non-object
-        return obj;
-      }
-
-      current = current[segment];
-    }
-
-    // Set the value
-    current[segments[segments.length - 1]] = value;
-    return result;
+  static setPath<T extends JSONValue>(obj: T, path: string, value: JSONValue): T {
+    return Common.setPath(obj, path, value);
   }
 }

@@ -1,31 +1,71 @@
 /**
- * ErrorUtils - Static utilities for consistent error handling
- * 
- * Centralizes error creation and handling throughout the library to ensure
- * consistent error messages, types, and behavior.
+ * Error handling system for the XJX library
  */
-import { 
-  XJXError, 
-  XmlToJsonError, 
-  JsonToXmlError, 
-  EnvironmentError, 
-  ConfigurationError 
-} from '../types/error-types';
 
-/**
- * Error utility type for try/catch
- */
 export type ErrorType = 'xml-to-json' | 'json-to-xml' | 'configuration' | 'environment' | 'general';
 
-export class ErrorUtils {
+/**
+ * Base error class
+ */
+export class XJXError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'XMLToJSONError';
+  }
+}
+
+/**
+ * Error for XML parsing issues
+ */
+export class XmlToJsonError extends XJXError {
+  constructor(message: string) {
+    super(`XML parse error: ${message}`);
+    this.name = 'XmlToJsonError';
+  }
+}
+
+/**
+ * Error for XML serialization issues
+ */
+export class JsonToXmlError extends XJXError {
+  constructor(message: string) {
+    super(`XML serialization error: ${message}`);
+    this.name = 'JsonToXmlError';
+  }
+}
+
+/**
+ * Error for environment incompatibility
+ */
+export class EnvironmentError extends XJXError {
+  constructor(message: string) {
+    super(`Environment error: ${message}`);
+    this.name = 'EnvironmentError';
+  }
+}
+
+/**
+ * Error for invalid configuration
+ */
+export class ConfigurationError extends XJXError {
+  constructor(message: string) {
+    super(`Configuration error: ${message}`);
+    this.name = 'ConfigurationError';
+  }
+}
+
+/**
+ * Error utilities for standardized error handling
+ */
+export class ErrorHandler {
   /**
    * Create a standardized XmlToJsonError
    * @param message Primary error message
    * @param cause Original error that caused this (optional)
    * @returns Properly formatted error
    */
-  public static xmlToJson(message: string, cause?: unknown): XmlToJsonError {
-    return new XmlToJsonError(ErrorUtils.formatMessage(message, cause));
+  static xmlToJson(message: string, cause?: unknown): XmlToJsonError {
+    return new XmlToJsonError(ErrorHandler.formatMessage(message, cause));
   }
   
   /**
@@ -34,8 +74,8 @@ export class ErrorUtils {
    * @param cause Original error that caused this (optional)
    * @returns Properly formatted error
    */
-  public static jsonToXml(message: string, cause?: unknown): JsonToXmlError {
-    return new JsonToXmlError(ErrorUtils.formatMessage(message, cause));
+  static jsonToXml(message: string, cause?: unknown): JsonToXmlError {
+    return new JsonToXmlError(ErrorHandler.formatMessage(message, cause));
   }
   
   /**
@@ -44,8 +84,8 @@ export class ErrorUtils {
    * @param cause Original error that caused this (optional)
    * @returns Properly formatted error
    */
-  public static configuration(message: string, cause?: unknown): ConfigurationError {
-    return new ConfigurationError(ErrorUtils.formatMessage(message, cause));
+  static configuration(message: string, cause?: unknown): ConfigurationError {
+    return new ConfigurationError(ErrorHandler.formatMessage(message, cause));
   }
   
   /**
@@ -54,8 +94,8 @@ export class ErrorUtils {
    * @param cause Original error that caused this (optional)
    * @returns Properly formatted error
    */
-  public static environment(message: string, cause?: unknown): EnvironmentError {
-    return new EnvironmentError(ErrorUtils.formatMessage(message, cause));
+  static environment(message: string, cause?: unknown): EnvironmentError {
+    return new EnvironmentError(ErrorHandler.formatMessage(message, cause));
   }
   
   /**
@@ -64,8 +104,8 @@ export class ErrorUtils {
    * @param cause Original error that caused this (optional)
    * @returns Properly formatted error
    */
-  public static general(message: string, cause?: unknown): XJXError {
-    return new XJXError(ErrorUtils.formatMessage(message, cause));
+  static general(message: string, cause?: unknown): XJXError {
+    return new XJXError(ErrorHandler.formatMessage(message, cause));
   }
   
   /**
@@ -95,7 +135,7 @@ export class ErrorUtils {
    * @param errorType Type of error to create
    * @returns Result of function
    */
-  public static try<T>(
+  static try<T>(
     fn: () => T, 
     errorMessage: string, 
     errorType: ErrorType = 'general'
@@ -105,15 +145,15 @@ export class ErrorUtils {
     } catch (error) {
       switch (errorType) {
         case 'xml-to-json':
-          throw ErrorUtils.xmlToJson(errorMessage, error);
+          throw ErrorHandler.xmlToJson(errorMessage, error);
         case 'json-to-xml':
-          throw ErrorUtils.jsonToXml(errorMessage, error);
+          throw ErrorHandler.jsonToXml(errorMessage, error);
         case 'configuration':
-          throw ErrorUtils.configuration(errorMessage, error);
+          throw ErrorHandler.configuration(errorMessage, error);
         case 'environment':
-          throw ErrorUtils.environment(errorMessage, error);
+          throw ErrorHandler.environment(errorMessage, error);
         default:
-          throw ErrorUtils.general(errorMessage, error);
+          throw ErrorHandler.general(errorMessage, error);
       }
     }
   }
@@ -125,7 +165,7 @@ export class ErrorUtils {
    * @param errorType Type of error to create
    * @throws Appropriate error if condition is false
    */
-  public static validate(
+  static validate(
     condition: boolean,
     errorMessage: string,
     errorType: ErrorType = 'general'
@@ -133,15 +173,15 @@ export class ErrorUtils {
     if (!condition) {
       switch (errorType) {
         case 'xml-to-json':
-          throw ErrorUtils.xmlToJson(errorMessage);
+          throw ErrorHandler.xmlToJson(errorMessage);
         case 'json-to-xml':
-          throw ErrorUtils.jsonToXml(errorMessage);
+          throw ErrorHandler.jsonToXml(errorMessage);
         case 'configuration':
-          throw ErrorUtils.configuration(errorMessage);
+          throw ErrorHandler.configuration(errorMessage);
         case 'environment':
-          throw ErrorUtils.environment(errorMessage);
+          throw ErrorHandler.environment(errorMessage);
         default:
-          throw ErrorUtils.general(errorMessage);
+          throw ErrorHandler.general(errorMessage);
       }
     }
   }
@@ -154,7 +194,7 @@ export class ErrorUtils {
    * @returns The value (for chaining)
    * @throws Appropriate error if value is null or undefined
    */
-  public static assertExists<T>(
+  static assertExists<T>(
     value: T | null | undefined,
     errorMessage: string,
     errorType: ErrorType = 'general'
@@ -162,15 +202,15 @@ export class ErrorUtils {
     if (value === null || value === undefined) {
       switch (errorType) {
         case 'xml-to-json':
-          throw ErrorUtils.xmlToJson(errorMessage);
+          throw ErrorHandler.xmlToJson(errorMessage);
         case 'json-to-xml':
-          throw ErrorUtils.jsonToXml(errorMessage);
+          throw ErrorHandler.jsonToXml(errorMessage);
         case 'configuration':
-          throw ErrorUtils.configuration(errorMessage);
+          throw ErrorHandler.configuration(errorMessage);
         case 'environment':
-          throw ErrorUtils.environment(errorMessage);
+          throw ErrorHandler.environment(errorMessage);
         default:
-          throw ErrorUtils.general(errorMessage);
+          throw ErrorHandler.general(errorMessage);
       }
     }
     return value;

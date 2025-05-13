@@ -1,65 +1,28 @@
 /**
- * XmlUtils - Static utility for XML operations
- * 
- * Centralized XML processing utilities for the XJX library.
- * Updated to use simplified configuration.
+ * XML serialization utilities
  */
-import { Configuration } from '../types/config-types';
-import { ValidationResult } from '../types/transform-interfaces';
-import { ErrorUtils } from './error-utils';
-import { EntityUtils } from './entity-utils';
-import { DomUtils } from './dom-utils';
-import { NamespaceUtils } from './namespace-utils';
-import { NodeType } from '../types/dom-types';
-import { ConfigManager } from '../config/config-manager';
+import { Configuration } from '../config';
+import { DOM } from '../dom';
+import { ErrorHandler } from '../error';
+import { XmlEntity } from './entity';
 
-export class XmlUtils {
+/**
+ * XML serialization utilities
+ */
+export class XmlSerializer {
   /**
-   * Parse XML string to DOM document
-   * @param xmlString XML string to parse
-   * @param config Optional configuration
-   * @param contentType Content type (default: text/xml)
-   * @returns Parsed DOM document
-   */
-  public static parseXml(
-    xmlString: string, 
-    config?: Configuration, 
-    contentType: string = 'text/xml'
-  ): Document {
-    return ErrorUtils.try(
-      () => {
-        // Pre-process XML string to handle entity issues
-        const preprocessedXml = EntityUtils.preprocessXml(xmlString);
-        
-        // Parse using DomUtils
-        const doc = DomUtils.parseFromString(preprocessedXml, contentType);
-        
-        // Check for parsing errors
-        const errors = doc.getElementsByTagName("parsererror");
-        if (errors.length > 0) {
-          throw new Error(`XML parsing error: ${errors[0].textContent}`);
-        }
-        
-        return doc;
-      },
-      'Failed to parse XML',
-      'xml-to-json'
-    );
-  }
-  
-  /**
-   * Serialize DOM to XML string
+   * Serialize DOM node to XML string
    * @param node DOM node to serialize
    * @returns Serialized XML string
    */
-  public static serializeXml(node: Node): string {
-    return ErrorUtils.try(
+  static serialize(node: Node): string {
+    return ErrorHandler.try(
       () => {
-        // Use DomUtils for serialization
-        let xmlString = DomUtils.serializeToString(node);
+        // Use DOM for serialization
+        let xmlString = DOM.serializeToString(node);
         
         // Post-process to ensure consistent entity handling and clean up
-        return EntityUtils.postProcessXml(xmlString);
+        return XmlEntity.postProcess(xmlString);
       },
       'Failed to serialize XML',
       'general'
@@ -67,25 +30,25 @@ export class XmlUtils {
   }
 
   /**
-   * Improved XML pretty print function that preserves mixed content structure
+   * Format XML string with indentation
    * @param xmlString XML string to format
    * @param indent Number of spaces for indentation (default: 2)
    * @returns Formatted XML string
    */
-  public static prettyPrintXml(xmlString: string, indent: number = 2): string {
+  static prettyPrint(xmlString: string, indent: number = 2): string {
     const INDENT = " ".repeat(indent);
     // Use default config for formatting preferences
-    const defaultConfig = ConfigManager.getDefaultConfig();
+    let preserveWhitespace = false;
 
-    return ErrorUtils.try(
+    return ErrorHandler.try(
       () => {
-        const doc = XmlUtils.parseXml(xmlString);
+        const doc = DOM.parseFromString(xmlString);
 
         const serializer = (node: Node, level = 0): string => {
           const pad = INDENT.repeat(level);
 
           switch (node.nodeType) {
-            case DomUtils.NodeType.ELEMENT_NODE: {
+            case DOM.NodeType.ELEMENT_NODE: {
               const el = node as Element;
               const tagName = el.tagName;
               const attrs = Array.from(el.attributes)
@@ -102,14 +65,14 @@ export class XmlUtils {
 
               // Check for mixed content - important for whitespace handling
               const hasElementChildren = children.some(
-                (child) => child.nodeType === DomUtils.NodeType.ELEMENT_NODE
+                (child) => child.nodeType === DOM.NodeType.ELEMENT_NODE
               );
 
               const hasTextOrCDATA = children.some(
                 (child) =>
-                  (child.nodeType === DomUtils.NodeType.TEXT_NODE &&
+                  (child.nodeType === DOM.NodeType.TEXT_NODE &&
                     child.textContent?.trim()) ||
-                  child.nodeType === DomUtils.NodeType.CDATA_SECTION_NODE
+                  child.nodeType === DOM.NodeType.CDATA_SECTION_NODE
               );
 
               // Handle mixed content differently to preserve structure
@@ -118,7 +81,7 @@ export class XmlUtils {
                 let inner = "";
                 for (const child of children) {
                   // For elements in mixed content, we still want them indented properly
-                  if (child.nodeType === DomUtils.NodeType.ELEMENT_NODE) {
+                  if (child.nodeType === DOM.NodeType.ELEMENT_NODE) {
                     // Remove newlines from nested element serialization
                     const childSerialized = serializer(child, 0);
                     inner += childSerialized.trim(); // trim to remove newlines
@@ -139,7 +102,7 @@ export class XmlUtils {
 
                 // Trim and normalize whitespace for text-only content
                 // but only if preserveWhitespace is false
-                if (!defaultConfig.preserveWhitespace) {
+                if (!preserveWhitespace) {
                   inner = inner.trim().replace(/\s+/g, " ");
                 }
 
@@ -152,7 +115,7 @@ export class XmlUtils {
               if (
                 children.every(
                   (child) =>
-                    child.nodeType !== DomUtils.NodeType.ELEMENT_NODE &&
+                    child.nodeType !== DOM.NodeType.ELEMENT_NODE &&
                     (!child.textContent || !child.textContent.trim())
                 )
               ) {
@@ -168,34 +131,34 @@ export class XmlUtils {
               return `${pad}${openTag}\n${inner}${pad}</${tagName}>\n`;
             }
 
-            case DomUtils.NodeType.TEXT_NODE: {
+            case DOM.NodeType.TEXT_NODE: {
               const text = node.textContent || "";
               // Skip whitespace-only text nodes in indented output unless preserveWhitespace is true
               const trimmed = text.trim();
-              if (!trimmed && !defaultConfig.preserveWhitespace) {
+              if (!trimmed && !preserveWhitespace) {
                 return "";
               }
 
               // For text nodes, normalize whitespace according to configuration
-              const normalized = defaultConfig.preserveWhitespace
+              const normalized = preserveWhitespace
                 ? text
                 : trimmed.replace(/\s+/g, " ");
 
               return `${pad}${normalized}\n`;
             }
 
-            case DomUtils.NodeType.CDATA_SECTION_NODE:
+            case DOM.NodeType.CDATA_SECTION_NODE:
               // Always preserve CDATA content exactly as is
               return `${pad}<![CDATA[${node.nodeValue}]]>\n`;
 
-            case DomUtils.NodeType.COMMENT_NODE:
+            case DOM.NodeType.COMMENT_NODE:
               return `${pad}<!--${node.nodeValue}-->\n`;
 
-            case DomUtils.NodeType.PROCESSING_INSTRUCTION_NODE:
+            case DOM.NodeType.PROCESSING_INSTRUCTION_NODE:
               const pi = node as ProcessingInstruction;
               return `${pad}<?${pi.target} ${pi.data}?>\n`;
 
-            case DomUtils.NodeType.DOCUMENT_NODE:
+            case DOM.NodeType.DOCUMENT_NODE:
               return Array.from(node.childNodes)
                 .map((child) => serializer(child, level))
                 .join("");
@@ -207,9 +170,9 @@ export class XmlUtils {
 
         // Helper function to serialize text or CDATA without adding indentation or newlines
         const serializeTextOrCDATA = (node: Node): string => {
-          if (node.nodeType === DomUtils.NodeType.TEXT_NODE) {
+          if (node.nodeType === DOM.NodeType.TEXT_NODE) {
             return node.textContent || "";
-          } else if (node.nodeType === DomUtils.NodeType.CDATA_SECTION_NODE) {
+          } else if (node.nodeType === DOM.NodeType.CDATA_SECTION_NODE) {
             return `<![CDATA[${node.nodeValue}]]>`;
           }
           return "";
@@ -224,29 +187,11 @@ export class XmlUtils {
   }
 
   /**
-   * Check if XML string is well-formed
-   * @param xmlString XML string to validate
-   * @returns Object with validation result and any error messages
-   */
-  public static validateXML(xmlString: string): ValidationResult {
-    try {
-      // Use the parseXml method which handles preprocessing
-      XmlUtils.parseXml(xmlString);
-      return { isValid: true };
-    } catch (error) {
-      return {
-        isValid: false,
-        message: error instanceof Error ? error.message : String(error),
-      };
-    }
-  }
-
-  /**
    * Add XML declaration to a string if missing or replace existing declaration
    * @param xmlString XML string
    * @returns XML string with declaration
    */
-  public static ensureXMLDeclaration(xmlString: string): string {
+  static ensureXMLDeclaration(xmlString: string): string {
     const standardDecl = '<?xml version="1.0" encoding="UTF-8"?>\n';
 
     // Check if the XML string already has a declaration
@@ -264,78 +209,10 @@ export class XmlUtils {
   }
 
   /**
-   * Normalize whitespace in text content based on configuration
-   * @param text Text to normalize
-   * @param preserveWhitespace Whether to preserve whitespace
-   * @returns Normalized text
-   */
-  public static normalizeTextContent(text: string, preserveWhitespace: boolean = false): string {
-    return EntityUtils.normalizeWhitespace(text, preserveWhitespace);
-  }
-
-  /**
-   * Create a DOM document from an XML string
-   * @param xmlString XML string
-   * @returns New DOM document
-   */
-  public static createDocumentFromXml(xmlString: string): Document {
-    return XmlUtils.parseXml(xmlString);
-  }
-
-  /**
    * Create an empty DOM document
    * @returns New empty DOM document
    */
-  public static createEmptyDocument(): Document {
-    return DomUtils.createDocument();
-  }
-
-  /**
-   * Extract XML fragments from a string
-   * @param text Text containing XML fragments
-   * @returns Array of XML fragments
-   */
-  public static extractXmlFragments(text: string): string[] {
-    const fragments: string[] = [];
-    const regex = /<[^>]+>[\s\S]*?<\/[^>]+>/g;
-    
-    let match;
-    while ((match = regex.exec(text)) !== null) {
-      fragments.push(match[0]);
-    }
-    
-    return fragments;
-  }
-
-  /**
-   * Check if a string is valid XML
-   * @param xmlString String to check
-   * @returns True if the string is valid XML
-   */
-  public static isValidXml(xmlString: string): boolean {
-    try {
-      XmlUtils.parseXml(xmlString);
-      return true;
-    } catch (error) {
-      return false;
-    }
-  }
-
-  /**
-   * Get XML element tag name
-   * @param element DOM element
-   * @returns Tag name
-   */
-  public static getTagName(element: Element): string {
-    return element.tagName;
-  }
-
-  /**
-   * Get XML element attributes as an object
-   * @param element DOM element
-   * @returns Object with attribute name-value pairs
-   */
-  public static getAttributes(element: Element): Record<string, string> {
-    return DomUtils.getNodeAttributes(element);
+  static createEmptyDocument(): Document {
+    return DOM.createDocument();
   }
 }

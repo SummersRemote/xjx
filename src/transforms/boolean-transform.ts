@@ -9,8 +9,8 @@ import {
   TransformTarget, 
   createTransformResult,
   FORMATS
-} from '../core/types/transform-interfaces';
-import { CommonUtils } from '../core/utils/common-utils';
+} from '../core/transform';
+import { Common } from '../core/common';
   
 /**
  * Options for boolean transformer
@@ -109,12 +109,12 @@ export class BooleanTransform implements Transform {
       return createTransformResult(value);
     }
     
-    // Try to use CommonUtils for simple cases
+    // Try to use Common for simple cases
     if (this.trueValues === DEFAULT_TRUE_VALUES && 
         this.falseValues === DEFAULT_FALSE_VALUES && 
         this.ignoreCase === true) {
       // Use the common utility function with default settings
-      const boolValue = CommonUtils.toBoolean(value);
+      const boolValue = Common.toBoolean(value);
       
       // Only transform if it was actually converted to a boolean
       if (typeof boolValue === 'boolean' && 

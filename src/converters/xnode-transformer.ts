@@ -2,19 +2,19 @@
  * XNode transformer implementation with format-only approach
  */
 import { XNodeTransformer } from "./converter-interfaces";
+import { Configuration } from "../core/config";
+import { XNode } from "../core/xnode";
 import {
-  Configuration,
   Transform,
-  XNode,
   TransformContext,
   TransformResult,
   TransformTarget,
   FormatId,
   createTransformResult,
-} from "../core/types/transform-interfaces";
-import { NodeType } from "../core/types/dom-types";
-import { ErrorUtils } from "../core/utils/error-utils";
-import { CommonUtils } from "../core/utils/common-utils";
+} from "../core/transform";
+import { NodeType } from "../core/dom";
+import { ErrorHandler } from "../core/error";
+import { Common } from "../core/common";
 
 /**
  * Applies transformations to XNode
@@ -42,7 +42,7 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
     transforms: Transform[],
     targetFormat: FormatId
   ): XNode {
-    return ErrorUtils.try(
+    return ErrorHandler.try(
       () => {
         if (!transforms || transforms.length === 0) {
           return node; // No transformations to apply
@@ -82,7 +82,7 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
       namespace: node.namespace,
       prefix: node.prefix,
       config: this.config,
-      targetFormat
+      targetFormat,
     };
   }
 
@@ -230,16 +230,16 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
     transforms: Transform[]
   ): void {
     if (!node.attributes) return;
-  
+
     const newAttributes: Record<string, any> = {};
-  
+
     for (const [name, value] of Object.entries(node.attributes)) {
       // Skip xmlns attributes since they're handled separately
       if (name === "xmlns" || name.startsWith("xmlns:")) {
         newAttributes[name] = value;
         continue;
       }
-  
+
       // Create attribute context
       const attrContext: TransformContext = {
         ...context,
@@ -247,7 +247,7 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
         attributeName: name,
         path: `${context.path}.@${name}`,
       };
-  
+
       // Apply attribute transforms
       const result = this.applyAttributeTransforms(
         name,
@@ -255,14 +255,14 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
         attrContext,
         transforms
       );
-  
+
       // Add transformed attribute if not removed
       if (!result.remove) {
         const [newName, newValue] = result.value;
         newAttributes[newName] = newValue;
       }
     }
-  
+
     node.attributes = newAttributes;
   }
 
@@ -432,7 +432,7 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
       transform.targets.includes(TransformTarget.Text)
     );
 
-    let transformedNode = CommonUtils.deepClone(node);
+    let transformedNode = Common.deepClone(node);
     let shouldRemove = false;
 
     if (textTransforms.length > 0) {
@@ -488,7 +488,7 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
       transform.targets.includes(TransformTarget.CDATA)
     );
 
-    let transformedNode = CommonUtils.deepClone(node);
+    let transformedNode = Common.deepClone(node);
     let shouldRemove = false;
 
     if (cdataTransforms.length > 0) {

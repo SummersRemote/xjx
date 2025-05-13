@@ -1,17 +1,18 @@
 /**
  * XJX Builder implementation - Fluent API for XML/JSON transformations
- * Updated to remove ConfigService dependency and config management extensions
  */
 import {
   Configuration,
+  Config
+} from './core/config';
+import {
   Transform,
   FormatId,
   FORMATS
-} from './core/types/transform-interfaces';
-import { XNode } from './core/models/xnode';
-import { ConfigManager } from './core/config/config-manager';
-import { ErrorUtils } from './core/utils/error-utils';
-import { CommonUtils } from './core/utils/common-utils';
+} from './core/transform';
+import { XNode } from './core/xnode';
+import { XJXError, ErrorHandler } from './core/error';
+import { Common } from './core/common';
 import { DefaultXmlToXNodeConverter } from './converters/xml-to-xnode-converter'; 
 import { DefaultJsonToXNodeConverter } from './converters/json-to-xnode-converter';
 import { DefaultXNodeToXmlConverter } from './converters/xnode-to-xml-converter';
@@ -33,7 +34,7 @@ export class XjxBuilder {
    */
   constructor() {
     // Initialize with a fresh copy of the default configuration
-    this.config = ConfigManager.getDefaultConfig();
+    this.config = Config.getDefault();
   }
   
   /**
@@ -42,7 +43,7 @@ export class XjxBuilder {
    * @returns This builder for chaining
    */
   public fromXml(source: string): XjxBuilder {
-    ErrorUtils.validate(
+    ErrorHandler.validate(
       !!source && typeof source === 'string',
       'Invalid XML source: must be a non-empty string',
       'xml-to-json'
@@ -62,7 +63,7 @@ export class XjxBuilder {
    * @returns This builder for chaining
    */
   public fromJson(source: Record<string, any>): XjxBuilder {
-    ErrorUtils.validate(
+    ErrorHandler.validate(
       !!source && typeof source === 'object' && !Array.isArray(source),
       'Invalid JSON source: must be a non-empty object',
       'json-to-xml'
@@ -87,7 +88,7 @@ export class XjxBuilder {
     }
     
     // Merge with current config
-    this.config = ConfigManager.mergeConfig(this.config, config);
+    this.config = Config.merge(this.config, config);
     return this;
   }
   
@@ -103,7 +104,7 @@ export class XjxBuilder {
     
     // Validate transforms
     for (const transform of transforms) {
-      ErrorUtils.validate(
+      ErrorHandler.validate(
         !!transform && !!transform.targets && !!transform.transform,
         'Invalid transform: must implement the Transform interface',
         'general'
@@ -179,7 +180,7 @@ export class XjxBuilder {
    * @throws XJXError if no source has been set
    */
   public validateSource(): void {
-    ErrorUtils.validate(
+    ErrorHandler.validate(
       !!this.xnode && !!this.sourceFormat,
       'No source set: call fromXml() or fromJson() before transformation',
       'general'
@@ -192,7 +193,7 @@ export class XjxBuilder {
    * @returns Deep clone of the object
    */
   public deepClone<T>(obj: T): T {
-    return CommonUtils.deepClone(obj);
+    return Common.deepClone(obj);
   }
   
   /**
@@ -202,6 +203,6 @@ export class XjxBuilder {
    * @returns New object with merged properties
    */
   public deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
-    return CommonUtils.deepMerge(target, source);
+    return Common.deepMerge(target, source);
   }
 }

@@ -9,10 +9,18 @@
 export * from './index';
 
 // Export additional utilities
-export * from './core/utils';
+export * from './core/common';
+export * from './core/error';
+export * from './core/dom';
+export * from './core/config';
+export * from './core/transform';
+export * from './core/extension';
+export * from './core/json';
+export * from './core/xnode';
+export * from './core/xml';
 
 // Export all models
-export * from './core/models';
+export * from './core/xnode';
 
 // Export all converters
 export * from './converters';
@@ -22,8 +30,5 @@ export * from './transforms';
 
 // Ensure all extensions are registered
 import './extensions';
-
-// Export config
-export * from './core/config';
 
 // Note: Any additional extensions should be added here

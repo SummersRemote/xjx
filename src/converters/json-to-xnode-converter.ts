@@ -4,11 +4,11 @@
  * Converts JSON objects to XNode representation using the new static utilities.
  */
 import { JsonToXNodeConverter } from './converter-interfaces';
-import { Configuration } from '../core/types/config-types';
-import { NodeType } from '../core/types/dom-types';
-import { ErrorUtils } from '../core/utils/error-utils';
-import { JsonUtils } from '../core/utils/json-utils';
-import { XNode } from '../core/models/xnode';
+import { Configuration } from '../core/config';
+import { NodeType } from '../core/dom';
+import { ErrorHandler } from '../core/error';
+import { JSON } from '../core/json';
+import { XNode } from '../core/xnode';
 
 /**
  * Converts JSON objects to XNode representation
@@ -31,7 +31,7 @@ export class DefaultJsonToXNodeConverter implements JsonToXNodeConverter {
    * @returns XNode representation
    */
   public convert(json: Record<string, any>): XNode {
-    return ErrorUtils.try(
+    return ErrorHandler.try(
       () => {
         // Reset namespace map
         this.namespaceMap = {};
@@ -176,7 +176,7 @@ export class DefaultJsonToXNodeConverter implements JsonToXNodeConverter {
       }
       
       // Element node (recursively process)
-      if (JsonUtils.isValidJsonObject(child) && !Array.isArray(child)) {
+      if (JSON.isValidObject(child) && !Array.isArray(child)) {
         result.push(this.jsonToXNode(child, parentNode));
       }
     }
@@ -247,13 +247,13 @@ export class DefaultJsonToXNodeConverter implements JsonToXNodeConverter {
    * @private
    */
   private validateJsonObject(jsonObj: Record<string, any>): void {
-    ErrorUtils.validate(
-      JsonUtils.isValidJsonObject(jsonObj),
+    ErrorHandler.validate(
+      JSON.isValidObject(jsonObj),
       'Invalid JSON object: must be a non-array object',
       'json-to-xml'
     );
     
-    ErrorUtils.validate(
+    ErrorHandler.validate(
       Object.keys(jsonObj).length === 1,
       'Invalid JSON object: must have exactly one root element',
       'json-to-xml'

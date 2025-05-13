@@ -10,8 +10,8 @@ import {
   TransformTarget, 
   createTransformResult,
   FORMATS
-} from '../core/types/transform-interfaces';
-import { CommonUtils } from '../core/utils/common-utils';
+} from '../core/transform';
+import { Common } from '../core/common';
   
 /**
  * Options for number transformer
@@ -115,10 +115,10 @@ export class NumberTransform implements Transform {
       return createTransformResult(value);
     }
     
-    // Try to use CommonUtils for simple cases
+    // Try to use Common for simple cases
     if (this.isDefaultConfiguration()) {
       // Use the common utility function with default settings
-      const numValue = CommonUtils.toNumber(value);
+      const numValue = Common.toNumber(value);
       
       // Only transform if it was actually a number
       if (typeof numValue === 'number' && !isNaN(numValue)) {

@@ -3,9 +3,9 @@
  */
 import { XJX } from "../../XJX";
 import { DefaultJsonToXNodeConverter } from "../../converters/json-to-xnode-converter";
-import { XJXError } from "../../core/types/error-types";
-import { FORMATS } from "../../core/types/transform-interfaces";
-import { NonTerminalExtensionContext } from "../../core/types/extension-types";
+import { XJXError } from "../../core/error";
+import { FORMATS } from "../../core/transform";
+import { NonTerminalExtensionContext } from "../../core/extension";
 
 /**
  * Set JSON source for transformation

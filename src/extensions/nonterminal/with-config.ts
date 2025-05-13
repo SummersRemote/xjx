@@ -2,9 +2,9 @@
  * Core extension that implements the withConfig method
  */
 import { XJX } from "../../XJX";
-import { Configuration } from "../../core/types/transform-interfaces";
-import { NonTerminalExtensionContext } from "../../core/types/extension-types";
-import { CommonUtils } from "xjx/core/utils/common-utils";
+import { Configuration } from "../../core/config";
+import { NonTerminalExtensionContext } from "../../core/extension";
+import { Common } from "../../core/common";
 
 /**
  * Set configuration options
@@ -16,7 +16,7 @@ function withConfig(this: NonTerminalExtensionContext, config: Partial<Configura
   }
   
   // Merge with current config
-  this.config = CommonUtils.deepMerge(this.config, config);
+  this.config = Common.deepMerge(this.config, config);
   return this;
 }
 

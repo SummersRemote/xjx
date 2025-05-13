@@ -3,9 +3,9 @@
  */
 import { XJX } from "../../XJX";
 import { DefaultXmlToXNodeConverter } from "../../converters/xml-to-xnode-converter";
-import { XJXError } from "../../core/types/error-types";
-import { FORMATS } from "../../core/types/transform-interfaces";
-import { NonTerminalExtensionContext } from "../../core/types/extension-types";
+import { XJXError } from "../../core/error";
+import { FORMATS } from "../../core/transform";
+import { NonTerminalExtensionContext } from "../../core/extension";
 
 /**
  * Set XML source for transformation

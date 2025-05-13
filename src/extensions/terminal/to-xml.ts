@@ -4,9 +4,9 @@
 import { XJX } from "../../XJX";
 import { DefaultXNodeToXmlConverter } from "../../converters/xnode-to-xml-converter";
 import { DefaultXNodeTransformer } from "../../converters/xnode-transformer";
-import { TerminalExtensionContext } from "../../core/types/extension-types";
-import { FORMATS } from "../../core/types/transform-interfaces";
-import { XNode } from "../../core/models/xnode";
+import { TerminalExtensionContext } from "../../core/extension";
+import { FORMATS } from "../../core/transform";
+import { XNode } from "../../core/xnode";
 
 /**
  * Convert current XNode to XML string

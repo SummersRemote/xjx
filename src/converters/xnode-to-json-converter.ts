@@ -4,18 +4,11 @@
  * Converts XNode to JSON object using the new static utilities.
  */
 import { XNodeToJsonConverter } from './converter-interfaces';
-import { Configuration } from '../core/types/config-types';
-import {
-  JSONValue,
-  JSONObject,
-  JSONArray,
-  XMLJSONNode,
-  XMLJSONElement,
-} from "../core/types/json-types";
-import { NodeType } from '../core/types/dom-types';
-import { ErrorUtils } from '../core/utils/error-utils';
-import { JsonUtils } from '../core/utils/json-utils';
-import { XNode } from '../core/models/xnode';
+import { Configuration } from '../core/config';
+import { NodeType } from '../core/dom';
+import { ErrorHandler } from '../core/error';
+import { JSON } from '../core/json';
+import { XNode } from '../core/xnode';
 
 /**
  * Converts XNode to JSON object
@@ -37,14 +30,14 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
    * @returns JSON object
    */
   public convert(node: XNode): Record<string, any> {
-    return ErrorUtils.try(
+    return ErrorHandler.try(
       () => {
         // First perform the basic conversion
         let jsonResult = this.xnodeToJson(node);
         
         // Apply compact mode if configured
         if (this.config.outputOptions.compact) {
-          const compactedJson = JsonUtils.compactJson(jsonResult);
+          const compactedJson = JSON.compact(jsonResult);
           
           // If compaction returns undefined (completely empty), return an empty object
           if (compactedJson === undefined) {

@@ -1,20 +1,11 @@
 /**
- * DOM operations with unified interface for browser and Node.js
+ * DOM - Static utility for DOM operations with unified interface for browser and Node.js
+ * 
+ * Provides a consistent DOM API across different environments, handling the necessary
+ * abstractions and adapter logic to work in both browser and Node.js environments.
  */
-import { ErrorHandler } from './error';
-
-/**
- * DOM node types as an enum for better type safety
- */
-export enum NodeType {
-  ELEMENT_NODE = 1,
-  ATTRIBUTE_NODE = 2,
-  TEXT_NODE = 3, 
-  CDATA_SECTION_NODE = 4,
-  PROCESSING_INSTRUCTION_NODE = 7,
-  COMMENT_NODE = 8,
-  DOCUMENT_NODE = 9
-}
+import { ErrorHandler } from './error-utils';
+import { NodeType } from '../types/dom-types';
 
 /**
  * DOM Window interface for compatibility
@@ -34,12 +25,9 @@ interface JSDOMInstance {
 }
 
 /**
- * DOM utilities for consistent DOM operations across environments
+ * Static DOM adapter utilities
  */
 export class DOM {
-  
-  static readonly NodeType = NodeType;
-
   // Environment-specific DOM implementation
   private static domParser: any;
   private static xmlSerializer: any;
@@ -94,12 +82,17 @@ export class DOM {
       throw ErrorHandler.environment("DOM environment initialization failed", error);
     }
   }
+
+  /**
+   * Expose NodeType enum for convenience
+   */
+  public static readonly NodeType = NodeType;
   
   /**
    * Create a new DOM parser
    * @returns New DOM parser instance
    */
-  static createParser(): any {
+  public static createParser(): any {
     return ErrorHandler.try(
       () => new DOM.domParser(),
       'Failed to create DOM parser',
@@ -111,7 +104,7 @@ export class DOM {
    * Create a new XML serializer
    * @returns New XML serializer instance
    */
-  static createSerializer(): any {
+  public static createSerializer(): any {
     return ErrorHandler.try(
       () => new DOM.xmlSerializer(),
       'Failed to create XML serializer',
@@ -125,7 +118,7 @@ export class DOM {
    * @param contentType Content type (default: text/xml)
    * @returns Parsed DOM document
    */
-  static parseFromString(xmlString: string, contentType: string = 'text/xml'): Document {
+  public static parseFromString(xmlString: string, contentType: string = 'text/xml'): Document {
     return ErrorHandler.try(
       () => {
         const parser = new DOM.domParser();
@@ -141,7 +134,7 @@ export class DOM {
    * @param node DOM node to serialize
    * @returns Serialized XML string
    */
-  static serializeToString(node: Node): string {
+  public static serializeToString(node: Node): string {
     return ErrorHandler.try(
       () => {
         const serializer = new DOM.xmlSerializer();
@@ -156,7 +149,7 @@ export class DOM {
    * Create a new XML document
    * @returns New document
    */
-  static createDocument(): Document {
+  public static createDocument(): Document {
     return ErrorHandler.try(
       () => {
         // For browsers, create a document with a root element to avoid issues
@@ -177,7 +170,7 @@ export class DOM {
    * @param tagName Tag name for the element
    * @returns New element
    */
-  static createElement(tagName: string): Element {
+  public static createElement(tagName: string): Element {
     return ErrorHandler.try(
       () => {
         if (typeof window !== "undefined") {
@@ -198,7 +191,7 @@ export class DOM {
    * @param qualifiedName Qualified name with optional prefix
    * @returns New element with namespace
    */
-  static createElementNS(namespaceURI: string, qualifiedName: string): Element {
+  public static createElementNS(namespaceURI: string, qualifiedName: string): Element {
     return ErrorHandler.try(
       () => {
         if (typeof window !== "undefined") {
@@ -218,7 +211,7 @@ export class DOM {
    * @param data Text content
    * @returns New text node
    */
-  static createTextNode(data: string): Text {
+  public static createTextNode(data: string): Text {
     return ErrorHandler.try(
       () => {
         if (typeof window !== "undefined") {
@@ -238,7 +231,7 @@ export class DOM {
    * @param data CDATA content
    * @returns New CDATA section
    */
-  static createCDATASection(data: string): CDATASection {
+  public static createCDATASection(data: string): CDATASection {
     return ErrorHandler.try(
       () => {
         // For browser compatibility, use document.implementation to create CDATA
@@ -260,7 +253,7 @@ export class DOM {
    * @param data Comment content
    * @returns New comment node
    */
-  static createComment(data: string): Comment {
+  public static createComment(data: string): Comment {
     return ErrorHandler.try(
       () => {
         if (typeof window !== "undefined") {
@@ -281,7 +274,7 @@ export class DOM {
    * @param data Processing instruction data
    * @returns New processing instruction
    */
-  static createProcessingInstruction(target: string, data: string): ProcessingInstruction {
+  public static createProcessingInstruction(target: string, data: string): ProcessingInstruction {
     return ErrorHandler.try(
       () => {
         if (typeof window !== "undefined") {
@@ -304,7 +297,7 @@ export class DOM {
    * @param qualifiedName Qualified name
    * @param value Attribute value
    */
-  static setNamespacedAttribute(
+  public static setNamespacedAttribute(
     element: Element, 
     namespaceURI: string | null, 
     qualifiedName: string, 
@@ -328,7 +321,7 @@ export class DOM {
    * @param obj Object to check
    * @returns True if the object is a DOM node
    */
-  static isNode(obj: any): boolean {
+  public static isNode(obj: any): boolean {
     try {
       return obj && typeof obj === 'object' && typeof obj.nodeType === 'number';
     } catch (error) {
@@ -341,7 +334,7 @@ export class DOM {
    * @param nodeType Node type number
    * @returns Human-readable node type
    */
-  static getNodeTypeName(nodeType: number): string {
+  public static getNodeTypeName(nodeType: number): string {
     switch (nodeType) {
       case NodeType.ELEMENT_NODE: return 'ELEMENT_NODE';
       case NodeType.ATTRIBUTE_NODE: return 'ATTRIBUTE_NODE';
@@ -359,7 +352,7 @@ export class DOM {
    * @param node DOM element
    * @returns Object with attribute name-value pairs
    */
-  static getNodeAttributes(node: Element): Record<string, string> {
+  public static getNodeAttributes(node: Element): Record<string, string> {
     const result: Record<string, string> = {};
     for (let i = 0; i < node.attributes.length; i++) {
       const attr = node.attributes[i];
@@ -371,7 +364,7 @@ export class DOM {
   /**
    * Cleanup method for releasing resources (mainly for JSDOM)
    */
-  static cleanup(): void {
+  public static cleanup(): void {
     if (DOM.jsdomInstance && typeof DOM.jsdomInstance.window.close === 'function') {
       DOM.jsdomInstance.window.close();
     }

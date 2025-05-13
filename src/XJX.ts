@@ -2,25 +2,24 @@
  * XJX - Main class with entry points to fluent API and extension registration
  * 
  * Provides static utilities and extension registration for the XJX library.
- * Updated to simplify configuration management.
  */
-import { Configuration } from './core/types/config-types';
+import { Configuration, Config } from './core/config';
 import { XjxBuilder } from './xjx-builder';
-import { XmlUtils } from './core/utils/xml-utils';
-import { DomUtils } from './core/utils/dom-utils';
-import { ConfigManager } from './core/config/config-manager';
+import { XmlParser, XmlSerializer } from './core/xml';
+import { DOM } from './core/dom';
 import { 
   TerminalExtensionContext, 
   NonTerminalExtensionContext 
-} from './core/types/extension-types';
-import { Transform } from './core/types/transform-interfaces';
+} from './core/extension';
+import { Transform, FormatId, FORMATS } from './core/transform';
+import { XNode } from './core/xnode';
 
 /**
  * Main XJX class - provides access to the fluent API and manages extensions
  */
 export class XJX {
   // Global configuration - mutable reference for backward compatibility
-  private static globalConfig: Configuration = ConfigManager.getDefaultConfig();
+  private static globalConfig: Configuration = Config.getDefault();
   
   /**
    * Utility method to validate XML string
@@ -28,7 +27,7 @@ export class XJX {
    * @returns Validation result with isValid flag and optional error message
    */
   public static validateXml(xmlString: string): { isValid: boolean; message?: string } {
-    return XmlUtils.validateXML(xmlString);
+    return XmlParser.validate(xmlString);
   }
   
   /**
@@ -38,14 +37,14 @@ export class XJX {
    * @returns Formatted XML string
    */
   public static prettyPrintXml(xmlString: string, indent: number = 2): string {
-    return XmlUtils.prettyPrintXml(xmlString, indent);
+    return XmlSerializer.prettyPrint(xmlString, indent);
   }
   
   /**
    * Reset global configuration to defaults
    */
   public static resetConfig(): void {
-    this.globalConfig = ConfigManager.getDefaultConfig();
+    this.globalConfig = Config.getDefault();
   }
   
   /**
@@ -53,7 +52,7 @@ export class XJX {
    * @param config Configuration to apply
    */
   public static updateConfig(config: Partial<Configuration>): void {
-    this.globalConfig = ConfigManager.mergeConfig(this.globalConfig, config);
+    this.globalConfig = Config.merge(this.globalConfig, config);
   }
   
   /**
@@ -61,7 +60,7 @@ export class XJX {
    * @returns Current configuration
    */
   public static getConfig(): Configuration {
-    return ConfigManager.getDefaultConfig();
+    return Config.getDefault();
   }
   
   /**
@@ -76,7 +75,7 @@ export class XJX {
    * Cleanup resources (e.g., DOM adapter)
    */
   public static cleanup(): void {
-    DomUtils.cleanup();
+    DOM.cleanup();
   }
   
   /**

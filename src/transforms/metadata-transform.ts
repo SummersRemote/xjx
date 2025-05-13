@@ -10,9 +10,9 @@ import {
   TransformTarget, 
   FormatId,
   createTransformResult 
-} from '../core/types/transform-interfaces';
-import { XNode } from '../core/models/xnode';
-import { ErrorUtils } from '../core/utils/error-utils';
+} from '../core/transform';
+import { XNode } from '../core/xnode';
+import { ErrorHandler } from '../core/error';
 
 /**
  * Type for node selector functions
@@ -136,7 +136,7 @@ export class MetadataTransform implements Transform {
    * @param options Transformer options
    */
   constructor(options: MetadataTransformOptions = {}) {
-    ErrorUtils.validate(
+    ErrorHandler.validate(
       !!options && typeof options === 'object',
       'MetadataTransform requires options object',
       'general'
@@ -161,14 +161,14 @@ export class MetadataTransform implements Transform {
     }
     
     // Validate that we have at least one application method
-    ErrorUtils.validate(
+    ErrorHandler.validate(
       this.applyToAll || this.applyToRoot || !!this.selector,
       'MetadataTransform must have at least one application method (applyToAll, applyToRoot, or selector)',
       'general'
     );
     
     // Validate that we have metadata to apply
-    ErrorUtils.validate(
+    ErrorHandler.validate(
       !!this.metadata || this.formatMetadata.size > 0 || this.removeKeys.length > 0,
       'MetadataTransform must have metadata to apply or keys to remove',
       'general'

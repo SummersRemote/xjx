@@ -2,11 +2,11 @@
  * Core extension that implements the toJsonString method
  */
 import { XJX } from "../../XJX";
-import { TerminalExtensionContext } from "../../core/types/extension-types";
+import { TerminalExtensionContext } from "../../core/extension";
 import { DefaultXNodeTransformer } from "../../converters/xnode-transformer";
 import { DefaultXNodeToJsonConverter } from "../../converters/xnode-to-json-converter";
-import { FORMATS } from "../../core/types/transform-interfaces";
-import { XNode } from "../../core/models/xnode";
+import { FORMATS } from "../../core/transform";
+import { XNode } from "../../core/xnode";
 
 /**
  * Convert current XNode to JSON string with formatting

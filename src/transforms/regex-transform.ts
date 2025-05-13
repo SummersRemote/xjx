@@ -10,8 +10,8 @@ import {
   TransformTarget,
   FormatId,
   createTransformResult,
-} from "../core/types/transform-interfaces";
-import { ErrorUtils } from "../core/utils/error-utils";
+} from "../core/transform";
+import { ErrorHandler } from "../core/error";
 
 /**
  * Options for regex transformer
@@ -94,13 +94,13 @@ export class RegexTransform implements Transform {
    * @param options Transformer options
    */
   constructor(options: RegexOptions) {
-    ErrorUtils.validate(
+    ErrorHandler.validate(
       !!options.pattern,
       "RegexTransform requires a pattern option",
       "general"
     );
 
-    ErrorUtils.validate(
+    ErrorHandler.validate(
       options.replacement !== undefined,
       "RegexTransform requires a replacement option",
       "general"

@@ -4,14 +4,14 @@
  * Converts XNode to XML string using the new static utilities.
  */
 import { XNodeToXmlConverter } from './converter-interfaces';
-import { Configuration } from '../core/types/config-types';
-import { XmlUtils } from '../core/utils/xml-utils';
-import { DomUtils } from '../core/utils/dom-utils';
-import { NodeType } from '../core/types/dom-types';
-import { ErrorUtils } from '../core/utils/error-utils';
-import { NamespaceUtils } from '../core/utils/namespace-utils';
-import { EntityUtils } from '../core/utils/entity-utils';
-import { XNode } from '../core/models/xnode';
+import { Configuration } from '../core/config';
+import { XmlSerializer } from '../core/xml';
+import { DOM } from '../core/dom';
+import { NodeType } from '../core/dom';
+import { ErrorHandler } from '../core/error';
+import { XmlNamespace } from '../core/xml';
+import { XmlEntity } from '../core/xml';
+import { XNode } from '../core/xnode';
 
 /**
  * Converts XNode to XML string
@@ -34,13 +34,13 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
    * @returns XML string
    */
   public convert(node: XNode): string {
-    return ErrorUtils.try(
+    return ErrorHandler.try(
       () => {
         // Reset namespace map
         this.namespaceMap = {};
 
         // Create DOM document
-        const doc = DomUtils.createDocument();
+        const doc = DOM.createDocument();
         
         // Convert XNode to DOM
         const element = this.xnodeToDom(node, doc);
@@ -53,16 +53,16 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
         }
         
         // Serialize and format XML
-        let xmlString = XmlUtils.serializeXml(doc);
+        let xmlString = XmlSerializer.serialize(doc);
         
         // Apply pretty printing if enabled
         if (this.config.outputOptions.prettyPrint) {
-          xmlString = XmlUtils.prettyPrintXml(xmlString, this.config.outputOptions.indent);
+          xmlString = XmlSerializer.prettyPrint(xmlString, this.config.outputOptions.indent);
         }
         
         // Add XML declaration if configured
         if (this.config.outputOptions.xml.declaration) {
-          xmlString = XmlUtils.ensureXMLDeclaration(xmlString);
+          xmlString = XmlSerializer.ensureXMLDeclaration(xmlString);
         }
         
         return xmlString;
@@ -79,13 +79,13 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
    * @returns DOM element
    */
   public xnodeToDom(node: XNode, doc: Document): Element {
-    return ErrorUtils.try(
+    return ErrorHandler.try(
       () => {
         let element: Element;
         
         // Create element with namespace if needed
         if (node.namespace && this.config.preserveNamespaces) {
-          const qualifiedName = NamespaceUtils.createQualifiedName(node.prefix, node.name);
+          const qualifiedName = XmlNamespace.createQualifiedName(node.prefix, node.name);
           element = doc.createElementNS(node.namespace, qualifiedName);
         } else {
           element = doc.createElement(node.name);
@@ -93,7 +93,7 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
         
         // Add namespace declarations
         if (node.namespaceDeclarations && this.config.preserveNamespaces) {
-          NamespaceUtils.addNamespaceDeclarations(element, node.namespaceDeclarations);
+          XmlNamespace.addNamespaceDeclarations(element, node.namespaceDeclarations);
           
           // Update namespace map
           Object.entries(node.namespaceDeclarations).forEach(([prefix, uri]) => {
@@ -108,8 +108,8 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
             if (name === "xmlns" || name.startsWith("xmlns:")) continue;
             
             // Handle attributes with namespaces
-            if (NamespaceUtils.hasPrefix(name) && this.config.preserveNamespaces) {
-              const { prefix, localName } = NamespaceUtils.parseQualifiedName(name);
+            if (XmlNamespace.hasPrefix(name) && this.config.preserveNamespaces) {
+              const { prefix, localName } = XmlNamespace.parseQualifiedName(name);
               
               if (prefix) {
                 const attrNs = this.findNamespaceForPrefix(node, prefix);
@@ -118,7 +118,7 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
                   element.setAttributeNS(
                     attrNs,
                     name,
-                    EntityUtils.escapeXml(String(value))
+                    XmlEntity.escape(String(value))
                   );
                   continue;
                 }
@@ -128,7 +128,7 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
             // Regular attribute
             element.setAttribute(
               name,
-              EntityUtils.escapeXml(String(value))
+              XmlEntity.escape(String(value))
             );
           }
         }
@@ -136,7 +136,7 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
         // Add content
         // Simple node with only text content
         if (node.value !== undefined && (!node.children || node.children.length === 0)) {
-          element.textContent = EntityUtils.safeXmlText(String(node.value));
+          element.textContent = XmlEntity.safeText(String(node.value));
         }
         // Node with children
         else if (node.children && node.children.length > 0) {
@@ -163,7 +163,7 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
       case NodeType.TEXT_NODE:
         if (this.config.preserveTextNodes) {
           element.appendChild(
-            doc.createTextNode(EntityUtils.safeXmlText(String(child.value)))
+            doc.createTextNode(XmlEntity.safeText(String(child.value)))
           );
         }
         break;
@@ -201,6 +201,6 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
    * @returns Namespace URI or undefined
    */
   private findNamespaceForPrefix(node: XNode, prefix: string): string | undefined {
-    return NamespaceUtils.findNamespaceForPrefix(node, prefix, this.namespaceMap);
+    return XmlNamespace.findNamespaceForPrefix(node, prefix, this.namespaceMap);
   }
 }

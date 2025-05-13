@@ -16,7 +16,7 @@ export { XJX } from './XJX';
 // =====================================================================================
 
 // Configuration types
-export { Configuration } from './core/types/config-types';
+export { Configuration } from './core/config';
 
 // Core interfaces and types needed by consumers
 export {
@@ -26,8 +26,9 @@ export {
   TransformContext,
   TransformResult,
   FormatId,
+  FORMATS,
   createTransformResult,
-} from './core/types/transform-interfaces';
+} from './core/transform';
 
 // Error types
 export { 
@@ -36,10 +37,10 @@ export {
   JsonToXmlError, 
   EnvironmentError, 
   ConfigurationError 
-} from './core/types/error-types';
+} from './core/error';
 
 // Key model classes
-export { XNode } from './core/models/xnode';
+export { XNode } from './core/xnode';
 
 // =====================================================================================
 // Core transformers - only essential ones for common use cases

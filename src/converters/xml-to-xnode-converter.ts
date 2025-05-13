@@ -4,13 +4,13 @@
  * Converts XML strings to XNode representation using the new static utilities.
  */
 import { XmlToXNodeConverter } from './converter-interfaces';
-import { Configuration } from '../core/types/config-types';
-import { XmlUtils } from '../core/utils/xml-utils';
-import { NodeType } from '../core/types/dom-types';
-import { ErrorUtils } from '../core/utils/error-utils';
-import { NamespaceUtils } from '../core/utils/namespace-utils';
-import { EntityUtils } from '../core/utils/entity-utils';
-import { XNode } from '../core/models/xnode';
+import { Configuration } from '../core/config';
+import { XmlParser } from '../core/xml';
+import { NodeType } from '../core/dom';
+import { ErrorHandler } from '../core/error';
+import { XmlNamespace } from '../core/xml';
+import { XmlEntity } from '../core/xml';
+import { XNode } from '../core/xnode';
 
 /**
  * Converts XML strings to XNode representation
@@ -33,13 +33,13 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
    * @returns XNode representation
    */
   public convert(xml: string): XNode {
-    return ErrorUtils.try(
+    return ErrorHandler.try(
       () => {
         // Reset namespace map
         this.namespaceMap = {};
         
         // Parse XML string to DOM
-        const doc = XmlUtils.parseXml(xml);
+        const doc = XmlParser.parse(xml);
         
         // Convert DOM element to XNode
         return this.elementToXNode(doc.documentElement);
@@ -73,10 +73,10 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
       xnode.attributes = {};
 
       // Get namespace declarations
-      const namespaceDecls = NamespaceUtils.getNamespaceDeclarations(element);
+      const namespaceDecls = XmlNamespace.getNamespaceDeclarations(element);
       if (Object.keys(namespaceDecls).length > 0) {
         xnode.namespaceDeclarations = namespaceDecls;
-        xnode.isDefaultNamespace = NamespaceUtils.hasDefaultNamespace(element);
+        xnode.isDefaultNamespace = XmlNamespace.hasDefaultNamespace(element);
 
         // Update global namespace map
         Object.assign(this.namespaceMap, namespaceDecls);
@@ -108,7 +108,7 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
         !hasMixed
       ) {
         const text = element.childNodes[0].nodeValue || "";
-        const normalizedText = EntityUtils.normalizeWhitespace(text, this.config.preserveWhitespace);
+        const normalizedText = XmlEntity.normalizeWhitespace(text, this.config.preserveWhitespace);
 
         if (normalizedText && this.config.preserveTextNodes) {
           xnode.value = normalizedText;
@@ -210,7 +210,7 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
     const text = node.nodeValue || "";
 
     if (this.config.preserveWhitespace || hasMixed || this.hasContent(text)) {
-      const normalizedText = EntityUtils.normalizeWhitespace(text, this.config.preserveWhitespace);
+      const normalizedText = XmlEntity.normalizeWhitespace(text, this.config.preserveWhitespace);
 
       if (normalizedText && this.config.preserveTextNodes) {
         const textNode = XNode.createTextNode(normalizedText);

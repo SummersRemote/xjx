@@ -2,48 +2,21 @@
  * Extension Registry
  * 
  * This module imports all core extensions to ensure they're registered.
- * It uses webpack-specific comments to prevent tree-shaking.
  */
 
-// Import all core extensions so they're registered
+// Import all core extensions
 // Terminal extensions
-require(/* webpackMode: "eager" */ './instance/to-xml');
-require(/* webpackMode: "eager" */ './instance/to-json');
-require(/* webpackMode: "eager" */ './instance/to-json-string');
+import './terminal/to-xml';
+import './terminal/to-json';
+import './terminal/to-json-string';
 
 // Non-terminal extensions
-require(/* webpackMode: "eager" */ './instance/from-xml');
-require(/* webpackMode: "eager" */ './instance/from-json');
-require(/* webpackMode: "eager" */ './instance/with-config');
-require(/* webpackMode: "eager" */ './instance/with-transforms');
+import './nonterminal/from-xml';
+import './nonterminal/from-json';
+import './nonterminal/with-config';
+import './nonterminal/with-transforms';
 
-/**
- * Initialize extensions by importing them
- * This function doesn't actually need to do anything because the imports
- * have side effects that register the extensions
- */
-export function loadExtensions(): void {
-  // The requires above already registered the extensions
-  // This function exists just to provide a clear API
-}
-
-/**
- * Load custom extensions from specific paths
- * @param paths Array of paths to extensions
- */
-export function loadCustomExtensions(paths: string[]): void {
-  // Load each extension by path
-  for (const path of paths) {
-    try {
-      // Using require() to support webpack
-      require(path);
-    } catch (err) {
-      console.error(`Failed to load extension from path: ${path}`, err);
-    }
-  }
-}
-
-// Type declarations for improved development experience
+// Export types only for developer experience
 export interface XJX {
   // Instance properties
   xnode: any | null;
@@ -67,6 +40,3 @@ export interface XJX {
   withConfig(config: any): XJX;
   withTransforms(...transforms: any[]): XJX;
 }
-
-// No need to augment the module definition here since each extension
-// handles its own type augmentation

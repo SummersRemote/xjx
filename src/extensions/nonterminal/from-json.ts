@@ -60,7 +60,6 @@ function fromJson(this: XJX, source: Record<string, any>): void {
         keyCount: Object.keys(source || {}).length
       },
       errorType: ErrorType.PARSE
-      // No fallback needed - the registration wrapper handles it
     });
   }
 }

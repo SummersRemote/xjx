@@ -1,5 +1,5 @@
 /**
- * Example instance-only extension for from-xml
+ * Core extension that implements the fromXml method
  */
 import { XJX } from "../../XJX";
 import { DefaultXmlToXNodeConverter } from "../../converters/xml-to-xnode-converter";

@@ -5,7 +5,6 @@
  */
 import { Configuration, Config } from "./core/config";
 import { XmlParser, XmlSerializer } from "./core/xml";
-import { DOM } from "./core/dom";
 import { Transform, FormatId } from "./core/transform";
 import { XNode } from "./core/xnode";
 import {
@@ -13,10 +12,6 @@ import {
   validate,
   ValidationError,
   ConfigurationError,
-  SerializeError,
-  ParseError,
-  TransformError,
-  EnvironmentError,
   handleError,
   ErrorType,
 } from "./core/error";
@@ -38,9 +33,6 @@ export class XJX {
   // Static registry properties for tracking extensions
   private static terminalExtensions: Map<string, Function> = new Map();
   private static nonTerminalExtensions: Map<string, Function> = new Map();
-  
-  // Static global configuration
-  private static globalConfig: Configuration = Config.getDefault();
   
   /**
    * Create a new XJX instance
@@ -107,73 +99,6 @@ export class XJX {
         },
         errorType: ErrorType.SERIALIZE,
         fallback: xmlString,
-      });
-    }
-  }
-
-  /**
-   * Reset global configuration to defaults
-   */
-  public static resetConfig(): void {
-    try {
-      logger.debug("Resetting global configuration to defaults");
-      this.globalConfig = Config.getDefault();
-      logger.debug("Global configuration reset complete");
-    } catch (err) {
-      handleError(err, "reset configuration", {
-        errorType: ErrorType.CONFIGURATION,
-      });
-    }
-  }
-
-  /**
-   * Update global configuration
-   * @param config Configuration to apply
-   */
-  public static updateConfig(config: Partial<Configuration>): void {
-    try {
-      logger.debug('Updating global configuration', { 
-        configKeys: Object.keys(config || {}) 
-      });
-      
-      this.globalConfig = Config.createOrUpdate(config, this.globalConfig);
-      
-      logger.debug('Global configuration updated successfully');
-    } catch (err) {
-      handleError(err, "update configuration", {
-        data: { configKeys: Object.keys(config || {}) },
-        errorType: ErrorType.CONFIGURATION
-      });
-    }
-  }
-
-  /**
-   * Get current global configuration (deep clone to prevent mutation)
-   * @returns Current configuration
-   */
-  public static getConfig(): Configuration {
-    try {
-      logger.debug("Getting a copy of the global configuration");
-      return Common.deepClone(this.globalConfig);
-    } catch (err) {
-      return handleError(err, "get configuration", {
-        errorType: ErrorType.CONFIGURATION,
-        fallback: Config.getDefault(),
-      });
-    }
-  }
-
-  /**
-   * Cleanup resources (e.g., DOM adapter)
-   */
-  public static cleanup(): void {
-    try {
-      logger.debug("Cleaning up resources");
-      DOM.cleanup();
-      logger.debug("Cleanup completed successfully");
-    } catch (err) {
-      handleError(err, "clean up resources", {
-        errorType: ErrorType.ENVIRONMENT,
       });
     }
   }
@@ -251,24 +176,6 @@ export class XJX {
         errorType: ErrorType.CONFIGURATION
       });
     }
-  }
-  
-  /**
-   * Check if a terminal extension is registered
-   * @param name Extension name
-   * @returns True if the extension is registered
-   */
-  public static hasTerminalExtension(name: string): boolean {
-    return this.terminalExtensions.has(name);
-  }
-  
-  /**
-   * Check if a non-terminal extension is registered
-   * @param name Extension name
-   * @returns True if the extension is registered
-   */
-  public static hasNonTerminalExtension(name: string): boolean {
-    return this.nonTerminalExtensions.has(name);
   }
   
   /**

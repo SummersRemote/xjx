@@ -4,17 +4,11 @@
  * Main entry point and exports for the library
  */
 
-// =====================================================================================
-// Core functionality
-// =====================================================================================
+// Import extensions to ensure they're registered
+import './extensions';
 
 // Main entry point
 export { XJX } from "./XJX";
-export default XJX;
-
-// =====================================================================================
-// Type definitions - only export what's needed by consumers
-// =====================================================================================
 
 // Configuration types
 export { Configuration } from "./core/config";
@@ -47,10 +41,7 @@ export {
 // Key model classes
 export { XNode } from "./core/xnode";
 
-// =====================================================================================
 // Core transformers - only essential ones for common use cases
-// =====================================================================================
-
 export {
   BooleanTransform,
   BooleanTransformOptions,
@@ -64,11 +55,3 @@ export {
   MetadataTransform,
   MetadataTransformOptions,
 } from "./transforms/metadata-transform";
-
-// =====================================================================================
-// Auto-load core extensions
-// =====================================================================================
-
-// Import the extension registry to auto-load all core extensions
-// Note: This automatically loads all core extensions - no explicit initialization needed
-import "./extensions";

@@ -45,7 +45,6 @@ function toXml(this: XJX): string {
       nodeToConvert = transformer.transform(
         nodeToConvert, 
         this.transforms, 
-        // Use format identifier
         FORMATS.XML
       );
       

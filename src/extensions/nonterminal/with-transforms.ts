@@ -73,8 +73,6 @@ function withTransforms(this: XJX, ...transforms: Transform[]): void {
     logger.debug('Successfully added transforms', {
       totalTransforms: this.transforms.length
     });
-    
-    // No return needed - the registration wrapper handles it
   } catch (err) {
     // At API boundary, use handleError to ensure consistent error handling
     handleError(err, "add transforms", {
@@ -82,7 +80,6 @@ function withTransforms(this: XJX, ...transforms: Transform[]): void {
         transformCount: transforms?.length || 0
       },
       errorType: ErrorType.TRANSFORM
-      // No fallback needed - the registration wrapper handles it
     });
   }
 }

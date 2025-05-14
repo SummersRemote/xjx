@@ -61,15 +61,12 @@ function withConfig(this: XJX, config: Partial<Configuration>): void {
       preserveNamespaces: this.config.preserveNamespaces,
       prettyPrint: this.config.outputOptions?.prettyPrint
     });
-    
-    // No return needed - the registration wrapper handles it
   } catch (err) {
     handleError(err, "apply configuration", {
       data: { 
         configKeys: Object.keys(config || {})
       },
       errorType: ErrorType.CONFIGURATION
-      // No fallback needed - the registration wrapper handles it
     });
   }
 }

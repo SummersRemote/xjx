@@ -119,6 +119,8 @@
             createTransformResult 
         } from '../dist/esm/index.js';
 
+const xjx = new XJX();
+
         // Example 1: Simple Round-Trip Conversion
         document.getElementById('roundtrip-input').textContent = 
             `<users xmlns="urn:bar" >
@@ -136,11 +138,11 @@
             const xml = document.getElementById('roundtrip-input').textContent;
             
             // XML to JSON
-            const json = XJX.fromXml(xml).toJson();
+            const json = xjx.fromXml(xml).toJson();
             document.getElementById('roundtrip-json').textContent = JSON.stringify(json, null, 2);
             
             // JSON back to XML
-            const newXml = XJX.fromJson(json).withConfig({preserveNamespaces:false}).toXml();
+            const newXml = xjx.fromJson(json).withConfig({preserveNamespaces:false}).toXml();
             document.getElementById('roundtrip-xml').textContent = newXml;
         });
 
@@ -159,7 +161,7 @@
             const xml = document.getElementById('transform-input').textContent;
             
             // Apply Boolean and Number transformers
-            const json = XJX.fromXml(xml)
+            const json = xjx.fromXml(xml)
                 .withTransforms(
                     new BooleanTransform({
                         trueValues: ['true', 'yes', 'on'],
@@ -172,7 +174,7 @@
             document.getElementById('transform-json').textContent = JSON.stringify(json, null, 2);
             
             // Convert back to XML
-            const newXml = XJX.fromJson(json)
+            const newXml = xjx.fromJson(json)
                 .withConfig({
                     outputOptions: {
                         prettyPrint: true,
@@ -212,7 +214,7 @@
             const xml = document.getElementById('custom-input').textContent;
             
             // Apply custom transformer
-            const result = XJX.fromXml(xml)
+            const result = xjx.fromXml(xml)
                 .withTransforms(new CapitalizeTransform())
                 .toXml();
             

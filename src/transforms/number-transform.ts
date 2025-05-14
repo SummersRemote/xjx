@@ -133,12 +133,17 @@ export class NumberTransform implements Transform {
       // Try to use Common for simple cases
       if (this.isDefaultConfiguration()) {
         // Use the common utility function with default settings
-        const numValue = Common.toNumber(value);
+        // const numValue = Common.toNumber(value);
+
+      
+        const trimmed = value.trim();      
+        const parsed = Number(trimmed);
+        return isNaN(parsed) ? this.transformComplex(value) : createTransformResult(value);
         
         // Only transform if it was actually a number
-        if (typeof numValue === 'number' && !isNaN(numValue)) {
-            return createTransformResult(numValue);
-        }
+        // if (typeof numValue === 'number' && !isNaN(numValue)) {
+        //     return createTransformResult(numValue);
+        // }
       }
       
       // For more complex cases or custom options, use the full implementation

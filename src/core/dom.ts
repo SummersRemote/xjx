@@ -1,7 +1,7 @@
 /**
  * DOM operations with unified interface for browser and Node.js
  */
-import { catchAndRelease, ErrorType, LogLevel } from './error';
+import { logger, validate, ValidationError, EnvironmentError, ParseError, SerializeError } from './error';
 
 /**
  * DOM node types as an enum for better type safety
@@ -51,6 +51,8 @@ export class DOM {
    */
   static {
     try {
+      logger.debug('Initializing DOM environment');
+      
       if (typeof window === "undefined") {
         // Node.js environment - try JSDOM first
         try {
@@ -62,6 +64,8 @@ export class DOM {
           DOM.domParser = DOM.jsdomInstance.window.DOMParser;
           DOM.xmlSerializer = DOM.jsdomInstance.window.XMLSerializer;
           DOM.docImplementation = DOM.jsdomInstance.window.document.implementation;
+          
+          logger.debug('Initialized DOM environment using JSDOM');
         } catch (jsdomError) {
           // Fall back to xmldom if JSDOM isn't available
           try {
@@ -70,28 +74,43 @@ export class DOM {
             DOM.xmlSerializer = XMLSerializer;
             const implementation = new DOMImplementation();
             DOM.docImplementation = implementation;
+            
+            logger.debug('Initialized DOM environment using xmldom');
           } catch (xmldomError) {
-            throw new Error("Node.js environment detected but neither 'jsdom' nor '@xmldom/xmldom' are available.");
+            const error = new EnvironmentError("Node.js environment detected but neither 'jsdom' nor '@xmldom/xmldom' are available.");
+            logger.error('DOM environment initialization failed', error);
+            throw error;
           }
         }
       } else {
         // Browser environment
         if (!window.DOMParser) {
-          throw new Error("DOMParser is not available in this environment");
+          const error = new EnvironmentError("DOMParser is not available in this environment");
+          logger.error('DOM environment initialization failed', error);
+          throw error;
         }
 
         if (!window.XMLSerializer) {
-          throw new Error("XMLSerializer is not available in this environment");
+          const error = new EnvironmentError("XMLSerializer is not available in this environment");
+          logger.error('DOM environment initialization failed', error);
+          throw error;
         }
 
         DOM.domParser = window.DOMParser;
         DOM.xmlSerializer = window.XMLSerializer;
         DOM.docImplementation = document.implementation;
+        
+        logger.debug('Initialized DOM environment using browser APIs');
       }
-    } catch (error) {
-      throw catchAndRelease(error, "DOM environment initialization failed", {
-        errorType: ErrorType.ENV
-      });
+    } catch (err) {
+      if (err instanceof EnvironmentError) {
+        logger.error('DOM environment initialization failed', err);
+        throw err;
+      } else {
+        const error = new EnvironmentError("DOM environment initialization failed", err);
+        logger.error('DOM environment initialization failed', error);
+        throw error;
+      }
     }
   }
   
@@ -101,11 +120,20 @@ export class DOM {
    */
   static createParser(): any {
     try {
-      return new DOM.domParser();
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to create DOM parser', {
-        errorType: ErrorType.ENV
-      });
+      validate(DOM.domParser !== undefined, "DOM parser is not initialized");
+      
+      const parser = new DOM.domParser();
+      logger.debug('Created new DOM parser');
+      return parser;
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        logger.error('Failed to create DOM parser', err);
+        throw err;
+      } else {
+        const error = new EnvironmentError('Failed to create DOM parser', err);
+        logger.error('Failed to create DOM parser', error);
+        throw error;
+      }
     }
   }
   
@@ -115,11 +143,20 @@ export class DOM {
    */
   static createSerializer(): any {
     try {
-      return new DOM.xmlSerializer();
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to create XML serializer', {
-        errorType: ErrorType.ENV
-      });
+      validate(DOM.xmlSerializer !== undefined, "XML serializer is not initialized");
+      
+      const serializer = new DOM.xmlSerializer();
+      logger.debug('Created new XML serializer');
+      return serializer;
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        logger.error('Failed to create XML serializer', err);
+        throw err;
+      } else {
+        const error = new EnvironmentError('Failed to create XML serializer', err);
+        logger.error('Failed to create XML serializer', error);
+        throw error;
+      }
     }
   }
   
@@ -131,12 +168,35 @@ export class DOM {
    */
   static parseFromString(xmlString: string, contentType: string = 'text/xml'): Document {
     try {
+      // VALIDATION: Check for valid inputs
+      validate(typeof xmlString === "string", "XML string must be a string");
+      validate(typeof contentType === "string", "Content type must be a string");
+      validate(DOM.domParser !== undefined, "DOM parser is not initialized");
+      
       const parser = new DOM.domParser();
-      return parser.parseFromString(xmlString, contentType);
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to parse XML', {
-        errorType: ErrorType.PARSE
+      const doc = parser.parseFromString(xmlString, contentType);
+      
+      // Check for parsing errors
+      const errors = doc.getElementsByTagName("parsererror");
+      if (errors.length > 0) {
+        const errorMessage = errors[0].textContent || "Unknown parse error";
+        throw new ParseError(`XML parsing error: ${errorMessage}`, xmlString);
+      }
+      
+      logger.debug('Successfully parsed XML string to DOM document', {
+        rootElement: doc.documentElement?.nodeName
       });
+      
+      return doc;
+    } catch (err) {
+      if (err instanceof ValidationError || err instanceof ParseError) {
+        logger.error('Failed to parse XML string', err);
+        throw err;
+      } else {
+        const error = new ParseError('Failed to parse XML string', xmlString);
+        logger.error('Failed to parse XML string', error);
+        throw error;
+      }
     }
   }
     
@@ -147,12 +207,31 @@ export class DOM {
    */
   static serializeToString(node: Node): string {
     try {
+      // VALIDATION: Check for valid input
+      validate(node !== null && node !== undefined, "Node must be provided");
+      validate(DOM.xmlSerializer !== undefined, "XML serializer is not initialized");
+      
       const serializer = new DOM.xmlSerializer();
-      return serializer.serializeToString(node);
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to serialize XML', {
-        errorType: ErrorType.SERIALIZE
+      const result = serializer.serializeToString(node);
+      
+      logger.debug('Successfully serialized DOM node to XML string', {
+        nodeType: node.nodeType,
+        resultLength: result.length
       });
+      
+      return result;
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        logger.error('Failed to serialize DOM node', err);
+        throw err;
+      } else {
+        const error = new SerializeError('Failed to serialize DOM node', {
+          nodeType: node.nodeType,
+          nodeName: node.nodeName
+        });
+        logger.error('Failed to serialize DOM node', error);
+        throw error;
+      }
     }
   }
     
@@ -162,17 +241,29 @@ export class DOM {
    */
   static createDocument(): Document {
     try {
+      validate(DOM.docImplementation !== undefined, "Document implementation is not initialized");
+      
+      let doc: Document;
+      
       // For browsers, create a document with a root element to avoid issues
       if (typeof window !== "undefined") {
         const parser = new DOM.domParser();
-        return parser.parseFromString('<temp></temp>', 'text/xml');
+        doc = parser.parseFromString('<temp></temp>', 'text/xml');
       } else {
-        return DOM.docImplementation.createDocument(null, null, null);
+        doc = DOM.docImplementation.createDocument(null, null, null);
       }
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to create document', {
-        errorType: ErrorType.GENERAL
-      });
+      
+      logger.debug('Created new XML document');
+      return doc;
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        logger.error('Failed to create XML document', err);
+        throw err;
+      } else {
+        const error = new EnvironmentError('Failed to create XML document', err);
+        logger.error('Failed to create XML document', error);
+        throw error;
+      }
     }
   }
     
@@ -183,16 +274,31 @@ export class DOM {
    */
   static createElement(tagName: string): Element {
     try {
+      // VALIDATION: Check for valid input
+      validate(typeof tagName === "string", "Tag name must be a string");
+      validate(tagName.length > 0, "Tag name cannot be empty");
+      
+      let element: Element;
+      
       if (typeof window !== "undefined") {
-        return document.createElement(tagName);
+        element = document.createElement(tagName);
       } else {
+        validate(DOM.docImplementation !== undefined, "Document implementation is not initialized");
         const doc = DOM.docImplementation.createDocument(null, null, null);
-        return doc.createElement(tagName);
+        element = doc.createElement(tagName);
       }
-    } catch (error) {
-      return catchAndRelease(error, `Failed to create element: ${tagName}`, {
-        errorType: ErrorType.GENERAL
-      });
+      
+      logger.debug('Created new DOM element', { tagName });
+      return element;
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        logger.error('Failed to create DOM element', err);
+        throw err;
+      } else {
+        const error = new EnvironmentError(`Failed to create element: ${tagName}`, err);
+        logger.error('Failed to create DOM element', error);
+        throw error;
+      }
     }
   }
     
@@ -204,16 +310,36 @@ export class DOM {
    */
   static createElementNS(namespaceURI: string, qualifiedName: string): Element {
     try {
+      // VALIDATION: Check for valid inputs
+      validate(typeof namespaceURI === "string", "Namespace URI must be a string");
+      validate(typeof qualifiedName === "string", "Qualified name must be a string");
+      validate(qualifiedName.length > 0, "Qualified name cannot be empty");
+      
+      let element: Element;
+      
       if (typeof window !== "undefined") {
-        return document.createElementNS(namespaceURI, qualifiedName);
+        element = document.createElementNS(namespaceURI, qualifiedName);
       } else {
+        validate(DOM.docImplementation !== undefined, "Document implementation is not initialized");
         const doc = DOM.docImplementation.createDocument(null, null, null);
-        return doc.createElementNS(namespaceURI, qualifiedName);
+        element = doc.createElementNS(namespaceURI, qualifiedName);
       }
-    } catch (error) {
-      return catchAndRelease(error, `Failed to create element with namespace: ${qualifiedName}`, {
-        errorType: ErrorType.GENERAL
+      
+      logger.debug('Created new namespaced DOM element', { 
+        namespaceURI, 
+        qualifiedName 
       });
+      
+      return element;
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        logger.error('Failed to create namespaced DOM element', err);
+        throw err;
+      } else {
+        const error = new EnvironmentError(`Failed to create namespaced element: ${qualifiedName}`, err);
+        logger.error('Failed to create namespaced DOM element', error);
+        throw error;
+      }
     }
   }
     
@@ -224,16 +350,30 @@ export class DOM {
    */
   static createTextNode(data: string): Text {
     try {
+      // VALIDATION: Check for valid input
+      validate(typeof data === "string", "Text data must be a string");
+      
+      let textNode: Text;
+      
       if (typeof window !== "undefined") {
-        return document.createTextNode(data);
+        textNode = document.createTextNode(data);
       } else {
+        validate(DOM.docImplementation !== undefined, "Document implementation is not initialized");
         const doc = DOM.docImplementation.createDocument(null, null, null);
-        return doc.createTextNode(data);
+        textNode = doc.createTextNode(data);
       }
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to create text node', {
-        errorType: ErrorType.GENERAL
-      });
+      
+      logger.debug('Created new text node', { dataLength: data.length });
+      return textNode;
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        logger.error('Failed to create text node', err);
+        throw err;
+      } else {
+        const error = new EnvironmentError('Failed to create text node', err);
+        logger.error('Failed to create text node', error);
+        throw error;
+      }
     }
   }
     
@@ -244,18 +384,33 @@ export class DOM {
    */
   static createCDATASection(data: string): CDATASection {
     try {
+      // VALIDATION: Check for valid input
+      validate(typeof data === "string", "CDATA data must be a string");
+      
+      let cdataSection: CDATASection;
+      
       // For browser compatibility, use document.implementation to create CDATA
       if (typeof window !== "undefined") {
+        validate(document.implementation !== undefined, "Document implementation is not available");
         const doc = document.implementation.createDocument(null, null, null);
-        return doc.createCDATASection(data);
+        cdataSection = doc.createCDATASection(data);
       } else {
+        validate(DOM.docImplementation !== undefined, "Document implementation is not initialized");
         const doc = DOM.docImplementation.createDocument(null, null, null);
-        return doc.createCDATASection(data);
+        cdataSection = doc.createCDATASection(data);
       }
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to create CDATA section', {
-        errorType: ErrorType.GENERAL
-      });
+      
+      logger.debug('Created new CDATA section', { dataLength: data.length });
+      return cdataSection;
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        logger.error('Failed to create CDATA section', err);
+        throw err;
+      } else {
+        const error = new EnvironmentError('Failed to create CDATA section', err);
+        logger.error('Failed to create CDATA section', error);
+        throw error;
+      }
     }
   }
     
@@ -266,16 +421,30 @@ export class DOM {
    */
   static createComment(data: string): Comment {
     try {
+      // VALIDATION: Check for valid input
+      validate(typeof data === "string", "Comment data must be a string");
+      
+      let comment: Comment;
+      
       if (typeof window !== "undefined") {
-        return document.createComment(data);
+        comment = document.createComment(data);
       } else {
+        validate(DOM.docImplementation !== undefined, "Document implementation is not initialized");
         const doc = DOM.docImplementation.createDocument(null, null, null);
-        return doc.createComment(data);
+        comment = doc.createComment(data);
       }
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to create comment', {
-        errorType: ErrorType.GENERAL
-      });
+      
+      logger.debug('Created new comment node', { dataLength: data.length });
+      return comment;
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        logger.error('Failed to create comment node', err);
+        throw err;
+      } else {
+        const error = new EnvironmentError('Failed to create comment node', err);
+        logger.error('Failed to create comment node', error);
+        throw error;
+      }
     }
   }
     
@@ -287,17 +456,38 @@ export class DOM {
    */
   static createProcessingInstruction(target: string, data: string): ProcessingInstruction {
     try {
+      // VALIDATION: Check for valid inputs
+      validate(typeof target === "string", "Processing instruction target must be a string");
+      validate(target.length > 0, "Processing instruction target cannot be empty");
+      validate(typeof data === "string", "Processing instruction data must be a string");
+      
+      let pi: ProcessingInstruction;
+      
       if (typeof window !== "undefined") {
+        validate(document.implementation !== undefined, "Document implementation is not available");
         const doc = document.implementation.createDocument(null, null, null);
-        return doc.createProcessingInstruction(target, data);
+        pi = doc.createProcessingInstruction(target, data);
       } else {
+        validate(DOM.docImplementation !== undefined, "Document implementation is not initialized");
         const doc = DOM.docImplementation.createDocument(null, null, null);
-        return doc.createProcessingInstruction(target, data);
+        pi = doc.createProcessingInstruction(target, data);
       }
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to create processing instruction', {
-        errorType: ErrorType.GENERAL
+      
+      logger.debug('Created new processing instruction', { 
+        target, 
+        dataLength: data.length 
       });
+      
+      return pi;
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        logger.error('Failed to create processing instruction', err);
+        throw err;
+      } else {
+        const error = new EnvironmentError('Failed to create processing instruction', err);
+        logger.error('Failed to create processing instruction', error);
+        throw error;
+      }
     }
   }
     
@@ -315,15 +505,32 @@ export class DOM {
     value: string
   ): void {
     try {
+      // VALIDATION: Check for valid inputs
+      validate(element !== null && element !== undefined, "Element must be provided");
+      validate(typeof qualifiedName === "string", "Qualified name must be a string");
+      validate(qualifiedName.length > 0, "Qualified name cannot be empty");
+      validate(typeof value === "string", "Attribute value must be a string");
+      
       if (namespaceURI) {
         element.setAttributeNS(namespaceURI, qualifiedName, value);
       } else {
         element.setAttribute(qualifiedName, value);
       }
-    } catch (error) {
-      catchAndRelease(error, `Failed to set attribute: ${qualifiedName}`, {
-        errorType: ErrorType.GENERAL
+      
+      logger.debug('Set namespaced attribute on element', { 
+        elementName: element.nodeName, 
+        qualifiedName, 
+        namespaceURI: namespaceURI || '(none)' 
       });
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        logger.error('Failed to set namespaced attribute', err);
+        throw err;
+      } else {
+        const error = new EnvironmentError(`Failed to set attribute: ${qualifiedName}`, err);
+        logger.error('Failed to set namespaced attribute', error);
+        throw error;
+      }
     }
   }
     
@@ -335,11 +542,9 @@ export class DOM {
   static isNode(obj: any): boolean {
     try {
       return obj && typeof obj === 'object' && typeof obj.nodeType === 'number';
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to check if object is a DOM node', {
-        errorType: ErrorType.GENERAL,
-        defaultValue: false
-      });
+    } catch (err) {
+      logger.error('Failed to check if object is a DOM node', err);
+      return false;
     }
   }
     
@@ -349,15 +554,27 @@ export class DOM {
    * @returns Human-readable node type
    */
   static getNodeTypeName(nodeType: number): string {
-    switch (nodeType) {
-      case NodeType.ELEMENT_NODE: return 'ELEMENT_NODE';
-      case NodeType.ATTRIBUTE_NODE: return 'ATTRIBUTE_NODE';
-      case NodeType.TEXT_NODE: return 'TEXT_NODE';
-      case NodeType.CDATA_SECTION_NODE: return 'CDATA_SECTION_NODE';
-      case NodeType.PROCESSING_INSTRUCTION_NODE: return 'PROCESSING_INSTRUCTION_NODE';
-      case NodeType.COMMENT_NODE: return 'COMMENT_NODE';
-      case NodeType.DOCUMENT_NODE: return 'DOCUMENT_NODE';
-      default: return `UNKNOWN_NODE_TYPE(${nodeType})`;
+    try {
+      // VALIDATION: Check for valid input
+      validate(Number.isInteger(nodeType), "Node type must be an integer");
+      
+      switch (nodeType) {
+        case NodeType.ELEMENT_NODE: return 'ELEMENT_NODE';
+        case NodeType.ATTRIBUTE_NODE: return 'ATTRIBUTE_NODE';
+        case NodeType.TEXT_NODE: return 'TEXT_NODE';
+        case NodeType.CDATA_SECTION_NODE: return 'CDATA_SECTION_NODE';
+        case NodeType.PROCESSING_INSTRUCTION_NODE: return 'PROCESSING_INSTRUCTION_NODE';
+        case NodeType.COMMENT_NODE: return 'COMMENT_NODE';
+        case NodeType.DOCUMENT_NODE: return 'DOCUMENT_NODE';
+        default: return `UNKNOWN_NODE_TYPE(${nodeType})`;
+      }
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        logger.error('Failed to get node type name', err);
+        throw err;
+      }
+      logger.error('Failed to get node type name', err);
+      return `UNKNOWN_NODE_TYPE(${nodeType})`;
     }
   }
     
@@ -367,20 +584,46 @@ export class DOM {
    * @returns Object with attribute name-value pairs
    */
   static getNodeAttributes(node: Element): Record<string, string> {
-    const result: Record<string, string> = {};
-    for (let i = 0; i < node.attributes.length; i++) {
-      const attr = node.attributes[i];
-      result[attr.name] = attr.value;
+    try {
+      // VALIDATION: Check for valid input
+      validate(node !== null && node !== undefined, "Node must be provided");
+      validate(node.attributes !== undefined, "Node must have attributes property");
+      
+      const result: Record<string, string> = {};
+      
+      for (let i = 0; i < node.attributes.length; i++) {
+        const attr = node.attributes[i];
+        result[attr.name] = attr.value;
+      }
+      
+      logger.debug('Retrieved node attributes', { 
+        nodeName: node.nodeName, 
+        attributeCount: Object.keys(result).length 
+      });
+      
+      return result;
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        logger.error('Failed to get node attributes', err);
+        throw err;
+      } else {
+        logger.error('Failed to get node attributes', err);
+        return {};
+      }
     }
-    return result;
   }
     
   /**
    * Cleanup method for releasing resources (mainly for JSDOM)
    */
   static cleanup(): void {
-    if (DOM.jsdomInstance && typeof DOM.jsdomInstance.window.close === 'function') {
-      DOM.jsdomInstance.window.close();
+    try {
+      if (DOM.jsdomInstance && typeof DOM.jsdomInstance.window.close === 'function') {
+        DOM.jsdomInstance.window.close();
+        logger.debug('Cleaned up JSDOM instance');
+      }
+    } catch (err) {
+      logger.error('Failed to clean up DOM resources', err);
     }
   }
 }

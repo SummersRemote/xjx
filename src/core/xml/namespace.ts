@@ -1,8 +1,8 @@
 /**
  * XML namespace management utilities
  */
-import { catchAndRelease, ErrorType } from "../error";
-import { XNode } from "../xnode";
+import { logger, validate, ParseError, ValidationError } from '../error';
+import { XNode } from '../xnode';
 
 /**
  * XML namespace utilities
@@ -20,21 +20,30 @@ export class XmlNamespace {
     prefix: string,
     namespaceMap?: Record<string, string>
   ): string | undefined {
-    let current: XNode | undefined = node;
+    try {
+      // VALIDATION: Check for valid input
+      validate(node !== null && node !== undefined, "Node must be provided");
+      validate(typeof prefix === "string", "Prefix must be a string");
+      
+      let current: XNode | undefined = node;
 
-    // Walk up the parent chain looking for a matching namespace declaration
-    while (current) {
-      if (
-        current.namespaceDeclarations &&
-        current.namespaceDeclarations[prefix] !== undefined
-      ) {
-        return current.namespaceDeclarations[prefix];
+      // Walk up the parent chain looking for a matching namespace declaration
+      while (current) {
+        if (
+          current.namespaceDeclarations &&
+          current.namespaceDeclarations[prefix] !== undefined
+        ) {
+          return current.namespaceDeclarations[prefix];
+        }
+        current = current.parent;
       }
-      current = current.parent;
-    }
 
-    // If not found in ancestry, try the global map as fallback
-    return namespaceMap?.[prefix];
+      // If not found in ancestry, try the global map as fallback
+      return namespaceMap?.[prefix];
+    } catch (err) {
+      logger.error('Failed to find namespace for prefix', { prefix, err });
+      throw err;
+    }
   }
 
   /**
@@ -47,7 +56,16 @@ export class XmlNamespace {
     prefix: string | null | undefined,
     localName: string
   ): string {
-    return prefix ? `${prefix}:${localName}` : localName;
+    try {
+      // VALIDATION: Check for valid local name
+      validate(typeof localName === "string" && localName.length > 0, 
+               "Local name must be a non-empty string");
+      
+      return prefix ? `${prefix}:${localName}` : localName;
+    } catch (err) {
+      logger.error('Failed to create qualified name', { prefix, localName, err });
+      throw err;
+    }
   }
 
   /**
@@ -59,17 +77,25 @@ export class XmlNamespace {
     prefix: string | null;
     localName: string;
   } {
-    const colonIndex = qualifiedName.indexOf(":");
-    if (colonIndex > 0) {
+    try {
+      // VALIDATION: Check for valid input
+      validate(typeof qualifiedName === "string", "Qualified name must be a string");
+      
+      const colonIndex = qualifiedName.indexOf(":");
+      if (colonIndex > 0) {
+        return {
+          prefix: qualifiedName.substring(0, colonIndex),
+          localName: qualifiedName.substring(colonIndex + 1),
+        };
+      }
       return {
-        prefix: qualifiedName.substring(0, colonIndex),
-        localName: qualifiedName.substring(colonIndex + 1),
+        prefix: null,
+        localName: qualifiedName,
       };
+    } catch (err) {
+      logger.error('Failed to parse qualified name', { qualifiedName, err });
+      throw err;
     }
-    return {
-      prefix: null,
-      localName: qualifiedName,
-    };
   }
 
   /**
@@ -78,22 +104,31 @@ export class XmlNamespace {
    * @returns Map of prefixes to namespace URIs
    */
   static getNamespaceDeclarations(element: Element): Record<string, string> {
-    const result: Record<string, string> = {};
+    try {
+      // VALIDATION: Check for valid input
+      validate(element !== null && element !== undefined, "Element must be provided");
+      
+      const result: Record<string, string> = {};
 
-    for (let i = 0; i < element.attributes.length; i++) {
-      const attr = element.attributes[i];
+      for (let i = 0; i < element.attributes.length; i++) {
+        const attr = element.attributes[i];
 
-      if (attr.name === "xmlns") {
-        // Default namespace
-        result[""] = attr.value;
-      } else if (attr.name.startsWith("xmlns:")) {
-        // Prefixed namespace
-        const prefix = attr.name.substring(6); // Remove 'xmlns:'
-        result[prefix] = attr.value;
+        if (attr.name === "xmlns") {
+          // Default namespace
+          result[""] = attr.value;
+        } else if (attr.name.startsWith("xmlns:")) {
+          // Prefixed namespace
+          const prefix = attr.name.substring(6); // Remove 'xmlns:'
+          result[prefix] = attr.value;
+        }
       }
-    }
 
-    return result;
+      logger.debug('Found namespace declarations', { count: Object.keys(result).length });
+      return result;
+    } catch (err) {
+      logger.error('Failed to get namespace declarations', err);
+      throw err;
+    }
   }
 
   /**
@@ -102,7 +137,15 @@ export class XmlNamespace {
    * @returns True if element has a default namespace declaration
    */
   static hasDefaultNamespace(element: Element): boolean {
-    return element.hasAttribute("xmlns");
+    try {
+      // VALIDATION: Check for valid input
+      validate(element !== null && element !== undefined, "Element must be provided");
+      
+      return element.hasAttribute("xmlns");
+    } catch (err) {
+      logger.error('Failed to check for default namespace', err);
+      throw err;
+    }
   }
 
   /**
@@ -115,6 +158,11 @@ export class XmlNamespace {
     declarations: Record<string, string>
   ): void {
     try {
+      // VALIDATION: Check for valid inputs
+      validate(element !== null && element !== undefined, "Element must be provided");
+      validate(declarations !== null && typeof declarations === "object", 
+              "Declarations must be an object");
+      
       for (const [prefix, uri] of Object.entries(declarations)) {
         if (prefix === "") {
           // Default namespace
@@ -128,10 +176,14 @@ export class XmlNamespace {
           );
         }
       }
-    } catch (error) {
-      return catchAndRelease(error, "Failed to add namespace declarations", {
-        errorType: ErrorType.GENERAL,
+      
+      logger.debug('Added namespace declarations', { 
+        elementName: element.nodeName, 
+        declarationCount: Object.keys(declarations).length 
       });
+    } catch (err) {
+      logger.error('Failed to add namespace declarations', { declarations, err });
+      throw err;
     }
   }
 
@@ -141,25 +193,37 @@ export class XmlNamespace {
    * @returns Combined namespace declarations
    */
   static collectNamespaceDeclarations(node: XNode): Record<string, string> {
-    const result: Record<string, string> = {};
-    let current: XNode | undefined = node;
+    try {
+      // VALIDATION: Check for valid input
+      validate(node !== null && node !== undefined, "Node must be provided");
+      
+      const result: Record<string, string> = {};
+      let current: XNode | undefined = node;
 
-    // Walk up the parent chain and collect all namespace declarations
-    while (current) {
-      if (current.namespaceDeclarations) {
-        for (const [prefix, uri] of Object.entries(
-          current.namespaceDeclarations
-        )) {
-          // Only add if not already in result (child declarations take precedence)
-          if (result[prefix] === undefined) {
-            result[prefix] = uri;
+      // Walk up the parent chain and collect all namespace declarations
+      while (current) {
+        if (current.namespaceDeclarations) {
+          for (const [prefix, uri] of Object.entries(
+            current.namespaceDeclarations
+          )) {
+            // Only add if not already in result (child declarations take precedence)
+            if (result[prefix] === undefined) {
+              result[prefix] = uri;
+            }
           }
         }
+        current = current.parent;
       }
-      current = current.parent;
-    }
 
-    return result;
+      logger.debug('Collected namespace declarations', { 
+        nodeName: node.name, 
+        declarationCount: Object.keys(result).length 
+      });
+      return result;
+    } catch (err) {
+      logger.error('Failed to collect namespace declarations', err);
+      throw err;
+    }
   }
 
   /**
@@ -171,10 +235,18 @@ export class XmlNamespace {
     namespace: string | null;
     prefix: string | null;
   } {
-    return {
-      namespace: element.namespaceURI,
-      prefix: element.prefix,
-    };
+    try {
+      // VALIDATION: Check for valid input
+      validate(element !== null && element !== undefined, "Element must be provided");
+      
+      return {
+        namespace: element.namespaceURI,
+        prefix: element.prefix,
+      };
+    } catch (err) {
+      logger.error('Failed to resolve element namespace', err);
+      throw err;
+    }
   }
 
   /**
@@ -183,7 +255,15 @@ export class XmlNamespace {
    * @returns True if the name has a prefix
    */
   static hasPrefix(qualifiedName: string): boolean {
-    return qualifiedName.indexOf(":") > 0;
+    try {
+      // VALIDATION: Check for valid input
+      validate(typeof qualifiedName === "string", "Qualified name must be a string");
+      
+      return qualifiedName.indexOf(":") > 0;
+    } catch (err) {
+      logger.error('Failed to check if qualified name has prefix', err);
+      throw err;
+    }
   }
 
   /**
@@ -192,7 +272,15 @@ export class XmlNamespace {
    * @returns Default namespace URI or null if not defined
    */
   static getDefaultNamespace(element: Element): string | null {
-    return element.getAttribute("xmlns");
+    try {
+      // VALIDATION: Check for valid input
+      validate(element !== null && element !== undefined, "Element must be provided");
+      
+      return element.getAttribute("xmlns");
+    } catch (err) {
+      logger.error('Failed to get default namespace', err);
+      throw err;
+    }
   }
 
   /**
@@ -208,15 +296,20 @@ export class XmlNamespace {
     namespace: string | null
   ): Element {
     try {
-        if (namespace) {
-          return doc.createElementNS(namespace, qualifiedName);
-        } else {
-          return doc.createElement(qualifiedName);
-        }
-      } catch (error) {
-        return catchAndRelease(error, "Failed to create element", {
-          errorType: ErrorType.GENERAL,
-        });
+      // VALIDATION: Check for valid inputs
+      validate(doc !== null && doc !== undefined, "Document must be provided");
+      validate(typeof qualifiedName === "string" && qualifiedName.length > 0, 
+              "Qualified name must be a non-empty string");
+      
+      if (namespace) {
+        return doc.createElementNS(namespace, qualifiedName);
+      } else {
+        return doc.createElement(qualifiedName);
       }
+    } catch (err) {
+      const error = new ParseError(`Failed to create element: ${qualifiedName}`, { qualifiedName, namespace });
+      logger.error('Failed to create element with namespace', error);
+      throw error;
+    }
   }
 }

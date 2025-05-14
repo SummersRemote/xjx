@@ -3,7 +3,7 @@
  */
 import { Configuration } from '../config';
 import { DOM } from '../dom';
-import { catchAndRelease, ErrorType } from '../error';
+import { logger, validate, SerializeError, ValidationError } from '../error';
 import { XmlEntity } from './entity';
 
 /**
@@ -17,15 +17,25 @@ export class XmlSerializer {
    */
   static serialize(node: Node): string {
     try {
+      // VALIDATION: Check for valid input
+      validate(node !== null && node !== undefined, "Node must be provided");
+      
       // Use DOM for serialization
       let xmlString = DOM.serializeToString(node);
       
       // Post-process to ensure consistent entity handling and clean up
-      return XmlEntity.postProcess(xmlString);
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to serialize XML', {
-        errorType: ErrorType.SERIALIZE
+      xmlString = XmlEntity.postProcess(xmlString);
+      
+      logger.debug('Serialized XML node', { 
+        nodeType: node.nodeType, 
+        length: xmlString.length 
       });
+      
+      return xmlString;
+    } catch (err) {
+      const error = new SerializeError('Failed to serialize XML', node);
+      logger.error('Failed to serialize XML', error);
+      throw error;
     }
   }
 
@@ -41,6 +51,10 @@ export class XmlSerializer {
     let preserveWhitespace = false;
 
     try {
+      // VALIDATION: Check for valid input
+      validate(typeof xmlString === "string", "XML string must be a string");
+      validate(Number.isInteger(indent) && indent >= 0, "Indent must be a non-negative integer");
+      
       const doc = DOM.parseFromString(xmlString);
 
       const serializer = (node: Node, level = 0): string => {
@@ -178,11 +192,18 @@ export class XmlSerializer {
       };
 
       // Combine the XML declaration (if any) with the formatted body
-      return serializer(doc).trim();
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to pretty print XML', {
-        errorType: ErrorType.SERIALIZE
+      const result = serializer(doc).trim();
+      
+      logger.debug('Pretty-printed XML', { 
+        originalLength: xmlString.length, 
+        formattedLength: result.length 
       });
+      
+      return result;
+    } catch (err) {
+      const error = new SerializeError('Failed to pretty print XML', xmlString);
+      logger.error('Failed to pretty print XML', error);
+      throw error;
     }
   }
 
@@ -192,20 +213,28 @@ export class XmlSerializer {
    * @returns XML string with declaration
    */
   static ensureXMLDeclaration(xmlString: string): string {
-    const standardDecl = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    try {
+      // VALIDATION: Check for valid input
+      validate(typeof xmlString === "string", "XML string must be a string");
+      
+      const standardDecl = '<?xml version="1.0" encoding="UTF-8"?>\n';
 
-    // Check if the XML string already has a declaration
-    if (xmlString.trim().startsWith("<?xml")) {
-      // Extract the current declaration
-      const match = xmlString.match(/^<\?xml[^?]*\?>/);
-      if (match) {
-        // Replace it with our standard declaration
-        return xmlString.replace(match[0], standardDecl.trim()) + "\n";
+      // Check if the XML string already has a declaration
+      if (xmlString.trim().startsWith("<?xml")) {
+        // Extract the current declaration
+        const match = xmlString.match(/^<\?xml[^?]*\?>/);
+        if (match) {
+          // Replace it with our standard declaration
+          return xmlString.replace(match[0], standardDecl.trim()) + "\n";
+        }
       }
-    }
 
-    // No declaration found, add one
-    return standardDecl + xmlString;
+      // No declaration found, add one
+      return standardDecl + xmlString;
+    } catch (err) {
+      logger.error('Failed to ensure XML declaration', err);
+      throw err;
+    }
   }
 
   /**
@@ -213,6 +242,12 @@ export class XmlSerializer {
    * @returns New empty DOM document
    */
   static createEmptyDocument(): Document {
-    return DOM.createDocument();
+    try {
+      return DOM.createDocument();
+    } catch (err) {
+      const error = new SerializeError('Failed to create empty document', null);
+      logger.error('Failed to create empty document', error);
+      throw error;
+    }
   }
 }

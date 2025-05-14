@@ -13,7 +13,7 @@ import {
   createTransformResult,
 } from "../core/transform";
 import { NodeType } from "../core/dom";
-import { catchAndRelease, ErrorType } from "../core/error";
+import { logger, validate, TransformError } from "../core/error";
 import { Common } from "../core/common";
 
 /**
@@ -43,26 +43,53 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
     targetFormat: FormatId
   ): XNode {
     try {
+      // VALIDATION: Check for valid inputs
+      validate(node instanceof XNode, "Node must be an XNode instance");
+      validate(Array.isArray(transforms), "Transforms must be an array");
+      validate(typeof targetFormat === "string", "Target format must be a string");
+      
       if (!transforms || transforms.length === 0) {
+        logger.debug('No transformations to apply, returning original node');
         return node; // No transformations to apply
       }
 
       // Create root context
       const context = this.createRootContext(node, targetFormat);
+      
+      logger.debug('Starting node transformation', { 
+        nodeName: node.name, 
+        transformCount: transforms.length,
+        targetFormat 
+      });
 
       // Apply transformations
       const transformedNode = this.applyTransforms(node, context, transforms);
 
       if (!transformedNode) {
-        throw new Error("Root node was removed during transformation");
+        throw new TransformError("Root node was removed during transformation", {
+          nodeName: node.name,
+          transforms: transforms.map(t => t.targets)
+        });
       }
 
-      return transformedNode;
-    } catch (error) {
-      return catchAndRelease(error, "Transformation failed", {
-        errorType: ErrorType.TRANSFORM,
-        defaultValue: node // Return original node if transformation fails
+      logger.debug('Successfully transformed node', { 
+        nodeName: transformedNode.name, 
+        hasChildren: !!transformedNode.children && transformedNode.children.length > 0 
       });
+      
+      return transformedNode;
+    } catch (err) {
+      if (err instanceof TransformError) {
+        logger.error('Transformation failed', err);
+        throw err;
+      } else {
+        const error = new TransformError("Transformation failed", {
+          nodeName: node.name,
+          transforms: transforms.map(t => t.targets)
+        });
+        logger.error('Transformation failed', error);
+        throw error;
+      }
     }
   }
 
@@ -76,15 +103,24 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
     node: XNode,
     targetFormat: FormatId
   ): TransformContext {
-    return {
-      nodeName: node.name,
-      nodeType: node.type,
-      path: node.name,
-      namespace: node.namespace,
-      prefix: node.prefix,
-      config: this.config,
-      targetFormat,
-    };
+    try {
+      // VALIDATION: Check for valid inputs
+      validate(node instanceof XNode, "Node must be an XNode instance");
+      validate(typeof targetFormat === "string", "Target format must be a string");
+      
+      return {
+        nodeName: node.name,
+        nodeType: node.type,
+        path: node.name,
+        namespace: node.namespace,
+        prefix: node.prefix,
+        config: this.config,
+        targetFormat,
+      };
+    } catch (err) {
+      logger.error('Failed to create root context', err);
+      throw err;
+    }
   }
 
   /**
@@ -141,11 +177,14 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
       this.transformChildren(transformedNode, context, transforms);
 
       return transformedNode;
-    } catch (error) {
-      return catchAndRelease(error, `Failed to transform node: ${node.name}`, {
-        errorType: ErrorType.TRANSFORM,
-        defaultValue: node // Return original node if transformation fails
+    } catch (err) {
+      const error = new TransformError(`Failed to transform node: ${node.name}`, {
+        nodeName: node.name,
+        nodeType: node.type,
+        context
       });
+      logger.error('Failed to apply transforms', error);
+      throw error;
     }
   }
 
@@ -186,11 +225,15 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
       }
 
       return result;
-    } catch (error) {
-      return catchAndRelease(error, `Failed to apply element transforms to node: ${node.name}`, {
-        errorType: ErrorType.TRANSFORM,
-        defaultValue: createTransformResult(node)
+    } catch (err) {
+      const error = new TransformError(`Failed to apply element transforms to node: ${node.name}`, {
+        nodeName: node.name,
+        context
       });
+      logger.error('Failed to apply element transforms', error);
+      
+      // Return original node on error - best effort approach
+      return createTransformResult(node); 
     }
   }
 
@@ -231,11 +274,15 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
       }
 
       return result;
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to apply value transforms', {
-        errorType: ErrorType.TRANSFORM,
-        defaultValue: createTransformResult(value)
+    } catch (err) {
+      const error = new TransformError('Failed to apply value transforms', {
+        value,
+        context
       });
+      logger.error('Failed to apply value transforms', error);
+      
+      // Return original value on error - best effort approach
+      return createTransformResult(value);
     }
   }
 
@@ -287,11 +334,13 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
       }
 
       node.attributes = newAttributes;
-    } catch (error) {
-      catchAndRelease(error, 'Failed to transform attributes', {
-        errorType: ErrorType.TRANSFORM,
-        defaultValue: undefined // Void function, no return value needed
+    } catch (err) {
+      const error = new TransformError('Failed to transform attributes', {
+        nodeName: node.name
       });
+      logger.error('Failed to transform attributes', error);
+      
+      // Continue without transforming attributes - best effort approach
     }
   }
 
@@ -349,11 +398,16 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
       }
 
       return createTransformResult(result);
-    } catch (error) {
-      return catchAndRelease(error, `Failed to transform attribute: ${name}`, {
-        errorType: ErrorType.TRANSFORM,
-        defaultValue: createTransformResult([name, value])
+    } catch (err) {
+      const error = new TransformError(`Failed to transform attribute: ${name}`, {
+        name,
+        value,
+        context
       });
+      logger.error('Failed to transform attribute', error);
+      
+      // Return original attribute on error - best effort approach
+      return createTransformResult([name, value]);
     }
   }
 
@@ -445,11 +499,14 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
       }
 
       node.children = newChildren;
-    } catch (error) {
-      catchAndRelease(error, 'Failed to transform children', {
-        errorType: ErrorType.TRANSFORM,
-        defaultValue: undefined // Void function, no return value needed
+    } catch (err) {
+      const error = new TransformError('Failed to transform children', {
+        nodeName: node.name,
+        childCount: node.children.length
       });
+      logger.error('Failed to transform children', error);
+      
+      // Continue without transforming children - best effort approach
     }
   }
 
@@ -508,11 +565,15 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
 
       transformedNode.value = valueResult.value;
       return transformedNode;
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to transform text node', {
-        errorType: ErrorType.TRANSFORM,
-        defaultValue: node // Return original node if transformation fails
+    } catch (err) {
+      const error = new TransformError('Failed to transform text node', {
+        value: node.value,
+        context
       });
+      logger.error('Failed to transform text node', error);
+      
+      // Return original node on error - best effort approach
+      return node;
     }
   }
 
@@ -571,11 +632,15 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
 
       transformedNode.value = valueResult.value;
       return transformedNode;
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to transform CDATA node', {
-        errorType: ErrorType.TRANSFORM,
-        defaultValue: node // Return original node if transformation fails
+    } catch (err) {
+      const error = new TransformError('Failed to transform CDATA node', {
+        value: node.value,
+        context
       });
+      logger.error('Failed to transform CDATA node', error);
+      
+      // Return original node on error - best effort approach
+      return node;
     }
   }
 
@@ -613,11 +678,15 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
       }
 
       return result.value as XNode;
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to transform comment node', {
-        errorType: ErrorType.TRANSFORM,
-        defaultValue: node // Return original node if transformation fails
+    } catch (err) {
+      const error = new TransformError('Failed to transform comment node', {
+        value: node.value,
+        context
       });
+      logger.error('Failed to transform comment node', error);
+      
+      // Return original node on error - best effort approach
+      return node;
     }
   }
 
@@ -655,11 +724,16 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
       }
 
       return result.value as XNode;
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to transform processing instruction node', {
-        errorType: ErrorType.TRANSFORM,
-        defaultValue: node // Return original node if transformation fails
+    } catch (err) {
+      const error = new TransformError('Failed to transform processing instruction node', {
+        target: node.attributes?.target,
+        value: node.value,
+        context
       });
+      logger.error('Failed to transform processing instruction node', error);
+      
+      // Return original node on error - best effort approach
+      return node;
     }
   }
 }

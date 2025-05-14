@@ -7,7 +7,7 @@ import { XmlToXNodeConverter } from './converter-interfaces';
 import { Configuration } from '../core/config';
 import { XmlParser } from '../core/xml';
 import { NodeType } from '../core/dom';
-import { catchAndRelease, ErrorType } from '../core/error';
+import { logger, validate, ParseError } from '../core/error';
 import { XmlNamespace } from '../core/xml';
 import { XmlEntity } from '../core/xml';
 import { XNode } from '../core/xnode';
@@ -34,18 +34,30 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
    */
   public convert(xml: string): XNode {
     try {
+      // VALIDATION: Check for valid input
+      validate(typeof xml === "string" && xml.length > 0, "XML source must be a non-empty string");
+      
       // Reset namespace map
       this.namespaceMap = {};
       
       // Parse XML string to DOM
       const doc = XmlParser.parse(xml);
       
+      logger.debug('Successfully parsed XML to DOM', {
+        rootElement: doc.documentElement?.nodeName
+      });
+      
       // Convert DOM element to XNode
       return this.elementToXNode(doc.documentElement);
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to convert XML to XNode', {
-        errorType: ErrorType.PARSE
-      });
+    } catch (err) {
+      if (err instanceof ParseError) {
+        logger.error('Failed to convert XML to XNode', err);
+        throw err;
+      } else {
+        const error = new ParseError('Failed to convert XML to XNode', xml);
+        logger.error('Failed to convert XML to XNode', error);
+        throw error;
+      }
     }
   }
 
@@ -57,6 +69,9 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
    */
   public elementToXNode(element: Element, parentNode?: XNode): XNode {
     try {
+      // VALIDATION: Check for valid input
+      validate(element !== null && element !== undefined, "Element must be provided");
+      
       // Create base node
       const xnode = new XNode(
         element.localName ||
@@ -154,11 +169,20 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
         }
       }
 
-      return xnode;
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to convert DOM element to XNode', {
-        errorType: ErrorType.PARSE
+      logger.debug('Converted DOM element to XNode', { 
+        elementName: element.nodeName, 
+        xnodeName: xnode.name,
+        childCount: xnode.children?.length || 0
       });
+      
+      return xnode;
+    } catch (err) {
+      const error = new ParseError('Failed to convert DOM element to XNode', {
+        elementName: element.nodeName,
+        elementAttributes: element.attributes
+      });
+      logger.error('Failed to convert DOM element to XNode', error);
+      throw error;
     }
   }
 
@@ -169,24 +193,29 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
    * @private
    */
   private hasMixedContent(element: Element): boolean {
-    let hasText = false;
-    let hasElement = false;
+    try {
+      let hasText = false;
+      let hasElement = false;
 
-    for (let i = 0; i < element.childNodes.length; i++) {
-      const child = element.childNodes[i];
+      for (let i = 0; i < element.childNodes.length; i++) {
+        const child = element.childNodes[i];
 
-      if (child.nodeType === NodeType.TEXT_NODE) {
-        if (this.hasContent(child.nodeValue || "")) {
-          hasText = true;
+        if (child.nodeType === NodeType.TEXT_NODE) {
+          if (this.hasContent(child.nodeValue || "")) {
+            hasText = true;
+          }
+        } else if (child.nodeType === NodeType.ELEMENT_NODE) {
+          hasElement = true;
         }
-      } else if (child.nodeType === NodeType.ELEMENT_NODE) {
-        hasElement = true;
+
+        if (hasText && hasElement) return true;
       }
 
-      if (hasText && hasElement) return true;
+      return false;
+    } catch (err) {
+      logger.error('Failed to check for mixed content', err);
+      throw err;
     }
-
-    return false;
   }
 
   /**
@@ -213,16 +242,21 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
     parentNode: XNode,
     hasMixed: boolean
   ): void {
-    const text = node.nodeValue || "";
+    try {
+      const text = node.nodeValue || "";
 
-    if (this.config.preserveWhitespace || hasMixed || this.hasContent(text)) {
-      const normalizedText = XmlEntity.normalizeWhitespace(text, this.config.preserveWhitespace);
+      if (this.config.preserveWhitespace || hasMixed || this.hasContent(text)) {
+        const normalizedText = XmlEntity.normalizeWhitespace(text, this.config.preserveWhitespace);
 
-      if (normalizedText && this.config.preserveTextNodes) {
-        const textNode = XNode.createTextNode(normalizedText);
-        textNode.parent = parentNode;
-        children.push(textNode);
+        if (normalizedText && this.config.preserveTextNodes) {
+          const textNode = XNode.createTextNode(normalizedText);
+          textNode.parent = parentNode;
+          children.push(textNode);
+        }
       }
+    } catch (err) {
+      logger.error('Failed to process text node', err);
+      throw err;
     }
   }
 
@@ -238,10 +272,15 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
     children: XNode[],
     parentNode: XNode
   ): void {
-    if (this.config.preserveCDATA) {
-      const cdataNode = XNode.createCDATANode(node.nodeValue || "");
-      cdataNode.parent = parentNode;
-      children.push(cdataNode);
+    try {
+      if (this.config.preserveCDATA) {
+        const cdataNode = XNode.createCDATANode(node.nodeValue || "");
+        cdataNode.parent = parentNode;
+        children.push(cdataNode);
+      }
+    } catch (err) {
+      logger.error('Failed to process CDATA node', err);
+      throw err;
     }
   }
 
@@ -257,10 +296,15 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
     children: XNode[],
     parentNode: XNode
   ): void {
-    if (this.config.preserveComments) {
-      const commentNode = XNode.createCommentNode(node.nodeValue || "");
-      commentNode.parent = parentNode;
-      children.push(commentNode);
+    try {
+      if (this.config.preserveComments) {
+        const commentNode = XNode.createCommentNode(node.nodeValue || "");
+        commentNode.parent = parentNode;
+        children.push(commentNode);
+      }
+    } catch (err) {
+      logger.error('Failed to process comment node', err);
+      throw err;
     }
   }
 
@@ -276,10 +320,15 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
     children: XNode[],
     parentNode: XNode
   ): void {
-    if (this.config.preserveProcessingInstr) {
-      const piNode = XNode.createProcessingInstructionNode(pi.target, pi.data || "");
-      piNode.parent = parentNode;
-      children.push(piNode);
+    try {
+      if (this.config.preserveProcessingInstr) {
+        const piNode = XNode.createProcessingInstructionNode(pi.target, pi.data || "");
+        piNode.parent = parentNode;
+        children.push(piNode);
+      }
+    } catch (err) {
+      logger.error('Failed to process processing instruction node', err);
+      throw err;
     }
   }
 }

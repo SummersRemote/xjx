@@ -11,7 +11,7 @@ import {
   FORMATS
 } from './core/transform';
 import { XNode } from './core/xnode';
-import { catchAndRelease, ErrorType } from './core/error';
+import { logger, validate, ValidationError, ParseError, SerializeError, ConfigurationError, TransformError } from './core/error';
 import { Common } from './core/common';
 import { DefaultXmlToXNodeConverter } from './converters/xml-to-xnode-converter'; 
 import { DefaultJsonToXNodeConverter } from './converters/json-to-xnode-converter';
@@ -33,8 +33,15 @@ export class XjxBuilder {
    * Create a new builder instance
    */
   constructor() {
-    // Initialize with a fresh copy of the default configuration
-    this.config = Config.getDefault();
+    try {
+      // Initialize with a fresh copy of the default configuration
+      this.config = Config.getDefault();
+      logger.debug('Created new XjxBuilder instance');
+    } catch (err) {
+      const error = new ConfigurationError('Failed to create builder instance', null);
+      logger.error('Failed to create builder instance', error);
+      throw error;
+    }
   }
   
   /**
@@ -44,20 +51,45 @@ export class XjxBuilder {
    */
   public fromXml(source: string): XjxBuilder {
     try {
-      if (!source || typeof source !== 'string') {
-        throw new Error('Invalid XML source: must be a non-empty string');
-      }
+      // API boundary validation
+      validate(typeof source === "string", "XML source must be a string");
+      validate(source.trim().length > 0, "XML source cannot be empty");
+      
+      logger.debug('Setting XML source for transformation', {
+        sourceLength: source.length
+      });
       
       // Convert XML to XNode using the appropriate converter
       const converter = new DefaultXmlToXNodeConverter(this.config);
-      this.xnode = converter.convert(source);
+      
+      try {
+        this.xnode = converter.convert(source);
+      } catch (conversionError) {
+        // Specific error handling for XML conversion failures
+        throw new ParseError("Failed to parse XML source", source);
+      }
+      
       this.sourceFormat = FORMATS.XML;
       
-      return this;
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to set XML source', {
-        errorType: ErrorType.PARSE
+      logger.debug('Successfully set XML source', {
+        rootNodeName: this.xnode?.name,
+        rootNodeType: this.xnode?.type
       });
+      
+      return this;
+    } catch (err) {
+      // At API boundary, handle different error types appropriately
+      if (err instanceof ValidationError) {
+        logger.error('Invalid XML source', err);
+        throw err;
+      } else if (err instanceof ParseError) {
+        logger.error('Failed to parse XML source', err);
+        throw err;
+      } else {
+        const error = new ParseError('Failed to set XML source', source);
+        logger.error('Failed to set XML source', error);
+        throw error;
+      }
     }
   }
   
@@ -68,20 +100,46 @@ export class XjxBuilder {
    */
   public fromJson(source: Record<string, any>): XjxBuilder {
     try {
-      if (!source || typeof source !== 'object' || Array.isArray(source)) {
-        throw new Error('Invalid JSON source: must be a non-empty object');
-      }
+      // API boundary validation
+      validate(source !== null && typeof source === 'object', "JSON source must be an object");
+      validate(!Array.isArray(source), "JSON source cannot be an array");
+      validate(Object.keys(source).length > 0, "JSON source cannot be empty");
+      
+      logger.debug('Setting JSON source for transformation', {
+        rootKeys: Object.keys(source)
+      });
       
       // Convert JSON to XNode using the appropriate converter
       const converter = new DefaultJsonToXNodeConverter(this.config);
-      this.xnode = converter.convert(source);
+      
+      try {
+        this.xnode = converter.convert(source);
+      } catch (conversionError) {
+        // Specific error handling for JSON conversion failures
+        throw new ParseError("Failed to parse JSON source", source);
+      }
+      
       this.sourceFormat = FORMATS.JSON;
       
-      return this;
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to set JSON source', {
-        errorType: ErrorType.PARSE
+      logger.debug('Successfully set JSON source', {
+        rootNodeName: this.xnode?.name,
+        rootNodeType: this.xnode?.type
       });
+      
+      return this;
+    } catch (err) {
+      // At API boundary, handle different error types appropriately
+      if (err instanceof ValidationError) {
+        logger.error('Invalid JSON source', err);
+        throw err;
+      } else if (err instanceof ParseError) {
+        logger.error('Failed to parse JSON source', err);
+        throw err;
+      } else {
+        const error = new ParseError('Failed to set JSON source', source);
+        logger.error('Failed to set JSON source', error);
+        throw error;
+      }
     }
   }
   
@@ -91,19 +149,60 @@ export class XjxBuilder {
    * @returns This builder for chaining
    */
   public withConfig(config: Partial<Configuration>): XjxBuilder {
-    if (!config || Object.keys(config).length === 0) {
-      return this;
-    }
-    
     try {
-      // Merge with current config
-      this.config = Config.merge(this.config, config);
-      return this;
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to apply configuration', {
-        errorType: ErrorType.CONFIG,
-        defaultValue: this
+      // API boundary validation
+      validate(config !== null && typeof config === 'object', "Configuration must be an object");
+      
+      // Skip if empty config object
+      if (Object.keys(config).length === 0) {
+        logger.debug('Empty configuration provided, skipping merge');
+        return this;
+      }
+      
+      // Validate configuration structure
+      try {
+        // Ensure config has required sections or can be merged properly
+        if (config.propNames) {
+          validate(typeof config.propNames === 'object', "propNames must be an object");
+        }
+        
+        if (config.outputOptions) {
+          validate(typeof config.outputOptions === 'object', "outputOptions must be an object");
+        }
+      } catch (validationErr) {
+        throw new ConfigurationError("Invalid configuration structure", config);
+      }
+      
+      logger.debug('Merging configuration', {
+        configKeys: Object.keys(config)
       });
+      
+      // Merge with current config
+      try {
+        this.config = Config.merge(this.config, config);
+      } catch (mergeError) {
+        throw new ConfigurationError("Failed to merge configuration", config);
+      }
+      
+      logger.debug('Successfully applied configuration', {
+        preserveNamespaces: this.config.preserveNamespaces,
+        prettyPrint: this.config.outputOptions?.prettyPrint
+      });
+      
+      return this;
+    } catch (err) {
+      // At API boundary, handle different error types appropriately
+      if (err instanceof ValidationError) {
+        logger.error('Invalid configuration', err);
+        throw err;
+      } else if (err instanceof ConfigurationError) {
+        logger.error('Configuration error', err);
+        throw err;
+      } else {
+        const error = new ConfigurationError('Failed to apply configuration', config);
+        logger.error('Failed to apply configuration', error);
+        throw error;
+      }
     }
   }
   
@@ -113,26 +212,66 @@ export class XjxBuilder {
    * @returns This builder for chaining
    */
   public withTransforms(...transforms: Transform[]): XjxBuilder {
-    if (!transforms || transforms.length === 0) {
-      return this;
-    }
-    
     try {
-      // Validate transforms
-      for (const transform of transforms) {
-        if (!transform || !transform.targets || !transform.transform) {
-          throw new Error('Invalid transform: must implement the Transform interface');
-        }
+      // API boundary validation
+      validate(Array.isArray(transforms), "Transforms must be an array");
+      
+      // Skip if no transforms provided
+      if (transforms.length === 0) {
+        logger.debug('No transforms provided, skipping');
+        return this;
+      }
+      
+      logger.debug('Adding transforms to pipeline', {
+        transformCount: transforms.length
+      });
+      
+      // Validate each transform
+      for (let i = 0; i < transforms.length; i++) {
+        const transform = transforms[i];
+        
+        // Validate transform interface requirements
+        validate(
+          transform !== null && typeof transform === 'object',
+          `Transform at index ${i} must be an object`
+        );
+        
+        validate(
+          Array.isArray(transform.targets) && transform.targets.length > 0,
+          `Transform at index ${i} must have a targets array`
+        );
+        
+        validate(
+          typeof transform.transform === 'function',
+          `Transform at index ${i} must have a transform method`
+        );
+        
+        logger.debug('Validated transform', {
+          index: i,
+          targets: transform.targets
+        });
       }
       
       // Add transforms to the pipeline
       this.transforms.push(...transforms);
-      return this;
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to add transforms', {
-        errorType: ErrorType.TRANSFORM,
-        defaultValue: this
+      
+      logger.debug('Successfully added transforms', {
+        totalTransforms: this.transforms.length
       });
+      
+      return this;
+    } catch (err) {
+      // At API boundary, handle different error types appropriately
+      if (err instanceof ValidationError) {
+        logger.error('Invalid transform', err);
+        throw err;
+      } else {
+        const error = new TransformError('Failed to add transforms', {
+          transformCount: transforms.length
+        });
+        logger.error('Failed to add transforms', error);
+        throw error;
+      }
     }
   }
   
@@ -142,27 +281,60 @@ export class XjxBuilder {
    */
   public toJson(): Record<string, any> {
     try {
-      // Validate source is set
+      // API boundary validation
+      validate(this.xnode !== null, "No source set: call fromXml() or fromJson() before conversion");
+      validate(this.sourceFormat !== null, "Source format must be set before conversion");
+      
+      logger.debug('Starting toJson conversion', {
+        sourceFormat: this.sourceFormat,
+        hasTransforms: this.transforms.length > 0
+      });
+      
+      // First, validate source is set
       this.validateSource();
       
       // Apply transformations if any are registered
+      let nodeToConvert = this.xnode!;
+      
       if (this.transforms && this.transforms.length > 0) {
         const transformer = new DefaultXNodeTransformer(this.config);
-        this.xnode = transformer.transform(
-          this.xnode!, 
+        nodeToConvert = transformer.transform(
+          nodeToConvert, 
           this.transforms, 
           FORMATS.JSON
         );
+        
+        logger.debug('Applied transforms to XNode', {
+          transformCount: this.transforms.length,
+          targetFormat: FORMATS.JSON
+        });
       }
       
       // Convert XNode to JSON
       const converter = new DefaultXNodeToJsonConverter(this.config);
-      return converter.convert(this.xnode!);
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to convert to JSON', {
-        errorType: ErrorType.SERIALIZE,
-        defaultValue: {}
+      const result = converter.convert(nodeToConvert);
+      
+      logger.debug('Successfully converted XNode to JSON', {
+        resultKeys: Object.keys(result).length
       });
+      
+      return result;
+    } catch (err) {
+      // At API boundary, handle different error types appropriately
+      if (err instanceof ValidationError) {
+        logger.error('Validation error in toJson', err);
+        throw err;
+      } else if (err instanceof SerializeError) {
+        logger.error('Serialization error in toJson', err);
+        throw err;
+      } else {
+        const error = new SerializeError('Failed to convert to JSON', {
+          sourceFormat: this.sourceFormat,
+          transformCount: this.transforms?.length || 0
+        });
+        logger.error('Failed to convert to JSON', error);
+        throw error;
+      }
     }
   }
   
@@ -173,16 +345,45 @@ export class XjxBuilder {
    */
   public toJsonString(indent: number = 2): string {
     try {
+      // API boundary validation
+      validate(Number.isInteger(indent) && indent >= 0, "Indent must be a non-negative integer");
+      validate(this.xnode !== null, "No source set: call fromXml() or fromJson() before conversion");
+      validate(this.sourceFormat !== null, "Source format must be set before conversion");
+      
+      logger.debug('Starting toJsonString conversion', {
+        sourceFormat: this.sourceFormat,
+        hasTransforms: this.transforms.length > 0,
+        indent
+      });
+      
       // Get JSON object
       const jsonObject = this.toJson();
       
       // Return as formatted string
-      return JSON.stringify(jsonObject, null, indent);
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to convert to JSON string', {
-        errorType: ErrorType.SERIALIZE,
-        defaultValue: '{}'
+      const result = JSON.stringify(jsonObject, null, indent);
+      
+      logger.debug('Successfully converted to JSON string', {
+        resultLength: result.length
       });
+      
+      return result;
+    } catch (err) {
+      // At API boundary, handle different error types appropriately
+      if (err instanceof ValidationError) {
+        logger.error('Validation error in toJsonString', err);
+        throw err;
+      } else if (err instanceof SerializeError) {
+        logger.error('Serialization error in toJsonString', err);
+        throw err;
+      } else {
+        const error = new SerializeError('Failed to convert to JSON string', {
+          sourceFormat: this.sourceFormat,
+          transformCount: this.transforms?.length || 0,
+          indent
+        });
+        logger.error('Failed to convert to JSON string', error);
+        throw error;
+      }
     }
   }
   
@@ -192,27 +393,60 @@ export class XjxBuilder {
    */
   public toXml(): string {
     try {
-      // Validate source is set
+      // API boundary validation
+      validate(this.xnode !== null, "No source set: call fromXml() or fromJson() before conversion");
+      validate(this.sourceFormat !== null, "Source format must be set before conversion");
+      
+      logger.debug('Starting toXml conversion', {
+        sourceFormat: this.sourceFormat,
+        hasTransforms: this.transforms.length > 0
+      });
+      
+      // First, validate source is set
       this.validateSource();
       
       // Apply transformations if any are registered
+      let nodeToConvert = this.xnode!;
+      
       if (this.transforms && this.transforms.length > 0) {
         const transformer = new DefaultXNodeTransformer(this.config);
-        this.xnode = transformer.transform(
-          this.xnode!, 
+        nodeToConvert = transformer.transform(
+          nodeToConvert, 
           this.transforms, 
           FORMATS.XML
         );
+        
+        logger.debug('Applied transforms to XNode', {
+          transformCount: this.transforms.length,
+          targetFormat: FORMATS.XML
+        });
       }
       
       // Convert XNode to XML
       const converter = new DefaultXNodeToXmlConverter(this.config);
-      return converter.convert(this.xnode!);
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to convert to XML', {
-        errorType: ErrorType.SERIALIZE,
-        defaultValue: '<root/>'
+      const result = converter.convert(nodeToConvert);
+      
+      logger.debug('Successfully converted XNode to XML', {
+        resultLength: result.length
       });
+      
+      return result;
+    } catch (err) {
+      // At API boundary, handle different error types appropriately
+      if (err instanceof ValidationError) {
+        logger.error('Validation error in toXml', err);
+        throw err;
+      } else if (err instanceof SerializeError) {
+        logger.error('Serialization error in toXml', err);
+        throw err;
+      } else {
+        const error = new SerializeError('Failed to convert to XML', {
+          sourceFormat: this.sourceFormat,
+          transformCount: this.transforms?.length || 0
+        });
+        logger.error('Failed to convert to XML', error);
+        throw error;
+      }
     }
   }
   
@@ -221,8 +455,23 @@ export class XjxBuilder {
    * @throws Error if no source has been set
    */
   public validateSource(): void {
-    if (!this.xnode || !this.sourceFormat) {
-      throw new Error('No source set: call fromXml() or fromJson() before transformation');
+    try {
+      if (!this.xnode || !this.sourceFormat) {
+        throw new ValidationError('No source set: call fromXml() or fromJson() before transformation');
+      }
+      logger.debug('Source validation passed', {
+        sourceFormat: this.sourceFormat,
+        rootNodeName: this.xnode.name
+      });
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        logger.error('Source validation failed', err);
+        throw err;
+      } else {
+        const error = new ValidationError('Source validation failed', null);
+        logger.error('Source validation failed', error);
+        throw error;
+      }
     }
   }
   
@@ -232,7 +481,12 @@ export class XjxBuilder {
    * @returns Deep clone of the object
    */
   public deepClone<T>(obj: T): T {
-    return Common.deepClone(obj);
+    try {
+      return Common.deepClone(obj);
+    } catch (err) {
+      logger.error('Failed to deep clone object', err);
+      throw err;
+    }
   }
   
   /**
@@ -242,6 +496,11 @@ export class XjxBuilder {
    * @returns New object with merged properties
    */
   public deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
-    return Common.deepMerge(target, source);
+    try {
+      return Common.deepMerge(target, source);
+    } catch (err) {
+      logger.error('Failed to deep merge objects', err);
+      throw err;
+    }
   }
 }

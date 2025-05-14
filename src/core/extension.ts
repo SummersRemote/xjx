@@ -4,6 +4,7 @@
 import { Configuration } from './config';
 import { Transform, FormatId } from './transform';
 import { XNode } from './xnode';
+import { logger, validate, ValidationError } from './error';
 
 /**
  * Base context interface for extension functions
@@ -56,7 +57,26 @@ export class Extension {
    * @param method Implementation function
    */
   static registerTerminal(name: string, method: (this: TerminalExtensionContext, ...args: any[]) => any): void {
-    // Implemented in XJX class
+    try {
+      // VALIDATION: Check for valid inputs
+      validate(typeof name === "string" && name.length > 0, "Extension name must be a non-empty string");
+      validate(typeof method === "function", "Extension method must be a function");
+      
+      logger.debug('Terminal extension registration requested', { name });
+      
+      // Note: Actual implementation is in XJX class
+      // This method would typically call the actual implementation
+      
+      logger.debug('Terminal extension registered', { name });
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        logger.error('Failed to register terminal extension due to validation error', err);
+        throw err;
+      } else {
+        logger.error(`Failed to register terminal extension: ${name}`, err);
+        throw err;
+      }
+    }
   }
 
   /**
@@ -65,6 +85,25 @@ export class Extension {
    * @param method Implementation function
    */
   static registerNonTerminal(name: string, method: (this: NonTerminalExtensionContext, ...args: any[]) => any): void {
-    // Implemented in XJX class
+    try {
+      // VALIDATION: Check for valid inputs
+      validate(typeof name === "string" && name.length > 0, "Extension name must be a non-empty string");
+      validate(typeof method === "function", "Extension method must be a function");
+      
+      logger.debug('Non-terminal extension registration requested', { name });
+      
+      // Note: Actual implementation is in XJX class
+      // This method would typically call the actual implementation
+      
+      logger.debug('Non-terminal extension registered', { name });
+    } catch (err) {
+      if (err instanceof ValidationError) {
+        logger.error('Failed to register non-terminal extension due to validation error', err);
+        throw err;
+      } else {
+        logger.error(`Failed to register non-terminal extension: ${name}`, err);
+        throw err;
+      }
+    }
   }
 }

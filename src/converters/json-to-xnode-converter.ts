@@ -6,7 +6,7 @@
 import { JsonToXNodeConverter } from './converter-interfaces';
 import { Configuration } from '../core/config';
 import { NodeType } from '../core/dom';
-import { catchAndRelease, ErrorType } from '../core/error';
+import { logger, validate, ParseError } from '../core/error';
 import { JSON } from '../core/json';
 import { XNode } from '../core/xnode';
 
@@ -32,18 +32,30 @@ export class DefaultJsonToXNodeConverter implements JsonToXNodeConverter {
    */
   public convert(json: Record<string, any>): XNode {
     try {
+      // VALIDATION: Check for valid input
+      validate(JSON.isValidObject(json), "JSON source must be a valid object");
+      
       // Reset namespace map
       this.namespaceMap = {};
       
       // Validate JSON
       this.validateJsonObject(json);
       
+      logger.debug('Starting JSON to XNode conversion', {
+        jsonKeys: Object.keys(json)
+      });
+      
       // Convert to XNode
       return this.jsonToXNode(json);
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to convert JSON to XNode', {
-        errorType: ErrorType.PARSE
-      });
+    } catch (err) {
+      if (err instanceof ParseError) {
+        logger.error('Failed to convert JSON to XNode', err);
+        throw err;
+      } else {
+        const error = new ParseError('Failed to convert JSON to XNode', json);
+        logger.error('Failed to convert JSON to XNode', error);
+        throw error;
+      }
     }
   }
 
@@ -59,7 +71,7 @@ export class DefaultJsonToXNodeConverter implements JsonToXNodeConverter {
       // Get the node name (first key in the object)
       const nodeName = Object.keys(jsonObj)[0];
       if (!nodeName) {
-        throw new Error("Empty JSON object");
+        throw new ParseError("Empty JSON object", jsonObj);
       }
 
       const nodeData = jsonObj[nodeName];
@@ -123,11 +135,22 @@ export class DefaultJsonToXNodeConverter implements JsonToXNodeConverter {
         xnode.children = this.processChildren(nodeData[childrenKey], xnode);
       }
 
-      return xnode;
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to convert JSON object to XNode', {
-        errorType: ErrorType.PARSE
+      logger.debug('Converted JSON object to XNode', { 
+        nodeName: xnode.name,
+        hasChildren: !!xnode.children && xnode.children.length > 0,
+        hasAttributes: xnode.attributes ? Object.keys(xnode.attributes).length > 0 : false
       });
+      
+      return xnode;
+    } catch (err) {
+      if (err instanceof ParseError) {
+        logger.error('Failed to convert JSON object to XNode', err);
+        throw err;
+      } else {
+        const error = new ParseError('Failed to convert JSON object to XNode', jsonObj);
+        logger.error('Failed to convert JSON object to XNode', error);
+        throw error;
+      }
     }
   }
 
@@ -144,25 +167,30 @@ export class DefaultJsonToXNodeConverter implements JsonToXNodeConverter {
     attrValue: any,
     namespaceDecls: Record<string, string>
   ): boolean {
-    // Check if this is a namespace declaration
-    if (attrName === "xmlns") {
-      // Default namespace
-      namespaceDecls[""] = attrValue;
+    try {
+      // Check if this is a namespace declaration
+      if (attrName === "xmlns") {
+        // Default namespace
+        namespaceDecls[""] = attrValue;
+        
+        // Add to global namespace map
+        this.namespaceMap[""] = attrValue;
+        return true;
+      } else if (attrName.startsWith("xmlns:")) {
+        // Prefixed namespace
+        const prefix = attrName.substring(6);
+        namespaceDecls[prefix] = attrValue;
+        
+        // Add to global namespace map
+        this.namespaceMap[prefix] = attrValue;
+        return true;
+      }
       
-      // Add to global namespace map
-      this.namespaceMap[""] = attrValue;
-      return true;
-    } else if (attrName.startsWith("xmlns:")) {
-      // Prefixed namespace
-      const prefix = attrName.substring(6);
-      namespaceDecls[prefix] = attrValue;
-      
-      // Add to global namespace map
-      this.namespaceMap[prefix] = attrValue;
-      return true;
+      return false;
+    } catch (err) {
+      logger.error('Failed to process namespace declaration', { attrName, attrValue, err });
+      throw err;
     }
-    
-    return false;
   }
 
   /**
@@ -173,21 +201,30 @@ export class DefaultJsonToXNodeConverter implements JsonToXNodeConverter {
    * @private
    */
   private processChildren(children: any[], parentNode: XNode): XNode[] {
-    const result: XNode[] = [];
-    
-    for (const child of children) {
-      // Special node types
-      if (this.processSpecialChild(child, result, parentNode)) {
-        continue;
+    try {
+      // VALIDATION: Check for valid input
+      validate(Array.isArray(children), "Children must be an array");
+      validate(parentNode instanceof XNode, "Parent node must be an XNode");
+      
+      const result: XNode[] = [];
+      
+      for (const child of children) {
+        // Special node types
+        if (this.processSpecialChild(child, result, parentNode)) {
+          continue;
+        }
+        
+        // Element node (recursively process)
+        if (JSON.isValidObject(child) && !Array.isArray(child)) {
+          result.push(this.jsonToXNode(child, parentNode));
+        }
       }
       
-      // Element node (recursively process)
-      if (JSON.isValidObject(child) && !Array.isArray(child)) {
-        result.push(this.jsonToXNode(child, parentNode));
-      }
+      return result;
+    } catch (err) {
+      logger.error('Failed to process children', err);
+      throw err;
     }
-    
-    return result;
   }
 
   /**
@@ -199,51 +236,56 @@ export class DefaultJsonToXNodeConverter implements JsonToXNodeConverter {
    * @private
    */
   private processSpecialChild(child: any, result: XNode[], parentNode: XNode): boolean {
-    const valueKey = this.config.propNames.value;
-    const cdataKey = this.config.propNames.cdata;
-    const commentsKey = this.config.propNames.comments;
-    const instructionKey = this.config.propNames.instruction;
-    const targetKey = this.config.propNames.target;
-    
-    // Text node
-    if (child[valueKey] !== undefined && this.config.preserveTextNodes) {
-      const textNode = XNode.createTextNode(child[valueKey]);
-      textNode.parent = parentNode;
-      result.push(textNode);
-      return true;
-    }
-    
-    // CDATA section
-    if (child[cdataKey] !== undefined && this.config.preserveCDATA) {
-      const cdataNode = XNode.createCDATANode(child[cdataKey]);
-      cdataNode.parent = parentNode;
-      result.push(cdataNode);
-      return true;
-    }
-    
-    // Comment
-    if (child[commentsKey] !== undefined && this.config.preserveComments) {
-      const commentNode = XNode.createCommentNode(child[commentsKey]);
-      commentNode.parent = parentNode;
-      result.push(commentNode);
-      return true;
-    }
-    
-    // Processing instruction
-    if (child[instructionKey] !== undefined && this.config.preserveProcessingInstr) {
-      const piData = child[instructionKey];
-      const target = piData[targetKey];
-      const value = piData[valueKey] || "";
+    try {
+      const valueKey = this.config.propNames.value;
+      const cdataKey = this.config.propNames.cdata;
+      const commentsKey = this.config.propNames.comments;
+      const instructionKey = this.config.propNames.instruction;
+      const targetKey = this.config.propNames.target;
       
-      if (target) {
-        const piNode = XNode.createProcessingInstructionNode(target, value);
-        piNode.parent = parentNode;
-        result.push(piNode);
+      // Text node
+      if (child[valueKey] !== undefined && this.config.preserveTextNodes) {
+        const textNode = XNode.createTextNode(child[valueKey]);
+        textNode.parent = parentNode;
+        result.push(textNode);
+        return true;
       }
-      return true;
+      
+      // CDATA section
+      if (child[cdataKey] !== undefined && this.config.preserveCDATA) {
+        const cdataNode = XNode.createCDATANode(child[cdataKey]);
+        cdataNode.parent = parentNode;
+        result.push(cdataNode);
+        return true;
+      }
+      
+      // Comment
+      if (child[commentsKey] !== undefined && this.config.preserveComments) {
+        const commentNode = XNode.createCommentNode(child[commentsKey]);
+        commentNode.parent = parentNode;
+        result.push(commentNode);
+        return true;
+      }
+      
+      // Processing instruction
+      if (child[instructionKey] !== undefined && this.config.preserveProcessingInstr) {
+        const piData = child[instructionKey];
+        const target = piData[targetKey];
+        const value = piData[valueKey] || "";
+        
+        if (target) {
+          const piNode = XNode.createProcessingInstructionNode(target, value);
+          piNode.parent = parentNode;
+          result.push(piNode);
+        }
+        return true;
+      }
+      
+      return false;
+    } catch (err) {
+      logger.error('Failed to process special child', err);
+      throw err;
     }
-    
-    return false;
   }
 
   /**
@@ -253,12 +295,13 @@ export class DefaultJsonToXNodeConverter implements JsonToXNodeConverter {
    * @private
    */
   private validateJsonObject(jsonObj: Record<string, any>): void {
-    if (!JSON.isValidObject(jsonObj)) {
-      throw new Error('Invalid JSON object: must be a non-array object');
-    }
-    
-    if (Object.keys(jsonObj).length !== 1) {
-      throw new Error('Invalid JSON object: must have exactly one root element');
+    try {
+      // VALIDATION: Check for valid JSON object structure
+      validate(JSON.isValidObject(jsonObj), 'Invalid JSON object: must be a non-array object');
+      validate(Object.keys(jsonObj).length === 1, 'Invalid JSON object: must have exactly one root element');
+    } catch (err) {
+      logger.error('JSON validation failed', err);
+      throw err;
     }
   }
 }

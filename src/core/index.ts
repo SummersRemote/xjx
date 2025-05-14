@@ -5,30 +5,29 @@
  * providing a consolidated entry point for importing all components.
  * The reorganized structure groups related functionality for better maintainability.
  */
-
-// Common utilities
-export * from './common';
-
-// Error handling
-export * from './error';
-
-// DOM operations
-export * from './dom';
-
-// Configuration
-export * from './config';
-
-// Transform system
-export * from './transform';
-
-// Extension system
-export * from './extension';
-
-// XML processing
-export * from './xml';
-
-// JSON processing
-export * from './json';
-
-// XNode model
-export * from './xnode';
+  // Common utilities
+  export * from './common';
+  
+  // Error handling
+  export * from './error';
+  
+  // DOM operations
+  export * from './dom';
+  
+  // Configuration
+  export * from './config';
+  
+  // Transform system
+  export * from './transform';
+  
+  // Extension system
+  export * from './extension';
+  
+  // XML processing
+  export * from './xml';
+  
+  // JSON processing
+  export * from './json';
+  
+  // XNode model
+  export * from './xnode';

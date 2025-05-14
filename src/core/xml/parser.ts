@@ -3,7 +3,7 @@
  */
 import { Configuration } from '../config';
 import { DOM } from '../dom';
-import { catchAndRelease, ErrorType } from '../error';
+import { logger, validate, ParseError, ValidationError } from '../error';
 import { ValidationResult } from '../transform';
 import { XmlEntity } from './entity';
 
@@ -24,6 +24,9 @@ export class XmlParser {
     contentType: string = 'text/xml'
   ): Document {
     try {
+      // VALIDATION: Check for valid input
+      validate(typeof xmlString === "string", "XML string must be a string");
+      
       // Pre-process XML string to handle entity issues
       const preprocessedXml = XmlEntity.preprocess(xmlString);
       
@@ -33,14 +36,24 @@ export class XmlParser {
       // Check for parsing errors
       const errors = doc.getElementsByTagName("parsererror");
       if (errors.length > 0) {
-        throw new Error(`XML parsing error: ${errors[0].textContent}`);
+        throw new ParseError(`XML parsing error: ${errors[0].textContent}`, xmlString);
       }
       
-      return doc;
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to parse XML', {
-        errorType: ErrorType.PARSE
+      logger.debug('Successfully parsed XML document', {
+        docElement: doc.documentElement?.nodeName,
+        childCount: doc.childNodes.length
       });
+      
+      return doc;
+    } catch (err) {
+      if (err instanceof ParseError) {
+        logger.error('Failed to parse XML', err);
+        throw err;
+      } else {
+        const error = new ParseError('Failed to parse XML', xmlString);
+        logger.error('Failed to parse XML', error);
+        throw error;
+      }
     }
   }
 
@@ -51,13 +64,17 @@ export class XmlParser {
    */
   static validate(xmlString: string): ValidationResult {
     try {
+      // VALIDATION: Check for valid input
+      validate(typeof xmlString === "string", "XML string must be a string");
+      
       // Use the parse method which handles preprocessing
       XmlParser.parse(xmlString);
       return { isValid: true };
-    } catch (error) {
+    } catch (err) {
+      logger.debug('XML validation failed', err);
       return {
         isValid: false,
-        message: error instanceof Error ? error.message : String(error),
+        message: err instanceof Error ? err.message : String(err),
       };
     }
   }
@@ -68,7 +85,12 @@ export class XmlParser {
    * @returns True if the string is valid XML
    */
   static isValid(xmlString: string): boolean {
-    return XmlParser.validate(xmlString).isValid;
+    try {
+      return XmlParser.validate(xmlString).isValid;
+    } catch (err) {
+      logger.error('Failed while checking XML validity', err);
+      return false;
+    }
   }
 
   /**
@@ -77,7 +99,16 @@ export class XmlParser {
    * @returns New DOM document
    */
   static createDocumentFromXml(xmlString: string): Document {
-    return XmlParser.parse(xmlString);
+    try {
+      // VALIDATION: Check for valid input
+      validate(typeof xmlString === "string", "XML string must be a string");
+      
+      return XmlParser.parse(xmlString);
+    } catch (err) {
+      const error = new ParseError('Failed to create document from XML', xmlString);
+      logger.error('Failed to create document from XML', error);
+      throw error;
+    }
   }
 
   /**
@@ -86,15 +117,24 @@ export class XmlParser {
    * @returns Array of XML fragments
    */
   static extractXmlFragments(text: string): string[] {
-    const fragments: string[] = [];
-    const regex = /<[^>]+>[\s\S]*?<\/[^>]+>/g;
-    
-    let match;
-    while ((match = regex.exec(text)) !== null) {
-      fragments.push(match[0]);
+    try {
+      // VALIDATION: Check for valid input
+      validate(typeof text === "string", "Text must be a string");
+      
+      const fragments: string[] = [];
+      const regex = /<[^>]+>[\s\S]*?<\/[^>]+>/g;
+      
+      let match;
+      while ((match = regex.exec(text)) !== null) {
+        fragments.push(match[0]);
+      }
+      
+      logger.debug('Extracted XML fragments', { count: fragments.length });
+      return fragments;
+    } catch (err) {
+      logger.error('Failed to extract XML fragments', err);
+      throw err;
     }
-    
-    return fragments;
   }
 
   /**
@@ -103,7 +143,15 @@ export class XmlParser {
    * @returns Tag name
    */
   static getTagName(element: Element): string {
-    return element.tagName;
+    try {
+      // VALIDATION: Check for valid input
+      validate(element !== null && element !== undefined, "Element must be provided");
+      
+      return element.tagName;
+    } catch (err) {
+      logger.error('Failed to get tag name', err);
+      throw err;
+    }
   }
 
   /**
@@ -112,6 +160,14 @@ export class XmlParser {
    * @returns Object with attribute name-value pairs
    */
   static getAttributes(element: Element): Record<string, string> {
-    return DOM.getNodeAttributes(element);
+    try {
+      // VALIDATION: Check for valid input
+      validate(element !== null && element !== undefined, "Element must be provided");
+      
+      return DOM.getNodeAttributes(element);
+    } catch (err) {
+      logger.error('Failed to get element attributes', err);
+      throw err;
+    }
   }
 }

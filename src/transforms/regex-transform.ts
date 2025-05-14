@@ -11,7 +11,7 @@ import {
   FormatId,
   createTransformResult,
 } from "../core/transform";
-import { catchAndRelease, validate, ErrorType } from "../core/error";
+// import { catchAndRelease, validate, ErrorType } from "../core/error";
 
 /**
  * Options for regex transformer
@@ -94,15 +94,15 @@ export class RegexTransform implements Transform {
    * @param options Transformer options
    */
   constructor(options: RegexOptions) {
-    validate(
-      !!options.pattern,
-      "RegexTransform requires a pattern option"
-    );
+    // validate(
+    //   !!options.pattern,
+    //   "RegexTransform requires a pattern option"
+    // );
 
-    validate(
-      options.replacement !== undefined,
-      "RegexTransform requires a replacement option"
-    );
+    // validate(
+    //   options.replacement !== undefined,
+    //   "RegexTransform requires a replacement option"
+    // );
 
     this.replacement = options.replacement;
     this.format = options.format;

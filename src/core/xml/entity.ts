@@ -1,6 +1,7 @@
 /**
  * XML entity handling utilities
  */
+import { logger, validate, ValidationError } from '../error';
 
 export class XmlEntity {
     /**
@@ -9,20 +10,28 @@ export class XmlEntity {
      * @returns Escaped XML string
      */
     static escape(text: string): string {
-      if (typeof text !== "string" || text.length === 0) {
-        return "";
-      }
+      try {
+        // VALIDATION: Check for valid input
+        validate(typeof text === "string", "Text to escape must be a string");
   
-      return text.replace(/[&<>"']/g, (char) => {
-        switch (char) {
-          case "&": return "&amp;";
-          case "<": return "&lt;";
-          case ">": return "&gt;";
-          case '"': return "&quot;";
-          case "'": return "&apos;";
-          default: return char;
+        if (text.length === 0) {
+          return "";
         }
-      });
+  
+        return text.replace(/[&<>"']/g, (char) => {
+          switch (char) {
+            case "&": return "&amp;";
+            case "<": return "&lt;";
+            case ">": return "&gt;";
+            case '"': return "&quot;";
+            case "'": return "&apos;";
+            default: return char;
+          }
+        });
+      } catch (err) {
+        logger.error('Failed to escape XML text', err);
+        throw err;
+      }
     }
   
     /**
@@ -31,16 +40,24 @@ export class XmlEntity {
      * @returns Unescaped text
      */
     static unescape(text: string): string {
-      if (typeof text !== "string" || text.length === 0) {
-        return "";
-      }
+      try {
+        // VALIDATION: Check for valid input
+        validate(typeof text === "string", "Text to unescape must be a string");
   
-      return text
-        .replace(/&amp;/g, "&")
-        .replace(/&lt;/g, "<")
-        .replace(/&gt;/g, ">")
-        .replace(/&quot;/g, '"')
-        .replace(/&apos;/g, "'");
+        if (text.length === 0) {
+          return "";
+        }
+  
+        return text
+          .replace(/&amp;/g, "&")
+          .replace(/&lt;/g, "<")
+          .replace(/&gt;/g, ">")
+          .replace(/&quot;/g, '"')
+          .replace(/&apos;/g, "'");
+      } catch (err) {
+        logger.error('Failed to unescape XML text', err);
+        throw err;
+      }
     }
   
     /**
@@ -50,16 +67,24 @@ export class XmlEntity {
      * @returns Properly escaped text
      */
     static safeText(text: string): string {
-      if (typeof text !== "string" || text.length === 0) {
-        return "";
-      }
+      try {
+        // VALIDATION: Check for valid input
+        validate(typeof text === "string", "Text to process must be a string");
   
-      // Skip escaping if text already contains entities (to avoid double-escaping)
-      if (/&(amp|lt|gt|quot|apos);/.test(text)) {
-        return text;
-      }
+        if (text.length === 0) {
+          return "";
+        }
   
-      return XmlEntity.escape(text);
+        // Skip escaping if text already contains entities (to avoid double-escaping)
+        if (/&(amp|lt|gt|quot|apos);/.test(text)) {
+          return text;
+        }
+  
+        return XmlEntity.escape(text);
+      } catch (err) {
+        logger.error('Failed to safely process XML text', err);
+        throw err;
+      }
     }
   
     /**
@@ -68,11 +93,16 @@ export class XmlEntity {
      * @returns True if the text contains special characters
      */
     static containsSpecialChars(text: string): boolean {
-      if (typeof text !== "string" || text.length === 0) {
-        return false;
-      }
+      try {
+        if (typeof text !== "string" || text.length === 0) {
+          return false;
+        }
   
-      return /[&<>"']/.test(text);
+        return /[&<>"']/.test(text);
+      } catch (err) {
+        logger.error('Failed to check for special characters', err);
+        throw err;
+      }
     }
   
     /**
@@ -81,8 +111,21 @@ export class XmlEntity {
      * @returns Preprocessed XML string ready for parsing
      */
     static preprocess(xmlString: string): string {
-      // Handle unescaped ampersands that aren't part of entities
-      return xmlString.replace(/&(?!amp;|lt;|gt;|quot;|apos;)/g, "&amp;");
+      try {
+        // VALIDATION: Check for valid input
+        validate(typeof xmlString === "string", "XML string must be a string");
+        
+        // Handle unescaped ampersands that aren't part of entities
+        const processed = xmlString.replace(/&(?!amp;|lt;|gt;|quot;|apos;)/g, "&amp;");
+        logger.debug('Preprocessed XML string', { 
+          originalLength: xmlString.length, 
+          processedLength: processed.length 
+        });
+        return processed;
+      } catch (err) {
+        logger.error('Failed to preprocess XML string', err);
+        throw err;
+      }
     }
   
     /**
@@ -91,21 +134,33 @@ export class XmlEntity {
      * @returns Cleaned XML string
      */
     static postProcess(xmlString: string): string {
-      // Remove xhtml namespace declaration that might be inserted by some DOM implementations
-      let processed = xmlString.replace(
-        ' xmlns="http://www.w3.org/1999/xhtml"',
-        ""
-      );
+      try {
+        // VALIDATION: Check for valid input
+        validate(typeof xmlString === "string", "XML string must be a string");
+        
+        // Remove xhtml namespace declaration that might be inserted by some DOM implementations
+        let processed = xmlString.replace(
+          ' xmlns="http://www.w3.org/1999/xhtml"',
+          ""
+        );
   
-      // Clean up XML declaration if needed
-      if (processed.startsWith("<?xml")) {
-        const xmlDeclEnd = processed.indexOf("?>");
-        if (xmlDeclEnd > 0) {
-          processed = processed.substring(xmlDeclEnd + 2).trim();
+        // Clean up XML declaration if needed
+        if (processed.startsWith("<?xml")) {
+          const xmlDeclEnd = processed.indexOf("?>");
+          if (xmlDeclEnd > 0) {
+            processed = processed.substring(xmlDeclEnd + 2).trim();
+          }
         }
-      }
   
-      return processed;
+        logger.debug('Post-processed XML string', { 
+          originalLength: xmlString.length, 
+          processedLength: processed.length 
+        });
+        return processed;
+      } catch (err) {
+        logger.error('Failed to post-process XML string', err);
+        throw err;
+      }
     }
   
     /**
@@ -115,16 +170,21 @@ export class XmlEntity {
      * @returns Normalized text
      */
     static normalizeWhitespace(text: string, preserveWhitespace: boolean = false): string {
-      if (!text || typeof text !== 'string') {
-        return '';
-      }
+      try {
+        if (!text || typeof text !== 'string') {
+          return '';
+        }
   
-      if (!preserveWhitespace) {
-        // Trim and collapse multiple whitespace characters to a single space
-        return text.trim().replace(/\s+/g, ' ');
-      }
+        if (!preserveWhitespace) {
+          // Trim and collapse multiple whitespace characters to a single space
+          return text.trim().replace(/\s+/g, ' ');
+        }
   
-      return text;
+        return text;
+      } catch (err) {
+        logger.error('Failed to normalize whitespace', err);
+        throw err;
+      }
     }
   
     /**
@@ -133,12 +193,17 @@ export class XmlEntity {
      * @returns Text with consistent newlines
      */
     static normalizeNewlines(text: string): string {
-      if (!text || typeof text !== 'string') {
-        return '';
-      }
+      try {
+        if (!text || typeof text !== 'string') {
+          return '';
+        }
   
-      // Convert all newline formats (\r\n, \r) to \n
-      return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+        // Convert all newline formats (\r\n, \r) to \n
+        return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      } catch (err) {
+        logger.error('Failed to normalize newlines', err);
+        throw err;
+      }
     }
   
     /**
@@ -147,12 +212,17 @@ export class XmlEntity {
      * @returns True if the text appears to be an XML fragment
      */
     static isXmlFragment(text: string): boolean {
-      if (!text || typeof text !== 'string') {
-        return false;
-      }
+      try {
+        if (!text || typeof text !== 'string') {
+          return false;
+        }
   
-      // Check if the string starts with an XML tag
-      return /^\s*<[^>]+>/.test(text);
+        // Check if the string starts with an XML tag
+        return /^\s*<[^>]+>/.test(text);
+      } catch (err) {
+        logger.error('Failed to check if text is XML fragment', err);
+        throw err;
+      }
     }
   
     /**
@@ -161,6 +231,11 @@ export class XmlEntity {
      * @returns True if text has non-whitespace content
      */
     static hasContent(text: string): boolean {
-      return typeof text === "string" && text.trim().length > 0;
+      try {
+        return typeof text === "string" && text.trim().length > 0;
+      } catch (err) {
+        logger.error('Failed to check if text has content', err);
+        throw err;
+      }
     }
-  }
+}

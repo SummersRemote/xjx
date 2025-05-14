@@ -6,7 +6,7 @@
 import { XNodeToJsonConverter } from './converter-interfaces';
 import { Configuration } from '../core/config';
 import { NodeType } from '../core/dom';
-import { catchAndRelease, ErrorType } from '../core/error';
+import { logger, validate, SerializeError } from '../core/error';
 import { JSON } from '../core/json';
 import { XNode } from '../core/xnode';
 
@@ -31,6 +31,14 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
    */
   public convert(node: XNode): Record<string, any> {
     try {
+      // VALIDATION: Check for valid input
+      validate(node instanceof XNode, "Node must be an XNode instance");
+      
+      logger.debug('Starting XNode to JSON conversion', { 
+        nodeName: node.name, 
+        nodeType: node.type 
+      });
+      
       // First perform the basic conversion
       let jsonResult = this.xnodeToJson(node);
       
@@ -46,12 +54,20 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
         jsonResult = compactedJson as Record<string, any>;
       }
       
-      return jsonResult;
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to convert XNode to JSON', {
-        errorType: ErrorType.SERIALIZE,
-        defaultValue: {}
+      logger.debug('Successfully converted XNode to JSON', { 
+        jsonKeys: Object.keys(jsonResult).length 
       });
+      
+      return jsonResult;
+    } catch (err) {
+      if (err instanceof SerializeError) {
+        logger.error('Failed to convert XNode to JSON', err);
+        throw err;
+      } else {
+        const error = new SerializeError('Failed to convert XNode to JSON', node);
+        logger.error('Failed to convert XNode to JSON', error);
+        throw error;
+      }
     }
   }
 
@@ -62,6 +78,9 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
    */
   private xnodeToJson(node: XNode): Record<string, any> {
     try {
+      // VALIDATION: Check for valid input
+      validate(node instanceof XNode, "Node must be an XNode instance");
+      
       const result: Record<string, any> = {};
       const nodeObj: Record<string, any> = {};
 
@@ -161,11 +180,13 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
 
       result[node.name] = nodeObj;
       return result;
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to convert XNode to JSON structure', {
-        errorType: ErrorType.SERIALIZE,
-        defaultValue: { [node.name]: {} }
+    } catch (err) {
+      const error = new SerializeError('Failed to convert XNode to JSON structure', {
+        nodeName: node.name,
+        nodeType: node.type
       });
+      logger.error('Failed to convert XNode to JSON structure', error);
+      throw error;
     }
   }
 }

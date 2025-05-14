@@ -8,7 +8,7 @@ import { Configuration } from '../core/config';
 import { XmlSerializer } from '../core/xml';
 import { DOM } from '../core/dom';
 import { NodeType } from '../core/dom';
-import { catchAndRelease, ErrorType } from '../core/error';
+import { logger, validate, SerializeError } from '../core/error';
 import { XmlNamespace } from '../core/xml';
 import { XmlEntity } from '../core/xml';
 import { XNode } from '../core/xnode';
@@ -35,11 +35,19 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
    */
   public convert(node: XNode): string {
     try {
+      // VALIDATION: Check for valid input
+      validate(node instanceof XNode, "Node must be an XNode instance");
+      
       // Reset namespace map
       this.namespaceMap = {};
 
       // Create DOM document
       const doc = DOM.createDocument();
+      
+      logger.debug('Starting XNode to XML conversion', { 
+        nodeName: node.name, 
+        nodeType: node.type 
+      });
       
       // Convert XNode to DOM
       const element = this.xnodeToDom(node, doc);
@@ -64,11 +72,18 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
         xmlString = XmlSerializer.ensureXMLDeclaration(xmlString);
       }
       
+      logger.debug('Successfully converted XNode to XML', { xmlLength: xmlString.length });
+      
       return xmlString;
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to convert XNode to XML', {
-        errorType: ErrorType.SERIALIZE
-      });
+    } catch (err) {
+      if (err instanceof SerializeError) {
+        logger.error('Failed to convert XNode to XML', err);
+        throw err;
+      } else {
+        const error = new SerializeError('Failed to convert XNode to XML', node);
+        logger.error('Failed to convert XNode to XML', error);
+        throw error;
+      }
     }
   }
 
@@ -80,6 +95,10 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
    */
   public xnodeToDom(node: XNode, doc: Document): Element {
     try {
+      // VALIDATION: Check for valid inputs
+      validate(node instanceof XNode, "Node must be an XNode instance");
+      validate(doc instanceof Document, "Doc must be a Document instance");
+      
       let element: Element;
       
       // Create element with namespace if needed
@@ -144,11 +163,20 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
         }
       }
       
-      return element;
-    } catch (error) {
-      return catchAndRelease(error, 'Failed to convert XNode to DOM element', {
-        errorType: ErrorType.SERIALIZE
+      logger.debug('Converted XNode to DOM element', {
+        nodeName: node.name,
+        elementName: element.nodeName,
+        childCount: element.childNodes.length
       });
+      
+      return element;
+    } catch (err) {
+      const error = new SerializeError('Failed to convert XNode to DOM element', {
+        nodeName: node.name,
+        nodeType: node.type
+      });
+      logger.error('Failed to convert XNode to DOM element', error);
+      throw error;
     }
   }
 
@@ -159,38 +187,52 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
    * @param doc DOM document
    */
   private appendChildNode(element: Element, child: XNode, doc: Document): void {
-    switch (child.type) {
-      case NodeType.TEXT_NODE:
-        if (this.config.preserveTextNodes) {
-          element.appendChild(
-            doc.createTextNode(XmlEntity.safeText(String(child.value)))
-          );
-        }
-        break;
-        
-      case NodeType.CDATA_SECTION_NODE:
-        if (this.config.preserveCDATA) {
-          element.appendChild(doc.createCDATASection(String(child.value)));
-        }
-        break;
-        
-      case NodeType.COMMENT_NODE:
-        if (this.config.preserveComments) {
-          element.appendChild(doc.createComment(String(child.value)));
-        }
-        break;
-        
-      case NodeType.PROCESSING_INSTRUCTION_NODE:
-        if (this.config.preserveProcessingInstr && child.attributes?.target) {
-          element.appendChild(
-            doc.createProcessingInstruction(child.attributes.target, String(child.value || ""))
-          );
-        }
-        break;
-        
-      case NodeType.ELEMENT_NODE:
-        element.appendChild(this.xnodeToDom(child, doc));
-        break;
+    try {
+      // VALIDATION: Check for valid inputs
+      validate(element !== null && element !== undefined, "Element must be provided");
+      validate(child instanceof XNode, "Child must be an XNode instance");
+      validate(doc instanceof Document, "Doc must be a Document instance");
+      
+      switch (child.type) {
+        case NodeType.TEXT_NODE:
+          if (this.config.preserveTextNodes) {
+            element.appendChild(
+              doc.createTextNode(XmlEntity.safeText(String(child.value)))
+            );
+          }
+          break;
+          
+        case NodeType.CDATA_SECTION_NODE:
+          if (this.config.preserveCDATA) {
+            element.appendChild(doc.createCDATASection(String(child.value)));
+          }
+          break;
+          
+        case NodeType.COMMENT_NODE:
+          if (this.config.preserveComments) {
+            element.appendChild(doc.createComment(String(child.value)));
+          }
+          break;
+          
+        case NodeType.PROCESSING_INSTRUCTION_NODE:
+          if (this.config.preserveProcessingInstr && child.attributes?.target) {
+            element.appendChild(
+              doc.createProcessingInstruction(child.attributes.target, String(child.value || ""))
+            );
+          }
+          break;
+          
+        case NodeType.ELEMENT_NODE:
+          element.appendChild(this.xnodeToDom(child, doc));
+          break;
+      }
+    } catch (err) {
+      logger.error('Failed to append child node', {
+        childType: child.type,
+        childName: child.name,
+        err
+      });
+      throw err;
     }
   }
 
@@ -201,6 +243,11 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
    * @returns Namespace URI or undefined
    */
   private findNamespaceForPrefix(node: XNode, prefix: string): string | undefined {
-    return XmlNamespace.findNamespaceForPrefix(node, prefix, this.namespaceMap);
+    try {
+      return XmlNamespace.findNamespaceForPrefix(node, prefix, this.namespaceMap);
+    } catch (err) {
+      logger.error('Failed to find namespace for prefix', { prefix, err });
+      throw err;
+    }
   }
 }

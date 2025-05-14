@@ -1,6 +1,6 @@
 // services/XJXService.js
 // Wrapper service for the XJX library
-import { XJX, BooleanTransform, NumberTransform, RegexTransform } from '../../../dist/esm'; // Path to the XJX library
+import { XJX, BooleanTransform, NumberTransform, RegexTransform } from '../../../dist/esm/xjx.full'; // Import from full bundle
 
 // Create a map of transformer types to their constructors
 const transformerMap = {

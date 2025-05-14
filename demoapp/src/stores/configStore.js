@@ -19,6 +19,7 @@ export const useConfigStore = defineStore('config', {
      * Reset configuration to default
      */
     resetToDefault() {
+      // Make sure we get a fresh copy of the default config
       this.config = XJXService.getDefaultConfig();
     }
   }

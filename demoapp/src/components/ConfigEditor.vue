@@ -308,6 +308,7 @@ const apiStore = useAPIStore();
 const { config } = storeToRefs(configStore);
 
 // Create a deep copy of the config for local editing
+// FIXED: Access value property of the ref object
 const localConfig = reactive(JSON.parse(JSON.stringify(config.value)));
 
 // Update the store when the local config changes
@@ -319,6 +320,7 @@ const updateConfig = () => {
 // Reset config to default
 const resetConfig = () => {
   configStore.resetToDefault();
+  // FIXED: Access value property of the ref object
   Object.assign(localConfig, JSON.parse(JSON.stringify(config.value)));
   apiStore.updateFluentAPI();
 };
@@ -330,6 +332,7 @@ const copyConfig = () => {
 };
 
 // Watch for external config changes
+// FIXED: No need to access value here as watch automatically unwraps refs
 watch(config, (newConfig) => {
   Object.assign(localConfig, JSON.parse(JSON.stringify(newConfig)));
 }, { deep: true });

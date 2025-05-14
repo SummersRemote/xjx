@@ -1,7 +1,7 @@
 /**
  * RegexTransform - Performs regex replacements on values
  *
- * Updated to support format-specific regex replacements and string patterns with flags.
+ * Updated to use target format instead of direction.
  */
 import {
   Transform,
@@ -11,7 +11,7 @@ import {
   FormatId,
   createTransformResult,
 } from "../core/transform";
-// import { catchAndRelease, validate, ErrorType } from "../core/error";
+import { logger, validate, ValidationError, TransformError, handleError, ErrorType } from "../core/error";
 
 /**
  * Options for regex transformer
@@ -94,36 +94,49 @@ export class RegexTransform implements Transform {
    * @param options Transformer options
    */
   constructor(options: RegexOptions) {
-    // validate(
-    //   !!options.pattern,
-    //   "RegexTransform requires a pattern option"
-    // );
+    try {
+      // Validate required options
+      validate(!!options.pattern, "RegexTransform requires a pattern option");
+      validate(options.replacement !== undefined, "RegexTransform requires a replacement option");
 
-    // validate(
-    //   options.replacement !== undefined,
-    //   "RegexTransform requires a replacement option"
-    // );
+      this.replacement = options.replacement;
+      this.format = options.format;
 
-    this.replacement = options.replacement;
-    this.format = options.format;
-
-    // Create regex from pattern
-    if (options.pattern instanceof RegExp) {
-      // Use the RegExp directly with its flags
-      this.regex = options.pattern;
-    } else if (typeof options.pattern === "string") {
-      const parsed = this.parseRegExpString(options.pattern);
-      if (parsed) {
-        try {
-          this.regex = new RegExp(parsed.source, parsed.flags || "g");
-        } catch (err) {
+      // Create regex from pattern
+      if (options.pattern instanceof RegExp) {
+        // Use the RegExp directly with its flags
+        this.regex = options.pattern;
+      } else if (typeof options.pattern === "string") {
+        const parsed = this.parseRegExpString(options.pattern);
+        if (parsed) {
+          try {
+            this.regex = new RegExp(parsed.source, parsed.flags || "g");
+          } catch (err) {
+            const escapedPattern = this.escapeRegExp(options.pattern);
+            this.regex = new RegExp(escapedPattern, "g");
+          }
+        } else {
           const escapedPattern = this.escapeRegExp(options.pattern);
           this.regex = new RegExp(escapedPattern, "g");
         }
       } else {
-        const escapedPattern = this.escapeRegExp(options.pattern);
-        this.regex = new RegExp(escapedPattern, "g");
+        throw new ValidationError("RegexTransform pattern must be a RegExp or string", options);
       }
+
+      logger.debug('Created RegexTransform', {
+        pattern: options.pattern instanceof RegExp ? options.pattern.source : options.pattern,
+        replacement: options.replacement,
+        format: options.format
+      });
+    } catch (err) {
+      throw handleError(err, "create RegexTransform", {
+        data: {
+          pattern: options?.pattern instanceof RegExp ? options.pattern.source : options?.pattern,
+          replacement: options?.replacement,
+          format: options?.format
+        },
+        errorType: ErrorType.VALIDATION
+      });
     }
   }
 
@@ -134,21 +147,36 @@ export class RegexTransform implements Transform {
    * @returns Transformed value result
    */
   transform(value: any, context: TransformContext): TransformResult<any> {
-    // If format-specific and doesn't match current format, skip
-    if (this.format !== undefined && this.format !== context.targetFormat) {
-      return createTransformResult(value);
+    try {
+      // If format-specific and doesn't match current format, skip
+      if (this.format !== undefined && this.format !== context.targetFormat) {
+        return createTransformResult(value);
+      }
+
+      // Skip non-string values
+      if (typeof value !== "string") {
+        return createTransformResult(value);
+      }
+
+      // Perform the replacement
+      const result = value.replace(this.regex, this.replacement);
+
+      // Only return the new value if something changed
+      return createTransformResult(result !== value ? result : value);
+    } catch (err) {
+      return handleError(err, "apply regex transform", {
+        data: {
+          valueType: typeof value,
+          valuePreview: typeof value === 'string' ? value.substring(0, 50) : null,
+          path: context.path,
+          targetFormat: context.targetFormat,
+          pattern: this.regex.source,
+          replacement: this.replacement
+        },
+        errorType: ErrorType.TRANSFORM,
+        fallback: createTransformResult(value) // Return original value as fallback
+      });
     }
-
-    // Skip non-string values
-    if (typeof value !== "string") {
-      return createTransformResult(value);
-    }
-
-    // Perform the replacement
-    const result = value.replace(this.regex, this.replacement);
-
-    // Only return the new value if something changed
-    return createTransformResult(result !== value ? result : value);
   }
 
   /**
@@ -158,7 +186,14 @@ export class RegexTransform implements Transform {
    * @private
    */
   private escapeRegExp(string: string): string {
-    return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    try {
+      return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    } catch (err) {
+      return handleError(err, "escape regex pattern", {
+        data: { stringLength: string?.length },
+        fallback: string // Return original string as fallback
+      });
+    }
   }
 
   /**
@@ -168,25 +203,32 @@ export class RegexTransform implements Transform {
   private parseRegExpString(
     input: string
   ): { source: string; flags: string } | null {
-    if (!input.startsWith("/")) return null;
+    try {
+      if (!input.startsWith("/")) return null;
 
-    let i = 1;
-    let inEscape = false;
-    while (i < input.length) {
-      const char = input[i];
+      let i = 1;
+      let inEscape = false;
+      while (i < input.length) {
+        const char = input[i];
 
-      if (!inEscape && char === "/") {
-        // End of pattern, everything after is flags
-        const source = input.slice(1, i);
-        const flags = input.slice(i + 1);
-        return { source, flags };
+        if (!inEscape && char === "/") {
+          // End of pattern, everything after is flags
+          const source = input.slice(1, i);
+          const flags = input.slice(i + 1);
+          return { source, flags };
+        }
+
+        inEscape = !inEscape && char === "\\";
+        i++;
       }
 
-      inEscape = !inEscape && char === "\\";
-      i++;
+      // If no closing / found
+      return null;
+    } catch (err) {
+      return handleError(err, "parse regex string", {
+        data: { input },
+        fallback: null
+      });
     }
-
-    // If no closing / found
-    return null;
   }
 }

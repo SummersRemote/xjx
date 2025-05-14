@@ -8,7 +8,7 @@ import { Configuration } from '../core/config';
 import { XmlSerializer } from '../core/xml';
 import { DOM } from '../core/dom';
 import { NodeType } from '../core/dom';
-import { logger, validate, SerializeError } from '../core/error';
+import { logger, validate, SerializeError, handleError, ErrorType } from '../core/error';
 import { XmlNamespace } from '../core/xml';
 import { XmlEntity } from '../core/xml';
 import { XNode } from '../core/xnode';
@@ -76,14 +76,13 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
       
       return xmlString;
     } catch (err) {
-      if (err instanceof SerializeError) {
-        logger.error('Failed to convert XNode to XML', err);
-        throw err;
-      } else {
-        const error = new SerializeError('Failed to convert XNode to XML', node);
-        logger.error('Failed to convert XNode to XML', error);
-        throw error;
-      }
+      return handleError(err, 'convert XNode to XML', {
+        data: { 
+          nodeName: node?.name,
+          nodeType: node?.type
+        },
+        errorType: ErrorType.SERIALIZE
+      });
     }
   }
 
@@ -171,12 +170,13 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
       
       return element;
     } catch (err) {
-      const error = new SerializeError('Failed to convert XNode to DOM element', {
-        nodeName: node.name,
-        nodeType: node.type
+      return handleError(err, 'convert XNode to DOM element', {
+        data: {
+          nodeName: node?.name,
+          nodeType: node?.type
+        },
+        errorType: ErrorType.SERIALIZE
       });
-      logger.error('Failed to convert XNode to DOM element', error);
-      throw error;
     }
   }
 
@@ -227,12 +227,14 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
           break;
       }
     } catch (err) {
-      logger.error('Failed to append child node', {
-        childType: child.type,
-        childName: child.name,
-        err
+      handleError(err, 'append child node', {
+        data: {
+          childType: child?.type,
+          childName: child?.name,
+          parentElementName: element?.nodeName
+        }
       });
-      throw err;
+      // Continue processing other children even if this one fails
     }
   }
 
@@ -246,8 +248,10 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
     try {
       return XmlNamespace.findNamespaceForPrefix(node, prefix, this.namespaceMap);
     } catch (err) {
-      logger.error('Failed to find namespace for prefix', { prefix, err });
-      throw err;
+      return handleError(err, 'find namespace for prefix', {
+        data: { prefix, nodeName: node?.name },
+        fallback: undefined
+      });
     }
   }
 }

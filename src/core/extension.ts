@@ -4,7 +4,7 @@
 import { Configuration } from './config';
 import { Transform, FormatId } from './transform';
 import { XNode } from './xnode';
-import { logger, validate, ValidationError } from './error';
+import { logger, validate, ValidationError, handleError, ErrorType } from './error';
 
 /**
  * Base context interface for extension functions
@@ -69,13 +69,10 @@ export class Extension {
       
       logger.debug('Terminal extension registered', { name });
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to register terminal extension due to validation error', err);
-        throw err;
-      } else {
-        logger.error(`Failed to register terminal extension: ${name}`, err);
-        throw err;
-      }
+      handleError(err, "register terminal extension", {
+        data: { name },
+        errorType: ErrorType.CONFIGURATION
+      });
     }
   }
 
@@ -97,13 +94,10 @@ export class Extension {
       
       logger.debug('Non-terminal extension registered', { name });
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to register non-terminal extension due to validation error', err);
-        throw err;
-      } else {
-        logger.error(`Failed to register non-terminal extension: ${name}`, err);
-        throw err;
-      }
+      handleError(err, "register non-terminal extension", {
+        data: { name },
+        errorType: ErrorType.CONFIGURATION
+      });
     }
   }
 }

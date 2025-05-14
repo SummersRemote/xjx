@@ -12,7 +12,7 @@ import {
   createTransformResult 
 } from '../core/transform';
 import { XNode } from '../core/xnode';
-// import { catchAndRelease, validate, ErrorType } from "../core/error";
+import { handleError, ErrorType } from '../core/error';
 
 /**
  * Type for node selector functions
@@ -136,40 +136,48 @@ export class MetadataTransform implements Transform {
    * @param options Transformer options
    */
   constructor(options: MetadataTransformOptions = {}) {
-    // validate(
-    //   !!options && typeof options === 'object',
-    //   'MetadataTransform requires options object'
-    // );
-    
-    this.selector = options.selector;
-    this.applyToRoot = options.applyToRoot || false;
-    this.applyToAll = options.applyToAll || false;
-    this.metadata = options.metadata;
-    this.replace = options.replace || false;
-    this.removeKeys = options.removeKeys || [];
-    this.maxDepth = options.maxDepth;
-    
-    // Initialize format metadata map
-    this.formatMetadata = new Map<FormatId, Record<string, any>>();
-    
-    // Process format-specific metadata
-    if (options.formatMetadata && options.formatMetadata.length > 0) {
-      for (const formatMeta of options.formatMetadata) {
-        this.formatMetadata.set(formatMeta.format, formatMeta.metadata);
+    try {
+      // Validation is handled by handleError in case of errors
+      
+      this.selector = options.selector;
+      this.applyToRoot = options.applyToRoot || false;
+      this.applyToAll = options.applyToAll || false;
+      this.metadata = options.metadata;
+      this.replace = options.replace || false;
+      this.removeKeys = options.removeKeys || [];
+      this.maxDepth = options.maxDepth;
+      
+      // Initialize format metadata map
+      this.formatMetadata = new Map<FormatId, Record<string, any>>();
+      
+      // Process format-specific metadata
+      if (options.formatMetadata && options.formatMetadata.length > 0) {
+        for (const formatMeta of options.formatMetadata) {
+          this.formatMetadata.set(formatMeta.format, formatMeta.metadata);
+        }
       }
+      
+      // Basic validation - options need to be checked
+      if (!this.applyToAll && !this.applyToRoot && !this.selector) {
+        throw new Error('MetadataTransform must have at least one application method (applyToAll, applyToRoot, or selector)');
+      }
+      
+      if (!this.metadata && this.formatMetadata.size === 0 && this.removeKeys.length === 0) {
+        throw new Error('MetadataTransform must have metadata to apply or keys to remove');
+      }
+    } catch (err) {
+      throw handleError(err, "initialize metadata transform", {
+        data: {
+          hasSelector: !!options.selector,
+          applyToRoot: options.applyToRoot,
+          applyToAll: options.applyToAll,
+          hasMetadata: !!options.metadata,
+          formatMetadataCount: options.formatMetadata?.length || 0,
+          removeKeysCount: options.removeKeys?.length || 0
+        },
+        errorType: ErrorType.TRANSFORM
+      });
     }
-    
-    // Validate that we have at least one application method
-    // validate(
-    //   this.applyToAll || this.applyToRoot || !!this.selector,
-    //   'MetadataTransform must have at least one application method (applyToAll, applyToRoot, or selector)'
-    // );
-    
-    // // Validate that we have metadata to apply
-    // validate(
-    //   !!this.metadata || this.formatMetadata.size > 0 || this.removeKeys.length > 0,
-    //   'MetadataTransform must have metadata to apply or keys to remove'
-    // );
   }
   
   /**
@@ -179,34 +187,47 @@ export class MetadataTransform implements Transform {
    * @returns Transform result with possibly modified node
    */
   transform(node: XNode, context: TransformContext): TransformResult<XNode> {
-    // Check depth constraint if specified
-    if (this.maxDepth !== undefined) {
-      const depth = context.path.split('.').length - 1;
-      if (depth > this.maxDepth) {
+    try {
+      // Check depth constraint if specified
+      if (this.maxDepth !== undefined) {
+        const depth = context.path.split('.').length - 1;
+        if (depth > this.maxDepth) {
+          return createTransformResult(node);
+        }
+      }
+      
+      // Determine if we should apply metadata to this node
+      const shouldApply = 
+        this.applyToAll || 
+        (this.applyToRoot && !context.parent) ||
+        this.matchesSelector(node, context);
+      
+      if (!shouldApply) {
         return createTransformResult(node);
       }
+      
+      // Clone the node to avoid modifying original
+      const clonedNode = node.clone(false);
+      
+      // Preserve children
+      clonedNode.children = node.children;
+      
+      // Apply metadata modifications
+      this.applyMetadataToNode(clonedNode, context);
+      
+      return createTransformResult(clonedNode);
+    } catch (err) {
+      return handleError(err, "transform metadata", {
+        data: {
+          nodeName: node?.name,
+          nodeType: node?.type,
+          path: context.path,
+          targetFormat: context.targetFormat
+        },
+        errorType: ErrorType.TRANSFORM,
+        fallback: createTransformResult(node) // Return original node as fallback
+      });
     }
-    
-    // Determine if we should apply metadata to this node
-    const shouldApply = 
-      this.applyToAll || 
-      (this.applyToRoot && !context.parent) ||
-      this.matchesSelector(node, context);
-    
-    if (!shouldApply) {
-      return createTransformResult(node);
-    }
-    
-    // Clone the node to avoid modifying original
-    const clonedNode = node.clone(false);
-    
-    // Preserve children
-    clonedNode.children = node.children;
-    
-    // Apply metadata modifications
-    this.applyMetadataToNode(clonedNode, context);
-    
-    return createTransformResult(clonedNode);
   }
   
   /**
@@ -216,55 +237,69 @@ export class MetadataTransform implements Transform {
    * @private
    */
   private applyMetadataToNode(node: XNode, context: TransformContext): void {
-    // Remove keys if specified
-    if (this.removeKeys.length > 0 && node.metadata) {
-      for (const key of this.removeKeys) {
-        delete node.metadata[key];
-      }
-      
-      // If metadata is now empty, remove it completely
-      if (Object.keys(node.metadata).length === 0) {
-        node.metadata = undefined;
-      }
-    }
-    
-    // Get the metadata to apply based on target format
-    let metadataToApply: Record<string, any> | undefined;
-    
-    // Check for format-specific metadata first
-    if (this.formatMetadata.has(context.targetFormat)) {
-      metadataToApply = this.formatMetadata.get(context.targetFormat);
-    } else {
-      // Fall back to general metadata
-      metadataToApply = this.metadata;
-    }
-    
-    // If no metadata to add, we're done
-    if (!metadataToApply || Object.keys(metadataToApply).length === 0) {
-      return;
-    }
-    
-    // Initialize metadata if needed
-    if (!node.metadata) {
-      node.metadata = {};
-    }
-    
-    // Apply new metadata
-    if (this.replace) {
-      // Replace mode: overwrite with new metadata
-      Object.assign(node.metadata, metadataToApply);
-    } else {
-      // Merge mode: deep merge with existing metadata
-      for (const [key, value] of Object.entries(metadataToApply)) {
-        if (typeof value === 'object' && value !== null && 
-            typeof node.metadata[key] === 'object' && node.metadata[key] !== null) {
-          // Deep merge objects
-          node.metadata[key] = this.deepMerge(node.metadata[key], value);
-        } else {
-          // Simple assignment for primitives or when target doesn't exist
-          node.metadata[key] = value;
+    try {
+      // Remove keys if specified
+      if (this.removeKeys.length > 0 && node.metadata) {
+        for (const key of this.removeKeys) {
+          delete node.metadata[key];
+        }
+        
+        // If metadata is now empty, remove it completely
+        if (Object.keys(node.metadata).length === 0) {
+          node.metadata = undefined;
         }
       }
+      
+      // Get the metadata to apply based on target format
+      let metadataToApply: Record<string, any> | undefined;
+      
+      // Check for format-specific metadata first
+      if (this.formatMetadata.has(context.targetFormat)) {
+        metadataToApply = this.formatMetadata.get(context.targetFormat);
+      } else {
+        // Fall back to general metadata
+        metadataToApply = this.metadata;
+      }
+      
+      // If no metadata to add, we're done
+      if (!metadataToApply || Object.keys(metadataToApply).length === 0) {
+        return;
+      }
+      
+      // Initialize metadata if needed
+      if (!node.metadata) {
+        node.metadata = {};
+      }
+      
+      // Apply new metadata
+      if (this.replace) {
+        // Replace mode: overwrite with new metadata
+        Object.assign(node.metadata, metadataToApply);
+      } else {
+        // Merge mode: deep merge with existing metadata
+        for (const [key, value] of Object.entries(metadataToApply)) {
+          if (typeof value === 'object' && value !== null && 
+              typeof node.metadata[key] === 'object' && node.metadata[key] !== null) {
+            // Deep merge objects
+            node.metadata[key] = this.deepMerge(node.metadata[key], value);
+          } else {
+            // Simple assignment for primitives or when target doesn't exist
+            node.metadata[key] = value;
+          }
+        }
+      }
+    } catch (err) {
+      handleError(err, "apply metadata to node", {
+        data: {
+          nodeName: node?.name,
+          nodeType: node?.type,
+          targetFormat: context.targetFormat,
+          replace: this.replace,
+          removeKeysCount: this.removeKeys.length
+        },
+        errorType: ErrorType.TRANSFORM
+        // No fallback - we're already in a void function
+      });
     }
   }
   
@@ -276,26 +311,37 @@ export class MetadataTransform implements Transform {
    * @private
    */
   private matchesSelector(node: XNode, context: TransformContext): boolean {
-    if (!this.selector) {
+    try {
+      if (!this.selector) {
+        return false;
+      }
+      
+      // Function selector
+      if (typeof this.selector === 'function') {
+        return this.selector(node, context);
+      }
+      
+      // String selector (simple name matching)
+      if (typeof this.selector === 'string') {
+        return this.selector === node.name;
+      }
+      
+      // RegExp selector
+      if (this.selector instanceof RegExp) {
+        return this.selector.test(node.name);
+      }
+      
       return false;
+    } catch (err) {
+      return handleError(err, "check if node matches selector", {
+        data: {
+          nodeName: node?.name,
+          nodeType: node?.type,
+          selectorType: typeof this.selector
+        },
+        fallback: false
+      });
     }
-    
-    // Function selector
-    if (typeof this.selector === 'function') {
-      return this.selector(node, context);
-    }
-    
-    // String selector (simple name matching)
-    if (typeof this.selector === 'string') {
-      return this.selector === node.name;
-    }
-    
-    // RegExp selector
-    if (this.selector instanceof RegExp) {
-      return this.selector.test(node.name);
-    }
-    
-    return false;
   }
   
   /**
@@ -306,25 +352,35 @@ export class MetadataTransform implements Transform {
    * @private
    */
   private deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
-    const result = { ...target };
-    
-    for (const key in source) {
-      if (source.hasOwnProperty(key)) {
-        const sourceValue = source[key];
-        const targetValue = target[key];
-        
-        if (typeof sourceValue === 'object' && sourceValue !== null &&
-            typeof targetValue === 'object' && targetValue !== null &&
-            !Array.isArray(sourceValue) && !Array.isArray(targetValue)) {
-          // Recursively merge nested objects
-          result[key] = this.deepMerge(targetValue, sourceValue);
-        } else {
-          // Simple assignment for primitives or arrays
-          result[key] = sourceValue as any;
+    try {
+      const result = { ...target };
+      
+      for (const key in source) {
+        if (source.hasOwnProperty(key)) {
+          const sourceValue = source[key];
+          const targetValue = target[key];
+          
+          if (typeof sourceValue === 'object' && sourceValue !== null &&
+              typeof targetValue === 'object' && targetValue !== null &&
+              !Array.isArray(sourceValue) && !Array.isArray(targetValue)) {
+            // Recursively merge nested objects
+            result[key] = this.deepMerge(targetValue, sourceValue);
+          } else {
+            // Simple assignment for primitives or arrays
+            result[key] = sourceValue as any;
+          }
         }
       }
+      
+      return result;
+    } catch (err) {
+      return handleError(err, "deep merge objects", {
+        data: {
+          targetKeys: Object.keys(target || {}),
+          sourceKeys: Object.keys(source || {})
+        },
+        fallback: { ...target } // Return copy of target as fallback
+      });
     }
-    
-    return result;
   }
 }

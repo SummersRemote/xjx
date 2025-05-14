@@ -1,7 +1,7 @@
 /**
  * XML namespace management utilities
  */
-import { logger, validate, ParseError, ValidationError } from '../error';
+import { logger, validate, ParseError, ValidationError, handleError, ErrorType } from '../error';
 import { XNode } from '../xnode';
 
 /**
@@ -41,8 +41,10 @@ export class XmlNamespace {
       // If not found in ancestry, try the global map as fallback
       return namespaceMap?.[prefix];
     } catch (err) {
-      logger.error('Failed to find namespace for prefix', { prefix, err });
-      throw err;
+      return handleError(err, 'find namespace for prefix', {
+        data: { prefix, nodeName: node?.name },
+        errorType: ErrorType.VALIDATION
+      });
     }
   }
 
@@ -63,8 +65,11 @@ export class XmlNamespace {
       
       return prefix ? `${prefix}:${localName}` : localName;
     } catch (err) {
-      logger.error('Failed to create qualified name', { prefix, localName, err });
-      throw err;
+      return handleError(err, 'create qualified name', {
+        data: { prefix, localName },
+        errorType: ErrorType.VALIDATION,
+        fallback: localName || '' // Return localName or empty string as fallback
+      });
     }
   }
 
@@ -93,8 +98,14 @@ export class XmlNamespace {
         localName: qualifiedName,
       };
     } catch (err) {
-      logger.error('Failed to parse qualified name', { qualifiedName, err });
-      throw err;
+      return handleError(err, 'parse qualified name', {
+        data: { qualifiedName },
+        errorType: ErrorType.VALIDATION,
+        fallback: {
+          prefix: null,
+          localName: qualifiedName || ''
+        }
+      });
     }
   }
 
@@ -126,8 +137,10 @@ export class XmlNamespace {
       logger.debug('Found namespace declarations', { count: Object.keys(result).length });
       return result;
     } catch (err) {
-      logger.error('Failed to get namespace declarations', err);
-      throw err;
+      return handleError(err, 'get namespace declarations', {
+        data: { elementName: element?.nodeName },
+        fallback: {}
+      });
     }
   }
 
@@ -143,8 +156,10 @@ export class XmlNamespace {
       
       return element.hasAttribute("xmlns");
     } catch (err) {
-      logger.error('Failed to check for default namespace', err);
-      throw err;
+      return handleError(err, 'check for default namespace', {
+        data: { elementName: element?.nodeName },
+        fallback: false
+      });
     }
   }
 
@@ -182,8 +197,13 @@ export class XmlNamespace {
         declarationCount: Object.keys(declarations).length 
       });
     } catch (err) {
-      logger.error('Failed to add namespace declarations', { declarations, err });
-      throw err;
+      handleError(err, 'add namespace declarations', {
+        data: { 
+          elementName: element?.nodeName,
+          declarationCount: Object.keys(declarations || {}).length
+        },
+        errorType: ErrorType.VALIDATION
+      });
     }
   }
 
@@ -221,8 +241,10 @@ export class XmlNamespace {
       });
       return result;
     } catch (err) {
-      logger.error('Failed to collect namespace declarations', err);
-      throw err;
+      return handleError(err, 'collect namespace declarations', {
+        data: { nodeName: node?.name },
+        fallback: {}
+      });
     }
   }
 
@@ -244,8 +266,10 @@ export class XmlNamespace {
         prefix: element.prefix,
       };
     } catch (err) {
-      logger.error('Failed to resolve element namespace', err);
-      throw err;
+      return handleError(err, 'resolve element namespace', {
+        data: { elementName: element?.nodeName },
+        fallback: { namespace: null, prefix: null }
+      });
     }
   }
 
@@ -261,8 +285,10 @@ export class XmlNamespace {
       
       return qualifiedName.indexOf(":") > 0;
     } catch (err) {
-      logger.error('Failed to check if qualified name has prefix', err);
-      throw err;
+      return handleError(err, 'check if qualified name has prefix', {
+        data: { qualifiedName },
+        fallback: false
+      });
     }
   }
 
@@ -278,8 +304,10 @@ export class XmlNamespace {
       
       return element.getAttribute("xmlns");
     } catch (err) {
-      logger.error('Failed to get default namespace', err);
-      throw err;
+      return handleError(err, 'get default namespace', {
+        data: { elementName: element?.nodeName },
+        fallback: null
+      });
     }
   }
 
@@ -307,9 +335,10 @@ export class XmlNamespace {
         return doc.createElement(qualifiedName);
       }
     } catch (err) {
-      const error = new ParseError(`Failed to create element: ${qualifiedName}`, { qualifiedName, namespace });
-      logger.error('Failed to create element with namespace', error);
-      throw error;
+      return handleError(err, 'create element with namespace', {
+        data: { qualifiedName, namespace },
+        errorType: ErrorType.PARSE
+      });
     }
   }
 }

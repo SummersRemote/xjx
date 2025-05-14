@@ -7,7 +7,7 @@ import { XmlToXNodeConverter } from './converter-interfaces';
 import { Configuration } from '../core/config';
 import { XmlParser } from '../core/xml';
 import { NodeType } from '../core/dom';
-import { logger, validate, ParseError } from '../core/error';
+import { logger, validate, ParseError, handleError, ErrorType } from '../core/error';
 import { XmlNamespace } from '../core/xml';
 import { XmlEntity } from '../core/xml';
 import { XNode } from '../core/xnode';
@@ -50,14 +50,10 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
       // Convert DOM element to XNode
       return this.elementToXNode(doc.documentElement);
     } catch (err) {
-      if (err instanceof ParseError) {
-        logger.error('Failed to convert XML to XNode', err);
-        throw err;
-      } else {
-        const error = new ParseError('Failed to convert XML to XNode', xml);
-        logger.error('Failed to convert XML to XNode', error);
-        throw error;
-      }
+      return handleError(err, 'convert XML to XNode', {
+        data: { xmlLength: xml.length },
+        errorType: ErrorType.PARSE
+      });
     }
   }
 
@@ -177,12 +173,13 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
       
       return xnode;
     } catch (err) {
-      const error = new ParseError('Failed to convert DOM element to XNode', {
-        elementName: element.nodeName,
-        elementAttributes: element.attributes
+      return handleError(err, 'convert DOM element to XNode', {
+        data: { 
+          elementName: element?.nodeName,
+          elementNodeType: element?.nodeType
+        },
+        errorType: ErrorType.PARSE
       });
-      logger.error('Failed to convert DOM element to XNode', error);
-      throw error;
     }
   }
 
@@ -213,8 +210,10 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
 
       return false;
     } catch (err) {
-      logger.error('Failed to check for mixed content', err);
-      throw err;
+      return handleError(err, 'check for mixed content', {
+        data: { elementName: element?.nodeName },
+        fallback: false
+      });
     }
   }
 
@@ -255,8 +254,13 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
         }
       }
     } catch (err) {
-      logger.error('Failed to process text node', err);
-      throw err;
+      handleError(err, 'process text node', {
+        data: { 
+          nodeValue: node.nodeValue,
+          parentNodeName: parentNode.name
+        }
+      });
+      // Continue processing even if this node fails
     }
   }
 
@@ -279,8 +283,13 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
         children.push(cdataNode);
       }
     } catch (err) {
-      logger.error('Failed to process CDATA node', err);
-      throw err;
+      handleError(err, 'process CDATA node', {
+        data: { 
+          nodeValue: node.nodeValue,
+          parentNodeName: parentNode.name
+        }
+      });
+      // Continue processing even if this node fails
     }
   }
 
@@ -303,8 +312,13 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
         children.push(commentNode);
       }
     } catch (err) {
-      logger.error('Failed to process comment node', err);
-      throw err;
+      handleError(err, 'process comment node', {
+        data: { 
+          nodeValue: node.nodeValue,
+          parentNodeName: parentNode.name
+        }
+      });
+      // Continue processing even if this node fails
     }
   }
 
@@ -327,8 +341,14 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
         children.push(piNode);
       }
     } catch (err) {
-      logger.error('Failed to process processing instruction node', err);
-      throw err;
+      handleError(err, 'process processing instruction node', {
+        data: { 
+          target: pi.target,
+          data: pi.data,
+          parentNodeName: parentNode.name
+        }
+      });
+      // Continue processing even if this node fails
     }
   }
 }

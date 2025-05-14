@@ -5,7 +5,7 @@ import { XJX } from "../../XJX";
 import { Configuration, Config } from "../../core/config";
 import { NonTerminalExtensionContext } from "../../core/extension";
 import { Common } from "../../core/common";
-import { logger, validate, ConfigurationError, ValidationError } from "../../core/error";
+import { logger, validate, ConfigurationError, ValidationError, handleError, ErrorType } from "../../core/error";
 
 /**
  * Set configuration options
@@ -54,18 +54,15 @@ function withConfig(this: NonTerminalExtensionContext, config: Partial<Configura
     
     return this;
   } catch (err) {
-    // At API boundary, we handle different error types appropriately
-    if (err instanceof ValidationError) {
-      logger.error('Invalid configuration', err);
-      throw err;
-    } else if (err instanceof ConfigurationError) {
-      logger.error('Configuration error', err);
-      throw err;
-    } else {
-      const error = new ConfigurationError('Failed to apply configuration', config);
-      logger.error('Failed to apply configuration', error);
-      throw error;
-    }
+    // At API boundary, use handleError to ensure consistent error handling
+    return handleError(err, "apply configuration", {
+      data: { 
+        configKeys: Object.keys(config || {}),
+        configType: typeof config
+      },
+      errorType: ErrorType.CONFIGURATION,
+      fallback: this // Return this as fallback for fluent API
+    });
   }
 }
 

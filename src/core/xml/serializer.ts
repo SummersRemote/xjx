@@ -3,7 +3,7 @@
  */
 import { Configuration } from '../config';
 import { DOM } from '../dom';
-import { logger, validate, SerializeError, ValidationError } from '../error';
+import { logger, validate, SerializeError, ValidationError, handleError, ErrorType } from '../error';
 import { XmlEntity } from './entity';
 
 /**
@@ -33,9 +33,10 @@ export class XmlSerializer {
       
       return xmlString;
     } catch (err) {
-      const error = new SerializeError('Failed to serialize XML', node);
-      logger.error('Failed to serialize XML', error);
-      throw error;
+      return handleError(err, 'serialize XML', {
+        data: { nodeType: node?.nodeType, nodeName: node?.nodeName },
+        errorType: ErrorType.SERIALIZE
+      });
     }
   }
 
@@ -201,9 +202,11 @@ export class XmlSerializer {
       
       return result;
     } catch (err) {
-      const error = new SerializeError('Failed to pretty print XML', xmlString);
-      logger.error('Failed to pretty print XML', error);
-      throw error;
+      return handleError(err, 'pretty print XML', {
+        data: { xmlLength: xmlString.length, indent },
+        errorType: ErrorType.SERIALIZE,
+        fallback: xmlString // Return original as fallback
+      });
     }
   }
 
@@ -232,8 +235,10 @@ export class XmlSerializer {
       // No declaration found, add one
       return standardDecl + xmlString;
     } catch (err) {
-      logger.error('Failed to ensure XML declaration', err);
-      throw err;
+      return handleError(err, 'ensure XML declaration', {
+        data: { xmlLength: xmlString.length },
+        fallback: xmlString // Return original as fallback
+      });
     }
   }
 
@@ -245,9 +250,9 @@ export class XmlSerializer {
     try {
       return DOM.createDocument();
     } catch (err) {
-      const error = new SerializeError('Failed to create empty document', null);
-      logger.error('Failed to create empty document', error);
-      throw error;
+      return handleError(err, 'create empty XML document', {
+        errorType: ErrorType.SERIALIZE
+      });
     }
   }
 }

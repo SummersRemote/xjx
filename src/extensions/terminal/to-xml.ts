@@ -7,7 +7,7 @@ import { DefaultXNodeTransformer } from "../../converters/xnode-transformer";
 import { TerminalExtensionContext } from "../../core/extension";
 import { FORMATS } from "../../core/transform";
 import { XNode } from "../../core/xnode";
-import { logger, validate, SerializeError } from "../../core/error";
+import { logger, validate, SerializeError, handleError, ErrorType } from "../../core/error";
 
 /**
  * Convert current XNode to XML string
@@ -55,18 +55,14 @@ function toXml(this: TerminalExtensionContext): string {
     
     return result;
   } catch (err) {
-    // At API boundary, we wrap all errors to ensure consistent behavior
-    if (err instanceof SerializeError) {
-      logger.error('Failed to convert to XML', err);
-      throw err;
-    } else {
-      const error = new SerializeError('Failed to convert to XML', {
+    return handleError(err, "convert to XML", {
+      data: {
         sourceFormat: this.sourceFormat,
-        transformCount: this.transforms?.length || 0
-      });
-      logger.error('Failed to convert to XML', error);
-      throw error;
-    }
+        transformCount: this.transforms?.length || 0,
+        hasNode: this.xnode !== null
+      },
+      errorType: ErrorType.SERIALIZE
+    });
   }
 }
 

@@ -6,7 +6,7 @@
 import { JsonToXNodeConverter } from './converter-interfaces';
 import { Configuration } from '../core/config';
 import { NodeType } from '../core/dom';
-import { logger, validate, ParseError } from '../core/error';
+import { logger, validate, ParseError, handleError, ErrorType } from '../core/error';
 import { JSON } from '../core/json';
 import { XNode } from '../core/xnode';
 
@@ -48,14 +48,10 @@ export class DefaultJsonToXNodeConverter implements JsonToXNodeConverter {
       // Convert to XNode
       return this.jsonToXNode(json);
     } catch (err) {
-      if (err instanceof ParseError) {
-        logger.error('Failed to convert JSON to XNode', err);
-        throw err;
-      } else {
-        const error = new ParseError('Failed to convert JSON to XNode', json);
-        logger.error('Failed to convert JSON to XNode', error);
-        throw error;
-      }
+      return handleError(err, 'convert JSON to XNode', {
+        data: { jsonKeys: Object.keys(json || {}) },
+        errorType: ErrorType.PARSE
+      });
     }
   }
 
@@ -143,14 +139,13 @@ export class DefaultJsonToXNodeConverter implements JsonToXNodeConverter {
       
       return xnode;
     } catch (err) {
-      if (err instanceof ParseError) {
-        logger.error('Failed to convert JSON object to XNode', err);
-        throw err;
-      } else {
-        const error = new ParseError('Failed to convert JSON object to XNode', jsonObj);
-        logger.error('Failed to convert JSON object to XNode', error);
-        throw error;
-      }
+      return handleError(err, 'convert JSON object to XNode', {
+        data: { 
+          objectKeys: Object.keys(jsonObj || {}),
+          parentNodeName: parentNode?.name
+        },
+        errorType: ErrorType.PARSE
+      });
     }
   }
 
@@ -188,8 +183,10 @@ export class DefaultJsonToXNodeConverter implements JsonToXNodeConverter {
       
       return false;
     } catch (err) {
-      logger.error('Failed to process namespace declaration', { attrName, attrValue, err });
-      throw err;
+      return handleError(err, 'process namespace declaration', {
+        data: { attrName, attrValue },
+        fallback: false
+      });
     }
   }
 
@@ -222,8 +219,13 @@ export class DefaultJsonToXNodeConverter implements JsonToXNodeConverter {
       
       return result;
     } catch (err) {
-      logger.error('Failed to process children', err);
-      throw err;
+      return handleError(err, 'process children', {
+        data: { 
+          childCount: children?.length,
+          parentNodeName: parentNode?.name
+        },
+        fallback: []
+      });
     }
   }
 
@@ -283,8 +285,14 @@ export class DefaultJsonToXNodeConverter implements JsonToXNodeConverter {
       
       return false;
     } catch (err) {
-      logger.error('Failed to process special child', err);
-      throw err;
+      handleError(err, 'process special child', {
+        data: { 
+          childKeys: typeof child === 'object' ? Object.keys(child || {}) : null,
+          parentNodeName: parentNode?.name
+        },
+        fallback: false
+      });
+      return false; // Continue processing even if this node fails
     }
   }
 
@@ -300,8 +308,10 @@ export class DefaultJsonToXNodeConverter implements JsonToXNodeConverter {
       validate(JSON.isValidObject(jsonObj), 'Invalid JSON object: must be a non-array object');
       validate(Object.keys(jsonObj).length === 1, 'Invalid JSON object: must have exactly one root element');
     } catch (err) {
-      logger.error('JSON validation failed', err);
-      throw err;
+      handleError(err, 'validate JSON object', {
+        data: { jsonKeys: Object.keys(jsonObj || {}) },
+        errorType: ErrorType.VALIDATION
+      });
     }
   }
 }

@@ -3,7 +3,7 @@
  */
 import { Common } from './common';
 import { Configuration } from './config';
-import { logger, validate, ValidationError, SerializeError, ParseError } from './error';
+import { logger, validate, ValidationError, SerializeError, ParseError, handleError, ErrorType } from './error';
 
 /**
  * Basic JSON primitive types
@@ -126,14 +126,14 @@ export class JSON {
       logger.debug('Using wrapped object as-is (no root provided)');
       return wrappedObject as unknown as XMLJSONNode;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to convert object to XJX due to validation error', err);
-        throw err;
-      } else {
-        const error = new SerializeError('Failed to convert object to XML-like JSON structure', { obj, root });
-        logger.error('Failed to convert object to XJX', error);
-        throw error;
-      }
+      return handleError(err, "convert object to XML-like JSON", {
+        data: { 
+          rootType: typeof root,
+          objType: typeof obj
+        },
+        errorType: ErrorType.SERIALIZE,
+        fallback: { root: {} } // Return a minimal valid structure as fallback
+      });
     }
   }
 
@@ -180,8 +180,10 @@ export class JSON {
 
       return {}; // Empty object for unsupported types
     } catch (err) {
-      logger.error('Failed to wrap object', err);
-      throw err;
+      return handleError(err, "wrap object", {
+        data: { valueType: typeof value },
+        fallback: {} // Return empty object as fallback
+      });
     }
   }
 
@@ -238,8 +240,10 @@ export class JSON {
       
       return hasProperties ? compactedObj : undefined;
     } catch (err) {
-      logger.error('Failed to compact JSON', err);
-      throw err;
+      return handleError(err, "compact JSON", {
+        data: { valueType: typeof value },
+        fallback: value // Return original value as fallback
+      });
     }
   }
 
@@ -256,8 +260,10 @@ export class JSON {
       
       return global.JSON.stringify(obj, null, indent);
     } catch (err) {
-      logger.debug('Could not stringify object', err);
-      return "[Cannot stringify object]";
+      return handleError(err, "stringify JSON", {
+        data: { indent },
+        fallback: "[Cannot stringify object]"
+      });
     }
   }
 
@@ -273,8 +279,10 @@ export class JSON {
       
       return global.JSON.parse(text);
     } catch (err) {
-      logger.debug('Could not parse JSON string', err);
-      return null;
+      return handleError(err, "parse JSON string", {
+        data: { textLength: text?.length },
+        fallback: null
+      });
     }
   }
 
@@ -289,8 +297,9 @@ export class JSON {
            typeof value === 'object' && 
            !Array.isArray(value);
     } catch (err) {
-      logger.error('Error validating JSON object', err);
-      return false;
+      return handleError(err, "validate JSON object", {
+        fallback: false
+      });
     }
   }
 
@@ -303,8 +312,9 @@ export class JSON {
     try {
       return Array.isArray(value);
     } catch (err) {
-      logger.error('Error validating JSON array', err);
-      return false;
+      return handleError(err, "validate JSON array", {
+        fallback: false
+      });
     }
   }
 
@@ -320,8 +330,9 @@ export class JSON {
            typeof value === 'number' || 
            typeof value === 'boolean';
     } catch (err) {
-      logger.error('Error validating JSON primitive', err);
-      return false;
+      return handleError(err, "validate JSON primitive", {
+        fallback: false
+      });
     }
   }
 
@@ -346,8 +357,9 @@ export class JSON {
 
       return false;
     } catch (err) {
-      logger.error('Error validating JSON value', err);
-      return false;
+      return handleError(err, "validate JSON value", {
+        fallback: false
+      });
     }
   }
 
@@ -365,13 +377,10 @@ export class JSON {
       
       return Common.getPath(obj, path, defaultValue);
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to get path due to validation error', err);
-        throw err;
-      } else {
-        logger.error('Failed to get path from JSON object', err);
-        return defaultValue;
-      }
+      return handleError(err, "get path from JSON object", {
+        data: { path },
+        fallback: defaultValue
+      });
     }
   }
 
@@ -389,14 +398,14 @@ export class JSON {
       
       return Common.setPath(obj, path, value);
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to set path due to validation error', err);
-        throw err;
-      } else {
-        const error = new SerializeError(`Failed to set path ${path} in JSON object`, { obj, path, value });
-        logger.error('Failed to set path in JSON object', error);
-        throw error;
-      }
+      return handleError(err, "set path in JSON object", {
+        data: { 
+          path, 
+          valueType: typeof value 
+        },
+        errorType: ErrorType.SERIALIZE,
+        fallback: obj // Return original object as fallback
+      });
     }
   }
 }

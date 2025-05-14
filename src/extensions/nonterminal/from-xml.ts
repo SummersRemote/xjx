@@ -5,7 +5,7 @@ import { XJX } from "../../XJX";
 import { DefaultXmlToXNodeConverter } from "../../converters/xml-to-xnode-converter";
 import { FORMATS } from "../../core/transform";
 import { NonTerminalExtensionContext } from "../../core/extension";
-import { logger, validate, ParseError, ValidationError } from "../../core/error";
+import { logger, validate, ParseError, ValidationError, handleError, ErrorType } from "../../core/error";
 
 /**
  * Set XML source for transformation
@@ -40,18 +40,15 @@ function fromXml(this: NonTerminalExtensionContext, source: string) {
     
     return this;
   } catch (err) {
-    // At API boundary, we handle different error types appropriately
-    if (err instanceof ValidationError) {
-      logger.error('Invalid XML source', err);
-      throw err;
-    } else if (err instanceof ParseError) {
-      logger.error('Failed to parse XML source', err);
-      throw err;
-    } else {
-      const error = new ParseError('Failed to set XML source', source);
-      logger.error('Failed to set XML source', error);
-      throw error;
-    }
+    // At API boundary, use handleError to ensure consistent error handling
+    return handleError(err, "parse XML source", {
+      data: { 
+        sourceLength: source?.length,
+        trimmedLength: source?.trim().length
+      },
+      errorType: ErrorType.PARSE,
+      // Don't provide a fallback - we want this to fail if the source isn't valid
+    });
   }
 }
 

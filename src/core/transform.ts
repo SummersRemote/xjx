@@ -3,7 +3,7 @@
  */
 import { Configuration } from './config';
 import { XNode } from './xnode';
-import { logger, validate, ValidationError, TransformError } from './error';
+import { logger, validate, ValidationError, TransformError, handleError, ErrorType } from './error';
 
 /**
  * Format identifier type
@@ -92,8 +92,10 @@ export function createTransformResult<T>(value: T, remove: boolean = false): Tra
   try {
     return { value, remove };
   } catch (err) {
-    logger.error('Failed to create transform result', err);
-    throw err;
+    return handleError(err, "create transform result", {
+      data: { valueType: typeof value, remove },
+      fallback: { value, remove } // Return with original values as fallback
+    });
   }
 }
 
@@ -134,17 +136,20 @@ export class TransformUtils {
       
       return context;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to create root context due to validation error', err);
-        throw err;
-      } else {
-        const error = new TransformError('Failed to create root transformation context', {
+      return handleError(err, "create root transformation context", {
+        data: {
           targetFormat,
           rootName
-        });
-        logger.error('Failed to create root context', error);
-        throw error;
-      }
+        },
+        errorType: ErrorType.TRANSFORM,
+        fallback: {
+          nodeName: rootName || 'root',
+          nodeType: 1,
+          path: rootName || 'root',
+          config,
+          targetFormat
+        }
+      });
     }
   }
   
@@ -189,19 +194,23 @@ export class TransformUtils {
       
       return context;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to create child context due to validation error', err);
-        throw err;
-      } else {
-        const error = new TransformError('Failed to create child transformation context', {
-          parentPath: parentContext.path,
-          childName: childNode.name,
-          childType: childNode.type,
+      return handleError(err, "create child transformation context", {
+        data: {
+          parentPath: parentContext?.path,
+          childName: childNode?.name,
+          childType: childNode?.type,
           index
-        });
-        logger.error('Failed to create child context', error);
-        throw error;
-      }
+        },
+        errorType: ErrorType.TRANSFORM,
+        fallback: {
+          nodeName: childNode?.name || 'unknown',
+          nodeType: childNode?.type || 1,
+          path: `${parentContext?.path || 'root'}.${childNode?.name || 'child'}[${index}]`,
+          config: parentContext?.config,
+          targetFormat: parentContext?.targetFormat || FORMATS.XML,
+          parent: parentContext
+        }
+      });
     }
   }
   
@@ -241,17 +250,23 @@ export class TransformUtils {
       
       return context;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to create attribute context due to validation error', err);
-        throw err;
-      } else {
-        const error = new TransformError('Failed to create attribute transformation context', {
-          parentPath: parentContext.path,
+      return handleError(err, "create attribute transformation context", {
+        data: {
+          parentPath: parentContext?.path,
           attributeName
-        });
-        logger.error('Failed to create attribute context', error);
-        throw error;
-      }
+        },
+        errorType: ErrorType.TRANSFORM,
+        fallback: {
+          nodeName: parentContext?.nodeName || 'unknown',
+          nodeType: parentContext?.nodeType || 1,
+          path: `${parentContext?.path || 'root'}.@${attributeName}`,
+          config: parentContext?.config,
+          targetFormat: parentContext?.targetFormat || FORMATS.XML,
+          parent: parentContext,
+          isAttribute: true,
+          attributeName
+        }
+      });
     }
   }
   
@@ -304,26 +319,28 @@ export class TransformUtils {
             
             return result;
           } catch (err) {
-            const error = new TransformError('Error in composed transform', {
-              context,
-              value
+            return handleError(err, "apply composed transform", {
+              data: {
+                context,
+                valueType: typeof value
+              },
+              errorType: ErrorType.TRANSFORM,
+              fallback: { value, remove: false } // Return original as fallback
             });
-            logger.error('Error in composed transform', error);
-            throw error;
           }
         }
       };
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to compose transforms due to validation error', err);
-        throw err;
-      } else {
-        const error = new TransformError('Failed to compose transforms', {
-          transformCount: transforms.length
-        });
-        logger.error('Failed to compose transforms', error);
-        throw error;
-      }
+      return handleError(err, "compose transforms", {
+        data: {
+          transformCount: transforms?.length
+        },
+        errorType: ErrorType.TRANSFORM,
+        fallback: {
+          targets: [TransformTarget.Value],
+          transform: (value: any) => ({ value, remove: false })
+        }
+      });
     }
   }
   
@@ -357,26 +374,28 @@ export class TransformUtils {
             }
             return { value, remove: false };
           } catch (err) {
-            const error = new TransformError('Error in conditional transform', {
-              context,
-              value
+            return handleError(err, "apply conditional transform", {
+              data: {
+                context,
+                valueType: typeof value
+              },
+              errorType: ErrorType.TRANSFORM,
+              fallback: { value, remove: false } // Return original as fallback
             });
-            logger.error('Error in conditional transform', error);
-            throw error;
           }
         }
       };
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to create conditional transform due to validation error', err);
-        throw err;
-      } else {
-        const error = new TransformError('Failed to create conditional transform', {
-          transformTargets: transform.targets
-        });
-        logger.error('Failed to create conditional transform', error);
-        throw error;
-      }
+      return handleError(err, "create conditional transform", {
+        data: {
+          transformTargets: transform?.targets
+        },
+        errorType: ErrorType.TRANSFORM,
+        fallback: {
+          targets: transform?.targets || [TransformTarget.Value],
+          transform: (value: any) => ({ value, remove: false })
+        }
+      });
     }
   }
   
@@ -405,17 +424,19 @@ export class TransformUtils {
         transform: transform.transform
       };
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to create named transform due to validation error', err);
-        throw err;
-      } else {
-        const error = new TransformError('Failed to create named transform', {
+      return handleError(err, "create named transform", {
+        data: {
           name,
-          transformTargets: transform.targets
-        });
-        logger.error('Failed to create named transform', error);
-        throw error;
-      }
+          transformTargets: transform?.targets
+        },
+        errorType: ErrorType.TRANSFORM,
+        fallback: {
+          ...transform,
+          name,
+          transform: transform?.transform || ((value: any) => ({ value, remove: false })),
+          targets: transform?.targets || [TransformTarget.Value]
+        }
+      });
     }
   }
 
@@ -454,9 +475,13 @@ export class TransformUtils {
       // Default to Value
       return TransformTarget.Value;
     } catch (err) {
-      logger.error('Failed to get context target type', err);
-      // Default to Value in case of error
-      return TransformTarget.Value;
+      return handleError(err, "get context target type", {
+        data: { 
+          nodeType: context?.nodeType,
+          nodeName: context?.nodeName
+        },
+        fallback: TransformTarget.Value
+      });
     }
   }
 }

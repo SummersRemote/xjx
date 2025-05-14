@@ -1,7 +1,7 @@
 /**
  * XML entity handling utilities
  */
-import { logger, validate, ValidationError } from '../error';
+import { logger, validate, ValidationError, handleError, ErrorType } from '../error';
 
 export class XmlEntity {
     /**
@@ -29,8 +29,11 @@ export class XmlEntity {
           }
         });
       } catch (err) {
-        logger.error('Failed to escape XML text', err);
-        throw err;
+        return handleError(err, 'escape XML text', {
+          data: { textLength: text?.length },
+          errorType: ErrorType.VALIDATION,
+          fallback: text // Return original text as fallback
+        });
       }
     }
   
@@ -55,8 +58,11 @@ export class XmlEntity {
           .replace(/&quot;/g, '"')
           .replace(/&apos;/g, "'");
       } catch (err) {
-        logger.error('Failed to unescape XML text', err);
-        throw err;
+        return handleError(err, 'unescape XML text', {
+          data: { textLength: text?.length },
+          errorType: ErrorType.VALIDATION,
+          fallback: text // Return original text as fallback
+        });
       }
     }
   
@@ -82,8 +88,11 @@ export class XmlEntity {
   
         return XmlEntity.escape(text);
       } catch (err) {
-        logger.error('Failed to safely process XML text', err);
-        throw err;
+        return handleError(err, 'safely process XML text', {
+          data: { textLength: text?.length },
+          errorType: ErrorType.VALIDATION,
+          fallback: text // Return original text as fallback
+        });
       }
     }
   
@@ -100,8 +109,9 @@ export class XmlEntity {
   
         return /[&<>"']/.test(text);
       } catch (err) {
-        logger.error('Failed to check for special characters', err);
-        throw err;
+        return handleError(err, 'check for XML special characters', {
+          fallback: false
+        });
       }
     }
   
@@ -123,8 +133,11 @@ export class XmlEntity {
         });
         return processed;
       } catch (err) {
-        logger.error('Failed to preprocess XML string', err);
-        throw err;
+        return handleError(err, 'preprocess XML string', {
+          data: { xmlLength: xmlString?.length },
+          errorType: ErrorType.VALIDATION,
+          fallback: xmlString // Return original as fallback
+        });
       }
     }
   
@@ -158,8 +171,11 @@ export class XmlEntity {
         });
         return processed;
       } catch (err) {
-        logger.error('Failed to post-process XML string', err);
-        throw err;
+        return handleError(err, 'post-process XML string', {
+          data: { xmlLength: xmlString?.length },
+          errorType: ErrorType.VALIDATION,
+          fallback: xmlString // Return original as fallback
+        });
       }
     }
   
@@ -182,8 +198,10 @@ export class XmlEntity {
   
         return text;
       } catch (err) {
-        logger.error('Failed to normalize whitespace', err);
-        throw err;
+        return handleError(err, 'normalize whitespace', {
+          data: { textLength: text?.length, preserveWhitespace },
+          fallback: text || '' // Return original or empty string as fallback
+        });
       }
     }
   
@@ -201,8 +219,10 @@ export class XmlEntity {
         // Convert all newline formats (\r\n, \r) to \n
         return text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
       } catch (err) {
-        logger.error('Failed to normalize newlines', err);
-        throw err;
+        return handleError(err, 'normalize newlines', {
+          data: { textLength: text?.length },
+          fallback: text || '' // Return original or empty string as fallback
+        });
       }
     }
   
@@ -220,8 +240,10 @@ export class XmlEntity {
         // Check if the string starts with an XML tag
         return /^\s*<[^>]+>/.test(text);
       } catch (err) {
-        logger.error('Failed to check if text is XML fragment', err);
-        throw err;
+        return handleError(err, 'check if text is XML fragment', {
+          data: { textLength: text?.length },
+          fallback: false
+        });
       }
     }
   
@@ -234,8 +256,9 @@ export class XmlEntity {
       try {
         return typeof text === "string" && text.trim().length > 0;
       } catch (err) {
-        logger.error('Failed to check if text has content', err);
-        throw err;
+        return handleError(err, 'check if text has content', {
+          fallback: false
+        });
       }
     }
 }

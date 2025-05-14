@@ -7,7 +7,7 @@ import { DefaultXNodeTransformer } from "../../converters/xnode-transformer";
 import { DefaultXNodeToJsonConverter } from "../../converters/xnode-to-json-converter";
 import { FORMATS } from "../../core/transform";
 import { XNode } from "../../core/xnode";
-import { logger, validate, SerializeError } from "../../core/error";
+import { logger, validate, SerializeError, handleError, ErrorType } from "../../core/error";
 
 /**
  * Convert current XNode to JSON string with formatting
@@ -60,19 +60,16 @@ function toJsonString(this: TerminalExtensionContext, indent: number = 2): strin
     
     return result;
   } catch (err) {
-    // At API boundary, we wrap all errors to ensure consistent behavior
-    if (err instanceof SerializeError) {
-      logger.error('Failed to convert to JSON string', err);
-      throw err;
-    } else {
-      const error = new SerializeError('Failed to convert to JSON string', {
+    return handleError(err, "convert to JSON string", {
+      data: {
         sourceFormat: this.sourceFormat,
         transformCount: this.transforms?.length || 0,
-        indent
-      });
-      logger.error('Failed to convert to JSON string', error);
-      throw error;
-    }
+        indent,
+        hasNode: this.xnode !== null
+      },
+      errorType: ErrorType.SERIALIZE,
+      fallback: "{}" // Return empty object JSON string as fallback
+    });
   }
 }
 

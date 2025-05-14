@@ -6,7 +6,7 @@
 import { XNodeToJsonConverter } from './converter-interfaces';
 import { Configuration } from '../core/config';
 import { NodeType } from '../core/dom';
-import { logger, validate, SerializeError } from '../core/error';
+import { logger, validate, SerializeError, handleError, ErrorType } from '../core/error';
 import { JSON } from '../core/json';
 import { XNode } from '../core/xnode';
 
@@ -60,14 +60,14 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
       
       return jsonResult;
     } catch (err) {
-      if (err instanceof SerializeError) {
-        logger.error('Failed to convert XNode to JSON', err);
-        throw err;
-      } else {
-        const error = new SerializeError('Failed to convert XNode to JSON', node);
-        logger.error('Failed to convert XNode to JSON', error);
-        throw error;
-      }
+      return handleError(err, 'convert XNode to JSON', {
+        data: { 
+          nodeName: node?.name,
+          nodeType: node?.type
+        },
+        errorType: ErrorType.SERIALIZE,
+        fallback: {} // Return empty object as fallback
+      });
     }
   }
 
@@ -181,12 +181,14 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
       result[node.name] = nodeObj;
       return result;
     } catch (err) {
-      const error = new SerializeError('Failed to convert XNode to JSON structure', {
-        nodeName: node.name,
-        nodeType: node.type
+      return handleError(err, 'convert XNode to JSON structure', {
+        data: {
+          nodeName: node?.name,
+          nodeType: node?.type
+        },
+        errorType: ErrorType.SERIALIZE,
+        fallback: { [node?.name || 'node']: {} } // Return minimal object as fallback
       });
-      logger.error('Failed to convert XNode to JSON structure', error);
-      throw error;
     }
   }
 }

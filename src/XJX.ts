@@ -13,7 +13,15 @@ import {
 } from './core/extension';
 import { Transform, FormatId, FORMATS } from './core/transform';
 import { XNode } from './core/xnode';
-import { logger, validate, ValidationError, ConfigurationError, EnvironmentError } from './core/error';
+import { 
+  logger, 
+  validate, 
+  ValidationError, 
+  ConfigurationError, 
+  EnvironmentError,
+  handleError,
+  ErrorType
+} from './core/error';
 
 /**
  * Main XJX class - provides access to the fluent API and manages extensions
@@ -35,13 +43,10 @@ export class XJX {
       logger.debug('Validating XML string', { length: xmlString.length });
       return XmlParser.validate(xmlString);
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('XML validation parameter error', err);
-        throw err;
-      } else {
-        logger.error('XML validation failed unexpectedly', err);
-        return { isValid: false, message: String(err) };
-      }
+      return handleError(err, "validate XML", {
+        data: { xmlLength: xmlString?.length },
+        fallback: { isValid: false, message: String(err) }
+      });
     }
   }
   
@@ -64,14 +69,14 @@ export class XJX {
       
       return XmlSerializer.prettyPrint(xmlString, indent);
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('XML pretty print parameter error', err);
-        throw err;
-      } else {
-        logger.error('XML pretty print failed unexpectedly', err);
-        // Return the original XML as fallback in case of error
-        return xmlString;
-      }
+      return handleError(err, "pretty print XML", {
+        data: { 
+          xmlLength: xmlString?.length,
+          indent
+        },
+        errorType: ErrorType.SERIALIZE,
+        fallback: xmlString // Return original XML as fallback
+      });
     }
   }
   
@@ -84,9 +89,9 @@ export class XJX {
       this.globalConfig = Config.getDefault();
       logger.debug('Global configuration reset complete');
     } catch (err) {
-      const error = new ConfigurationError('Failed to reset configuration', null);
-      logger.error('Failed to reset configuration', error);
-      throw error;
+      handleError(err, "reset configuration", {
+        errorType: ErrorType.CONFIGURATION
+      });
     }
   }
   
@@ -107,17 +112,10 @@ export class XJX {
       
       logger.debug('Global configuration updated successfully');
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Configuration update parameter error', err);
-        throw err;
-      } else if (err instanceof ConfigurationError) {
-        logger.error('Configuration update error', err);
-        throw err;
-      } else {
-        const error = new ConfigurationError('Failed to update configuration', config);
-        logger.error('Failed to update configuration', error);
-        throw error;
-      }
+      handleError(err, "update configuration", {
+        data: { configKeys: Object.keys(config || {}) },
+        errorType: ErrorType.CONFIGURATION
+      });
     }
   }
   
@@ -130,9 +128,10 @@ export class XJX {
       logger.debug('Getting a copy of the global configuration');
       return Config.getDefault();
     } catch (err) {
-      const error = new ConfigurationError('Failed to get configuration', null);
-      logger.error('Failed to get configuration', error);
-      throw error;
+      return handleError(err, "get configuration", {
+        errorType: ErrorType.CONFIGURATION,
+        fallback: Config.getDefault() // Return fresh default as fallback
+      });
     }
   }
   
@@ -145,9 +144,10 @@ export class XJX {
       logger.debug('Getting mutable reference to global configuration');
       return this.globalConfig;
     } catch (err) {
-      const error = new ConfigurationError('Failed to get mutable configuration', null);
-      logger.error('Failed to get mutable configuration', error);
-      throw error;
+      return handleError(err, "get mutable configuration", {
+        errorType: ErrorType.CONFIGURATION,
+        fallback: this.globalConfig // Return globalConfig as fallback
+      });
     }
   }
   
@@ -160,9 +160,9 @@ export class XJX {
       DOM.cleanup();
       logger.debug('Cleanup completed successfully');
     } catch (err) {
-      const error = new EnvironmentError('Failed to clean up resources', null);
-      logger.error('Failed to clean up resources', error);
-      throw error;
+      handleError(err, "clean up resources", {
+        errorType: ErrorType.ENVIRONMENT
+      });
     }
   }
   
@@ -180,13 +180,11 @@ export class XJX {
       logger.debug('Creating builder from XML source', { length: xml.length });
       return new XjxBuilder().fromXml(xml);
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('fromXml parameter error', err);
-        throw err;
-      } else {
-        logger.error('fromXml failed unexpectedly', err);
-        throw err;
-      }
+      return handleError(err, "create builder from XML", {
+        data: { xmlLength: xml?.length },
+        errorType: ErrorType.PARSE,
+        fallback: new XjxBuilder() // Return empty builder as fallback
+      });
     }
   }
   
@@ -208,13 +206,15 @@ export class XJX {
       
       return new XjxBuilder().fromJson(json);
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('fromJson parameter error', err);
-        throw err;
-      } else {
-        logger.error('fromJson failed unexpectedly', err);
-        throw err;
-      }
+      return handleError(err, "create builder from JSON", {
+        data: { 
+          jsonType: typeof json,
+          isArray: Array.isArray(json),
+          keyCount: Object.keys(json || {}).length
+        },
+        errorType: ErrorType.PARSE,
+        fallback: new XjxBuilder() // Return empty builder as fallback
+      });
     }
   }
   
@@ -234,16 +234,11 @@ export class XJX {
       
       return new XjxBuilder().withConfig(config);
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('withConfig parameter error', err);
-        throw err;
-      } else if (err instanceof ConfigurationError) {
-        logger.error('withConfig configuration error', err);
-        throw err;
-      } else {
-        logger.error('withConfig failed unexpectedly', err);
-        throw err;
-      }
+      return handleError(err, "create builder with config", {
+        data: { configKeys: Object.keys(config || {}) },
+        errorType: ErrorType.CONFIGURATION,
+        fallback: new XjxBuilder() // Return empty builder as fallback
+      });
     }
   }
   
@@ -282,13 +277,11 @@ export class XJX {
       
       return new XjxBuilder().withTransforms(...transforms);
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('withTransforms parameter error', err);
-        throw err;
-      } else {
-        logger.error('withTransforms failed unexpectedly', err);
-        throw err;
-      }
+      return handleError(err, "create builder with transforms", {
+        data: { transformCount: transforms?.length },
+        errorType: ErrorType.TRANSFORM,
+        fallback: new XjxBuilder() // Return empty builder as fallback
+      });
     }
   }
   
@@ -313,8 +306,10 @@ export class XJX {
           const builder = new XjxBuilder();
           return method.apply(builder as unknown as TerminalExtensionContext, args);
         } catch (err) {
-          logger.error(`Error in static terminal extension: ${name}`, err);
-          throw err;
+          return handleError(err, `execute static terminal extension: ${name}`, {
+            data: { args },
+            errorType: ErrorType.CONFIGURATION
+          });
         }
       };
       
@@ -324,20 +319,19 @@ export class XJX {
           // When called through the builder, use type assertion to match interface
           return method.apply(this as unknown as TerminalExtensionContext, args);
         } catch (err) {
-          logger.error(`Error in builder terminal extension: ${name}`, err);
-          throw err;
+          return handleError(err, `execute builder terminal extension: ${name}`, {
+            data: { args },
+            errorType: ErrorType.CONFIGURATION
+          });
         }
       };
       
       logger.debug('Successfully registered terminal extension', { name });
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Terminal extension registration parameter error', err);
-        throw err;
-      } else {
-        logger.error('Terminal extension registration failed', err);
-        throw err;
-      }
+      handleError(err, "register terminal extension", {
+        data: { name },
+        errorType: ErrorType.CONFIGURATION
+      });
     }
   }
   
@@ -362,8 +356,11 @@ export class XJX {
           method.apply(builder as unknown as NonTerminalExtensionContext, args);
           return builder;
         } catch (err) {
-          logger.error(`Error in static non-terminal extension: ${name}`, err);
-          throw err;
+          return handleError(err, `execute static non-terminal extension: ${name}`, {
+            data: { args },
+            errorType: ErrorType.CONFIGURATION,
+            fallback: new XjxBuilder() // Return empty builder as fallback
+          });
         }
       };
       
@@ -374,20 +371,20 @@ export class XJX {
           method.apply(this as unknown as NonTerminalExtensionContext, args);
           return this; // Always return this for chaining
         } catch (err) {
-          logger.error(`Error in builder non-terminal extension: ${name}`, err);
-          throw err;
+          return handleError(err, `execute builder non-terminal extension: ${name}`, {
+            data: { args },
+            errorType: ErrorType.CONFIGURATION,
+            fallback: this // Return this for chaining
+          });
         }
       };
       
       logger.debug('Successfully registered non-terminal extension', { name });
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Non-terminal extension registration parameter error', err);
-        throw err;
-      } else {
-        logger.error('Non-terminal extension registration failed', err);
-        throw err;
-      }
+      handleError(err, "register non-terminal extension", {
+        data: { name },
+        errorType: ErrorType.CONFIGURATION
+      });
     }
   }
 }

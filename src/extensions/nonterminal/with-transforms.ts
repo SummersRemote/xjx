@@ -4,7 +4,7 @@
 import { XJX } from "../../XJX";
 import { Transform } from "../../core/transform";
 import { NonTerminalExtensionContext } from "../../core/extension";
-import { logger, validate, ValidationError, TransformError } from "../../core/error";
+import { logger, validate, ValidationError, TransformError, handleError, ErrorType } from "../../core/error";
 
 /**
  * Add transformers to the pipeline
@@ -65,17 +65,14 @@ function withTransforms(this: NonTerminalExtensionContext, ...transforms: Transf
     
     return this;
   } catch (err) {
-    // At API boundary, we handle different error types appropriately
-    if (err instanceof ValidationError) {
-      logger.error('Invalid transform', err);
-      throw err;
-    } else {
-      const error = new TransformError('Failed to add transforms', {
-        transformCount: transforms.length
-      });
-      logger.error('Failed to add transforms', error);
-      throw error;
-    }
+    // At API boundary, use handleError to ensure consistent error handling
+    return handleError(err, "add transforms", {
+      data: { 
+        transformCount: transforms?.length || 0
+      },
+      errorType: ErrorType.TRANSFORM,
+      fallback: this // Return this as fallback for fluent API
+    });
   }
 }
 

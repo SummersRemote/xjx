@@ -11,7 +11,17 @@ import {
   FORMATS
 } from './core/transform';
 import { XNode } from './core/xnode';
-import { logger, validate, ValidationError, ParseError, SerializeError, ConfigurationError, TransformError } from './core/error';
+import { 
+  logger, 
+  validate, 
+  ValidationError, 
+  ParseError, 
+  SerializeError, 
+  ConfigurationError, 
+  TransformError,
+  handleError,
+  ErrorType
+} from './core/error';
 import { Common } from './core/common';
 import { DefaultXmlToXNodeConverter } from './converters/xml-to-xnode-converter'; 
 import { DefaultJsonToXNodeConverter } from './converters/json-to-xnode-converter';
@@ -38,9 +48,9 @@ export class XjxBuilder {
       this.config = Config.getDefault();
       logger.debug('Created new XjxBuilder instance');
     } catch (err) {
-      const error = new ConfigurationError('Failed to create builder instance', null);
-      logger.error('Failed to create builder instance', error);
-      throw error;
+      throw handleError(err, "create builder instance", {
+        errorType: ErrorType.CONFIGURATION
+      });
     }
   }
   
@@ -78,18 +88,13 @@ export class XjxBuilder {
       
       return this;
     } catch (err) {
-      // At API boundary, handle different error types appropriately
-      if (err instanceof ValidationError) {
-        logger.error('Invalid XML source', err);
-        throw err;
-      } else if (err instanceof ParseError) {
-        logger.error('Failed to parse XML source', err);
-        throw err;
-      } else {
-        const error = new ParseError('Failed to set XML source', source);
-        logger.error('Failed to set XML source', error);
-        throw error;
-      }
+      return handleError(err, "set XML source", {
+        data: { 
+          sourceLength: source?.length 
+        },
+        errorType: ErrorType.PARSE,
+        fallback: this // Return this for chaining
+      });
     }
   }
   
@@ -128,18 +133,15 @@ export class XjxBuilder {
       
       return this;
     } catch (err) {
-      // At API boundary, handle different error types appropriately
-      if (err instanceof ValidationError) {
-        logger.error('Invalid JSON source', err);
-        throw err;
-      } else if (err instanceof ParseError) {
-        logger.error('Failed to parse JSON source', err);
-        throw err;
-      } else {
-        const error = new ParseError('Failed to set JSON source', source);
-        logger.error('Failed to set JSON source', error);
-        throw error;
-      }
+      return handleError(err, "set JSON source", {
+        data: { 
+          sourceType: typeof source,
+          isArray: Array.isArray(source),
+          keys: Object.keys(source || {})
+        },
+        errorType: ErrorType.PARSE,
+        fallback: this // Return this for chaining
+      });
     }
   }
   
@@ -191,18 +193,13 @@ export class XjxBuilder {
       
       return this;
     } catch (err) {
-      // At API boundary, handle different error types appropriately
-      if (err instanceof ValidationError) {
-        logger.error('Invalid configuration', err);
-        throw err;
-      } else if (err instanceof ConfigurationError) {
-        logger.error('Configuration error', err);
-        throw err;
-      } else {
-        const error = new ConfigurationError('Failed to apply configuration', config);
-        logger.error('Failed to apply configuration', error);
-        throw error;
-      }
+      return handleError(err, "apply configuration", {
+        data: { 
+          configKeys: Object.keys(config || {})
+        },
+        errorType: ErrorType.CONFIGURATION,
+        fallback: this // Return this for chaining
+      });
     }
   }
   
@@ -261,17 +258,13 @@ export class XjxBuilder {
       
       return this;
     } catch (err) {
-      // At API boundary, handle different error types appropriately
-      if (err instanceof ValidationError) {
-        logger.error('Invalid transform', err);
-        throw err;
-      } else {
-        const error = new TransformError('Failed to add transforms', {
-          transformCount: transforms.length
-        });
-        logger.error('Failed to add transforms', error);
-        throw error;
-      }
+      return handleError(err, "add transforms", {
+        data: { 
+          transformCount: transforms?.length
+        },
+        errorType: ErrorType.TRANSFORM,
+        fallback: this // Return this for chaining
+      });
     }
   }
   
@@ -320,21 +313,15 @@ export class XjxBuilder {
       
       return result;
     } catch (err) {
-      // At API boundary, handle different error types appropriately
-      if (err instanceof ValidationError) {
-        logger.error('Validation error in toJson', err);
-        throw err;
-      } else if (err instanceof SerializeError) {
-        logger.error('Serialization error in toJson', err);
-        throw err;
-      } else {
-        const error = new SerializeError('Failed to convert to JSON', {
+      return handleError(err, "convert to JSON", {
+        data: { 
           sourceFormat: this.sourceFormat,
-          transformCount: this.transforms?.length || 0
-        });
-        logger.error('Failed to convert to JSON', error);
-        throw error;
-      }
+          transformCount: this.transforms?.length || 0,
+          hasNode: this.xnode !== null
+        },
+        errorType: ErrorType.SERIALIZE,
+        fallback: {} // Return empty object as fallback
+      });
     }
   }
   
@@ -368,22 +355,16 @@ export class XjxBuilder {
       
       return result;
     } catch (err) {
-      // At API boundary, handle different error types appropriately
-      if (err instanceof ValidationError) {
-        logger.error('Validation error in toJsonString', err);
-        throw err;
-      } else if (err instanceof SerializeError) {
-        logger.error('Serialization error in toJsonString', err);
-        throw err;
-      } else {
-        const error = new SerializeError('Failed to convert to JSON string', {
+      return handleError(err, "convert to JSON string", {
+        data: { 
           sourceFormat: this.sourceFormat,
           transformCount: this.transforms?.length || 0,
-          indent
-        });
-        logger.error('Failed to convert to JSON string', error);
-        throw error;
-      }
+          indent,
+          hasNode: this.xnode !== null
+        },
+        errorType: ErrorType.SERIALIZE,
+        fallback: "{}" // Return empty object JSON string as fallback
+      });
     }
   }
   
@@ -432,21 +413,15 @@ export class XjxBuilder {
       
       return result;
     } catch (err) {
-      // At API boundary, handle different error types appropriately
-      if (err instanceof ValidationError) {
-        logger.error('Validation error in toXml', err);
-        throw err;
-      } else if (err instanceof SerializeError) {
-        logger.error('Serialization error in toXml', err);
-        throw err;
-      } else {
-        const error = new SerializeError('Failed to convert to XML', {
+      return handleError(err, "convert to XML", {
+        data: { 
           sourceFormat: this.sourceFormat,
-          transformCount: this.transforms?.length || 0
-        });
-        logger.error('Failed to convert to XML', error);
-        throw error;
-      }
+          transformCount: this.transforms?.length || 0,
+          hasNode: this.xnode !== null
+        },
+        errorType: ErrorType.SERIALIZE,
+        fallback: "<root/>" // Return minimal XML as fallback
+      });
     }
   }
   
@@ -464,14 +439,13 @@ export class XjxBuilder {
         rootNodeName: this.xnode.name
       });
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Source validation failed', err);
-        throw err;
-      } else {
-        const error = new ValidationError('Source validation failed', null);
-        logger.error('Source validation failed', error);
-        throw error;
-      }
+      handleError(err, "validate source", {
+        data: { 
+          hasNode: this.xnode !== null,
+          sourceFormat: this.sourceFormat
+        },
+        errorType: ErrorType.VALIDATION
+      });
     }
   }
   
@@ -484,8 +458,10 @@ export class XjxBuilder {
     try {
       return Common.deepClone(obj);
     } catch (err) {
-      logger.error('Failed to deep clone object', err);
-      throw err;
+      return handleError(err, "deep clone object", {
+        data: { objectType: typeof obj },
+        fallback: obj // Return original object as fallback
+      });
     }
   }
   
@@ -499,8 +475,13 @@ export class XjxBuilder {
     try {
       return Common.deepMerge(target, source);
     } catch (err) {
-      logger.error('Failed to deep merge objects', err);
-      throw err;
+      return handleError(err, "deep merge objects", {
+        data: { 
+          targetType: typeof target,
+          sourceType: typeof source
+        },
+        fallback: target // Return target object as fallback
+      });
     }
   }
 }

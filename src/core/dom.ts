@@ -1,7 +1,7 @@
 /**
  * DOM operations with unified interface for browser and Node.js
  */
-import { logger, validate, ValidationError, EnvironmentError, ParseError, SerializeError } from './error';
+import { logger, validate, ValidationError, EnvironmentError, ParseError, SerializeError, handleError, ErrorType } from './error';
 
 /**
  * DOM node types as an enum for better type safety
@@ -77,23 +77,27 @@ export class DOM {
             
             logger.debug('Initialized DOM environment using xmldom');
           } catch (xmldomError) {
-            const error = new EnvironmentError("Node.js environment detected but neither 'jsdom' nor '@xmldom/xmldom' are available.");
-            logger.error('DOM environment initialization failed', error);
-            throw error;
+            throw handleError(xmldomError, "initialize Node.js DOM environment", {
+              errorType: ErrorType.ENVIRONMENT,
+              data: { 
+                jsdomError,
+                xmldomError 
+              }
+            });
           }
         }
       } else {
         // Browser environment
         if (!window.DOMParser) {
-          const error = new EnvironmentError("DOMParser is not available in this environment");
-          logger.error('DOM environment initialization failed', error);
-          throw error;
+          throw handleError(new Error("DOMParser is not available"), "initialize browser DOM environment", {
+            errorType: ErrorType.ENVIRONMENT
+          });
         }
 
         if (!window.XMLSerializer) {
-          const error = new EnvironmentError("XMLSerializer is not available in this environment");
-          logger.error('DOM environment initialization failed', error);
-          throw error;
+          throw handleError(new Error("XMLSerializer is not available"), "initialize browser DOM environment", {
+            errorType: ErrorType.ENVIRONMENT
+          });
         }
 
         DOM.domParser = window.DOMParser;
@@ -103,14 +107,9 @@ export class DOM {
         logger.debug('Initialized DOM environment using browser APIs');
       }
     } catch (err) {
-      if (err instanceof EnvironmentError) {
-        logger.error('DOM environment initialization failed', err);
-        throw err;
-      } else {
-        const error = new EnvironmentError("DOM environment initialization failed", err);
-        logger.error('DOM environment initialization failed', error);
-        throw error;
-      }
+      throw handleError(err, "initialize DOM environment", {
+        errorType: ErrorType.ENVIRONMENT
+      });
     }
   }
   
@@ -126,14 +125,9 @@ export class DOM {
       logger.debug('Created new DOM parser');
       return parser;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to create DOM parser', err);
-        throw err;
-      } else {
-        const error = new EnvironmentError('Failed to create DOM parser', err);
-        logger.error('Failed to create DOM parser', error);
-        throw error;
-      }
+      return handleError(err, "create DOM parser", {
+        errorType: ErrorType.ENVIRONMENT
+      });
     }
   }
   
@@ -149,14 +143,9 @@ export class DOM {
       logger.debug('Created new XML serializer');
       return serializer;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to create XML serializer', err);
-        throw err;
-      } else {
-        const error = new EnvironmentError('Failed to create XML serializer', err);
-        logger.error('Failed to create XML serializer', error);
-        throw error;
-      }
+      return handleError(err, "create XML serializer", {
+        errorType: ErrorType.ENVIRONMENT
+      });
     }
   }
   
@@ -179,8 +168,7 @@ export class DOM {
       // Check for parsing errors
       const errors = doc.getElementsByTagName("parsererror");
       if (errors.length > 0) {
-        const errorMessage = errors[0].textContent || "Unknown parse error";
-        throw new ParseError(`XML parsing error: ${errorMessage}`, xmlString);
+        throw new ParseError(`XML parsing error: ${errors[0].textContent || "Unknown parse error"}`, xmlString);
       }
       
       logger.debug('Successfully parsed XML string to DOM document', {
@@ -189,14 +177,13 @@ export class DOM {
       
       return doc;
     } catch (err) {
-      if (err instanceof ValidationError || err instanceof ParseError) {
-        logger.error('Failed to parse XML string', err);
-        throw err;
-      } else {
-        const error = new ParseError('Failed to parse XML string', xmlString);
-        logger.error('Failed to parse XML string', error);
-        throw error;
-      }
+      return handleError(err, "parse XML string", {
+        data: { 
+          xmlLength: xmlString?.length, 
+          contentType 
+        },
+        errorType: ErrorType.PARSE
+      });
     }
   }
     
@@ -221,17 +208,13 @@ export class DOM {
       
       return result;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to serialize DOM node', err);
-        throw err;
-      } else {
-        const error = new SerializeError('Failed to serialize DOM node', {
-          nodeType: node.nodeType,
-          nodeName: node.nodeName
-        });
-        logger.error('Failed to serialize DOM node', error);
-        throw error;
-      }
+      return handleError(err, "serialize DOM node", {
+        data: {
+          nodeType: node?.nodeType,
+          nodeName: node?.nodeName
+        },
+        errorType: ErrorType.SERIALIZE
+      });
     }
   }
     
@@ -256,14 +239,9 @@ export class DOM {
       logger.debug('Created new XML document');
       return doc;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to create XML document', err);
-        throw err;
-      } else {
-        const error = new EnvironmentError('Failed to create XML document', err);
-        logger.error('Failed to create XML document', error);
-        throw error;
-      }
+      return handleError(err, "create XML document", {
+        errorType: ErrorType.ENVIRONMENT
+      });
     }
   }
     
@@ -291,14 +269,10 @@ export class DOM {
       logger.debug('Created new DOM element', { tagName });
       return element;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to create DOM element', err);
-        throw err;
-      } else {
-        const error = new EnvironmentError(`Failed to create element: ${tagName}`, err);
-        logger.error('Failed to create DOM element', error);
-        throw error;
-      }
+      return handleError(err, "create DOM element", {
+        data: { tagName },
+        errorType: ErrorType.ENVIRONMENT
+      });
     }
   }
     
@@ -332,14 +306,13 @@ export class DOM {
       
       return element;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to create namespaced DOM element', err);
-        throw err;
-      } else {
-        const error = new EnvironmentError(`Failed to create namespaced element: ${qualifiedName}`, err);
-        logger.error('Failed to create namespaced DOM element', error);
-        throw error;
-      }
+      return handleError(err, "create namespaced DOM element", {
+        data: { 
+          namespaceURI, 
+          qualifiedName 
+        },
+        errorType: ErrorType.ENVIRONMENT
+      });
     }
   }
     
@@ -366,14 +339,10 @@ export class DOM {
       logger.debug('Created new text node', { dataLength: data.length });
       return textNode;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to create text node', err);
-        throw err;
-      } else {
-        const error = new EnvironmentError('Failed to create text node', err);
-        logger.error('Failed to create text node', error);
-        throw error;
-      }
+      return handleError(err, "create text node", {
+        data: { dataLength: data?.length },
+        errorType: ErrorType.ENVIRONMENT
+      });
     }
   }
     
@@ -403,14 +372,10 @@ export class DOM {
       logger.debug('Created new CDATA section', { dataLength: data.length });
       return cdataSection;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to create CDATA section', err);
-        throw err;
-      } else {
-        const error = new EnvironmentError('Failed to create CDATA section', err);
-        logger.error('Failed to create CDATA section', error);
-        throw error;
-      }
+      return handleError(err, "create CDATA section", {
+        data: { dataLength: data?.length },
+        errorType: ErrorType.ENVIRONMENT
+      });
     }
   }
     
@@ -437,14 +402,10 @@ export class DOM {
       logger.debug('Created new comment node', { dataLength: data.length });
       return comment;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to create comment node', err);
-        throw err;
-      } else {
-        const error = new EnvironmentError('Failed to create comment node', err);
-        logger.error('Failed to create comment node', error);
-        throw error;
-      }
+      return handleError(err, "create comment node", {
+        data: { dataLength: data?.length },
+        errorType: ErrorType.ENVIRONMENT
+      });
     }
   }
     
@@ -480,14 +441,13 @@ export class DOM {
       
       return pi;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to create processing instruction', err);
-        throw err;
-      } else {
-        const error = new EnvironmentError('Failed to create processing instruction', err);
-        logger.error('Failed to create processing instruction', error);
-        throw error;
-      }
+      return handleError(err, "create processing instruction", {
+        data: { 
+          target, 
+          dataLength: data?.length 
+        },
+        errorType: ErrorType.ENVIRONMENT
+      });
     }
   }
     
@@ -523,14 +483,14 @@ export class DOM {
         namespaceURI: namespaceURI || '(none)' 
       });
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to set namespaced attribute', err);
-        throw err;
-      } else {
-        const error = new EnvironmentError(`Failed to set attribute: ${qualifiedName}`, err);
-        logger.error('Failed to set namespaced attribute', error);
-        throw error;
-      }
+      handleError(err, "set namespaced attribute", {
+        data: { 
+          elementName: element?.nodeName, 
+          qualifiedName,
+          namespaceURI
+        },
+        errorType: ErrorType.ENVIRONMENT
+      });
     }
   }
     
@@ -543,8 +503,9 @@ export class DOM {
     try {
       return obj && typeof obj === 'object' && typeof obj.nodeType === 'number';
     } catch (err) {
-      logger.error('Failed to check if object is a DOM node', err);
-      return false;
+      return handleError(err, "check if object is DOM node", {
+        fallback: false
+      });
     }
   }
     
@@ -569,12 +530,10 @@ export class DOM {
         default: return `UNKNOWN_NODE_TYPE(${nodeType})`;
       }
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to get node type name', err);
-        throw err;
-      }
-      logger.error('Failed to get node type name', err);
-      return `UNKNOWN_NODE_TYPE(${nodeType})`;
+      return handleError(err, "get node type name", {
+        data: { nodeType },
+        fallback: `UNKNOWN_NODE_TYPE(${nodeType})`
+      });
     }
   }
     
@@ -603,13 +562,10 @@ export class DOM {
       
       return result;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to get node attributes', err);
-        throw err;
-      } else {
-        logger.error('Failed to get node attributes', err);
-        return {};
-      }
+      return handleError(err, "get node attributes", {
+        data: { nodeName: node?.nodeName },
+        fallback: {}
+      });
     }
   }
     
@@ -623,7 +579,9 @@ export class DOM {
         logger.debug('Cleaned up JSDOM instance');
       }
     } catch (err) {
-      logger.error('Failed to clean up DOM resources', err);
+      handleError(err, "clean up DOM resources", {
+        errorType: ErrorType.ENVIRONMENT
+      });
     }
   }
 }

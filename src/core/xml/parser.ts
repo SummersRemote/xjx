@@ -3,7 +3,7 @@
  */
 import { Configuration } from '../config';
 import { DOM } from '../dom';
-import { logger, validate, ParseError, ValidationError } from '../error';
+import { logger, validate, ParseError, ValidationError, handleError, ErrorType } from '../error';
 import { ValidationResult } from '../transform';
 import { XmlEntity } from './entity';
 
@@ -46,14 +46,10 @@ export class XmlParser {
       
       return doc;
     } catch (err) {
-      if (err instanceof ParseError) {
-        logger.error('Failed to parse XML', err);
-        throw err;
-      } else {
-        const error = new ParseError('Failed to parse XML', xmlString);
-        logger.error('Failed to parse XML', error);
-        throw error;
-      }
+      return handleError(err, 'parse XML', {
+        data: { xmlLength: xmlString.length, contentType },
+        errorType: ErrorType.PARSE
+      });
     }
   }
 
@@ -88,8 +84,9 @@ export class XmlParser {
     try {
       return XmlParser.validate(xmlString).isValid;
     } catch (err) {
-      logger.error('Failed while checking XML validity', err);
-      return false;
+      return handleError(err, 'check XML validity', {
+        fallback: false
+      });
     }
   }
 
@@ -105,9 +102,10 @@ export class XmlParser {
       
       return XmlParser.parse(xmlString);
     } catch (err) {
-      const error = new ParseError('Failed to create document from XML', xmlString);
-      logger.error('Failed to create document from XML', error);
-      throw error;
+      return handleError(err, 'create document from XML', {
+        data: { xmlLength: xmlString.length },
+        errorType: ErrorType.PARSE
+      });
     }
   }
 
@@ -132,8 +130,10 @@ export class XmlParser {
       logger.debug('Extracted XML fragments', { count: fragments.length });
       return fragments;
     } catch (err) {
-      logger.error('Failed to extract XML fragments', err);
-      throw err;
+      return handleError(err, 'extract XML fragments', {
+        data: { textLength: text.length },
+        fallback: []
+      });
     }
   }
 
@@ -149,8 +149,10 @@ export class XmlParser {
       
       return element.tagName;
     } catch (err) {
-      logger.error('Failed to get tag name', err);
-      throw err;
+      return handleError(err, 'get XML tag name', {
+        data: { element },
+        errorType: ErrorType.VALIDATION
+      });
     }
   }
 
@@ -166,8 +168,10 @@ export class XmlParser {
       
       return DOM.getNodeAttributes(element);
     } catch (err) {
-      logger.error('Failed to get element attributes', err);
-      throw err;
+      return handleError(err, 'get XML element attributes', {
+        data: { elementName: element?.nodeName },
+        fallback: {}
+      });
     }
   }
 }

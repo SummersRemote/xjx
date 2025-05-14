@@ -6,7 +6,7 @@
  */
 import { Common } from './common';
 import { NodeType, DOM } from './dom';
-import { logger, validate, ValidationError } from './error';
+import { logger, validate, ValidationError, handleError, ErrorType } from './error';
 
 /**
  * XNode class representing an XML node in the object model
@@ -43,13 +43,10 @@ export class XNode {
       
       logger.debug('Created new XNode', { name, type });
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to create XNode due to validation error', err);
-        throw err;
-      } else {
-        logger.error('Failed to create XNode', err);
-        throw err;
-      }
+      throw handleError(err, "create XNode", {
+        data: { name, type },
+        errorType: ErrorType.VALIDATION
+      });
     }
   }
   
@@ -69,13 +66,10 @@ export class XNode {
       logger.debug('Created element node', { name });
       return node;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to create element node due to validation error', err);
-        throw err;
-      } else {
-        logger.error('Failed to create element node', err);
-        throw err;
-      }
+      return handleError(err, "create element node", {
+        data: { name },
+        errorType: ErrorType.VALIDATION
+      });
     }
   }
   
@@ -96,13 +90,10 @@ export class XNode {
       logger.debug('Created text node', { valueLength: value.length });
       return node;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to create text node due to validation error', err);
-        throw err;
-      } else {
-        logger.error('Failed to create text node', err);
-        throw err;
-      }
+      return handleError(err, "create text node", {
+        data: { valueLength: value?.length },
+        errorType: ErrorType.VALIDATION
+      });
     }
   }
   
@@ -123,13 +114,10 @@ export class XNode {
       logger.debug('Created CDATA node', { valueLength: value.length });
       return node;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to create CDATA node due to validation error', err);
-        throw err;
-      } else {
-        logger.error('Failed to create CDATA node', err);
-        throw err;
-      }
+      return handleError(err, "create CDATA node", {
+        data: { valueLength: value?.length },
+        errorType: ErrorType.VALIDATION
+      });
     }
   }
   
@@ -150,13 +138,10 @@ export class XNode {
       logger.debug('Created comment node', { valueLength: value.length });
       return node;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to create comment node due to validation error', err);
-        throw err;
-      } else {
-        logger.error('Failed to create comment node', err);
-        throw err;
-      }
+      return handleError(err, "create comment node", {
+        data: { valueLength: value?.length },
+        errorType: ErrorType.VALIDATION
+      });
     }
   }
   
@@ -188,13 +173,13 @@ export class XNode {
       
       return node;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to create processing instruction node due to validation error', err);
-        throw err;
-      } else {
-        logger.error('Failed to create processing instruction node', err);
-        throw err;
-      }
+      return handleError(err, "create processing instruction node", {
+        data: { 
+          target, 
+          dataLength: data?.length 
+        },
+        errorType: ErrorType.VALIDATION
+      });
     }
   }
   
@@ -219,13 +204,14 @@ export class XNode {
       logger.debug('Set metadata', { key, nodeName: this.name });
       return this; // For chaining
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to set metadata due to validation error', err);
-        throw err;
-      } else {
-        logger.error('Failed to set metadata', err);
-        throw err;
-      }
+      return handleError(err, "set metadata", {
+        data: { 
+          key, 
+          nodeName: this.name 
+        },
+        errorType: ErrorType.VALIDATION,
+        fallback: this // Return this node for chaining even on error
+      });
     }
   }
   
@@ -244,13 +230,13 @@ export class XNode {
         ? this.metadata[key] as T 
         : defaultValue;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to get metadata due to validation error', err);
-        throw err;
-      } else {
-        logger.error('Failed to get metadata', err);
-        return defaultValue;
-      }
+      return handleError(err, "get metadata", {
+        data: { 
+          key, 
+          nodeName: this.name 
+        },
+        fallback: defaultValue
+      });
     }
   }
   
@@ -266,13 +252,13 @@ export class XNode {
       
       return this.metadata !== undefined && key in this.metadata;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to check metadata due to validation error', err);
-        throw err;
-      } else {
-        logger.error('Failed to check metadata', err);
-        return false;
-      }
+      return handleError(err, "check metadata", {
+        data: { 
+          key, 
+          nodeName: this.name 
+        },
+        fallback: false
+      });
     }
   }
   
@@ -294,13 +280,13 @@ export class XNode {
       logger.debug('Removed metadata', { key, nodeName: this.name });
       return true;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to remove metadata due to validation error', err);
-        throw err;
-      } else {
-        logger.error('Failed to remove metadata', err);
-        return false;
-      }
+      return handleError(err, "remove metadata", {
+        data: { 
+          key, 
+          nodeName: this.name 
+        },
+        fallback: false
+      });
     }
   }
   
@@ -326,13 +312,14 @@ export class XNode {
       
       return this; // For chaining
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to set metadata values due to validation error', err);
-        throw err;
-      } else {
-        logger.error('Failed to set metadata values', err);
-        throw err;
-      }
+      return handleError(err, "set metadata values", {
+        data: { 
+          valuesToSet: Object.keys(values || {}),
+          nodeName: this.name
+        },
+        errorType: ErrorType.VALIDATION,
+        fallback: this // Return this node for chaining even on error
+      });
     }
   }
   
@@ -347,8 +334,10 @@ export class XNode {
       logger.debug('Cleared all metadata', { nodeName: this.name });
       return this; // For chaining
     } catch (err) {
-      logger.error('Failed to clear metadata', err);
-      throw err;
+      return handleError(err, "clear metadata", {
+        data: { nodeName: this.name },
+        fallback: this // Return this node for chaining even on error
+      });
     }
   }
   
@@ -382,13 +371,15 @@ export class XNode {
       
       return this; // For chaining
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to add child due to validation error', err);
-        throw err;
-      } else {
-        logger.error('Failed to add child', err);
-        throw err;
-      }
+      return handleError(err, "add child node", {
+        data: { 
+          parentName: this.name,
+          childName: child?.name,
+          childType: child?.type
+        },
+        errorType: ErrorType.VALIDATION,
+        fallback: this // Return this node for chaining even on error
+      });
     }
   }
   
@@ -418,13 +409,13 @@ export class XNode {
       
       return true;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to remove child due to validation error', err);
-        throw err;
-      } else {
-        logger.error('Failed to remove child', err);
-        return false;
-      }
+      return handleError(err, "remove child node", {
+        data: { 
+          parentName: this.name,
+          childName: child?.name
+        },
+        fallback: false
+      });
     }
   }
   
@@ -453,13 +444,15 @@ export class XNode {
       
       return this; // For chaining
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to set attribute due to validation error', err);
-        throw err;
-      } else {
-        logger.error('Failed to set attribute', err);
-        throw err;
-      }
+      return handleError(err, "set attribute", {
+        data: { 
+          nodeName: this.name,
+          attributeName: name,
+          valueType: typeof value
+        },
+        errorType: ErrorType.VALIDATION,
+        fallback: this // Return this node for chaining even on error
+      });
     }
   }
   
@@ -476,13 +469,13 @@ export class XNode {
       
       return this.attributes?.[name];
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to get attribute due to validation error', err);
-        throw err;
-      } else {
-        logger.error('Failed to get attribute', err);
-        return undefined;
-      }
+      return handleError(err, "get attribute", {
+        data: { 
+          nodeName: this.name,
+          attributeName: name
+        },
+        fallback: undefined
+      });
     }
   }
   
@@ -510,13 +503,13 @@ export class XNode {
       
       return true;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to remove attribute due to validation error', err);
-        throw err;
-      } else {
-        logger.error('Failed to remove attribute', err);
-        return false;
-      }
+      return handleError(err, "remove attribute", {
+        data: { 
+          nodeName: this.name,
+          attributeName: name
+        },
+        fallback: false
+      });
     }
   }
   
@@ -551,13 +544,15 @@ export class XNode {
       
       return this; // For chaining
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to add namespace due to validation error', err);
-        throw err;
-      } else {
-        logger.error('Failed to add namespace', err);
-        throw err;
-      }
+      return handleError(err, "add namespace", {
+        data: { 
+          nodeName: this.name,
+          prefix,
+          uri
+        },
+        errorType: ErrorType.VALIDATION,
+        fallback: this // Return this node for chaining even on error
+      });
     }
   }
   
@@ -574,13 +569,13 @@ export class XNode {
       
       return this.children?.find(child => child.name === name);
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to find child due to validation error', err);
-        throw err;
-      } else {
-        logger.error('Failed to find child', err);
-        return undefined;
-      }
+      return handleError(err, "find child", {
+        data: { 
+          nodeName: this.name,
+          childName: name
+        },
+        fallback: undefined
+      });
     }
   }
   
@@ -598,13 +593,13 @@ export class XNode {
       if (!this.children) return [];
       return this.children.filter(child => child.name === name);
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to find children due to validation error', err);
-        throw err;
-      } else {
-        logger.error('Failed to find children', err);
-        return [];
-      }
+      return handleError(err, "find children", {
+        data: { 
+          nodeName: this.name,
+          childName: name
+        },
+        fallback: []
+      });
     }
   }
   
@@ -617,8 +612,13 @@ export class XNode {
     try {
       return this.prefix ? `${this.prefix}:${this.name}` : this.name;
     } catch (err) {
-      logger.error('Failed to get qualified name', err);
-      return this.name;
+      return handleError(err, "get qualified name", {
+        data: { 
+          nodeName: this.name,
+          prefix: this.prefix
+        },
+        fallback: this.name
+      });
     }
   }
   
@@ -653,8 +653,13 @@ export class XNode {
       
       return '';
     } catch (err) {
-      logger.error('Failed to get text content', err);
-      return '';
+      return handleError(err, "get text content", {
+        data: { 
+          nodeName: this.name,
+          nodeType: this.type
+        },
+        fallback: ''
+      });
     }
   }
   
@@ -695,13 +700,15 @@ export class XNode {
       // For other node types, no action
       return this;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to set text content due to validation error', err);
-        throw err;
-      } else {
-        logger.error('Failed to set text content', err);
-        throw err;
-      }
+      return handleError(err, "set text content", {
+        data: { 
+          nodeName: this.name,
+          nodeType: this.type,
+          textLength: text?.length
+        },
+        errorType: ErrorType.VALIDATION,
+        fallback: this // Return this node for chaining even on error
+      });
     }
   }
   
@@ -763,8 +770,14 @@ export class XNode {
         return clone;
       }
     } catch (err) {
-      logger.error('Failed to clone node', err);
-      throw err;
+      return handleError(err, "clone node", {
+        data: { 
+          nodeName: this.name,
+          nodeType: this.type,
+          deep
+        },
+        fallback: new XNode(this.name, this.type) // Return a basic clone as fallback
+      });
     }
   }
   
@@ -785,8 +798,10 @@ export class XNode {
       
       return parts.join('.');
     } catch (err) {
-      logger.error('Failed to get node path', err);
-      throw err;
+      return handleError(err, "get node path", {
+        data: { nodeName: this.name },
+        fallback: this.name // Return at least this node's name as fallback
+      });
     }
   }
   
@@ -799,8 +814,10 @@ export class XNode {
     try {
       return !!this.children && this.children.length > 0;
     } catch (err) {
-      logger.error('Failed to check if node has children', err);
-      return false;
+      return handleError(err, "check if node has children", {
+        data: { nodeName: this.name },
+        fallback: false
+      });
     }
   }
   
@@ -813,8 +830,13 @@ export class XNode {
     try {
       return DOM.getNodeTypeName(this.type);
     } catch (err) {
-      logger.error('Failed to get node type name', err);
-      return `UNKNOWN_NODE_TYPE(${this.type})`;
+      return handleError(err, "get node type name", {
+        data: { 
+          nodeName: this.name,
+          nodeType: this.type
+        },
+        fallback: `UNKNOWN_NODE_TYPE(${this.type})`
+      });
     }
   }
   
@@ -845,13 +867,13 @@ export class XNode {
       
       return current;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to find by path due to validation error', err);
-        throw err;
-      } else {
-        logger.error('Failed to find by path', err);
-        return undefined;
-      }
+      return handleError(err, "find by path", {
+        data: { 
+          nodeName: this.name,
+          path
+        },
+        fallback: undefined
+      });
     }
   }
   
@@ -868,13 +890,14 @@ export class XNode {
       
       return this.addChild(XNode.createTextNode(text));
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to append text due to validation error', err);
-        throw err;
-      } else {
-        logger.error('Failed to append text', err);
-        throw err;
-      }
+      return handleError(err, "append text", {
+        data: { 
+          nodeName: this.name,
+          textLength: text?.length
+        },
+        errorType: ErrorType.VALIDATION,
+        fallback: this // Return this node for chaining even on error
+      });
     }
   }
   
@@ -891,13 +914,14 @@ export class XNode {
       
       return this.addChild(XNode.createCDATANode(data));
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to append CDATA due to validation error', err);
-        throw err;
-      } else {
-        logger.error('Failed to append CDATA', err);
-        throw err;
-      }
+      return handleError(err, "append CDATA", {
+        data: { 
+          nodeName: this.name,
+          dataLength: data?.length
+        },
+        errorType: ErrorType.VALIDATION,
+        fallback: this // Return this node for chaining even on error
+      });
     }
   }
   
@@ -914,13 +938,14 @@ export class XNode {
       
       return this.addChild(XNode.createCommentNode(comment));
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to append comment due to validation error', err);
-        throw err;
-      } else {
-        logger.error('Failed to append comment', err);
-        throw err;
-      }
+      return handleError(err, "append comment", {
+        data: { 
+          nodeName: this.name,
+          commentLength: comment?.length
+        },
+        errorType: ErrorType.VALIDATION,
+        fallback: this // Return this node for chaining even on error
+      });
     }
   }
   
@@ -939,13 +964,15 @@ export class XNode {
       
       return this.addChild(XNode.createProcessingInstructionNode(target, data));
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to append processing instruction due to validation error', err);
-        throw err;
-      } else {
-        logger.error('Failed to append processing instruction', err);
-        throw err;
-      }
+      return handleError(err, "append processing instruction", {
+        data: { 
+          nodeName: this.name,
+          target,
+          dataLength: data?.length
+        },
+        errorType: ErrorType.VALIDATION,
+        fallback: this // Return this node for chaining even on error
+      });
     }
   }
 
@@ -983,13 +1010,13 @@ export class XNode {
       
       return undefined;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to find node due to validation error', err);
-        throw err;
-      } else {
-        logger.error('Failed to find node', err);
-        return undefined;
-      }
+      return handleError(err, "find node", {
+        data: { 
+          nodeName: this.name,
+          deep
+        },
+        fallback: undefined
+      });
     }
   }
 
@@ -1026,13 +1053,13 @@ export class XNode {
       
       return results;
     } catch (err) {
-      if (err instanceof ValidationError) {
-        logger.error('Failed to find all nodes due to validation error', err);
-        throw err;
-      } else {
-        logger.error('Failed to find all nodes', err);
-        return [];
-      }
+      return handleError(err, "find all nodes", {
+        data: { 
+          nodeName: this.name,
+          deep
+        },
+        fallback: []
+      });
     }
   }
 }

@@ -12,6 +12,4 @@
   export { MetadataTransform, MetadataTransformOptions } from './metadata-transform';
   
   // Add other transforms as they're implemented:
-  // export { TextTransform, TextTransformOptions } from './text-transform';
-  // export { ElementTransform, ElementTransformOptions } from './element-transform';
-  // export { CommentTransform, CommentTransformOptions } from './comment-transform';
+

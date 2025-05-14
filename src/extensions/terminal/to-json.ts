@@ -1,56 +1,71 @@
 /**
- * Core extension that implements the fromXml method
+ * Core extension that implements the toJson method
  */
 import { XJX } from "../../XJX";
-import { DefaultXmlToXNodeConverter } from "../../converters/xml-to-xnode-converter";
+import { DefaultXNodeToJsonConverter } from "../../converters/xnode-to-json-converter";
+import { DefaultXNodeTransformer } from "../../converters/xnode-transformer";
+import { TerminalExtensionContext } from "../../core/extension";
 import { FORMATS } from "../../core/transform";
-import { NonTerminalExtensionContext } from "../../core/extension";
-import { logger, validate, ParseError, ValidationError, handleError, ErrorType } from "../../core/error";
+import { XNode } from "../../core/xnode";
+import { logger, validate, SerializeError, handleError, ErrorType } from "../../core/error";
 
 /**
- * Set XML source for transformation
- * @param source XML string
+ * Convert current XNode to JSON object
+ * @returns JSON object representation
  */
-function fromXml(this: NonTerminalExtensionContext, source: string) {
+function toJson(this: TerminalExtensionContext): Record<string, any> {
   try {
-    // API boundary validation - validate parameters
-    validate(typeof source === "string", "XML source must be a string");
-    validate(source.trim().length > 0, "XML source cannot be empty");
+    // API boundary validation - make sure we have valid input state
+    validate(this.xnode !== null, "No source set: call fromXml() or fromJson() before conversion");
+    validate(this.sourceFormat !== null, "Source format must be set before conversion");
     
-    logger.debug('Setting XML source for transformation', {
-      sourceLength: source.length
+    logger.debug('Starting toJson conversion', {
+      sourceFormat: this.sourceFormat,
+      hasTransforms: this.transforms.length > 0
     });
     
-    // Convert XML to XNode using the appropriate converter
-    const converter = new DefaultXmlToXNodeConverter(this.config);
+    // First, validate source is set
+    this.validateSource();
     
-    try {
-      this.xnode = converter.convert(source);
-    } catch (conversionError) {
-      // Specific error handling for XML conversion failures
-      throw new ParseError("Failed to parse XML source", source);
+    // Apply transformations if any are registered
+    let nodeToConvert = this.xnode as XNode;
+    
+    if (this.transforms && this.transforms.length > 0) {
+      const transformer = new DefaultXNodeTransformer(this.config);
+      nodeToConvert = transformer.transform(
+        nodeToConvert, 
+        this.transforms, 
+        // Use format identifier instead of direction
+        FORMATS.JSON
+      );
+      
+      logger.debug('Applied transforms to XNode', {
+        transformCount: this.transforms.length,
+        targetFormat: FORMATS.JSON
+      });
     }
     
-    this.sourceFormat = FORMATS.XML;
+    // Convert XNode to JSON
+    const converter = new DefaultXNodeToJsonConverter(this.config);
+    const result = converter.convert(nodeToConvert);
     
-    logger.debug('Successfully set XML source', {
-      rootNodeName: this.xnode?.name,
-      rootNodeType: this.xnode?.type
+    logger.debug('Successfully converted XNode to JSON', {
+      resultKeys: Object.keys(result).length
     });
     
-    return this;
+    return result;
+
   } catch (err) {
-    // At API boundary, use handleError to ensure consistent error handling
-    return handleError(err, "parse XML source", {
-      data: { 
-        sourceLength: source?.length,
-        trimmedLength: source?.trim().length
+    return handleError(err, "convert to JSON", {
+      data: {
+        sourceFormat: this.sourceFormat,
+        transformCount: this.transforms?.length || 0,
+        hasNode: this.xnode !== null
       },
-      errorType: ErrorType.PARSE,
-      // Don't provide a fallback - we want this to fail if the source isn't valid
+      errorType: ErrorType.SERIALIZE
     });
   }
 }
 
 // Register the extension
-XJX.registerNonTerminalExtension("fromXml", fromXml);
+XJX.registerTerminalExtension("toJson", toJson);

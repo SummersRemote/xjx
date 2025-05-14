@@ -44,8 +44,8 @@ export class XjxBuilder {
    */
   constructor() {
     try {
-      // Initialize with a fresh copy of the default configuration
-      this.config = Config.getDefault();
+      // Initialize using the new createOrUpdate method (creates default config)
+      this.config = Config.createOrUpdate();
       logger.debug('Created new XjxBuilder instance');
     } catch (err) {
       throw handleError(err, "create builder instance", {

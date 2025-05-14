@@ -2,7 +2,7 @@
  * XNode transformer implementation with format-only approach
  */
 import { XNodeTransformer } from "./converter-interfaces";
-import { Configuration } from "../core/config";
+import { Config, Configuration } from "../core/config";
 import { XNode } from "../core/xnode";
 import {
   Transform,
@@ -26,10 +26,24 @@ export class DefaultXNodeTransformer implements XNodeTransformer {
    * Create a new XNode transformer
    * @param config Configuration
    */
-  constructor(config: Configuration) {
+ constructor(config: Configuration) {
+    // Initialize properties first to satisfy TypeScript
     this.config = config;
+    
+    try {
+      // Then validate and potentially update
+      if (!Config.isValid(config)) {
+        this.config = Config.createOrUpdate({}, config);
+      }
+    } catch (err) {
+      // If validation/update fails, use default config
+      this.config = Config.getDefault();
+      handleError(err, "initialize XNode converter", {
+        errorType: ErrorType.CONFIGURATION
+      });
+    }
   }
-
+  
   /**
    * Apply transformations to XNode
    * @param node XNode to transform

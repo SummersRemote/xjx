@@ -4,7 +4,7 @@
  * Converts XNode to JSON object using the new static utilities.
  */
 import { XNodeToJsonConverter } from './converter-interfaces';
-import { Configuration } from '../core/config';
+import { Config, Configuration } from '../core/config';
 import { NodeType } from '../core/dom';
 import { logger, validate, SerializeError, handleError, ErrorType } from '../core/error';
 import { JSON } from '../core/json';
@@ -20,8 +20,22 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
    * Create a new converter
    * @param config Configuration
    */
-  constructor(config: Configuration) {
+ constructor(config: Configuration) {
+    // Initialize properties first to satisfy TypeScript
     this.config = config;
+    
+    try {
+      // Then validate and potentially update
+      if (!Config.isValid(config)) {
+        this.config = Config.createOrUpdate({}, config);
+      }
+    } catch (err) {
+      // If validation/update fails, use default config
+      this.config = Config.getDefault();
+      handleError(err, "initialize XNode to JSON converter", {
+        errorType: ErrorType.CONFIGURATION
+      });
+    }
   }
 
   /**

@@ -107,23 +107,17 @@ export class XJX {
    */
   public static updateConfig(config: Partial<Configuration>): void {
     try {
-      // API boundary validation
-      validate(
-        config !== null && typeof config === "object",
-        "Configuration must be an object"
-      );
-
-      logger.debug("Updating global configuration", {
-        configKeys: Object.keys(config),
+      logger.debug('Updating global configuration', { 
+        configKeys: Object.keys(config || {}) 
       });
-
-      this.globalConfig = Config.merge(this.globalConfig, config);
-
-      logger.debug("Global configuration updated successfully");
+      
+      this.globalConfig = Config.createOrUpdate(config, this.globalConfig);
+      
+      logger.debug('Global configuration updated successfully');
     } catch (err) {
       handleError(err, "update configuration", {
         data: { configKeys: Object.keys(config || {}) },
-        errorType: ErrorType.CONFIGURATION,
+        errorType: ErrorType.CONFIGURATION
       });
     }
   }
@@ -237,22 +231,20 @@ export class XJX {
    */
   public static withConfig(config: Partial<Configuration>): XjxBuilder {
     try {
-      // API boundary validation
-      validate(
-        config !== null && typeof config === "object",
-        "Configuration must be an object"
-      );
-
-      logger.debug("Creating builder with custom configuration", {
-        configKeys: Object.keys(config),
+      // No need for separate validation as createOrUpdate handles it
+      logger.debug('Creating builder with custom configuration', { 
+        configKeys: Object.keys(config || {}) 
       });
-
-      return new XjxBuilder().withConfig(config);
+      
+      // Create a new builder and apply config
+      const builder = new XjxBuilder();
+      builder.config = Config.createOrUpdate(config, builder.config);
+      return builder;
     } catch (err) {
       return handleError(err, "create builder with config", {
         data: { configKeys: Object.keys(config || {}) },
         errorType: ErrorType.CONFIGURATION,
-        fallback: new XjxBuilder(), // Return empty builder as fallback
+        fallback: new XjxBuilder() // Return empty builder as fallback
       });
     }
   }

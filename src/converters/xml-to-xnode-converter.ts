@@ -4,7 +4,7 @@
  * Converts XML strings to XNode representation using the new static utilities.
  */
 import { XmlToXNodeConverter } from './converter-interfaces';
-import { Configuration } from '../core/config';
+import { Config, Configuration } from '../core/config';
 import { XmlParser } from '../core/xml';
 import { NodeType } from '../core/dom';
 import { logger, validate, ParseError, handleError, ErrorType } from '../core/error';
@@ -24,7 +24,22 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
    * @param config Configuration
    */
   constructor(config: Configuration) {
+    // Initialize properties first to satisfy TypeScript
     this.config = config;
+    this.namespaceMap = {};
+    
+    try {
+      // Then validate and potentially update
+      if (!Config.isValid(config)) {
+        this.config = Config.createOrUpdate({}, config);
+      }
+    } catch (err) {
+      // If validation/update fails, use default config
+      this.config = Config.getDefault();
+      handleError(err, "initialize XML to XNode converter", {
+        errorType: ErrorType.CONFIGURATION
+      });
+    }
   }
 
   /**

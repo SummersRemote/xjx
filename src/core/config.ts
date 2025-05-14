@@ -2,6 +2,7 @@
  * Configuration system for the XJX library
  */
 import { Common } from './common';
+import { logger, validate, ValidationError, ConfigurationError, handleError, ErrorType } from './error';
 
 /**
  * Configuration interface for the library
@@ -151,16 +152,6 @@ export class Config {
   }
   
   /**
-   * Create a valid configuration by merging with defaults if needed
-   * @param config User-provided partial configuration
-   * @returns Complete, valid configuration
-   */
-  static create(config: Partial<Configuration> = {}): Configuration {
-    const baseConfig = Config.getDefault();
-    return Config.merge(baseConfig, config);
-  }
-  
-  /**
    * Get a value from configuration using dot notation path
    * @param config Configuration object
    * @param path Path to value (e.g., "outputOptions.indent")
@@ -169,5 +160,70 @@ export class Config {
    */
   static getValue<T>(config: Configuration, path: string, defaultValue?: T): T | undefined {
     return Common.getPath(config, path, defaultValue);
+  }
+
+  /**
+   * Create or update configuration with smart defaults
+   * @param config Partial configuration to apply
+   * @param baseConfig Optional base configuration (uses default if not provided)
+   * @returns Complete valid configuration
+   */
+  static createOrUpdate(
+    config: Partial<Configuration> = {}, 
+    baseConfig?: Configuration
+  ): Configuration {
+    try {
+      // VALIDATION: Check for valid input
+      validate(config !== null && typeof config === 'object', "Configuration must be an object");
+      
+      // Use provided base or get default
+      const base = baseConfig || Config.getDefault();
+      
+      // Skip merge if empty config (optimization)
+      if (Object.keys(config).length === 0) {
+        logger.debug('Empty configuration provided, skipping merge');
+        return base;
+      }
+      
+      // Validate configuration structure
+      try {
+        // Ensure config has required sections or can be merged properly
+        if (config.propNames) {
+          validate(typeof config.propNames === 'object', "propNames must be an object");
+        }
+        
+        if (config.outputOptions) {
+          validate(typeof config.outputOptions === 'object', "outputOptions must be an object");
+        }
+      } catch (validationErr) {
+        throw new ConfigurationError("Invalid configuration structure", config);
+      }
+      
+      logger.debug('Merging configuration', {
+        configKeys: Object.keys(config)
+      });
+      
+      // Merge and return
+      try {
+        const result = Config.merge(base, config);
+        
+        logger.debug('Successfully created/updated configuration', {
+          preserveNamespaces: result.preserveNamespaces,
+          prettyPrint: result.outputOptions?.prettyPrint
+        });
+        
+        return result;
+      } catch (mergeError) {
+        throw new ConfigurationError("Failed to merge configuration", config);
+      }
+    } catch (err) {
+      return handleError(err, "create or update configuration", {
+        data: { 
+          configKeys: Object.keys(config || {})
+        },
+        errorType: ErrorType.CONFIGURATION,
+        fallback: baseConfig || Config.getDefault() // Return a valid config as fallback
+      });
+    }
   }
 }

@@ -13,45 +13,8 @@ import { logger, validate, ConfigurationError, ValidationError, handleError, Err
  */
 function withConfig(this: NonTerminalExtensionContext, config: Partial<Configuration>) {
   try {
-    // API boundary validation - validate parameters
-    validate(config !== null && typeof config === 'object', "Configuration must be an object");
-    
-    // Skip if empty config object
-    if (Object.keys(config).length === 0) {
-      logger.debug('Empty configuration provided, skipping merge');
-      return this;
-    }
-    
-    // Validate configuration structure
-    try {
-      // Ensure config has required sections or can be merged properly
-      if (config.propNames) {
-        validate(typeof config.propNames === 'object', "propNames must be an object");
-      }
-      
-      if (config.outputOptions) {
-        validate(typeof config.outputOptions === 'object', "outputOptions must be an object");
-      }
-    } catch (validationErr) {
-      throw new ConfigurationError("Invalid configuration structure", config);
-    }
-    
-    logger.debug('Merging configuration', {
-      configKeys: Object.keys(config)
-    });
-    
-    // Merge with current config
-    try {
-      this.config = Config.merge(this.config, config);
-    } catch (mergeError) {
-      throw new ConfigurationError("Failed to merge configuration", config);
-    }
-    
-    logger.debug('Successfully applied configuration', {
-      preserveNamespaces: this.config.preserveNamespaces,
-      prettyPrint: this.config.outputOptions?.prettyPrint
-    });
-    
+    // Use the new createOrUpdate method with current config as base
+    this.config = Config.createOrUpdate(config, this.config);
     return this;
   } catch (err) {
     // At API boundary, use handleError to ensure consistent error handling

@@ -1,187 +1,150 @@
 /**
- * Simplified error handling system for the XJX library
- * 
- * Provides structured errors and centralized error handling functionality
+ * Error handling and logging for the XJX library
  */
 
-/**
- * Log levels supported by console
- */
-export enum LogLevel {
-  SUPPRESS = 'suppress',
-  DEBUG = 'debug',
-  INFO = 'info',
-  WARN = 'warn',
-  ERROR = 'error'
-}
+// --- Error Types ---
 
 /**
- * Common error types for categorization
+ * Error for validation failures
  */
-export enum ErrorType {
-  PARSE = 'parse',
-  SERIALIZE = 'serialize',
-  CONFIG = 'config',
-  ENV = 'env',
-  TRANSFORM = 'transform',
-  VALIDATION = 'validation',
-  GENERAL = 'general'
-}
-
-/**
- * Base structured error class for XJX
- * Provides consistent error structure with type and context information
- */
-export class XJXError extends Error {
-  /** Error type for categorization */
-  public readonly type: ErrorType;
-  
-  /** Additional context information */
-  public readonly context?: any;
-  
-  /**
-   * Create a new XJX error
-   * @param message Error message
-   * @param type Error type from ErrorType enum
-   * @param context Optional context data for debugging
-   */
-  constructor(
-    message: string, 
-    type: ErrorType = ErrorType.GENERAL,
-    context?: any
-  ) {
-    // Pass message to parent Error class
+export class ValidationError extends Error {
+  constructor(message: string, public details?: any) {
     super(message);
-    
-    // Set name for better stack traces
-    this.name = 'XJXError';
-    
-    // Store error type and context
-    this.type = type;
-    this.context = context;
-    
-    // Capture stack trace
-    Error.captureStackTrace?.(this, XJXError);
+    this.name = 'ValidationError';
+    // Fix prototype chain for instanceof
+    Object.setPrototypeOf(this, ValidationError.prototype);
   }
 }
 
 /**
- * Type guard to check if an error is a XJXError
+ * Error for parsing failures
  */
-export function isXJXError(err: unknown): err is XJXError {
-  return err instanceof XJXError;
+export class ParseError extends Error {
+  constructor(message: string, public source?: any) {
+    super(message);
+    this.name = 'ParseError';
+    Object.setPrototypeOf(this, ParseError.prototype);
+  }
 }
 
 /**
- * Options for handling errors with optional fallback value and logging.
+ * Error for serialization failures
  */
-interface CatchOptions<T> {
-  data?: any;                      // Optional context data for debugging
-  defaultValue?: T;                // Optional fallback return value
-  level?: LogLevel;                // Logging level; defaults to ERROR
-  errorType?: ErrorType;           // Error type - enum only
-  rethrow?: boolean;               // Should the error bubble? defaults to false
+export class SerializeError extends Error {
+  constructor(message: string, public target?: any) {
+    super(message);
+    this.name = 'SerializeError';
+    Object.setPrototypeOf(this, SerializeError.prototype);
+  }
 }
 
 /**
- * Logs the error and returns a fallback value or rethrows.
- * 
- * Behavior:
- * 1. If rethrow=true: Always rethrows the error (after logging)
- * 2. If defaultValue is provided: Returns the default value  
- * 3. Otherwise: Rethrows the error (maintains backward compatibility)
- *
- * @param err - The error caught in a try/catch block
- * @param message - Description of what failed
- * @param options - Optional: default return value, log level, context data
- * @returns The provided defaultValue if not rethrowing
- * @throws The original error if rethrowing or no defaultValue
+ * Error for transformation failures
  */
-export function catchAndRelease<T>(
-  err: unknown,
-  message: string,
-  options: CatchOptions<T> = {}
-): T {
-  const {
-    data,
-    defaultValue,
-    level = LogLevel.ERROR,
-    errorType = ErrorType.GENERAL,
-    rethrow = false
-  } = options;
+export class TransformError extends Error {
+  constructor(message: string, public context?: any) {
+    super(message);
+    this.name = 'TransformError';
+    Object.setPrototypeOf(this, TransformError.prototype);
+  }
+}
 
-  // Extract information from XJXError if available
-  let processedError: Error;
-  let errorTypeToUse = errorType;
-  let contextData = data;
-  
-  if (isXJXError(err)) {
-    processedError = err;
-    errorTypeToUse = err.type;
-    
-    // Merge explicit data with error context if both exist
-    if (data !== undefined && err.context !== undefined) {
-      contextData = { ...err.context, ...data };
-    } else if (err.context !== undefined) {
-      contextData = err.context;
+/**
+ * Error for configuration issues
+ */
+export class ConfigurationError extends Error {
+  constructor(message: string, public config?: any) {
+    super(message);
+    this.name = 'ConfigurationError';
+    Object.setPrototypeOf(this, ConfigurationError.prototype);
+  }
+}
+
+/**
+ * Error for environment issues
+ */
+export class EnvironmentError extends Error {
+  constructor(message: string, public details?: any) {
+    super(message);
+    this.name = 'EnvironmentError';
+    Object.setPrototypeOf(this, EnvironmentError.prototype);
+  }
+}
+
+// --- Logger ---
+
+/**
+ * Log levels supported by the logger
+ */
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'suppress';
+
+/**
+ * Logger class for consistent output
+ */
+export class Logger {
+  /**
+   * Create a new logger
+   * @param level Minimum log level to output
+   */
+  constructor(private level: LogLevel = 'error') {}
+
+  /**
+   * Log a message at the specified level
+   */
+  log(level: LogLevel, message: string, data?: any): void {
+    if (this.shouldLog(level)) {
+      const output = `[${level.toUpperCase()}] ${message}`;
+      if (data !== undefined) {
+        console.log(output, data);
+      } else {
+        console.log(output);
+      }
     }
-  } else if (err instanceof Error) {
-    processedError = err;
-  } else {
-    processedError = new Error(String(err));
   }
 
-  // Handle logging unless suppressed
-  if (level !== LogLevel.SUPPRESS) {
-    const logMethod = level.toLowerCase() as keyof Console;
-    // Use type assertion to fix the TypeScript error
-    const logFn = (console[logMethod] || console.error) as (...args: any[]) => void;
-    
-    // Describe the action that will be taken
-    let action;
-    if (rethrow) {
-      action = "Rethrowing error.";
-    } else if (defaultValue !== undefined) {
-      action = "Returning default value.";
-    } else {
-      action = "Rethrowing (no default provided).";
-    }
-    
-    // Use the enum value directly (it's already a string) and convert to uppercase
-    const errorTypeLabel = errorTypeToUse.toUpperCase();
-    
-    logFn(`[${errorTypeLabel}] ${message} - ${action}`, {
-      error: processedError.message,
-      stack: processedError.stack,
-      context: contextData,
-    });
+  debug(message: string, data?: any): void {
+    this.log('debug', message, data);
   }
 
-  // Handle based on options:
-  if (defaultValue !== undefined && !rethrow) {
-    // Default value exists and not rethrowing - return default
-    return defaultValue;
+  info(message: string, data?: any): void {
+    this.log('info', message, data);
   }
-  
-  // Either explicitly rethrowing or no default value
-  throw processedError;
+
+  warn(message: string, data?: any): void {
+    this.log('warn', message, data);
+  }
+
+  error(message: string, data?: any): void {
+    this.log('error', message, data);
+  }
+
+  setLevel(level: LogLevel): void {
+    this.level = level;
+  }
+
+  private shouldLog(level: LogLevel): boolean {
+    const levels = ['debug', 'info', 'warn', 'error'];
+    return this.level !== 'suppress' && levels.indexOf(level) >= levels.indexOf(this.level);
+  }
 }
+
+// Default exportable logger instance
+export const logger = new Logger('error');
 
 /**
  * Validate a condition and throw an error if it fails
+ * 
  * @param condition Condition to check
- * @param errorMessage Error message if condition fails
- * @param errorType Optional error type (defaults to VALIDATION)
- * @param context Optional context data
- * @throws XJXError with the specified message if condition is false
+ * @param message Error message if condition fails
+ * @param details Optional details about the validation
+ * @throws ValidationError if condition is false
  */
 export function validate(
   condition: boolean,
-  errorMessage: string,
-  errorType: ErrorType = ErrorType.VALIDATION,
-  context?: any
+  message: string,
+  details?: any
 ): void {
   if (!condition) {
-    throw new XJXError(errorMessage, errorType, context);
+    throw new ValidationError(message, details);
   }
 }

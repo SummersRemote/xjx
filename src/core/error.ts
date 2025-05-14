@@ -135,7 +135,7 @@ export class Logger {
 }
 
 // Default exportable logger instance
-export const logger = new Logger(LogLevel.ERROR);
+export const logger = new Logger(LogLevel.DEBUG);
 
 /**
  * Type of error to be created by error handler

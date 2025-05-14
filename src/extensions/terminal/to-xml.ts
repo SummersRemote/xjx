@@ -4,16 +4,26 @@
 import { XJX } from "../../XJX";
 import { DefaultXNodeToXmlConverter } from "../../converters/xnode-to-xml-converter";
 import { DefaultXNodeTransformer } from "../../converters/xnode-transformer";
-import { TerminalExtensionContext } from "../../core/extension";
 import { FORMATS } from "../../core/transform";
 import { XNode } from "../../core/xnode";
 import { logger, validate, SerializeError, handleError, ErrorType } from "../../core/error";
+
+// Type augmentation - add method to XJX interface
+declare module '../../XJX' {
+  interface XJX {
+    /**
+     * Convert current XNode to XML string
+     * @returns XML string representation
+     */
+    toXml(): string;
+  }
+}
 
 /**
  * Convert current XNode to XML string
  * @returns XML string representation
  */
-function toXml(this: TerminalExtensionContext): string {
+function toXml(this: XJX): string {
   try {
     // API boundary validation - make sure we have valid input state
     validate(this.xnode !== null, "No source set: call fromXml() or fromJson() before conversion");
@@ -35,7 +45,7 @@ function toXml(this: TerminalExtensionContext): string {
       nodeToConvert = transformer.transform(
         nodeToConvert, 
         this.transforms, 
-        // Use format identifier instead of direction
+        // Use format identifier
         FORMATS.XML
       );
       
@@ -61,7 +71,8 @@ function toXml(this: TerminalExtensionContext): string {
         transformCount: this.transforms?.length || 0,
         hasNode: this.xnode !== null
       },
-      errorType: ErrorType.SERIALIZE
+      errorType: ErrorType.SERIALIZE,
+      fallback: "<root/>" // Return minimal XML as fallback
     });
   }
 }

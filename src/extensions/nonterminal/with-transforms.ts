@@ -3,14 +3,25 @@
  */
 import { XJX } from "../../XJX";
 import { Transform } from "../../core/transform";
-import { NonTerminalExtensionContext } from "../../core/extension";
 import { logger, validate, ValidationError, TransformError, handleError, ErrorType } from "../../core/error";
+
+// Type augmentation - add method to XJX interface
+declare module '../../XJX' {
+  interface XJX {
+    /**
+     * Add transformers to the pipeline
+     * @param transforms One or more transformers
+     * @returns This instance for chaining
+     */
+    withTransforms(...transforms: Transform[]): XJX;
+  }
+}
 
 /**
  * Add transformers to the pipeline
  * @param transforms One or more transformers
  */
-function withTransforms(this: NonTerminalExtensionContext, ...transforms: Transform[]) {
+function withTransforms(this: XJX, ...transforms: Transform[]): void {
   try {
     // API boundary validation - validate parameters
     validate(Array.isArray(transforms), "Transforms must be an array");
@@ -18,7 +29,7 @@ function withTransforms(this: NonTerminalExtensionContext, ...transforms: Transf
     // Skip if no transforms provided
     if (transforms.length === 0) {
       logger.debug('No transforms provided, skipping');
-      return this;
+      return;
     }
     
     logger.debug('Adding transforms to pipeline', {
@@ -63,15 +74,15 @@ function withTransforms(this: NonTerminalExtensionContext, ...transforms: Transf
       totalTransforms: this.transforms.length
     });
     
-    return this;
+    // No return needed - the registration wrapper handles it
   } catch (err) {
     // At API boundary, use handleError to ensure consistent error handling
-    return handleError(err, "add transforms", {
+    handleError(err, "add transforms", {
       data: { 
         transformCount: transforms?.length || 0
       },
-      errorType: ErrorType.TRANSFORM,
-      fallback: this // Return this as fallback for fluent API
+      errorType: ErrorType.TRANSFORM
+      // No fallback needed - the registration wrapper handles it
     });
   }
 }

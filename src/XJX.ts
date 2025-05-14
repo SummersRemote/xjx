@@ -1,35 +1,63 @@
 /**
- * XJX - Main class with entry points to fluent API and extension registration
+ * XJX - Main class with extensible fluent API
  *
- * Provides static utilities and extension registration for the XJX library.
+ * Core implementation that allows extensions through prototype methods.
  */
 import { Configuration, Config } from "./core/config";
-import { XjxBuilder } from "./xjx-builder";
 import { XmlParser, XmlSerializer } from "./core/xml";
 import { DOM } from "./core/dom";
-import {
-  TerminalExtensionContext,
-  NonTerminalExtensionContext,
-} from "./core/extension";
-import { Transform, FormatId, FORMATS } from "./core/transform";
+import { Transform, FormatId } from "./core/transform";
 import { XNode } from "./core/xnode";
 import {
   logger,
   validate,
   ValidationError,
   ConfigurationError,
+  SerializeError,
+  ParseError,
+  TransformError,
   EnvironmentError,
   handleError,
   ErrorType,
 } from "./core/error";
+import { Common } from "./core/common";
 
 /**
- * Main XJX class - provides access to the fluent API and manages extensions
+ * Main XJX class - provides the fluent API and manages extensions
  */
 export class XJX {
-  // Global configuration - mutable reference for backward compatibility
+  // Allow dynamic property access for extensions
+  [key: string]: any;
+  
+  // Instance properties
+  public xnode: XNode | null = null;
+  public transforms: Transform[] = [];
+  public config: Configuration;
+  public sourceFormat: FormatId | null = null;
+  
+  // Static registry properties for tracking extensions
+  private static terminalExtensions: Map<string, Function> = new Map();
+  private static nonTerminalExtensions: Map<string, Function> = new Map();
+  
+  // Static global configuration
   private static globalConfig: Configuration = Config.getDefault();
-
+  
+  /**
+   * Create a new XJX instance
+   * @param config Optional configuration
+   */
+  constructor(config?: Partial<Configuration>) {
+    try {
+      this.config = Config.createOrUpdate(config);
+      logger.debug('Created new XJX instance');
+    } catch (err) {
+      this.config = Config.getDefault();
+      handleError(err, "initialize XJX instance", {
+        errorType: ErrorType.CONFIGURATION
+      });
+    }
+  }
+  
   /**
    * Utility method to validate XML string
    * @param xmlString XML string to validate
@@ -40,9 +68,7 @@ export class XJX {
     message?: string;
   } {
     try {
-      // API boundary validation
       validate(typeof xmlString === "string", "XML string must be a string");
-
       logger.debug("Validating XML string", { length: xmlString.length });
       return XmlParser.validate(xmlString);
     } catch (err) {
@@ -61,7 +87,6 @@ export class XJX {
    */
   public static prettyPrintXml(xmlString: string, indent: number = 2): string {
     try {
-      // API boundary validation
       validate(typeof xmlString === "string", "XML string must be a string");
       validate(
         Number.isInteger(indent) && indent >= 0,
@@ -81,7 +106,7 @@ export class XJX {
           indent,
         },
         errorType: ErrorType.SERIALIZE,
-        fallback: xmlString, // Return original XML as fallback
+        fallback: xmlString,
       });
     }
   }
@@ -129,27 +154,11 @@ export class XJX {
   public static getConfig(): Configuration {
     try {
       logger.debug("Getting a copy of the global configuration");
-      return Config.getDefault();
+      return Common.deepClone(this.globalConfig);
     } catch (err) {
       return handleError(err, "get configuration", {
         errorType: ErrorType.CONFIGURATION,
-        fallback: Config.getDefault(), // Return fresh default as fallback
-      });
-    }
-  }
-
-  /**
-   * Get mutable reference to global configuration (for backward compatibility)
-   * @returns Reference to global configuration
-   */
-  public static getMutableConfig(): Configuration {
-    try {
-      logger.debug("Getting mutable reference to global configuration");
-      return this.globalConfig;
-    } catch (err) {
-      return handleError(err, "get mutable configuration", {
-        errorType: ErrorType.CONFIGURATION,
-        fallback: this.globalConfig, // Return globalConfig as fallback
+        fallback: Config.getDefault(),
       });
     }
   }
@@ -170,180 +179,174 @@ export class XJX {
   }
 
   /**
-   * Create a builder for XML to JSON transformations
-   * @param xml XML string to transform
-   * @returns XjxBuilder instance
-   */
-  public static fromXml(xml: string): XjxBuilder {
-    try {
-      // API boundary validation
-      validate(typeof xml === "string", "XML source must be a string");
-      validate(xml.trim().length > 0, "XML source cannot be empty");
-
-      logger.debug("Creating builder from XML source", { length: xml.length });
-      return new XjxBuilder().fromXml(xml);
-    } catch (err) {
-      return handleError(err, "create builder from XML", {
-        data: { xmlLength: xml?.length },
-        errorType: ErrorType.PARSE,
-        fallback: new XjxBuilder(), // Return empty builder as fallback
-      });
-    }
-  }
-
-  /**
-   * Create a builder for JSON to XML transformations
-   * @param json JSON object to transform
-   * @returns XjxBuilder instance
-   */
-  public static fromJson(json: Record<string, any>): XjxBuilder {
-    try {
-      // API boundary validation
-      validate(
-        json !== null && typeof json === "object",
-        "JSON source must be an object"
-      );
-      validate(!Array.isArray(json), "JSON source cannot be an array");
-      validate(Object.keys(json).length > 0, "JSON source cannot be empty");
-
-      logger.debug("Creating builder from JSON source", {
-        keys: Object.keys(json),
-      });
-
-      return new XjxBuilder().fromJson(json);
-    } catch (err) {
-      return handleError(err, "create builder from JSON", {
-        data: {
-          jsonType: typeof json,
-          isArray: Array.isArray(json),
-          keyCount: Object.keys(json || {}).length,
-        },
-        errorType: ErrorType.PARSE,
-        fallback: new XjxBuilder(), // Return empty builder as fallback
-      });
-    }
-  }
-
-  /**
-   * Create a builder with custom configuration
-   * @param config Configuration to apply
-   * @returns XjxBuilder instance
-   */
-  public static withConfig(config: Partial<Configuration>): XjxBuilder {
-    try {
-      // No need for separate validation as createOrUpdate handles it
-      logger.debug('Creating builder with custom configuration', { 
-        configKeys: Object.keys(config || {}) 
-      });
-      
-      // Create a new builder and apply config
-      const builder = new XjxBuilder();
-      builder.config = Config.createOrUpdate(config, builder.config);
-      return builder;
-    } catch (err) {
-      return handleError(err, "create builder with config", {
-        data: { configKeys: Object.keys(config || {}) },
-        errorType: ErrorType.CONFIGURATION,
-        fallback: new XjxBuilder() // Return empty builder as fallback
-      });
-    }
-  }
-
-  /**
-   * Create a builder with transforms
-   * @param transforms Transforms to apply
-   * @returns XjxBuilder instance
-   */
-  public static withTransforms(...transforms: Transform[]): XjxBuilder {
-    try {
-      // API boundary validation
-      validate(Array.isArray(transforms), "Transforms must be an array");
-
-      // Validate each transform
-      for (let i = 0; i < transforms.length; i++) {
-        const transform = transforms[i];
-        validate(
-          transform !== null && typeof transform === "object",
-          `Transform at index ${i} must be an object`
-        );
-
-        validate(
-          Array.isArray(transform.targets) && transform.targets.length > 0,
-          `Transform at index ${i} must have a targets array`
-        );
-
-        validate(
-          typeof transform.transform === "function",
-          `Transform at index ${i} must have a transform method`
-        );
-      }
-
-      logger.debug("Creating builder with transforms", {
-        transformCount: transforms.length,
-      });
-
-      return new XjxBuilder().withTransforms(...transforms);
-    } catch (err) {
-      return handleError(err, "create builder with transforms", {
-        data: { transformCount: transforms?.length },
-        errorType: ErrorType.TRANSFORM,
-        fallback: new XjxBuilder(), // Return empty builder as fallback
-      });
-    }
-  }
-
-  /**
-   * Register an extension method
+   * Register a terminal extension method (returns a value)
    * @param name Extension name
    * @param method Implementation function
-   * @param isTerminal Whether this is a terminal extension
    */
-  public static registerExtension(
-    name: string,
-    method: Function,
-    isTerminal: boolean = false
-  ): void {
+  public static registerTerminalExtension(name: string, method: Function): void {
     try {
-      // Validation
-      validate(
-        typeof name === "string" && name.length > 0,
-        "Extension name must be a non-empty string"
-      );
-      validate(
-        typeof method === "function",
-        "Extension method must be a function"
-      );
-
-      logger.debug(
-        `Registering ${isTerminal ? "terminal" : "non-terminal"} extension`,
-        { name }
-      );
-
-      // Implementation logic here...
-    } catch (err) {
-      handleError(
-        err,
-        `register ${isTerminal ? "terminal" : "non-terminal"} extension`,
-        {
+      // Validate inputs
+      validate(typeof name === "string" && name.length > 0, "Extension name must be a non-empty string");
+      validate(typeof method === "function", "Extension method must be a function");
+      
+      // Check for conflicts
+      if ((XJX.prototype as any)[name]) {
+        const err = new ConfigurationError(`Extension '${name}' conflicts with an existing method`);
+        handleError(err, "register terminal extension", {
           data: { name },
-          errorType: ErrorType.CONFIGURATION,
-        }
-      );
+          errorType: ErrorType.CONFIGURATION
+        });
+        return;
+      }
+      
+      // Register the extension
+      this.terminalExtensions.set(name, method);
+      
+      // Add to prototype - directly assign the method
+      (XJX.prototype as any)[name] = method;
+      
+      logger.debug('Terminal extension registered', { name });
+    } catch (err) {
+      handleError(err, "register terminal extension", {
+        data: { name },
+        errorType: ErrorType.CONFIGURATION
+      });
     }
   }
 
-  // Then alias the original methods:
-  public static registerTerminalExtension(
-    name: string,
-    method: Function
-  ): void {
-    return XJX.registerExtension(name, method, true);
+  /**
+   * Register a non-terminal extension method (returns this for chaining)
+   * @param name Extension name
+   * @param method Implementation function
+   */
+  public static registerNonTerminalExtension(name: string, method: Function): void {
+    try {
+      // Validate inputs
+      validate(typeof name === "string" && name.length > 0, "Extension name must be a non-empty string");
+      validate(typeof method === "function", "Extension method must be a function");
+      
+      // Check for conflicts
+      if ((XJX.prototype as any)[name]) {
+        const err = new ConfigurationError(`Extension '${name}' conflicts with an existing method`);
+        handleError(err, "register non-terminal extension", {
+          data: { name },
+          errorType: ErrorType.CONFIGURATION
+        });
+        return;
+      }
+      
+      // Register the extension
+      this.nonTerminalExtensions.set(name, method);
+      
+      // Add to prototype - use a wrapper to ensure it returns 'this'
+      (XJX.prototype as any)[name] = function(...args: any[]) {
+        method.apply(this, args);
+        return this;
+      };
+      
+      logger.debug('Non-terminal extension registered', { name });
+    } catch (err) {
+      handleError(err, "register non-terminal extension", {
+        data: { name },
+        errorType: ErrorType.CONFIGURATION
+      });
+    }
   }
-
-  public static registerNonTerminalExtension(
-    name: string,
-    method: Function
-  ): void {
-    return XJX.registerExtension(name, method, false);
+  
+  /**
+   * Check if a terminal extension is registered
+   * @param name Extension name
+   * @returns True if the extension is registered
+   */
+  public static hasTerminalExtension(name: string): boolean {
+    return this.terminalExtensions.has(name);
+  }
+  
+  /**
+   * Check if a non-terminal extension is registered
+   * @param name Extension name
+   * @returns True if the extension is registered
+   */
+  public static hasNonTerminalExtension(name: string): boolean {
+    return this.nonTerminalExtensions.has(name);
+  }
+  
+  /**
+   * Get all registered terminal extensions
+   * @returns Array of extension names
+   */
+  public static getTerminalExtensions(): string[] {
+    return Array.from(this.terminalExtensions.keys());
+  }
+  
+  /**
+   * Get all registered non-terminal extensions
+   * @returns Array of extension names
+   */
+  public static getNonTerminalExtensions(): string[] {
+    return Array.from(this.nonTerminalExtensions.keys());
+  }
+  
+  /**
+   * Deep clone an object (utility method)
+   * @param obj Object to clone
+   * @returns Deep clone of the object
+   */
+  public deepClone<T>(obj: T): T {
+    try {
+      return Common.deepClone(obj);
+    } catch (err) {
+      return handleError(err, "deep clone object", {
+        data: { objectType: typeof obj },
+        fallback: obj
+      });
+    }
+  }
+  
+  /**
+   * Deep merge two objects (utility method)
+   * @param target Target object
+   * @param source Source object to merge into target
+   * @returns New object with merged properties
+   */
+  public deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
+    try {
+      return Common.deepMerge(target, source);
+    } catch (err) {
+      return handleError(err, "deep merge objects", {
+        data: { 
+          targetType: typeof target,
+          sourceType: typeof source
+        },
+        fallback: target
+      });
+    }
+  }
+  
+  /**
+   * Validate that a source has been set before transformation
+   * @throws Error if no source has been set
+   */
+  public validateSource(): void {
+    try {
+      if (!this.xnode || !this.sourceFormat) {
+        throw new ValidationError('No source set: call a source-setting extension before transformation');
+      }
+      logger.debug('Source validation passed', {
+        sourceFormat: this.sourceFormat,
+        rootNodeName: this.xnode.name
+      });
+    } catch (err) {
+      handleError(err, "validate source", {
+        data: { 
+          hasNode: this.xnode !== null,
+          sourceFormat: this.sourceFormat
+        },
+        errorType: ErrorType.VALIDATION
+      });
+    }
   }
 }
+
+// Export default for easier importing
+export default XJX;

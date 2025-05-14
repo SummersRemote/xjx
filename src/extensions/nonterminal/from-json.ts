@@ -4,15 +4,25 @@
 import { XJX } from "../../XJX";
 import { DefaultJsonToXNodeConverter } from "../../converters/json-to-xnode-converter";
 import { FORMATS } from "../../core/transform";
-import { NonTerminalExtensionContext } from "../../core/extension";
 import { logger, validate, ParseError, ValidationError, handleError, ErrorType } from "../../core/error";
-import { JSON } from "../../core/json";
+
+// Type augmentation - add method to XJX interface
+declare module '../../XJX' {
+  interface XJX {
+    /**
+     * Set JSON source for transformation
+     * @param source JSON object
+     * @returns This instance for chaining
+     */
+    fromJson(source: Record<string, any>): XJX;
+  }
+}
 
 /**
  * Set JSON source for transformation
  * @param source JSON object
  */
-function fromJson(this: NonTerminalExtensionContext, source: Record<string, any>) {
+function fromJson(this: XJX, source: Record<string, any>): void {
   try {
     // API boundary validation - validate parameters
     validate(source !== null && typeof source === 'object', "JSON source must be an object");
@@ -40,17 +50,17 @@ function fromJson(this: NonTerminalExtensionContext, source: Record<string, any>
       rootNodeType: this.xnode?.type
     });
     
-    return this;
+    // No return needed - the registration wrapper handles it
   } catch (err) {
     // At API boundary, use handleError to ensure consistent error handling
-    return handleError(err, "parse JSON source", {
+    handleError(err, "parse JSON source", {
       data: { 
         sourceType: typeof source,
         isArray: Array.isArray(source),
         keyCount: Object.keys(source || {}).length
       },
-      errorType: ErrorType.PARSE,
-      // Don't provide a fallback - we want this to fail if the source isn't valid
+      errorType: ErrorType.PARSE
+      // No fallback needed - the registration wrapper handles it
     });
   }
 }

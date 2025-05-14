@@ -2,19 +2,30 @@
  * Core extension that implements the toJsonString method
  */
 import { XJX } from "../../XJX";
-import { TerminalExtensionContext } from "../../core/extension";
 import { DefaultXNodeTransformer } from "../../converters/xnode-transformer";
 import { DefaultXNodeToJsonConverter } from "../../converters/xnode-to-json-converter";
 import { FORMATS } from "../../core/transform";
 import { XNode } from "../../core/xnode";
 import { logger, validate, SerializeError, handleError, ErrorType } from "../../core/error";
 
+// Type augmentation - add method to XJX interface
+declare module '../../XJX' {
+  interface XJX {
+    /**
+     * Convert current XNode to JSON string with formatting
+     * @param indent Number of spaces for indentation (default: 2)
+     * @returns Formatted JSON string
+     */
+    toJsonString(indent?: number): string;
+  }
+}
+
 /**
  * Convert current XNode to JSON string with formatting
  * @param indent Number of spaces for indentation (default: 2)
  * @returns Formatted JSON string
  */
-function toJsonString(this: TerminalExtensionContext, indent: number = 2): string {
+function toJsonString(this: XJX, indent: number = 2): string {
   try {
     // API boundary validation - validate parameters
     validate(Number.isInteger(indent) && indent >= 0, "Indent must be a non-negative integer");

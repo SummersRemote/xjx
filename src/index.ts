@@ -8,8 +8,9 @@
 // Core functionality
 // =====================================================================================
 
-// Main entry point - only export the main XJX class for the public API
+// Main entry point
 export { XJX } from "./XJX";
+export default XJX;
 
 // =====================================================================================
 // Type definitions - only export what's needed by consumers
@@ -65,8 +66,9 @@ export {
 } from "./transforms/metadata-transform";
 
 // =====================================================================================
-// Register extensions to ensure all methods are available on XJX
+// Auto-load core extensions
 // =====================================================================================
 
-// This import ensures all extension methods are registered with XJX
+// Import the extension registry to auto-load all core extensions
+// Note: This automatically loads all core extensions - no explicit initialization needed
 import "./extensions";

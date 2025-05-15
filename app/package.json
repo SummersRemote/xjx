@@ -1,25 +1,27 @@
 {
-    "name": "xjx-app",
-    "version": "1.0.0",
+    "name": "xjx-demo",
+    "version": "0.1.0",
     "private": true,
     "scripts": {
-        "dev": "vite",
-        "build": "vite build",
-        "preview": "vite preview",
-        "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs --fix --ignore-path .gitignore"
+        "serve": "vue-cli-service serve",
+        "build": "vue-cli-service build",
+        "lint": "vue-cli-service lint"
     },
     "dependencies": {
         "@mdi/font": "^7.2.96",
-        "pinia": "^2.1.6",
-        "uuid": "^11.1.0",
+        "core-js": "^3.31.0",
+        "pinia": "^2.1.4",
         "vue": "^3.3.4",
-        "vuedraggable": "^2.24.3",
-        "vuetify": "^3.3.20"
+        "vuedraggable": "^4.1.0",
+        "vuetify": "^3.3.5"
     },
     "devDependencies": {
-        "@vitejs/plugin-vue": "^4.3.4",
-        "eslint": "^8.49.0",
-        "eslint-plugin-vue": "^9.17.0",
-        "vite": "^5.4.18"
+        "@vue/cli-plugin-babel": "~5.0.8",
+        "@vue/cli-plugin-eslint": "~5.0.8",
+        "@vue/cli-service": "~5.0.8",
+        "@vue/compiler-sfc": "^3.3.4",
+        "eslint": "^8.57.1",
+        "eslint-plugin-vue": "^9.33.0",
+        "globals": "^16.1.0"
     }
 }

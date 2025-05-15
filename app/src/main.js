@@ -1,4 +1,6 @@
+// main.js
 import { createApp } from 'vue';
+import App from './App.vue';
 import { createPinia } from 'pinia';
 
 // Vuetify
@@ -9,10 +11,7 @@ import * as directives from 'vuetify/directives';
 import { aliases, mdi } from 'vuetify/iconsets/mdi';
 import '@mdi/font/css/materialdesignicons.css';
 
-// App component
-import App from './App.vue';
-
-// Create Vuetify instance
+// Configure Vuetify
 const vuetify = createVuetify({
   components,
   directives,
@@ -27,21 +26,30 @@ const vuetify = createVuetify({
     defaultTheme: 'light',
     themes: {
       light: {
+        dark: false,
         colors: {
-          primary: '#1867C0',
-          secondary: '#5CBBF6',
-          accent: '#005CAF',
-        },
-      },
-    },
-  },
+          primary: '#1976D2',
+          secondary: '#424242',
+          accent: '#82B1FF',
+          error: '#FF5252',
+          info: '#2196F3',
+          success: '#4CAF50',
+          warning: '#FFC107',
+        }
+      }
+    }
+  }
 });
 
-// Create Pinia instance
+// Create the Pinia store
 const pinia = createPinia();
 
-// Create and mount the app
+// Create the Vue app
 const app = createApp(App);
+
+// Use plugins
 app.use(pinia);
 app.use(vuetify);
+
+// Mount the app
 app.mount('#app');

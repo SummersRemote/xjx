@@ -1,120 +1,106 @@
+<!-- App.vue -->
 <template>
-  <main-layout>
-    <!-- Configuration Card -->
-    <v-card class="mb-4">
-      <v-card-title>
-        <v-icon start>mdi-cog</v-icon>
-        Configuration
-        <v-spacer></v-spacer>
-        <v-btn
-          color="primary"
-          variant="outlined"
-          @click="toggleConfig"
-          size="small"
-        >
-          {{ showConfig ? 'Hide' : 'Show' }} Configuration
-        </v-btn>
-      </v-card-title>
-      <v-expand-transition>
-        <div v-show="showConfig">
-          <v-divider></v-divider>
-          <config-panel />
+  <v-app>
+    <v-app-bar
+      color="primary"
+      app
+      density="comfortable"
+    >
+      <v-app-bar-title>
+        <div class="d-flex align-center">
+          <v-icon icon="mdi-xml" class="me-2"></v-icon>
+          XJX Library Demo
         </div>
-      </v-expand-transition>
-    </v-card>
+      </v-app-bar-title>
+      
+      <v-spacer></v-spacer>
+      
+      <v-btn
+        color="white"
+        variant="text"
+        @click="showConfigDialog"
+      >
+        <v-icon class="me-2">mdi-cog</v-icon>
+        Config
+      </v-btn>
+      
+      <v-btn
+        color="white"
+        variant="text"
+        @click="showApiDialog"
+      >
+        <v-icon class="me-2">mdi-code-tags</v-icon>
+        API
+      </v-btn>
+      
+      <v-btn
+        href="https://github.com/yourusername/xjx-demo"
+        target="_blank"
+        icon
+      >
+        <v-icon>mdi-github</v-icon>
+      </v-btn>
+    </v-app-bar>
 
-    <!-- Transformer Panel -->
-    <transformer-panel ref="transformerPanel" />
+    <v-main>
+      <v-container fluid>
+        <v-row>
 
-    <v-row>
-      <v-col cols="12" class="text-center">
-        <v-btn
-          color="primary"
-          class="mx-2"
-          :loading="store.isProcessing"
-          @click="store.convertXmlToJson"
-        >
-          Convert XML to JSON
-        </v-btn>
-        <v-btn
-          color="secondary"
-          class="mx-2"
-          :loading="store.isProcessing"
-          @click="store.convertJsonToXml"
-        >
-          Convert JSON to XML
-        </v-btn>
-        <v-btn
-          color="warning"
-          class="mx-2"
-          @click="resetAll"
-        >
-          Reset
-        </v-btn>
-      </v-col>
-    </v-row>
+          <v-col cols="12">
+            <EditorPanel />
+          </v-col>
+        </v-row>
+        
+        <v-row>
+          <v-col cols="12" lg="6">
+            <TransformManager />
+          </v-col>
+        </v-row>
+      </v-container>
+    </v-main>
 
-    <v-row>
-      <v-col cols="12" md="6">
-        <xml-editor />
-      </v-col>
-      <v-col cols="12" md="6">
-        <json-editor />
-      </v-col>
-    </v-row>
+    <!-- Hidden Dialogs -->
+    <ConfigEditor ref="configEditor" />
+    <APIViewer ref="apiViewer" />
 
-    <v-card class="my-4">
-      <v-card-title>
-        <v-icon start>mdi-navigation</v-icon>
-        Path Navigation
-      </v-card-title>
-      <v-card-text>
-        <path-navigator />
-      </v-card-text>
-    </v-card>
-  </main-layout>
+    <v-footer app>
+      <div class="w-100 text-center">
+        &copy; {{ new Date().getFullYear() }} - XJX Library Demo
+      </div>
+    </v-footer>
+  </v-app>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { useXjxStore } from './stores/xjxStore';
-import MainLayout from './layouts/MainLayout.vue';
-import ConfigPanel from './components/ConfigPanel.vue';
-import XmlEditor from './components/XmlEditor.vue';
-import JsonEditor from './components/JsonEditor.vue';
-import PathNavigator from './components/PathNavigator.vue';
-import TransformerPanel from './components/TransformerPanel.vue';
-import XjxService from './services/xjxService';
+import { ref } from 'vue';
+import EditorPanel from '@/components/EditorPanel.vue';
+import ConfigEditor from '@/components/ConfigEditor.vue';
+import TransformManager from '@/components/TransformManager.vue';
+import APIViewer from '@/components/APIViewer.vue';
 
-// Get the store
-const store = useXjxStore();
+const configEditor = ref(null);
+const apiViewer = ref(null);
 
-// State
-const showConfig = ref(false);
-const transformerPanel = ref(null);
-
-// Methods
-const toggleConfig = () => {
-  showConfig.value = !showConfig.value;
+// Show config dialog
+const showConfigDialog = () => {
+  configEditor.value?.open();
 };
 
-// Reset everything including transformers
-const resetAll = () => {
-  // Reset the store to default values
-  store.resetToDefault();
-  
-  // Reset the transformers
-  XjxService.reset();
-  
-  // Refresh the transformer panel
-  if (transformerPanel.value) {
-    transformerPanel.value.refreshTransformers();
-  }
+// Show API dialog
+const showApiDialog = () => {
+  apiViewer.value?.open();
 };
-
-// Initialize the application
-onMounted(() => {
-  // Convert the default XML to JSON
-  store.convertXmlToJson();
-});
 </script>
+
+<style>
+/* Global styles */
+.v-application {
+  font-family: 'Roboto', sans-serif;
+}
+
+/* Add scrolling to expansion panel content */
+.v-expansion-panel-text__wrapper {
+  max-height: 400px;
+  overflow-y: auto;
+}
+</style>

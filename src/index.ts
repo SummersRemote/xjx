@@ -1,57 +1,59 @@
 /**
  * XJX Library - XML/JSON transformation with fluent API
- * 
- * Main entry point and exports for the library
+ * Self-registering extensions for webpack compatibility
  */
 
-// =====================================================================================
-// Core functionality
-// =====================================================================================
+// Pre-register all extensions to prevent tree-shaking issues
+// IMPORTANT: This import has side effects!
+import './extensions';
 
-// Main entry point - only export the main XJX class for the public API
-export { XJX } from './XJX';
+// Export the main class (for instantiation)
+export { XJX } from './XJX.js';
 
-// =====================================================================================
-// Type definitions - only export what's needed by consumers
-// =====================================================================================
+// Export configuration types
+export { Configuration } from './core/config.js';
 
-// Configuration types
-export { Configuration } from './core/types/config-types';
-
-// Core interfaces and types needed by consumers
+// Export core interfaces and types
 export {
-  // Transform interfaces for extension authors
   Transform,
   TransformTarget,
   TransformContext,
   TransformResult,
   FormatId,
+  FORMATS,
   createTransformResult,
-} from './core/types/transform-interfaces';
+} from './core/transform.js';
 
-// Error types
+// Export error handling
+export {
+  ValidationError,
+  ParseError,
+  SerializeError,
+  ConfigurationError,
+  TransformError,
+  EnvironmentError,
+  validate,
+  logger,
+  LogLevel,
+} from './core/error.js';
+
+// Export model classes
+export { XNode } from './core/xnode.js';
+
+// Export core transformers
+export {
+  BooleanTransform,
+  BooleanTransformOptions,
+} from './transforms/boolean-transform.js';
+export {
+  NumberTransform,
+  NumberTransformOptions,
+} from './transforms/number-transform.js';
 export { 
-  XJXError, 
-  XmlToJsonError, 
-  JsonToXmlError, 
-  EnvironmentError, 
-  ConfigurationError 
-} from './core/types/error-types';
-
-// Key model classes
-export { XNode } from './core/models/xnode';
-
-// =====================================================================================
-// Core transformers - only essential ones for common use cases
-// =====================================================================================
-
-export { BooleanTransform, BooleanTransformOptions } from './transforms/boolean-transform';
-export { NumberTransform, NumberTransformOptions } from './transforms/number-transform';
-export { RegexTransform, RegexOptions } from './transforms/regex-transform';
-
-// =====================================================================================
-// Register extensions to ensure all methods are available on XJX
-// =====================================================================================
-
-// This import ensures all extension methods are registered with XJX
-import './extensions';
+  RegexTransform, 
+  RegexOptions 
+} from './transforms/regex-transform.js';
+export {
+  MetadataTransform,
+  MetadataTransformOptions,
+} from './transforms/metadata-transform.js';

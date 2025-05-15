@@ -1,10 +1,10 @@
 /**
- * DomUtils - Static utility for DOM operations with unified interface for browser and Node.js
+ * DOM - Static utility for DOM operations with unified interface for browser and Node.js
  * 
  * Provides a consistent DOM API across different environments, handling the necessary
  * abstractions and adapter logic to work in both browser and Node.js environments.
  */
-import { ErrorUtils } from './error-utils';
+import { ErrorHandler } from './error-utils';
 import { NodeType } from '../types/dom-types';
 
 /**
@@ -27,7 +27,7 @@ interface JSDOMInstance {
 /**
  * Static DOM adapter utilities
  */
-export class DomUtils {
+export class DOM {
   // Environment-specific DOM implementation
   private static domParser: any;
   private static xmlSerializer: any;
@@ -43,23 +43,23 @@ export class DomUtils {
         // Node.js environment - try JSDOM first
         try {
           const { JSDOM } = require("jsdom");
-          DomUtils.jsdomInstance = new JSDOM("<!DOCTYPE html><html><body></body></html>", {
+          DOM.jsdomInstance = new JSDOM("<!DOCTYPE html><html><body></body></html>", {
             contentType: "text/xml",
           }) as JSDOMInstance;
 
-          DomUtils.domParser = DomUtils.jsdomInstance.window.DOMParser;
-          DomUtils.xmlSerializer = DomUtils.jsdomInstance.window.XMLSerializer;
-          DomUtils.docImplementation = DomUtils.jsdomInstance.window.document.implementation;
+          DOM.domParser = DOM.jsdomInstance.window.DOMParser;
+          DOM.xmlSerializer = DOM.jsdomInstance.window.XMLSerializer;
+          DOM.docImplementation = DOM.jsdomInstance.window.document.implementation;
         } catch (jsdomError) {
           // Fall back to xmldom if JSDOM isn't available
           try {
             const { DOMParser, XMLSerializer, DOMImplementation } = require('@xmldom/xmldom');
-            DomUtils.domParser = DOMParser;
-            DomUtils.xmlSerializer = XMLSerializer;
+            DOM.domParser = DOMParser;
+            DOM.xmlSerializer = XMLSerializer;
             const implementation = new DOMImplementation();
-            DomUtils.docImplementation = implementation;
+            DOM.docImplementation = implementation;
           } catch (xmldomError) {
-            throw ErrorUtils.environment(
+            throw ErrorHandler.environment(
               "Node.js environment detected but neither 'jsdom' nor '@xmldom/xmldom' are available."
             );
           }
@@ -67,19 +67,19 @@ export class DomUtils {
       } else {
         // Browser environment
         if (!window.DOMParser) {
-          throw ErrorUtils.environment("DOMParser is not available in this environment");
+          throw ErrorHandler.environment("DOMParser is not available in this environment");
         }
 
         if (!window.XMLSerializer) {
-          throw ErrorUtils.environment("XMLSerializer is not available in this environment");
+          throw ErrorHandler.environment("XMLSerializer is not available in this environment");
         }
 
-        DomUtils.domParser = window.DOMParser;
-        DomUtils.xmlSerializer = window.XMLSerializer;
-        DomUtils.docImplementation = document.implementation;
+        DOM.domParser = window.DOMParser;
+        DOM.xmlSerializer = window.XMLSerializer;
+        DOM.docImplementation = document.implementation;
       }
     } catch (error) {
-      throw ErrorUtils.environment("DOM environment initialization failed", error);
+      throw ErrorHandler.environment("DOM environment initialization failed", error);
     }
   }
 
@@ -93,8 +93,8 @@ export class DomUtils {
    * @returns New DOM parser instance
    */
   public static createParser(): any {
-    return ErrorUtils.try(
-      () => new DomUtils.domParser(),
+    return ErrorHandler.try(
+      () => new DOM.domParser(),
       'Failed to create DOM parser',
       'environment'
     );
@@ -105,8 +105,8 @@ export class DomUtils {
    * @returns New XML serializer instance
    */
   public static createSerializer(): any {
-    return ErrorUtils.try(
-      () => new DomUtils.xmlSerializer(),
+    return ErrorHandler.try(
+      () => new DOM.xmlSerializer(),
       'Failed to create XML serializer',
       'environment'
     );
@@ -119,9 +119,9 @@ export class DomUtils {
    * @returns Parsed DOM document
    */
   public static parseFromString(xmlString: string, contentType: string = 'text/xml'): Document {
-    return ErrorUtils.try(
+    return ErrorHandler.try(
       () => {
-        const parser = new DomUtils.domParser();
+        const parser = new DOM.domParser();
         return parser.parseFromString(xmlString, contentType);
       },
       'Failed to parse XML',
@@ -135,9 +135,9 @@ export class DomUtils {
    * @returns Serialized XML string
    */
   public static serializeToString(node: Node): string {
-    return ErrorUtils.try(
+    return ErrorHandler.try(
       () => {
-        const serializer = new DomUtils.xmlSerializer();
+        const serializer = new DOM.xmlSerializer();
         return serializer.serializeToString(node);
       },
       'Failed to serialize XML',
@@ -150,14 +150,14 @@ export class DomUtils {
    * @returns New document
    */
   public static createDocument(): Document {
-    return ErrorUtils.try(
+    return ErrorHandler.try(
       () => {
         // For browsers, create a document with a root element to avoid issues
         if (typeof window !== "undefined") {
-          const parser = new DomUtils.domParser();
+          const parser = new DOM.domParser();
           return parser.parseFromString('<temp></temp>', 'text/xml');
         } else {
-          return DomUtils.docImplementation.createDocument(null, null, null);
+          return DOM.docImplementation.createDocument(null, null, null);
         }
       },
       'Failed to create document',
@@ -171,12 +171,12 @@ export class DomUtils {
    * @returns New element
    */
   public static createElement(tagName: string): Element {
-    return ErrorUtils.try(
+    return ErrorHandler.try(
       () => {
         if (typeof window !== "undefined") {
           return document.createElement(tagName);
         } else {
-          const doc = DomUtils.docImplementation.createDocument(null, null, null);
+          const doc = DOM.docImplementation.createDocument(null, null, null);
           return doc.createElement(tagName);
         }
       },
@@ -192,12 +192,12 @@ export class DomUtils {
    * @returns New element with namespace
    */
   public static createElementNS(namespaceURI: string, qualifiedName: string): Element {
-    return ErrorUtils.try(
+    return ErrorHandler.try(
       () => {
         if (typeof window !== "undefined") {
           return document.createElementNS(namespaceURI, qualifiedName);
         } else {
-          const doc = DomUtils.docImplementation.createDocument(null, null, null);
+          const doc = DOM.docImplementation.createDocument(null, null, null);
           return doc.createElementNS(namespaceURI, qualifiedName);
         }
       },
@@ -212,12 +212,12 @@ export class DomUtils {
    * @returns New text node
    */
   public static createTextNode(data: string): Text {
-    return ErrorUtils.try(
+    return ErrorHandler.try(
       () => {
         if (typeof window !== "undefined") {
           return document.createTextNode(data);
         } else {
-          const doc = DomUtils.docImplementation.createDocument(null, null, null);
+          const doc = DOM.docImplementation.createDocument(null, null, null);
           return doc.createTextNode(data);
         }
       },
@@ -232,14 +232,14 @@ export class DomUtils {
    * @returns New CDATA section
    */
   public static createCDATASection(data: string): CDATASection {
-    return ErrorUtils.try(
+    return ErrorHandler.try(
       () => {
         // For browser compatibility, use document.implementation to create CDATA
         if (typeof window !== "undefined") {
           const doc = document.implementation.createDocument(null, null, null);
           return doc.createCDATASection(data);
         } else {
-          const doc = DomUtils.docImplementation.createDocument(null, null, null);
+          const doc = DOM.docImplementation.createDocument(null, null, null);
           return doc.createCDATASection(data);
         }
       },
@@ -254,12 +254,12 @@ export class DomUtils {
    * @returns New comment node
    */
   public static createComment(data: string): Comment {
-    return ErrorUtils.try(
+    return ErrorHandler.try(
       () => {
         if (typeof window !== "undefined") {
           return document.createComment(data);
         } else {
-          const doc = DomUtils.docImplementation.createDocument(null, null, null);
+          const doc = DOM.docImplementation.createDocument(null, null, null);
           return doc.createComment(data);
         }
       },
@@ -275,13 +275,13 @@ export class DomUtils {
    * @returns New processing instruction
    */
   public static createProcessingInstruction(target: string, data: string): ProcessingInstruction {
-    return ErrorUtils.try(
+    return ErrorHandler.try(
       () => {
         if (typeof window !== "undefined") {
           const doc = document.implementation.createDocument(null, null, null);
           return doc.createProcessingInstruction(target, data);
         } else {
-          const doc = DomUtils.docImplementation.createDocument(null, null, null);
+          const doc = DOM.docImplementation.createDocument(null, null, null);
           return doc.createProcessingInstruction(target, data);
         }
       },
@@ -303,7 +303,7 @@ export class DomUtils {
     qualifiedName: string, 
     value: string
   ): void {
-    ErrorUtils.try(
+    ErrorHandler.try(
       () => {
         if (namespaceURI) {
           element.setAttributeNS(namespaceURI, qualifiedName, value);
@@ -365,8 +365,8 @@ export class DomUtils {
    * Cleanup method for releasing resources (mainly for JSDOM)
    */
   public static cleanup(): void {
-    if (DomUtils.jsdomInstance && typeof DomUtils.jsdomInstance.window.close === 'function') {
-      DomUtils.jsdomInstance.window.close();
+    if (DOM.jsdomInstance && typeof DOM.jsdomInstance.window.close === 'function') {
+      DOM.jsdomInstance.window.close();
     }
   }
 }

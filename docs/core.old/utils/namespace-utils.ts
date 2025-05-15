@@ -1,13 +1,13 @@
 /**
- * NamespaceUtils - Static utility for XML namespace operations
+ * XmlNamespace - Static utility for XML namespace operations
  * 
  * Centralizes all namespace resolution logic to ensure consistent handling
  * of namespaces throughout the library.
  */
 import { XNode } from '../models/xnode';
-import { ErrorUtils } from './error-utils';
+import { ErrorHandler } from './error-utils';
 
-export class NamespaceUtils {
+export class XmlNamespace {
   /**
    * Find namespace URI for a prefix by searching up the node hierarchy
    * @param node Starting node
@@ -105,7 +105,7 @@ export class NamespaceUtils {
    * @param declarations Namespace declarations to add
    */
   public static addNamespaceDeclarations(element: Element, declarations: Record<string, string>): void {
-    ErrorUtils.try(
+    ErrorHandler.try(
       () => {
         for (const [prefix, uri] of Object.entries(declarations)) {
           if (prefix === '') {
@@ -193,7 +193,7 @@ export class NamespaceUtils {
     qualifiedName: string, 
     namespace: string | null
   ): Element {
-    return ErrorUtils.try(
+    return ErrorHandler.try(
       () => {
         if (namespace) {
           return doc.createElementNS(namespace, qualifiedName);

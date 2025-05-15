@@ -3,25 +3,65 @@
  */
 import { XJX } from "../../XJX";
 import { DefaultJsonToXNodeConverter } from "../../converters/json-to-xnode-converter";
-import { XJXError } from "../../core/types/error-types";
-import { FORMATS } from "../../core/types/transform-interfaces";
-import { NonTerminalExtensionContext } from "../../core/types/extension-types";
+import { FORMATS } from "../../core/transform";
+import { logger, validate, ParseError, handleError, ErrorType } from "../../core/error";
+
+// Type augmentation - add method to XJX interface
+declare module '../../XJX' {
+  interface XJX {
+    /**
+     * Set JSON source for transformation
+     * @param source JSON object
+     * @returns This instance for chaining
+     */
+    fromJson(source: Record<string, any>): XJX;
+  }
+}
 
 /**
  * Set JSON source for transformation
  * @param source JSON object
  */
-function fromJson(this: NonTerminalExtensionContext, source: Record<string, any>) {
-  if (!source || typeof source !== 'object' || Array.isArray(source)) {
-    throw new XJXError('Invalid JSON source: must be a non-empty object');
+function fromJson(this: XJX, source: Record<string, any>): void {
+  try {
+    // API boundary validation - validate parameters
+    validate(source !== null && typeof source === 'object', "JSON source must be an object");
+    validate(!Array.isArray(source), "JSON source cannot be an array");
+    validate(Object.keys(source).length > 0, "JSON source cannot be empty");
+    
+    logger.debug('Setting JSON source for transformation', {
+      rootKeys: Object.keys(source)
+    });
+    
+    // Convert JSON to XNode using the appropriate converter
+    const converter = new DefaultJsonToXNodeConverter(this.config);
+    
+    try {
+      this.xnode = converter.convert(source);
+    } catch (conversionError) {
+      // Specific error handling for JSON conversion failures
+      throw new ParseError("Failed to parse JSON source", source);
+    }
+    
+    this.sourceFormat = FORMATS.JSON;
+    
+    logger.debug('Successfully set JSON source', {
+      rootNodeName: this.xnode?.name,
+      rootNodeType: this.xnode?.type
+    });
+    
+    // No return needed - the registration wrapper handles it
+  } catch (err) {
+    // At API boundary, use handleError to ensure consistent error handling
+    handleError(err, "parse JSON source", {
+      data: { 
+        sourceType: typeof source,
+        isArray: Array.isArray(source),
+        keyCount: Object.keys(source || {}).length
+      },
+      errorType: ErrorType.PARSE
+    });
   }
-  
-  // Convert JSON to XNode using the appropriate converter
-  const converter = new DefaultJsonToXNodeConverter(this.config);
-  this.xnode = converter.convert(source);
-  this.sourceFormat = FORMATS.JSON;
-  
-  return this;
 }
 
 // Register the extension

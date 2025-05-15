@@ -1,24 +1,22 @@
 /**
- * Extensions module
+ * XJX Extension Registry
  * 
- * This module registers all the extension methods with the XJX class
- * to provide the fluent API. It has no exports - it's only imported for 
- * its side effects.
+ * This module imports and registers all built-in extensions.
+ * For ESM compatibility, we use explicit file extensions.
  */
 
-// Import all extensions to ensure they're registered
+// Terminal extensions - always return a value
+import './terminal/to-xml.js';
+import './terminal/to-json.js';
+import './terminal/to-json-string.js';
 
-// Terminal extensions (methods that return a value)
-import './terminal/to-xml';
-import './terminal/to-json';
-import './terminal/to-json-string';
-// import './terminal/get-json-schema';
-// import './terminal/get-path';
+// Non-terminal extensions - always return the XJX instance for chaining
+import './nonterminal/from-xml.js';
+import './nonterminal/from-json.js';
+import './nonterminal/with-config.js';
+import './nonterminal/with-transforms.js';
+import './nonterminal/set-log-level.js';
 
-// Non-terminal extensions (methods that return the builder for chaining)
-import './nonterminal/from-xml';
-import './nonterminal/from-json';
-import './nonterminal/with-config';
-import './nonterminal/with-transforms';
 
-// No exports - this file is only imported for its side effects
+// Export a marker to make side effects explicit
+export const __EXTENSION_REGISTRY__ = true;

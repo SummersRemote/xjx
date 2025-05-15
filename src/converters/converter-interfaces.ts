@@ -4,12 +4,11 @@
  * Defines the interfaces for the different converters in the transformation pipeline.
  */
 import { 
-  Configuration, 
   Transform, 
   TransformContext,
   FormatId
-} from '../core/types/transform-interfaces';
-import { XNode } from '../core/models/xnode';
+} from '../core/transform';
+import { XNode } from '../core/xnode';
   
 /**
  * Base converter interface

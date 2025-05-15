@@ -1,11 +1,11 @@
 /**
- * JsonUtils - Static utility for JSON operations
+ * JSON - Static utility for JSON operations
  * 
  * Provides utilities for working with JSON structures in the XJX library.
  */
 import { Configuration } from "../types/config-types";
-import { ErrorUtils } from "./error-utils";
-import { CommonUtils } from "./common-utils";
+import { ErrorHandler } from "./error-utils";
+import { Common } from "./common-utils";
 import {
   JSONValue,
   JSONObject,
@@ -14,7 +14,7 @@ import {
   XMLJSONElement,
 } from "../types/json-types";
 
-export class JsonUtils {
+export class JSON {
   /**
    * Converts a plain JSON object to the XML-like JSON structure.
    * Optionally wraps the result in a root element with attributes and namespaces.
@@ -29,7 +29,7 @@ export class JsonUtils {
     config: Configuration,
     root?: string | JSONObject
   ): XMLJSONNode {
-    const wrappedObject = JsonUtils.wrapObject(obj, config);
+    const wrappedObject = JSON.wrapObject(obj, config);
 
     if (typeof root === "string") {
       // Root is a simple string: wrap result with this root tag
@@ -106,7 +106,7 @@ export class JsonUtils {
       // For arrays, wrap each item and return as a children-style array of repeated elements
       return {
         [childrenKey]: value.map((item) => {
-          return JsonUtils.wrapObject(item, config);
+          return JSON.wrapObject(item, config);
         }),
       };
     }
@@ -115,7 +115,7 @@ export class JsonUtils {
       // It's an object: wrap its properties in children
       const children = Object.entries(value as JSONObject).map(
         ([key, val]) => ({
-          [key]: JsonUtils.wrapObject(val, config),
+          [key]: JSON.wrapObject(val, config),
         })
       );
 
@@ -149,7 +149,7 @@ export class JsonUtils {
       const compactedArray: JSONValue[] = [];
 
       for (const item of value) {
-        const compactedItem = JsonUtils.compactJson(item);
+        const compactedItem = JSON.compactJson(item);
         if (compactedItem !== undefined) {
           compactedArray.push(compactedItem);
         }
@@ -163,7 +163,7 @@ export class JsonUtils {
     let hasProperties = false;
 
     for (const [key, propValue] of Object.entries(value as JSONObject)) {
-      const compactedValue = JsonUtils.compactJson(propValue);
+      const compactedValue = JSON.compactJson(propValue);
       if (compactedValue !== undefined) {
         compactedObj[key] = compactedValue;
         hasProperties = true;
@@ -238,16 +238,16 @@ export class JsonUtils {
    * @returns True if the value is a valid JSON value
    */
   public static isValidJsonValue(value: any): boolean {
-    if (JsonUtils.isValidJsonPrimitive(value)) {
+    if (JSON.isValidJsonPrimitive(value)) {
       return true;
     }
 
-    if (JsonUtils.isValidJsonArray(value)) {
-      return (value as any[]).every(item => JsonUtils.isValidJsonValue(item));
+    if (JSON.isValidJsonArray(value)) {
+      return (value as any[]).every(item => JSON.isValidJsonValue(item));
     }
 
-    if (JsonUtils.isValidJsonObject(value)) {
-      return Object.values(value).every(item => JsonUtils.isValidJsonValue(item));
+    if (JSON.isValidJsonObject(value)) {
+      return Object.values(value).every(item => JSON.isValidJsonValue(item));
     }
 
     return false;
@@ -261,7 +261,7 @@ export class JsonUtils {
    * @returns Value at path or default value
    */
   public static getPath<T>(obj: JSONValue, path: string, defaultValue?: T): T | undefined {
-    return CommonUtils.getPath(obj, path, defaultValue);
+    return Common.getPath(obj, path, defaultValue);
   }
 
   /**
@@ -277,7 +277,7 @@ export class JsonUtils {
       return obj;
     }
 
-    const result = CommonUtils.deepClone(obj);
+    const result = Common.deepClone(obj);
     const segments = path.split('.');
     let current: any = result;
 

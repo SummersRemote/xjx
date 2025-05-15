@@ -1,6 +1,5 @@
 /**
  * BooleanTransform - Converts string values to booleans
- * Update in src/transforms/boolean-transform.ts
  */
 import { 
   Transform, 
@@ -9,8 +8,9 @@ import {
   TransformTarget, 
   createTransformResult,
   FORMATS
-} from '../core/types/transform-interfaces';
-import { CommonUtils } from '../core/utils/common-utils';
+} from '../core/transform';
+import { Common } from '../core/common';
+import { handleError, ErrorType } from '../core/error';
   
 /**
  * Options for boolean transformer
@@ -81,17 +81,30 @@ export class BooleanTransform implements Transform {
    * @returns Transformed value result
    */
   transform(value: any, context: TransformContext): TransformResult<any> {
-    // Check if we're transforming to JSON or XML
-    if (context.targetFormat === FORMATS.JSON) {
-      // To JSON: Convert strings to booleans
-      return this.stringToBoolean(value, context);
-    } else if (context.targetFormat === FORMATS.XML) {
-      // To XML: Convert booleans to strings
-      return this.booleanToString(value, context);
+    try {
+      // Check if we're transforming to JSON or XML
+      if (context.targetFormat === FORMATS.JSON) {
+        // To JSON: Convert strings to booleans
+        return this.stringToBoolean(value, context);
+      } else if (context.targetFormat === FORMATS.XML) {
+        // To XML: Convert booleans to strings
+        return this.booleanToString(value, context);
+      }
+      
+      // For any other format, keep as is
+      return createTransformResult(value);
+    } catch (err) {
+      return handleError(err, "transform boolean value", {
+        data: { 
+          value,
+          valueType: typeof value,
+          targetFormat: context.targetFormat,
+          path: context.path
+        },
+        errorType: ErrorType.TRANSFORM,
+        fallback: createTransformResult(value) // Return original value as fallback
+      });
     }
-    
-    // For any other format, keep as is
-    return createTransformResult(value);
   }
   
   /**
@@ -99,52 +112,64 @@ export class BooleanTransform implements Transform {
    * @private
    */
   private stringToBoolean(value: any, context: TransformContext): TransformResult<any> {
-    // Already a boolean, return as is
-    if (typeof value === 'boolean') {
-      return createTransformResult(value);
-    }
-    
-    // Skip non-string values
-    if (typeof value !== 'string') {
-      return createTransformResult(value);
-    }
-    
-    // Try to use CommonUtils for simple cases
-    if (this.trueValues === DEFAULT_TRUE_VALUES && 
-        this.falseValues === DEFAULT_FALSE_VALUES && 
-        this.ignoreCase === true) {
-      // Use the common utility function with default settings
-      const boolValue = CommonUtils.toBoolean(value);
+    try {
+      // Already a boolean, return as is
+      if (typeof value === 'boolean') {
+        return createTransformResult(value);
+      }
       
-      // Only transform if it was actually converted to a boolean
-      if (typeof boolValue === 'boolean' && 
-          (boolValue === true || boolValue === false)) {
-        return createTransformResult(boolValue);
+      // Skip non-string values
+      if (typeof value !== 'string') {
+        return createTransformResult(value);
       }
-    }
-    
-    // Convert to string for comparison
-    const strValue = String(value);
-    const compareValue = this.ignoreCase ? strValue.toLowerCase().trim() : strValue.trim();
-    
-    // Check for true values
-    for (const trueVal of this.trueValues) {
-      const compareTrue = this.ignoreCase ? trueVal.toLowerCase() : trueVal;
-      if (compareValue === compareTrue) {
-        return createTransformResult(true);
+      
+      // Try to use Common for simple cases
+      if (this.trueValues === DEFAULT_TRUE_VALUES && 
+          this.falseValues === DEFAULT_FALSE_VALUES && 
+          this.ignoreCase === true) {
+        // Use the common utility function with default settings
+        const boolValue = Common.toBoolean(value);
+        
+        // Only transform if it was actually converted to a boolean
+        if (typeof boolValue === 'boolean' && 
+            (boolValue === true || boolValue === false)) {
+          return createTransformResult(boolValue);
+        }
       }
-    }
-    
-    // Check for false values
-    for (const falseVal of this.falseValues) {
-      const compareFalse = this.ignoreCase ? falseVal.toLowerCase() : falseVal;
-      if (compareValue === compareFalse) {
-        return createTransformResult(false);
+      
+      // Convert to string for comparison
+      const strValue = String(value);
+      const compareValue = this.ignoreCase ? strValue.toLowerCase().trim() : strValue.trim();
+      
+      // Check for true values
+      for (const trueVal of this.trueValues) {
+        const compareTrue = this.ignoreCase ? trueVal.toLowerCase() : trueVal;
+        if (compareValue === compareTrue) {
+          return createTransformResult(true);
+        }
       }
+      
+      // Check for false values
+      for (const falseVal of this.falseValues) {
+        const compareFalse = this.ignoreCase ? falseVal.toLowerCase() : falseVal;
+        if (compareValue === compareFalse) {
+          return createTransformResult(false);
+        }
+      }
+      
+      // No match, return original value
+      return createTransformResult(value);
+    } catch (err) {
+      return handleError(err, "convert string to boolean", {
+        data: { 
+          value,
+          valueType: typeof value,
+          path: context.path
+        },
+        errorType: ErrorType.TRANSFORM,
+        fallback: createTransformResult(value) // Return original value as fallback
+      });
     }
-    
-    // No match, return original value
-    return createTransformResult(value);
   }
   
   /**
@@ -152,12 +177,24 @@ export class BooleanTransform implements Transform {
    * @private
    */
   private booleanToString(value: any, context: TransformContext): TransformResult<any> {
-    // Only convert boolean values
-    if (typeof value === 'boolean') {
-      return createTransformResult(value ? 'true' : 'false');
+    try {
+      // Only convert boolean values
+      if (typeof value === 'boolean') {
+        return createTransformResult(value ? 'true' : 'false');
+      }
+      
+      // Otherwise return unchanged
+      return createTransformResult(value);
+    } catch (err) {
+      return handleError(err, "convert boolean to string", {
+        data: { 
+          value,
+          valueType: typeof value,
+          path: context.path
+        },
+        errorType: ErrorType.TRANSFORM,
+        fallback: createTransformResult(value) // Return original value as fallback
+      });
     }
-    
-    // Otherwise return unchanged
-    return createTransformResult(value);
   }
 }

@@ -1,6 +1,6 @@
 // services/XJXService.js
-// Wrapper service for the XJX library
-import { XJX, BooleanTransform, NumberTransform, RegexTransform } from '../../../dist/esm'; // Path to the XJX library
+// Wrapper service for the XJX library with webpack-compatibility
+import { XJX, BooleanTransform, NumberTransform, RegexTransform } from '../../../dist/esm/index.js'; 
 
 // Create a map of transformer types to their constructors
 const transformerMap = {
@@ -15,7 +15,9 @@ class XJXService {
    * @returns {Object} Default configuration
    */
   getDefaultConfig() {
-    return XJX.getConfig();
+    // Create an instance to extract default config
+    const xjx = new XJX();
+    return xjx.config;
   }
   
   /**
@@ -26,7 +28,11 @@ class XJXService {
    * @returns {Object} Resulting JSON
    */
   convertXmlToJson(xml, config, transforms) {
-    let builder = XJX.fromXml(xml);
+    // Create a new instance for each conversion
+    const xjx = new XJX();
+    
+    // Start the conversion chain with fluent API
+    let builder = xjx.fromXml(xml);
     
     // Apply config if provided
     if (config) {
@@ -60,7 +66,11 @@ class XJXService {
    * @returns {string} Resulting XML
    */
   convertJsonToXml(json, config, transforms) {
-    let builder = XJX.fromJson(json);
+    // Create a new instance for each conversion
+    const xjx = new XJX();
+    
+    // Start the conversion chain
+    let builder = xjx.fromJson(json);
     
     // Apply config if provided
     if (config) {
@@ -107,7 +117,10 @@ class XJXService {
    * @returns {string} Fluent API code
    */
   generateFluentAPI(fromType, content, config, transforms) {
-    let code = `XJX.from${fromType === 'xml' ? 'Xml' : 'Json'}(${fromType === 'xml' ? 'xml' : 'json'})`;
+    // Use the fluent API in the examples
+    let code = `import { XJX } from 'xjx';\n\n`;
+    code += `const xjx = new XJX();\n`;
+    code += `const builder = xjx.from${fromType === 'xml' ? 'Xml' : 'Json'}(${fromType === 'xml' ? 'xml' : 'json'})`;
     
     if (config) {
       code += `\n  .withConfig(${JSON.stringify(config, null, 2)})`;
@@ -123,7 +136,7 @@ class XJXService {
       code += `\n  .withTransforms(\n    ${transformsStr}\n  )`;
     }
     
-    code += `\n  .to${fromType === 'xml' ? 'Json' : 'Xml'}()`;
+    code += `\n  .to${fromType === 'xml' ? 'Json' : 'Xml'}();`;
     
     return code;
   }

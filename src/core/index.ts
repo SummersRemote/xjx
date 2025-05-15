@@ -1,42 +1,33 @@
 /**
- * Core module
+ * XJX Core Module
  * 
- * This module provides access to the core functionality of the XJX library.
- * For most users, importing from the root package is sufficient, but this
- * export allows access to internal components if needed.
+ * This module exports all core functionality for the XJX library,
+ * providing a consolidated entry point for importing all components.
+ * The reorganized structure groups related functionality for better maintainability.
  */
-
-// Export utilities
-export * from './utils';
-
-// Export models
-export * from './models';
-
-// Export types - use explicit re-exports to avoid name conflicts with models
-export {
-  Configuration,
-  NodeType,
-  XJXError, 
-  XmlToJsonError, 
-  JsonToXmlError, 
-  EnvironmentError, 
-  ConfigurationError,
-  XJXContext,
-  TerminalExtensionContext,
-  NonTerminalExtensionContext,
-  JSONPrimitive, 
-  JSONArray, 
-  JSONObject, 
-  JSONValue, 
-  XMLJSONNode, 
-  XMLJSONElement,
-  Transform,
-  TransformTarget,
-  TransformContext,
-  TransformResult,
-  FormatId,
-  createTransformResult
-} from './types';
-
-// Export config defaults
-export { DEFAULT_CONFIG } from './config/config';
+  // Common utilities
+  export * from './common';
+  
+  // Error handling
+  export * from './error';
+  
+  // DOM operations
+  export * from './dom';
+  
+  // Configuration
+  export * from './config';
+  
+  // Transform system
+  export * from './transform';
+  
+  // Extension system
+  export * from './extension';
+  
+  // XML processing
+  export * from './xml';
+  
+  // JSON processing
+  export * from './json';
+  
+  // XNode model
+  export * from './xnode';

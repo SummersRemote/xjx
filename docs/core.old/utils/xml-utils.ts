@@ -6,10 +6,10 @@
  */
 import { Configuration } from '../types/config-types';
 import { ValidationResult } from '../types/transform-interfaces';
-import { ErrorUtils } from './error-utils';
-import { EntityUtils } from './entity-utils';
-import { DomUtils } from './dom-utils';
-import { NamespaceUtils } from './namespace-utils';
+import { ErrorHandler } from './error-utils';
+import { XmlEntity } from './entity-utils';
+import { DOM } from './dom-utils';
+import { XmlNamespace } from './namespace-utils';
 import { NodeType } from '../types/dom-types';
 import { ConfigManager } from '../config/config-manager';
 
@@ -26,13 +26,13 @@ export class XmlUtils {
     config?: Configuration, 
     contentType: string = 'text/xml'
   ): Document {
-    return ErrorUtils.try(
+    return ErrorHandler.try(
       () => {
         // Pre-process XML string to handle entity issues
-        const preprocessedXml = EntityUtils.preprocessXml(xmlString);
+        const preprocessedXml = XmlEntity.preprocessXml(xmlString);
         
-        // Parse using DomUtils
-        const doc = DomUtils.parseFromString(preprocessedXml, contentType);
+        // Parse using DOM
+        const doc = DOM.parseFromString(preprocessedXml, contentType);
         
         // Check for parsing errors
         const errors = doc.getElementsByTagName("parsererror");
@@ -53,13 +53,13 @@ export class XmlUtils {
    * @returns Serialized XML string
    */
   public static serializeXml(node: Node): string {
-    return ErrorUtils.try(
+    return ErrorHandler.try(
       () => {
-        // Use DomUtils for serialization
-        let xmlString = DomUtils.serializeToString(node);
+        // Use DOM for serialization
+        let xmlString = DOM.serializeToString(node);
         
         // Post-process to ensure consistent entity handling and clean up
-        return EntityUtils.postProcessXml(xmlString);
+        return XmlEntity.postProcessXml(xmlString);
       },
       'Failed to serialize XML',
       'general'
@@ -77,15 +77,15 @@ export class XmlUtils {
     // Use default config for formatting preferences
     const defaultConfig = ConfigManager.getDefaultConfig();
 
-    return ErrorUtils.try(
+    return ErrorHandler.try(
       () => {
-        const doc = XmlUtils.parseXml(xmlString);
+        const doc = XmlParser.parseXml(xmlString);
 
         const serializer = (node: Node, level = 0): string => {
           const pad = INDENT.repeat(level);
 
           switch (node.nodeType) {
-            case DomUtils.NodeType.ELEMENT_NODE: {
+            case DOM.NodeType.ELEMENT_NODE: {
               const el = node as Element;
               const tagName = el.tagName;
               const attrs = Array.from(el.attributes)
@@ -102,14 +102,14 @@ export class XmlUtils {
 
               // Check for mixed content - important for whitespace handling
               const hasElementChildren = children.some(
-                (child) => child.nodeType === DomUtils.NodeType.ELEMENT_NODE
+                (child) => child.nodeType === DOM.NodeType.ELEMENT_NODE
               );
 
               const hasTextOrCDATA = children.some(
                 (child) =>
-                  (child.nodeType === DomUtils.NodeType.TEXT_NODE &&
+                  (child.nodeType === DOM.NodeType.TEXT_NODE &&
                     child.textContent?.trim()) ||
-                  child.nodeType === DomUtils.NodeType.CDATA_SECTION_NODE
+                  child.nodeType === DOM.NodeType.CDATA_SECTION_NODE
               );
 
               // Handle mixed content differently to preserve structure
@@ -118,7 +118,7 @@ export class XmlUtils {
                 let inner = "";
                 for (const child of children) {
                   // For elements in mixed content, we still want them indented properly
-                  if (child.nodeType === DomUtils.NodeType.ELEMENT_NODE) {
+                  if (child.nodeType === DOM.NodeType.ELEMENT_NODE) {
                     // Remove newlines from nested element serialization
                     const childSerialized = serializer(child, 0);
                     inner += childSerialized.trim(); // trim to remove newlines
@@ -152,7 +152,7 @@ export class XmlUtils {
               if (
                 children.every(
                   (child) =>
-                    child.nodeType !== DomUtils.NodeType.ELEMENT_NODE &&
+                    child.nodeType !== DOM.NodeType.ELEMENT_NODE &&
                     (!child.textContent || !child.textContent.trim())
                 )
               ) {
@@ -168,7 +168,7 @@ export class XmlUtils {
               return `${pad}${openTag}\n${inner}${pad}</${tagName}>\n`;
             }
 
-            case DomUtils.NodeType.TEXT_NODE: {
+            case DOM.NodeType.TEXT_NODE: {
               const text = node.textContent || "";
               // Skip whitespace-only text nodes in indented output unless preserveWhitespace is true
               const trimmed = text.trim();
@@ -184,18 +184,18 @@ export class XmlUtils {
               return `${pad}${normalized}\n`;
             }
 
-            case DomUtils.NodeType.CDATA_SECTION_NODE:
+            case DOM.NodeType.CDATA_SECTION_NODE:
               // Always preserve CDATA content exactly as is
               return `${pad}<![CDATA[${node.nodeValue}]]>\n`;
 
-            case DomUtils.NodeType.COMMENT_NODE:
+            case DOM.NodeType.COMMENT_NODE:
               return `${pad}<!--${node.nodeValue}-->\n`;
 
-            case DomUtils.NodeType.PROCESSING_INSTRUCTION_NODE:
+            case DOM.NodeType.PROCESSING_INSTRUCTION_NODE:
               const pi = node as ProcessingInstruction;
               return `${pad}<?${pi.target} ${pi.data}?>\n`;
 
-            case DomUtils.NodeType.DOCUMENT_NODE:
+            case DOM.NodeType.DOCUMENT_NODE:
               return Array.from(node.childNodes)
                 .map((child) => serializer(child, level))
                 .join("");
@@ -207,9 +207,9 @@ export class XmlUtils {
 
         // Helper function to serialize text or CDATA without adding indentation or newlines
         const serializeTextOrCDATA = (node: Node): string => {
-          if (node.nodeType === DomUtils.NodeType.TEXT_NODE) {
+          if (node.nodeType === DOM.NodeType.TEXT_NODE) {
             return node.textContent || "";
-          } else if (node.nodeType === DomUtils.NodeType.CDATA_SECTION_NODE) {
+          } else if (node.nodeType === DOM.NodeType.CDATA_SECTION_NODE) {
             return `<![CDATA[${node.nodeValue}]]>`;
           }
           return "";
@@ -231,7 +231,7 @@ export class XmlUtils {
   public static validateXML(xmlString: string): ValidationResult {
     try {
       // Use the parseXml method which handles preprocessing
-      XmlUtils.parseXml(xmlString);
+      XmlParser.parseXml(xmlString);
       return { isValid: true };
     } catch (error) {
       return {
@@ -270,7 +270,7 @@ export class XmlUtils {
    * @returns Normalized text
    */
   public static normalizeTextContent(text: string, preserveWhitespace: boolean = false): string {
-    return EntityUtils.normalizeWhitespace(text, preserveWhitespace);
+    return XmlEntity.normalizeWhitespace(text, preserveWhitespace);
   }
 
   /**
@@ -279,7 +279,7 @@ export class XmlUtils {
    * @returns New DOM document
    */
   public static createDocumentFromXml(xmlString: string): Document {
-    return XmlUtils.parseXml(xmlString);
+    return XmlParser.parseXml(xmlString);
   }
 
   /**
@@ -287,7 +287,7 @@ export class XmlUtils {
    * @returns New empty DOM document
    */
   public static createEmptyDocument(): Document {
-    return DomUtils.createDocument();
+    return DOM.createDocument();
   }
 
   /**
@@ -314,7 +314,7 @@ export class XmlUtils {
    */
   public static isValidXml(xmlString: string): boolean {
     try {
-      XmlUtils.parseXml(xmlString);
+      XmlParser.parseXml(xmlString);
       return true;
     } catch (error) {
       return false;
@@ -336,6 +336,6 @@ export class XmlUtils {
    * @returns Object with attribute name-value pairs
    */
   public static getAttributes(element: Element): Record<string, string> {
-    return DomUtils.getNodeAttributes(element);
+    return DOM.getNodeAttributes(element);
   }
 }

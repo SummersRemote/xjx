@@ -1,114 +1,76 @@
 {
-    "name": "xjx",
-    "version": "1.0.0",
-    "type": "module",
-    "private": true,
-    "main": "./dist/xjx.umd.js",
-    "module": "./dist/index.js",
-    "types": "./dist/index.d.ts",
-    "exports": {
-      ".": {
-        "import": "./dist/esm/index.js",
-        "require": "./dist/xjx.umd.js",
-        "types": "./dist/types/index.d.ts"
-      },
-      "./full": {
-        "import": "./dist/esm/xjx.full.js",
-        "require": "./dist/xjx.full.umd.js",
-        "types": "./dist/types/xjx.full.d.ts"
-      },
-      "./package.json": "./package.json"
+  "name": "xjx",
+  "version": "1.0.0",
+  "description": "A modular XML/JSON transformation library with fluent API",
+  "type": "module",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js",
+      "types": "./dist/types/index.d.ts"
     },
-    "files": [
-      "dist",
-      "package.json",
-      "README.md"
-    ],
-    "scripts": {
-        "clean": "rimraf dist",
-        "build": "npm run clean && npm run build:types && npm run build:js",
-        "build:types": "tsc --emitDeclarationOnly --outDir dist/dts",
-        "build:js": "rollup -c",
-        "build:prod": "NODE_ENV=production npm run build:js",
-        "test": "jest",
-        "test:watch": "jest --watch",
-        "test:coverage": "jest --coverage",
-        "test:ci": "jest --ci --coverage --reporters=default --reporters=jest-junit",
-        "lint": "eslint ./src --ext .ts",
-        "lint:fix": "eslint ./src --ext .ts --fix",
-        "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-        "docs": "typedoc --out docs src/index.ts",
-        "preversion": "npm run lint",
-        "version": "npm run format && git add -A src",
-        "postversion": "git push && git push --tags",
-        "postbuild": "yalc push --private"
+    "./full": {
+      "import": "./dist/esm/xjx.full.js",
+      "require": "./dist/cjs/xjx.full.js",
+      "types": "./dist/types/xjx.full.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "package.json",
+    "README.md"
+  ],
+  "scripts": {
+    "clean": "rimraf dist",
+    "build": "npm run clean && npm run build:types && npm run build:js",
+    "build:types": "tsc --emitDeclarationOnly --outDir dist/types",
+    "build:js": "rollup -c",
+    "build:prod": "NODE_ENV=production npm run build:js",
+    "test": "jest"
+  },
+  "keywords": [
+    "xml",
+    "json",
+    "convert",
+    "transform"
+  ],
+  "license": "MIT",
+  "sideEffects": [
+    "**/index.js", 
+    "**/extensions/**/*.js", 
+    "**/*.extensions.js",
+    "dist/esm/extensions/index.js",
+    "dist/cjs/extensions/index.js"
+  ],
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.8",
+    "@rollup/plugin-node-resolve": "^15.3.1",
+    "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-typescript": "^11.1.6",
+    "@types/jest": "^29.5.0",
+    "@types/node": "^18.15.11",
+    "eslint": "^8.37.0", 
+    "jest": "^29.6.0",
+    "rimraf": "^4.4.1",
+    "rollup": "^3.29.5",
+    "rollup-plugin-filesize": "^10.0.0",
+    "typescript": "^5.1.6"
+  },
+  "peerDependencies": {
+    "jsdom": "^21.1.1"
+  },
+  "peerDependenciesMeta": {
+    "jsdom": {
+      "optional": true
     },
-    "keywords": [
-        "xml",
-        "json",
-        "convert",
-        "transform",
-        "namespace",
-        "cdata",
-        "comment",
-        "processing-instruction",
-        "browser",
-        "node"
-    ],
-    "author": {
-        "name": "William Summers",
-        "email": "william.summers+xjx@gmail.com"
-    },
-    "license": "MIT",
-    "repository": {
-        "type": "git",
-        "url": "git+https://github.com/summersremote/xjx.git"
-    },
-    "bugs": {
-        "url": "https://github.com/summersremote/xjx/issues"
-    },
-    "homepage": "https://github.com/summersremote/xjx#readme",
-    "devDependencies": {
-        "@rollup/plugin-commonjs": "^25.0.8",
-        "@rollup/plugin-node-resolve": "^15.3.1",
-        "@rollup/plugin-terser": "^0.4.4",
-        "@rollup/plugin-typescript": "^11.1.6",
-        "@types/jest": "^29.5.0",
-        "@types/node": "^18.15.11",
-        "@typescript-eslint/eslint-plugin": "^5.57.1",
-        "@typescript-eslint/parser": "^5.57.1",
-        "eslint": "^8.37.0",
-        "eslint-config-prettier": "^8.8.0",
-        "eslint-plugin-prettier": "^4.2.1",
-        "jest": "^29.6.0",
-        "jest-environment-jsdom": "^29.6.0",
-        "jest-html-reporters": "^3.1.7",
-        "jsdom": "^26.1.0",
-        "prettier": "^2.8.7",
-        "rimraf": "^4.4.1",
-        "rollup": "^3.29.5",
-        "rollup-plugin-brotli": "^3.1.0",
-        "rollup-plugin-dts": "^5.3.1",
-        "rollup-plugin-filesize": "^10.0.0",
-        "rollup-plugin-gzip": "^4.0.1",
-        "rollup-plugin-visualizer": "^5.14.0",
-        "ts-jest": "^29.1.1",
-        "typedoc": "^0.24.1",
-        "typescript": "^5.1.6"
-    },
-    "peerDependencies": {
-        "jsdom": "^21.1.1"
-    },
-    "peerDependenciesMeta": {
-        "jsdom": {
-            "optional": true
-        },
-        "@xmldom/xmldom": {
-            "optional": true
-        }
-    },
-    "engines": {
-        "node": ">=14.16.0"
-    },
-    "sideEffects": false
+    "@xmldom/xmldom": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "node": ">=14.16.0"
+  }
 }

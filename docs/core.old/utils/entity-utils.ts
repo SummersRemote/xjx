@@ -1,12 +1,12 @@
 /**
- * EntityUtils - Static utility for XML entity handling
+ * XmlEntity - Static utility for XML entity handling
  * 
  * Centralizes all XML entity handling logic to ensure consistent treatment
  * of XML entities throughout the library.
  */
-import { ErrorUtils } from './error-utils';
+import { ErrorHandler } from './error-utils';
 
-export class EntityUtils {
+export class XmlEntity {
   /**
    * Escapes special characters in text for safe XML usage
    * @param text Text to escape
@@ -63,7 +63,7 @@ export class EntityUtils {
       return text;
     }
 
-    return EntityUtils.escapeXml(text);
+    return XmlEntity.escapeXml(text);
   }
 
   /**

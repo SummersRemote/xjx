@@ -5,10 +5,10 @@
  * for manipulation and traversal, plus metadata capabilities.
  */
 import { NodeType } from '../types/dom-types';
-import { CommonUtils } from '../utils/common-utils';
-import { EntityUtils } from '../utils/entity-utils';
-import { NamespaceUtils } from '../utils/namespace-utils';
-import { ErrorUtils } from '../utils/error-utils';
+import { Common } from '../utils/common-utils';
+import { XmlEntity } from '../utils/entity-utils';
+import { XmlNamespace } from '../utils/namespace-utils';
+import { ErrorHandler } from '../utils/error-utils';
 
 /**
  * XNode class representing an XML node in the object model
@@ -301,7 +301,7 @@ export class XNode {
    * @returns Qualified name
    */
   public getQualifiedName(): string {
-    return NamespaceUtils.createQualifiedName(this.prefix, this.name);
+    return XmlNamespace.createQualifiedName(this.prefix, this.name);
   }
   
   /**
@@ -372,8 +372,8 @@ export class XNode {
    */
   public clone(deep: boolean = false): XNode {
     if (deep) {
-      // Deep clone using CommonUtils
-      const clone = CommonUtils.deepClone(this) as XNode;
+      // Deep clone using Common
+      const clone = Common.deepClone(this) as XNode;
       
       // Fix parent references (should be null in a clone)
       const fixParents = (node: XNode) => {

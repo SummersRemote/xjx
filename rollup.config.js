@@ -1,128 +1,169 @@
-import typescript from '@rollup/plugin-typescript';
-import { nodeResolve } from '@rollup/plugin-node-resolve';
-import commonjs from '@rollup/plugin-commonjs';
-import terser from '@rollup/plugin-terser';
-import { readFileSync } from 'fs';
-import filesize from 'rollup-plugin-filesize';
+// rollup.config.js
+import typescript from "@rollup/plugin-typescript";
+import { nodeResolve } from "@rollup/plugin-node-resolve";
+import commonjs from "@rollup/plugin-commonjs";
+import terser from "@rollup/plugin-terser";
+import filesize from "rollup-plugin-filesize";
+import { readFileSync } from "fs";
 
-const packageJson = JSON.parse(readFileSync('./package.json', 'utf8'));
-const isProd = process.env.NODE_ENV === 'production';
+// Read package.json for external dependencies
+const pkg = JSON.parse(readFileSync("./package.json", "utf8"));
+const isProd = process.env.NODE_ENV === "production";
 
-// External dependencies that shouldn't be bundled
+// Don't bundle dependencies
 const external = [
-  ...Object.keys(packageJson.peerDependencies || {}),
-  ...Object.keys(packageJson.dependencies || {})
+  ...Object.keys(pkg.dependencies || {}),
+  ...Object.keys(pkg.peerDependencies || {}),
 ];
 
-// Base plugins for all builds
-const basePlugins = [
-  nodeResolve({ 
-    browser: true, 
-    extensions: ['.ts', '.js'],
-    preferBuiltins: false 
+// Common plugins for all builds
+const commonPlugins = [
+  nodeResolve({
+    browser: true,
+    extensions: [".ts", ".js"],
   }),
   commonjs(),
-  filesize()
+  filesize(),
 ];
 
-// Production minification plugin
+// Production-only plugins for minification
 const prodPlugins = isProd ? [terser()] : [];
 
+// Define configs
 export default [
-  // Main ESM bundle (tree-shakable)
+  // ESM build
   {
-    input: 'src/index.ts',
-    external,
+    input: "src/index.ts",
     output: {
-      dir: 'dist/esm',
-      format: 'esm',
+      dir: "dist/esm",
+      format: "es",
+      sourcemap: !isProd,
       preserveModules: true,
-      preserveModulesRoot: 'src',
-      sourcemap: !isProd
+      preserveModulesRoot: "src",
+      exports: "named" // Fix for mixed exports warning
     },
+    external,
     plugins: [
-      ...basePlugins,
+      ...commonPlugins,
       typescript({
-        tsconfig: './tsconfig.json',
-        outDir: 'dist/esm',
-        declaration: true,
-        declarationDir: 'dist/esm'
-      })
-    ]
+        tsconfig: "./tsconfig.json",
+        declaration: false, // Skip declarations in this build
+        outDir: "dist/esm",
+        rootDir: "src",
+      }),
+    ],
+    // Critical: preserving side effects for extension registration
+    treeshake: {
+      moduleSideEffects: "no-external",
+      preset: "recommended"
+    },
   },
   
-  // UMD bundle for browsers and CommonJS
+  // CommonJS build
   {
-    input: 'src/index.ts',
-    external,
+    input: "src/index.ts",
     output: {
-      file: 'dist/umd/xjx.js',
-      format: 'umd',
-      name: 'XJX',
+      dir: "dist/cjs",
+      format: "cjs",
       sourcemap: !isProd,
-      globals: { 
-        jsdom: 'JSDOM', 
-        '@xmldom/xmldom': 'xmldom' 
-      }
+      preserveModules: true,
+      preserveModulesRoot: "src",
+      exports: "named" // Fix for mixed exports warning
     },
+    external,
     plugins: [
-      ...basePlugins,
+      ...commonPlugins,
       typescript({
-        tsconfig: './tsconfig.json',
-        outDir: 'dist/umd',
-        declaration: false
+        tsconfig: "./tsconfig.json",
+        declaration: false, // Skip declarations in this build
+        outDir: "dist/cjs",
+        rootDir: "src",
       }),
-      ...prodPlugins
-    ]
+    ],
+    // Critical: preserving side effects for extension registration
+    treeshake: {
+      moduleSideEffects: "no-external",
+      preset: "recommended"
+    },
   },
   
-  // Minified UMD bundle
+  // UMD build (browser-friendly)
   {
-    input: 'src/index.ts',
-    external,
+    input: "src/index.ts",
     output: {
-      file: 'dist/umd/xjx.min.js',
-      format: 'umd',
-      name: 'XJX',
+      file: "dist/umd/xjx.js",
+      format: "umd",
+      name: "XJX",
       sourcemap: !isProd,
-      globals: { 
-        jsdom: 'JSDOM', 
-        '@xmldom/xmldom': 'xmldom' 
-      }
+      exports: "named", // Fix for mixed exports warning
+      globals: {
+        jsdom: "JSDOM",
+        "@xmldom/xmldom": "xmldom",
+      },
     },
+    external,
     plugins: [
-      ...basePlugins,
+      ...commonPlugins,
       typescript({
-        tsconfig: './tsconfig.json',
-        outDir: 'dist/umd',
-        declaration: false
+        tsconfig: "./tsconfig.json",
+        declaration: false, // Skip declarations in this build
+        declarationMap: false, // Turn off declaration maps to match
+        composite: false, // Make sure composite is off
       }),
-      terser()
-    ]
+      ...prodPlugins,
+    ],
+    // UMD build should preserve everything
+    treeshake: false,
   },
   
-  // Full bundle with all features
-  {
-    input: 'src/xjx.full.ts',
-    external,
+  // Minified UMD build
+  isProd && {
+    input: "src/index.ts",
     output: {
-      file: 'dist/umd/xjx.full.js',
-      format: 'umd',
-      name: 'XJX',
-      sourcemap: !isProd,
-      globals: { 
-        jsdom: 'JSDOM', 
-        '@xmldom/xmldom': 'xmldom' 
-      }
+      file: "dist/umd/xjx.min.js",
+      format: "umd",
+      name: "XJX",
+      sourcemap: false,
+      exports: "named", // Fix for mixed exports warning
+      globals: {
+        jsdom: "JSDOM",
+        "@xmldom/xmldom": "xmldom",
+      },
     },
+    external,
     plugins: [
-      ...basePlugins,
+      ...commonPlugins,
       typescript({
-        tsconfig: './tsconfig.json',
-        outDir: 'dist/umd',
-        declaration: false
+        tsconfig: "./tsconfig.json",
+        declaration: false, // Skip declarations in this build
+        declarationMap: false, // Turn off declaration maps to match
+        composite: false, // Make sure composite is off
       }),
-      ...prodPlugins
-    ]
-  }
-];
+      terser(),
+    ],
+    // UMD build should preserve everything
+    treeshake: false,
+  },
+  
+  // Declaration files build (separate)
+  {
+    input: "src/index.ts",
+    output: {
+      dir: "dist/types",
+      format: "es", // Format doesn't matter for declarations
+      preserveModules: true,
+      preserveModulesRoot: "src",
+    },
+    external,
+    plugins: [
+      typescript({
+        tsconfig: "./tsconfig.json",
+        declaration: true, // Generate declarations
+        declarationMap: true, // Generate declaration maps
+        declarationDir: "dist/types", // Output to types directory
+        emitDeclarationOnly: true, // Only output declarations
+        rootDir: "src",
+      }),
+    ],
+  },
+].filter(Boolean);

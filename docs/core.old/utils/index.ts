@@ -6,18 +6,18 @@
  */
 
 // Common utility functions
-export { CommonUtils } from './common-utils';
+export { Common } from './common-utils';
 
 // Error handling utilities
-export { ErrorUtils, ErrorType } from './error-utils';
+export { ErrorHandler, ErrorType } from './error-utils';
 
 // DOM operations
-export { DomUtils } from './dom-utils';
+export { DOM } from './dom-utils';
 
 // XML-specific utilities
 export { XmlUtils } from './xml-utils';
-export { EntityUtils } from './entity-utils';
-export { NamespaceUtils } from './namespace-utils';
+export { XmlEntity } from './entity-utils';
+export { XmlNamespace } from './namespace-utils';
 
 // JSON operations
-export { JsonUtils } from './json-utils';
+export { JSON } from './json-utils';

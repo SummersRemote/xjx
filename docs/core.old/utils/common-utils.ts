@@ -1,10 +1,10 @@
 /**
- * CommonUtils - Static utility functions used across the library
+ * Common - Static utility functions used across the library
  * 
  * Central location for shared utility functions to avoid duplication.
  */
 
-export class CommonUtils {
+export class Common {
   /**
    * Deep clone an object using JSON serialization
    * @param obj Object to clone
@@ -25,14 +25,14 @@ export class CommonUtils {
    */
   public static deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
     if (!source || typeof source !== 'object' || source === null) {
-      return CommonUtils.deepClone(target);
+      return Common.deepClone(target);
     }
 
     if (!target || typeof target !== 'object' || target === null) {
-      return CommonUtils.deepClone(source) as T;
+      return Common.deepClone(source) as T;
     }
 
-    const result = CommonUtils.deepClone(target);
+    const result = Common.deepClone(target);
 
     Object.keys(source).forEach((key) => {
       const sourceValue = source[key as keyof Partial<T>];
@@ -47,13 +47,13 @@ export class CommonUtils {
         !Array.isArray(sourceValue) &&
         !Array.isArray(targetValue)
       ) {
-        (result[key as keyof T] as any) = CommonUtils.deepMerge(
+        (result[key as keyof T] as any) = Common.deepMerge(
           targetValue as Record<string, any>,
           sourceValue as Record<string, any>
         );
       } else {
         // Otherwise just replace the value
-        (result[key as keyof T] as any) = CommonUtils.deepClone(sourceValue);
+        (result[key as keyof T] as any) = Common.deepClone(sourceValue);
       }
     });
 
@@ -139,7 +139,7 @@ export class CommonUtils {
     for (const key of keysA) {
       if (!keysB.includes(key)) return false;
       
-      if (!CommonUtils.isEqual(a[key], b[key])) return false;
+      if (!Common.isEqual(a[key], b[key])) return false;
     }
     
     return true;

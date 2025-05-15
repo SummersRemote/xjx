@@ -2,39 +2,53 @@
  * Core extension that implements the toJsonString method
  */
 import { XJX } from "../../XJX";
-import { TerminalExtensionContext } from "../../core/types/extension-types";
-import { DefaultXNodeTransformer } from "../../converters/xnode-transformer";
-import { DefaultXNodeToJsonConverter } from "../../converters/xnode-to-json-converter";
-import { FORMATS } from "../../core/types/transform-interfaces";
-import { XNode } from "../../core/models/xnode";
+import { logger, validate, handleError, ErrorType } from "../../core/error";
+
+// Type augmentation - add method to XJX interface
+declare module '../../XJX' {
+  interface XJX {
+    /**
+     * Convert current XNode to a JSON string
+     * @returns Stringified JSON representation
+     */
+    toJsonString(): string;
+  }
+}
 
 /**
- * Convert current XNode to JSON string with formatting
- * @param indent Number of spaces for indentation (default: 2)
- * @returns Formatted JSON string
+ * Convert current XNode to a JSON string
+ * @returns Stringified JSON representation
  */
-function toJsonString(this: TerminalExtensionContext, indent: number = 2): string {
-  // Validate source is set
-  this.validateSource();
-  
-  // Apply transformations if any are registered
-  let xnode = this.xnode!;
-  if (this.transforms && this.transforms.length > 0) {
-    const transformer = new DefaultXNodeTransformer(this.config);
-    xnode = transformer.transform(
-      xnode as XNode,
-      this.transforms, 
-      // Use format identifier instead of direction
-      FORMATS.JSON
-    );
+function toJsonString(this: XJX): string {
+  try {
+    // Validate source is set (will be re-validated in toJson call)
+    validate(this.xnode !== null, "No source set: call fromXml() or fromJson() before conversion");
+    
+    logger.debug('Starting toJsonString conversion');
+    
+    // First get the JSON object using the existing toJson method
+    const jsonObject = this.toJson();
+    
+    // Use the indent value from config
+    const indent = this.config.outputOptions.indent;
+    const result = JSON.stringify(jsonObject, null, indent);
+    
+    logger.debug('Successfully converted to JSON string', {
+      resultLength: result.length,
+      indent
+    });
+    
+    return result;
+  } catch (err) {
+    return handleError(err, "convert to JSON string", {
+      data: {
+        sourceFormat: this.sourceFormat,
+        hasNode: this.xnode !== null
+      },
+      errorType: ErrorType.SERIALIZE,
+      fallback: "{}" // Return empty JSON string as fallback
+    });
   }
-  
-  // Convert XNode to JSON
-  const converter = new DefaultXNodeToJsonConverter(this.config);
-  const jsonObject = converter.convert(xnode as XNode);
-  
-  // Return as formatted string
-  return JSON.stringify(jsonObject, null, indent);
 }
 
 // Register the extension

@@ -10,8 +10,8 @@ import {
   TransformTarget, 
   createTransformResult,
   FORMATS
-} from '../core/types/transform-interfaces';
-import { CommonUtils } from '../core/utils/common-utils';
+} from '../core/transform';
+import { handleError, ErrorType } from '../core/error';
   
 /**
  * Options for number transformer
@@ -42,6 +42,12 @@ export interface NumberTransformOptions {
    * Will be removed before parsing
    */
   thousandsSeparator?: string;
+
+  /**
+   * Optional format this transform applies to
+   * If provided, the transform will only be applied for this format
+   */
+  format?: string;
 }
 
 /**
@@ -53,7 +59,7 @@ export interface NumberTransformOptions {
  *    .withTransforms(new NumberTransform({
  *      integers: true,
  *      decimals: true,
- *      strictParsing: true
+ *      scientific: true
  *    }))
  *    .toJson();
  * ```
@@ -67,6 +73,7 @@ export class NumberTransform implements Transform {
   private scientific: boolean;
   private decimalSeparator: string;
   private thousandsSeparator: string;
+  private format?: string;
   
   /**
    * Create a new number transformer
@@ -78,6 +85,7 @@ export class NumberTransform implements Transform {
     this.scientific = options.scientific !== false; // Default to true
     this.decimalSeparator = options.decimalSeparator || '.';
     this.thousandsSeparator = options.thousandsSeparator || ',';
+    this.format = options.format;
   }
   
   /**
@@ -92,17 +100,35 @@ export class NumberTransform implements Transform {
    * @returns Transformed value result
    */
   transform(value: any, context: TransformContext): TransformResult<any> {
-    // Check if we're transforming to JSON or XML
-    if (context.targetFormat === FORMATS.JSON) {
-      // To JSON: Convert strings to numbers
-      return this.stringToNumber(value, context);
-    } else if (context.targetFormat === FORMATS.XML) {
-      // To XML: Convert numbers to strings
-      return this.numberToString(value, context);
+    try {
+      // If format-specific and doesn't match current format, skip
+      if (this.format !== undefined && this.format !== context.targetFormat) {
+        return createTransformResult(value);
+      }
+      
+      // Check if we're transforming to JSON or XML
+      if (context.targetFormat === FORMATS.JSON) {
+        // To JSON: Convert strings to numbers
+        return this.stringToNumber(value, context);
+      } else if (context.targetFormat === FORMATS.XML) {
+        // To XML: Convert numbers to strings
+        return this.numberToString(value, context);
+      }
+      
+      // For any other format, keep as is
+      return createTransformResult(value);
+    } catch (err) {
+      return handleError(err, "transform number value", {
+        data: { 
+          value,
+          valueType: typeof value,
+          targetFormat: context.targetFormat,
+          path: context.path
+        },
+        errorType: ErrorType.TRANSFORM,
+        fallback: createTransformResult(value) // Return original value as fallback
+      });
     }
-    
-    // For any other format, keep as is
-    return createTransformResult(value);
   }
   
   /**
@@ -110,24 +136,41 @@ export class NumberTransform implements Transform {
    * @private
    */
   private stringToNumber(value: any, context: TransformContext): TransformResult<any> {
-    // Already a number, return as is
-    if (typeof value === 'number') {
-      return createTransformResult(value);
-    }
-    
-    // Try to use CommonUtils for simple cases
-    if (this.isDefaultConfiguration()) {
-      // Use the common utility function with default settings
-      const numValue = CommonUtils.toNumber(value);
-      
-      // Only transform if it was actually a number
-      if (typeof numValue === 'number' && !isNaN(numValue)) {
-          return createTransformResult(numValue);
+    try {
+      // Already a number, return as is
+      if (typeof value === 'number') {
+        return createTransformResult(value);
       }
+      
+      // Skip non-string values
+      if (typeof value !== 'string') {
+        return createTransformResult(value);
+      }
+      
+      // Try simple conversion first
+      if (this.isDefaultConfiguration()) {
+        const trimmed = value.trim();
+        const parsed = Number(trimmed);
+        
+        // FIXED LINE: now returns the parsed number, not the original value
+        if (!isNaN(parsed)) {
+          return createTransformResult(parsed);
+        }
+      }
+      
+      // For more complex cases or custom options, use the full implementation
+      return this.transformComplex(value);
+    } catch (err) {
+      return handleError(err, "convert string to number", {
+        data: { 
+          value,
+          valueType: typeof value,
+          path: context.path
+        },
+        errorType: ErrorType.TRANSFORM,
+        fallback: createTransformResult(value) // Return original value as fallback
+      });
     }
-    
-    // For more complex cases or custom options, use the full implementation
-    return this.transformComplex(value);
   }
   
   /**
@@ -135,13 +178,25 @@ export class NumberTransform implements Transform {
    * @private
    */
   private numberToString(value: any, context: TransformContext): TransformResult<any> {
-    // Only convert number values
-    if (typeof value === 'number') {
-      return createTransformResult(String(value));
+    try {
+      // Only convert number values
+      if (typeof value === 'number') {
+        return createTransformResult(String(value));
+      }
+      
+      // Otherwise return unchanged
+      return createTransformResult(value);
+    } catch (err) {
+      return handleError(err, "convert number to string", {
+        data: { 
+          value,
+          valueType: typeof value,
+          path: context.path
+        },
+        errorType: ErrorType.TRANSFORM,
+        fallback: createTransformResult(value) // Return original value as fallback
+      });
     }
-    
-    // Otherwise return unchanged
-    return createTransformResult(value);
   }
 
   /**
@@ -150,11 +205,17 @@ export class NumberTransform implements Transform {
    * @private
    */
   private isDefaultConfiguration(): boolean {
-    return this.integers === true && 
-           this.decimals === true && 
-           this.scientific === true && 
-           this.decimalSeparator === '.' &&
-           this.thousandsSeparator === ',';
+    try {
+      return this.integers === true && 
+             this.decimals === true && 
+             this.scientific === true && 
+             this.decimalSeparator === '.' &&
+             this.thousandsSeparator === ',';
+    } catch (err) {
+      return handleError(err, "check default configuration", {
+        fallback: true // Assume default configuration on error for safety
+      });
+    }
   }
 
   /**
@@ -164,53 +225,60 @@ export class NumberTransform implements Transform {
    * @private
    */
   private transformComplex(value: any): TransformResult<any> {
-    const strValue = String(value).trim();
-    if (!strValue) return createTransformResult(value);
-  
-    let patternParts: string[] = [];
-    let escapedDecimal = this.decimalSeparator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    let escapedThousands = this.thousandsSeparator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  
-    // Build integer pattern with proper thousands separator grouping
-    if (this.integers) {
-      let intPattern = `(?:-?(?:\\d{1,3}(?:${escapedThousands}\\d{3})*))`;
-      patternParts.push(intPattern);
+    try {
+      const strValue = String(value).trim();
+      if (!strValue) return createTransformResult(value);
+    
+      let patternParts: string[] = [];
+      let escapedDecimal = this.decimalSeparator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      let escapedThousands = this.thousandsSeparator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    
+      // Build integer pattern with proper thousands separator grouping
+      if (this.integers) {
+        let intPattern = `(?:-?(?:\\d{1,3}(?:${escapedThousands}\\d{3})*))`;
+        patternParts.push(intPattern);
+      }
+    
+      // Build decimal pattern
+      if (this.decimals) {
+        let decPattern = `(?:-?(?:\\d{1,3}(?:${escapedThousands}\\d{3})*|\\d*)${escapedDecimal}\\d+)`;
+        patternParts.push(decPattern);
+      }
+    
+      // Build scientific notation pattern (with optional decimal)
+      if (this.scientific) {
+        let sciPattern = `(?:-?(?:\\d+(?:${escapedDecimal}\\d+)?|\\d*${escapedDecimal}\\d+)[eE][+-]?\\d+)`;
+        patternParts.push(sciPattern);
+      }
+    
+      const fullPattern = `^(${patternParts.join('|')})$`;
+      const regex = new RegExp(fullPattern);
+    
+      if (!regex.test(strValue)) {
+        return createTransformResult(value);
+      }
+    
+      // Normalize to JS-parsable format
+      let normalized = strValue;
+    
+      if (this.thousandsSeparator) {
+        const sepRegex = new RegExp(escapedThousands, 'g');
+        normalized = normalized.replace(sepRegex, '');
+      }
+    
+      if (this.decimalSeparator !== '.') {
+        const decRegex = new RegExp(escapedDecimal, 'g');
+        normalized = normalized.replace(decRegex, '.');
+      }
+    
+      const parsed = parseFloat(normalized);
+      return createTransformResult(isNaN(parsed) ? value : parsed);
+    } catch (err) {
+      return handleError(err, "transform complex number", {
+        data: { value },
+        errorType: ErrorType.TRANSFORM,
+        fallback: createTransformResult(value) // Return original value as fallback
+      });
     }
-  
-    // Build decimal pattern
-    if (this.decimals) {
-      let decPattern = `(?:-?(?:\\d{1,3}(?:${escapedThousands}\\d{3})*|\\d*)${escapedDecimal}\\d+)`;
-      patternParts.push(decPattern);
-    }
-  
-    // Build scientific notation pattern (with optional decimal)
-    if (this.scientific) {
-      let sciPattern = `(?:-?(?:\\d+(?:${escapedDecimal}\\d+)?|\\d*${escapedDecimal}\\d+)[eE][+-]?\\d+)`;
-      patternParts.push(sciPattern);
-    }
-  
-    const fullPattern = `^(${patternParts.join('|')})$`;
-    const regex = new RegExp(fullPattern);
-  
-    if (!regex.test(strValue)) {
-      return createTransformResult(value);
-    }
-  
-    // Normalize to JS-parsable format
-    let normalized = strValue;
-  
-    if (this.thousandsSeparator) {
-      const sepRegex = new RegExp(escapedThousands, 'g');
-      normalized = normalized.replace(sepRegex, '');
-    }
-  
-    if (this.decimalSeparator !== '.') {
-      const decRegex = new RegExp(escapedDecimal, 'g');
-      normalized = normalized.replace(decRegex, '.');
-    }
-  
-    const parsed = parseFloat(normalized);
-    return createTransformResult(isNaN(parsed) ? value : parsed);
   }
-
 }

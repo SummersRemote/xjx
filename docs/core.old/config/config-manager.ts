@@ -6,7 +6,7 @@
  */
 import { Configuration } from '../types/config-types';
 import { DEFAULT_CONFIG } from './config';
-import { CommonUtils } from '../utils/common-utils';
+import { Common } from '../utils/common-utils';
 
 /**
  * Configuration utilities for the XJX library
@@ -17,7 +17,7 @@ export const ConfigManager = {
    * @returns A fresh copy of the default configuration
    */
   getDefaultConfig(): Configuration {
-    return CommonUtils.deepClone(DEFAULT_CONFIG);
+    return Common.deepClone(DEFAULT_CONFIG);
   },
   
   /**
@@ -27,7 +27,7 @@ export const ConfigManager = {
    * @returns New merged configuration
    */
   mergeConfig(baseConfig: Configuration, overrideConfig: Partial<Configuration> = {}): Configuration {
-    return CommonUtils.deepMerge(baseConfig, overrideConfig);
+    return Common.deepMerge(baseConfig, overrideConfig);
   },
   
   /**
@@ -100,6 +100,6 @@ export const ConfigManager = {
    * @returns Value at path or default value
    */
   getConfigValue<T>(config: Configuration, path: string, defaultValue?: T): T | undefined {
-    return CommonUtils.getPath(config, path, defaultValue);
+    return Common.getPath(config, path, defaultValue);
   }
 };

@@ -8,11 +8,11 @@
 // Export all core functionality
 export * from './index';
 
-// Export additional utilities
-export * from './core/utils';
-
-// Export all models
-export * from './core/models';
+// Export additional core modules not covered by the main index
+export * from './core/common';
+export * from './core/dom';
+export * from './core/json';
+export * from './core/xml';
 
 // Export all converters
 export * from './converters';
@@ -22,8 +22,5 @@ export * from './transforms';
 
 // Ensure all extensions are registered
 import './extensions';
-
-// Export config
-export * from './core/config';
 
 // Note: Any additional extensions should be added here

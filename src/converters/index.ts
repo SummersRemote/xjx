@@ -19,9 +19,9 @@
   
   // Default converter implementations
   export { DefaultXmlToXNodeConverter } from './xml-to-xnode-converter';
-  export { DefaultJsonToXNodeConverter } from './json-to-xnode-converter';
+  export { DefaultJsonToXNodeConverter } from './xjx-json-to-xnode-converter';
   export { DefaultXNodeToXmlConverter } from './xnode-to-xml-converter';
-  export { DefaultXNodeToJsonConverter } from './xnode-to-json-converter';
+  export { DefaultXNodeToJsonConverter } from './xnode-to-xjx-json-converter';
   export { DefaultXNodeTransformer } from './xnode-transformer';
   export { DefaultStandardJsonToXNodeConverter } from './std-json-to-xnode-converter';
   export { DefaultXNodeToStandardJsonConverter } from './xnode-to-std-json-converter';

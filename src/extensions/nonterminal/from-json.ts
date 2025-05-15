@@ -9,7 +9,7 @@
  * - fromObjJson: Enforces standard object parsing with direct conversion
  */
 import { XJX } from "../../XJX";
-import { DefaultJsonToXNodeConverter } from "../../converters/json-to-xnode-converter";
+import { DefaultJsonToXNodeConverter } from "../../converters/xjx-json-to-xnode-converter";
 import { DefaultStandardJsonToXNodeConverter } from "../../converters/std-json-to-xnode-converter";
 import { FORMATS } from "../../core/transform";
 import { logger, validate, ParseError, handleError, ErrorType } from "../../core/error";

@@ -2,7 +2,7 @@
  * Core extension that implements the toJson method
  */
 import { XJX } from "../../XJX";
-import { DefaultXNodeToJsonConverter } from "../../converters/xnode-to-json-converter";
+import { DefaultXNodeToJsonConverter } from "../../converters/xnode-to-xjx-json-converter";
 import { DefaultXNodeTransformer } from "../../converters/xnode-transformer";
 import { FORMATS } from "../../core/transform";
 import { XNode } from "../../core/xnode";

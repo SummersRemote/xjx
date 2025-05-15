@@ -21,3 +21,4 @@
   export { DefaultXNodeToXmlConverter } from './xnode-to-xml-converter';
   export { DefaultXNodeToJsonConverter } from './xnode-to-json-converter';
   export { DefaultXNodeTransformer } from './xnode-transformer';
+  export { DefaultStandardJsonToXNodeConverter } from './std-json-to-xnode-converter';

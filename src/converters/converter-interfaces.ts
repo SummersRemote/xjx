@@ -62,6 +62,11 @@ export interface XNodeToXmlConverter extends Converter<XNode, string> {
  * XNode to JSON object converter
  */
 export interface XNodeToJsonConverter extends Converter<XNode, Record<string, any>> {}
+
+/**
+ * XNode to Standard JSON converter
+ */
+export interface XNodeToStandardJsonConverter extends Converter<XNode, any> {}
   
 /**
  * XNode transformer

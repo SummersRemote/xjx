@@ -12,7 +12,9 @@
     JsonToXNodeConverter,
     XNodeToXmlConverter,
     XNodeToJsonConverter,
-    XNodeTransformer
+    XNodeTransformer,
+    StandardJsonToXNodeConverter,
+    XNodeToStandardJsonConverter
   } from './converter-interfaces';
   
   // Default converter implementations
@@ -22,3 +24,4 @@
   export { DefaultXNodeToJsonConverter } from './xnode-to-json-converter';
   export { DefaultXNodeTransformer } from './xnode-transformer';
   export { DefaultStandardJsonToXNodeConverter } from './std-json-to-xnode-converter';
+  export { DefaultXNodeToStandardJsonConverter } from './xnode-to-std-json-converter';

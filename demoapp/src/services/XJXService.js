@@ -15,7 +15,9 @@ class XJXService {
    * @returns {Object} Default configuration
    */
   getDefaultConfig() {
-    return XJX.getConfig();
+    // Create a new instance to get default config
+    const xjx = new XJX();
+    return xjx.config;
   }
   
   /**
@@ -26,7 +28,11 @@ class XJXService {
    * @returns {Object} Resulting JSON
    */
   convertXmlToJson(xml, config, transforms) {
-    let builder = XJX.fromXml(xml);
+    // Create a new instance for each conversion
+    const xjx = new XJX();
+    
+    // Start the conversion chain
+    let builder = xjx.fromXml(xml);
     
     // Apply config if provided
     if (config) {
@@ -60,7 +66,11 @@ class XJXService {
    * @returns {string} Resulting XML
    */
   convertJsonToXml(json, config, transforms) {
-    let builder = XJX.fromJson(json);
+    // Create a new instance for each conversion
+    const xjx = new XJX();
+    
+    // Start the conversion chain
+    let builder = xjx.fromJson(json);
     
     // Apply config if provided
     if (config) {
@@ -107,7 +117,9 @@ class XJXService {
    * @returns {string} Fluent API code
    */
   generateFluentAPI(fromType, content, config, transforms) {
-    let code = `XJX.from${fromType === 'xml' ? 'Xml' : 'Json'}(${fromType === 'xml' ? 'xml' : 'json'})`;
+    // Generate code that uses the instance-based approach
+    let code = `const xjx = new XJX();\n`;
+    code += `xjx.from${fromType === 'xml' ? 'Xml' : 'Json'}(${fromType === 'xml' ? 'xml' : 'json'})`;
     
     if (config) {
       code += `\n  .withConfig(${JSON.stringify(config, null, 2)})`;

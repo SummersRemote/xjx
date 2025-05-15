@@ -10,11 +10,12 @@ export const useEditorStore = defineStore('editor', {
     json: {},
     activeEditor: 'xml', // 'xml' or 'json'
     isProcessing: false,
-    error: null
+    error: null,
+    jsonFormat: null // 'xjx' or 'standard'
   }),
   actions: {
     /**
-     * Convert XML to JSON
+     * Convert XML to JSON using XJX format
      */
     async convertXmlToJson() {
       const configStore = useConfigStore();
@@ -32,6 +33,7 @@ export const useEditorStore = defineStore('editor', {
         
         this.json = result;
         this.activeEditor = 'json';
+        this.jsonFormat = 'xjx';
       } catch (err) {
         this.error = err.message;
         console.error('XML to JSON conversion error:', err);
@@ -41,7 +43,36 @@ export const useEditorStore = defineStore('editor', {
     },
     
     /**
+     * Convert XML to standard JSON
+     */
+    async convertXmlToStandardJson() {
+      const configStore = useConfigStore();
+      const transformStore = useTransformStore();
+      
+      this.isProcessing = true;
+      this.error = null;
+      
+      try {
+        const result = XJXService.convertXmlToStandardJson(
+          this.xml, 
+          configStore.config, 
+          transformStore.transforms
+        );
+        
+        this.json = result;
+        this.activeEditor = 'json';
+        this.jsonFormat = 'standard';
+      } catch (err) {
+        this.error = err.message;
+        console.error('XML to standard JSON conversion error:', err);
+      } finally {
+        this.isProcessing = false;
+      }
+    },
+    
+    /**
      * Convert JSON to XML
+     * This method uses autodetection to handle both XJX and standard JSON formats
      */
     async convertJsonToXml() {
       const configStore = useConfigStore();
@@ -67,6 +98,7 @@ export const useEditorStore = defineStore('editor', {
         
         this.xml = result;
         this.activeEditor = 'xml';
+        this.jsonFormat = null; // Clear format when converting to XML
       } catch (err) {
         this.error = err.message;
         console.error('JSON to XML conversion error:', err);
@@ -83,6 +115,7 @@ export const useEditorStore = defineStore('editor', {
       this.json = {};
       this.activeEditor = 'xml';
       this.error = null;
+      this.jsonFormat = null;
     },
     
     /**
@@ -99,6 +132,8 @@ export const useEditorStore = defineStore('editor', {
      */
     updateJson(value) {
       this.json = value;
+      // When user updates JSON manually, we don't know the format
+      this.jsonFormat = null;
     }
   }
 });

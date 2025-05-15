@@ -8,6 +8,7 @@
 // Terminal extensions - always return a value
 import './terminal/to-xml.js';
 import './terminal/to-json.js';
+import './terminal/to-std-json.js';
 import './terminal/to-json-string.js';
 
 // Non-terminal extensions - always return the XJX instance for chaining

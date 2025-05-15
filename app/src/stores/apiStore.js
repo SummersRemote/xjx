@@ -8,7 +8,8 @@ import { useEditorStore } from './editorStore';
 export const useAPIStore = defineStore('api', {
   state: () => ({
     fluent: '',
-    lastDirection: 'xml' // Default direction (xml to json)
+    lastDirection: 'xml', // Default direction (xml to json)
+    jsonFormat: 'xjx'     // Default JSON format (xjx or standard)
   }),
   actions: {
     /**
@@ -27,7 +28,8 @@ export const useAPIStore = defineStore('api', {
         fromType,
         content,
         configStore.config,
-        transformStore.transforms
+        transformStore.transforms,
+        editorStore.jsonFormat // Pass the JSON format from the editor store
       );
     },
     
@@ -37,6 +39,14 @@ export const useAPIStore = defineStore('api', {
      */
     updateLastDirection(direction) {
       this.lastDirection = direction;
+    },
+    
+    /**
+     * Update the JSON format used (xjx or standard)
+     * @param {string} format - Format ('xjx' or 'standard')
+     */
+    updateJsonFormat(format) {
+      this.jsonFormat = format;
     }
   }
 });

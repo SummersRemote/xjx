@@ -15,6 +15,8 @@ import './nonterminal/from-xml.js';
 import './nonterminal/from-json.js';
 import './nonterminal/with-config.js';
 import './nonterminal/with-transforms.js';
+import './nonterminal/set-log-level.js';
+
 
 // Export a marker to make side effects explicit
 export const __EXTENSION_REGISTRY__ = true;

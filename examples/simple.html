@@ -1,129 +1,133 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>XJX Simple Examples</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 1000px;
-            margin: 0 auto;
-            padding: 20px;
-            line-height: 1.6;
-        }
-        h1, h2 {
-            color: #333;
-        }
-        pre {
-            background-color: #f5f5f5;
-            padding: 15px;
-            border-radius: 5px;
-            overflow-x: auto;
-            white-space: pre-wrap;
-        }
-        .example {
-            margin-bottom: 30px;
-            padding: 20px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-        }
-        .input, .output {
-            margin-top: 10px;
-        }
-        .label {
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        button {
-            padding: 8px 15px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            margin-top: 10px;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 20px;
+        line-height: 1.6;
+      }
+      h1,
+      h2 {
+        color: #333;
+      }
+      pre {
+        background-color: #f5f5f5;
+        padding: 15px;
+        border-radius: 5px;
+        overflow-x: auto;
+        white-space: pre-wrap;
+      }
+      .example {
+        margin-bottom: 30px;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+      }
+      .input,
+      .output {
+        margin-top: 10px;
+      }
+      .label {
+        font-weight: bold;
+        margin-bottom: 5px;
+      }
+      button {
+        padding: 8px 15px;
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        margin-top: 10px;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <h1>XJX Simple Examples</h1>
-    
+
     <div class="example">
-        <h2>1. Simple Round-Trip Conversion</h2>
-        <p>Convert XML to JSON and back again</p>
-        
-        <div class="input">
-            <div class="label">Input XML:</div>
-            <pre id="roundtrip-input"></pre>
-        </div>
-        
-        <button id="roundtrip-button">Run Conversion</button>
-        
-        <div class="output">
-            <div class="label">JSON Result:</div>
-            <pre id="roundtrip-json"></pre>
-            
-            <div class="label">XML Result (after round-trip):</div>
-            <pre id="roundtrip-xml"></pre>
-        </div>
+      <h2>1. Simple Round-Trip Conversion</h2>
+      <p>Convert XML to JSON and back again</p>
+
+      <div class="input">
+        <div class="label">Input XML:</div>
+        <pre id="roundtrip-input"></pre>
+      </div>
+
+      <button id="roundtrip-button">Run Conversion</button>
+
+      <div class="output">
+        <div class="label">JSON Result:</div>
+        <pre id="roundtrip-json"></pre>
+
+        <div class="label">XML Result (after round-trip):</div>
+        <pre id="roundtrip-xml"></pre>
+      </div>
     </div>
-    
+
     <div class="example">
-        <h2>2. Boolean and Number Transformers</h2>
-        <p>Apply data type transformations to XML values</p>
-        
-        <div class="input">
-            <div class="label">Input XML:</div>
-            <pre id="transform-input"></pre>
-        </div>
-        
-        <button id="transform-button">Apply Transformers</button>
-        
-        <div class="output">
-            <div class="label">JSON with Transformations:</div>
-            <pre id="transform-json"></pre>
-            
-            <div class="label">XML After Type Transformations:</div>
-            <pre id="transform-xml"></pre>
-        </div>
+      <h2>2. Boolean and Number Transformers</h2>
+      <p>Apply data type transformations to XML values</p>
+
+      <div class="input">
+        <div class="label">Input XML:</div>
+        <pre id="transform-input"></pre>
+      </div>
+
+      <button id="transform-button">Apply Transformers</button>
+
+      <div class="output">
+        <div class="label">JSON with Transformations:</div>
+        <pre id="transform-json"></pre>
+
+        <div class="label">XML After Type Transformations:</div>
+        <pre id="transform-xml"></pre>
+      </div>
     </div>
-    
+
     <div class="example">
-        <h2>3. Custom Transformer</h2>
-        <p>Create and apply a custom text capitalize transformer</p>
-        
-        <div class="input">
-            <div class="label">Input XML:</div>
-            <pre id="custom-input"></pre>
-        </div>
-        
-        <button id="custom-button">Apply Custom Transformer</button>
-        
-        <div class="output">
-            <div class="label">Result with Custom Transformer:</div>
-            <pre id="custom-output"></pre>
-        </div>
+      <h2>3. Custom Transformer</h2>
+      <p>Create and apply a custom text capitalize transformer</p>
+
+      <div class="input">
+        <div class="label">Input XML:</div>
+        <pre id="custom-input"></pre>
+      </div>
+
+      <button id="custom-button">Apply Custom Transformer</button>
+
+      <div class="output">
+        <div class="label">Result with Custom Transformer:</div>
+        <pre id="custom-output"></pre>
+      </div>
     </div>
 
     <script type="module">
-        import { 
-            XJX, 
-            BooleanTransform, 
-            NumberTransform,
-            TransformTarget, 
-            createTransformResult 
-        } from '../dist/esm/index.js';
+      import {
+        XJX,
+        BooleanTransform,
+        NumberTransform,
+        TransformTarget,
+        createTransformResult,
+        LogLevel,
+      } from "../dist/esm/index.js";
 
-const xjx = new XJX();
+      const xjx = new XJX();
 
-        // Example 1: Simple Round-Trip Conversion
-        document.getElementById('roundtrip-input').textContent = 
-            `<users xmlns="urn:bar" >
+      // Example 1: Simple Round-Trip Conversion
+      document.getElementById(
+        "roundtrip-input"
+      ).textContent = `<users xmlns="urn:bar" >
   <user id="1" xmlns:foo="urn:foo">
     <foo:name>John Doe</foo:name>
     <email>john@example.com</email>
@@ -134,21 +138,26 @@ const xjx = new XJX();
   </user>
 </users>`;
 
-        document.getElementById('roundtrip-button').addEventListener('click', () => {
-            const xml = document.getElementById('roundtrip-input').textContent;
-            
-            // XML to JSON
-            const json = xjx.fromXml(xml).toJson();
-            document.getElementById('roundtrip-json').textContent = JSON.stringify(json, null, 2);
-            
-            // JSON back to XML
-            const newXml = xjx.fromJson(json).withConfig({preserveNamespaces:false}).toXml();
-            document.getElementById('roundtrip-xml').textContent = newXml;
+      document
+        .getElementById("roundtrip-button")
+        .addEventListener("click", () => {
+          const xml = document.getElementById("roundtrip-input").textContent;
+
+          // XML to JSON
+          const json = xjx.fromXml(xml).toJson();
+          document.getElementById("roundtrip-json").textContent =
+            JSON.stringify(json, null, 2);
+
+          // JSON back to XML
+          const newXml = xjx
+            .fromJson(json)
+            .withConfig({ preserveNamespaces: false })
+            .toXml();
+          document.getElementById("roundtrip-xml").textContent = newXml;
         });
 
-        // Example 2: Boolean and Number Transformers
-        document.getElementById('transform-input').textContent = 
-            `<data>
+      // Example 2: Boolean and Number Transformers
+      document.getElementById("transform-input").textContent = `<data>
   <active>true</active>
   <enabled>yes</enabled>
   <disabled>false</disabled>
@@ -157,76 +166,81 @@ const xjx = new XJX();
   <percentage>75%</percentage>
 </data>`;
 
-        document.getElementById('transform-button').addEventListener('click', () => {
-            const xml = document.getElementById('transform-input').textContent;
-            
-            // Apply Boolean and Number transformers
-            const json = xjx.fromXml(xml)
-                .withTransforms(
-                    new BooleanTransform({
-                        trueValues: ['true', 'yes', 'on'],
-                        falseValues: ['false', 'no', 'off']
-                    }),
-                    new NumberTransform()
-                )
-                .toJson();
-            
-            document.getElementById('transform-json').textContent = JSON.stringify(json, null, 2);
-            
-            // Convert back to XML
-            const newXml = xjx.fromJson(json)
-                .withConfig({
-                    outputOptions: {
-                        prettyPrint: true,
-                        indent: 2
-                    }
-                })
-                .toXml();
-            
-            document.getElementById('transform-xml').textContent = newXml;
+      document
+        .getElementById("transform-button")
+        .addEventListener("click", () => {
+          const xml = document.getElementById("transform-input").textContent;
+
+          // Apply Boolean and Number transformers
+          const json = xjx
+            .fromXml(xml)
+            .withTransforms(
+              new BooleanTransform({
+                trueValues: ["true", "yes", "on"],
+                falseValues: ["false", "no", "off"],
+              }),
+              new NumberTransform()
+            )
+            .toJson();
+
+          document.getElementById("transform-json").textContent =
+            JSON.stringify(json, null, 2);
+
+          // Convert back to XML
+          const newXml = xjx
+            .fromJson(json)
+            .withConfig({
+              outputOptions: {
+                prettyPrint: true,
+                indent: 2,
+              },
+            })
+            .toXml();
+
+          document.getElementById("transform-xml").textContent = newXml;
         });
 
-        // Example 3: Custom Transformer (Text Capitalizer)
-        document.getElementById('custom-input').textContent = 
-            `<article>
+      // Example 3: Custom Transformer (Text Capitalizer)
+      document.getElementById("custom-input").textContent = `<article>
   <title>Welcome to XJX</title>
   <paragraph>This is a simple example of custom transformers.</paragraph>
   <paragraph>You can create your own transformers for special use cases.</paragraph>
 </article>`;
 
-        // Define a custom transformer that capitalizes text
-        class CapitalizeTransform {
-            // Target text values
-            targets = [TransformTarget.Value];
-            
-            transform(value, context) {
-                // Only transform string values
-                if (typeof value !== 'string') {
-                    return createTransformResult(value);
-                }
-                
-                // Capitalize the text
-                return createTransformResult(value.toUpperCase());
-            }
+      // Define a custom transformer that capitalizes text
+      class CapitalizeTransform {
+        // Target text values
+        targets = [TransformTarget.Value];
+
+        transform(value, context) {
+          // Only transform string values
+          if (typeof value !== "string") {
+            return createTransformResult(value);
+          }
+
+          // Capitalize the text
+          return createTransformResult(value.toUpperCase());
         }
+      }
 
-        document.getElementById('custom-button').addEventListener('click', () => {
-            const xml = document.getElementById('custom-input').textContent;
-            
-            // Apply custom transformer
-            const result = xjx.fromXml(xml)
-                .withTransforms(new CapitalizeTransform())
-                .toXml();
-            
-            document.getElementById('custom-output').textContent = result;
-        });
+      document.getElementById("custom-button").addEventListener("click", () => {
+        const xml = document.getElementById("custom-input").textContent;
 
-        // Auto-run all examples on page load
-        window.addEventListener('load', () => {
-            document.getElementById('roundtrip-button').click();
-            document.getElementById('transform-button').click();
-            document.getElementById('custom-button').click();
-        });
+        // Apply custom transformer
+        const result = xjx
+          .fromXml(xml)
+          .withTransforms(new CapitalizeTransform())
+          .toXml();
+
+        document.getElementById("custom-output").textContent = result;
+      });
+
+      // Auto-run all examples on page load
+      window.addEventListener("load", () => {
+        document.getElementById("roundtrip-button").click();
+        document.getElementById("transform-button").click();
+        document.getElementById("custom-button").click();
+      });
     </script>
-</body>
+  </body>
 </html>

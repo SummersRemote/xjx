@@ -42,6 +42,12 @@ export interface NumberTransformOptions {
    * Will be removed before parsing
    */
   thousandsSeparator?: string;
+
+  /**
+   * Optional format this transform applies to
+   * If provided, the transform will only be applied for this format
+   */
+  format?: string;
 }
 
 /**
@@ -53,7 +59,7 @@ export interface NumberTransformOptions {
  *    .withTransforms(new NumberTransform({
  *      integers: true,
  *      decimals: true,
- *      strictParsing: true
+ *      scientific: true
  *    }))
  *    .toJson();
  * ```
@@ -67,6 +73,7 @@ export class NumberTransform implements Transform {
   private scientific: boolean;
   private decimalSeparator: string;
   private thousandsSeparator: string;
+  private format?: string;
   
   /**
    * Create a new number transformer
@@ -78,6 +85,7 @@ export class NumberTransform implements Transform {
     this.scientific = options.scientific !== false; // Default to true
     this.decimalSeparator = options.decimalSeparator || '.';
     this.thousandsSeparator = options.thousandsSeparator || ',';
+    this.format = options.format;
   }
   
   /**
@@ -93,6 +101,11 @@ export class NumberTransform implements Transform {
    */
   transform(value: any, context: TransformContext): TransformResult<any> {
     try {
+      // If format-specific and doesn't match current format, skip
+      if (this.format !== undefined && this.format !== context.targetFormat) {
+        return createTransformResult(value);
+      }
+      
       // Check if we're transforming to JSON or XML
       if (context.targetFormat === FORMATS.JSON) {
         // To JSON: Convert strings to numbers
@@ -129,20 +142,20 @@ export class NumberTransform implements Transform {
         return createTransformResult(value);
       }
       
-      // Try to use Common for simple cases
-      if (this.isDefaultConfiguration()) {
-        // Use the common utility function with default settings
-        // const numValue = Common.toNumber(value);
-
+      // Skip non-string values
+      if (typeof value !== 'string') {
+        return createTransformResult(value);
+      }
       
-        const trimmed = value.trim();      
+      // Try simple conversion first
+      if (this.isDefaultConfiguration()) {
+        const trimmed = value.trim();
         const parsed = Number(trimmed);
-        return isNaN(parsed) ? this.transformComplex(value) : createTransformResult(value);
         
-        // Only transform if it was actually a number
-        // if (typeof numValue === 'number' && !isNaN(numValue)) {
-        //     return createTransformResult(numValue);
-        // }
+        // FIXED LINE: now returns the parsed number, not the original value
+        if (!isNaN(parsed)) {
+          return createTransformResult(parsed);
+        }
       }
       
       // For more complex cases or custom options, use the full implementation

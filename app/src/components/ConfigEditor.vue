@@ -165,6 +165,113 @@
             </v-expansion-panel-text>
           </v-expansion-panel>
           
+          <!-- Standard JSON Options -->
+          <v-expansion-panel>
+            <v-expansion-panel-title>Standard JSON Options</v-expansion-panel-title>
+            <v-expansion-panel-text>
+              <v-row dense>
+                <v-col cols="12" sm="6">
+                  <v-text-field
+                    v-model="localConfig.arrayItemName"
+                    label="Array Item Name"
+                    hint="Default name for array items when converting from standard JSON to XML"
+                    persistent-hint
+                    hide-details="auto"
+                    density="compact"
+                    class="mb-4"
+                    @update:model-value="updateConfig"
+                  ></v-text-field>
+                </v-col>
+              </v-row>
+              
+              <v-divider class="my-3"></v-divider>
+              <div class="text-subtitle-2 mb-2">Standard JSON Defaults</div>
+              
+              <v-row dense>
+                <v-col cols="12" sm="6">
+                  <v-select
+                    v-model="localConfig.standardJsonDefaults.attributeHandling"
+                    :items="attributeHandlingOptions"
+                    label="Attribute Handling"
+                    hint="How to handle XML attributes in standard JSON"
+                    persistent-hint
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-select>
+                </v-col>
+                
+                <v-col cols="12" sm="6">
+                  <v-text-field
+                    v-model="localConfig.standardJsonDefaults.attributePrefix"
+                    label="Attribute Prefix"
+                    hint="Prefix to use for attributes if handling is 'prefix'"
+                    persistent-hint
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-text-field>
+                </v-col>
+                
+                <v-col cols="12" sm="6">
+                  <v-text-field
+                    v-model="localConfig.standardJsonDefaults.attributePropertyName"
+                    label="Attribute Property Name"
+                    hint="Property name to use for attributes if handling is 'property'"
+                    persistent-hint
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-text-field>
+                </v-col>
+                
+                <v-col cols="12" sm="6">
+                  <v-text-field
+                    v-model="localConfig.standardJsonDefaults.textPropertyName"
+                    label="Text Property Name"
+                    hint="Property to use for element text content when there are attributes or children"
+                    persistent-hint
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-text-field>
+                </v-col>
+                
+                <v-col cols="12" sm="6">
+                  <v-switch
+                    v-model="localConfig.standardJsonDefaults.alwaysCreateArrays"
+                    label="Always Create Arrays"
+                    hint="Always group elements with the same name into arrays"
+                    persistent-hint
+                    hide-details="auto"
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-switch>
+                </v-col>
+                
+                <v-col cols="12" sm="6">
+                  <v-switch
+                    v-model="localConfig.standardJsonDefaults.preserveMixedContent"
+                    label="Preserve Mixed Content"
+                    hint="Preserve text nodes in elements with both text and child elements"
+                    persistent-hint
+                    hide-details="auto"
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-switch>
+                </v-col>
+                
+                <v-col cols="12" sm="6">
+                  <v-switch
+                    v-model="localConfig.standardJsonDefaults.emptyElementsAsNull"
+                    label="Empty Elements As Null"
+                    hint="Convert empty elements to null instead of empty objects"
+                    persistent-hint
+                    hide-details="auto"
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-switch>
+                </v-col>
+              </v-row>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+          
           <!-- Property Names -->
           <v-expansion-panel>
             <v-expansion-panel-title>Property Names</v-expansion-panel-title>
@@ -307,9 +414,34 @@ const configStore = useConfigStore();
 const apiStore = useAPIStore();
 const { config } = storeToRefs(configStore);
 
+// Attribute handling options
+const attributeHandlingOptions = [
+  { title: 'Ignore', value: 'ignore' },
+  { title: 'Merge', value: 'merge' },
+  { title: 'Prefix', value: 'prefix' },
+  { title: 'Property', value: 'property' }
+];
+
 // Create a deep copy of the config for local editing
-// FIXED: Access value property of the ref object
 const localConfig = reactive(JSON.parse(JSON.stringify(config.value)));
+
+// Initialize standardJsonDefaults if it doesn't exist
+if (!localConfig.standardJsonDefaults) {
+  localConfig.standardJsonDefaults = {
+    attributeHandling: 'ignore',
+    attributePrefix: '@',
+    attributePropertyName: '_attrs',
+    textPropertyName: '_text',
+    alwaysCreateArrays: false,
+    preserveMixedContent: true,
+    emptyElementsAsNull: false
+  };
+}
+
+// Initialize arrayItemName if it doesn't exist
+if (!localConfig.arrayItemName) {
+  localConfig.arrayItemName = 'item';
+}
 
 // Update the store when the local config changes
 const updateConfig = () => {
@@ -320,7 +452,6 @@ const updateConfig = () => {
 // Reset config to default
 const resetConfig = () => {
   configStore.resetToDefault();
-  // FIXED: Access value property of the ref object
   Object.assign(localConfig, JSON.parse(JSON.stringify(config.value)));
   apiStore.updateFluentAPI();
 };
@@ -332,7 +463,6 @@ const copyConfig = () => {
 };
 
 // Watch for external config changes
-// FIXED: No need to access value here as watch automatically unwraps refs
 watch(config, (newConfig) => {
   Object.assign(localConfig, JSON.parse(JSON.stringify(newConfig)));
 }, { deep: true });

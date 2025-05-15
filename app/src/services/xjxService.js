@@ -17,11 +17,31 @@ class XJXService {
   getDefaultConfig() {
     // Create an instance to extract default config
     const xjx = new XJX();
-    return xjx.config;
+    
+    // Ensure standardJsonDefaults is initialized
+    const config = xjx.config;
+    if (!config.standardJsonDefaults) {
+      config.standardJsonDefaults = {
+        attributeHandling: 'ignore',
+        attributePrefix: '@',
+        attributePropertyName: '_attrs',
+        textPropertyName: '_text',
+        alwaysCreateArrays: false,
+        preserveMixedContent: true,
+        emptyElementsAsNull: false
+      };
+    }
+    
+    // Ensure arrayItemName is initialized
+    if (!config.arrayItemName) {
+      config.arrayItemName = 'item';
+    }
+    
+    return config;
   }
   
   /**
-   * Convert XML to JSON
+   * Convert XML to JSON (XJX format)
    * @param {string} xml - XML string
    * @param {Object} config - Configuration object
    * @param {Array} transforms - Array of transform objects
@@ -41,14 +61,7 @@ class XJXService {
     
     // Apply transforms if provided
     if (transforms && transforms.length > 0) {
-      const transformInstances = transforms.map(t => {
-        const TransformerClass = transformerMap[t.type];
-        if (!TransformerClass) {
-          console.error(`Transformer class not found for type: ${t.type}`);
-          return null;
-        }
-        return new TransformerClass(t.options);
-      }).filter(Boolean); // Remove any null entries
+      const transformInstances = this._createTransformers(transforms);
       
       if (transformInstances.length > 0) {
         builder = builder.withTransforms(...transformInstances);
@@ -59,7 +72,40 @@ class XJXService {
   }
   
   /**
+   * Convert XML to standard JSON
+   * @param {string} xml - XML string
+   * @param {Object} config - Configuration object
+   * @param {Array} transforms - Array of transform objects
+   * @returns {Object} Resulting standard JSON
+   */
+  convertXmlToStandardJson(xml, config, transforms) {
+    // Create a new instance for each conversion
+    const xjx = new XJX();
+    
+    // Start the conversion chain with fluent API
+    let builder = xjx.fromXml(xml);
+    
+    // Apply config if provided
+    if (config) {
+      builder = builder.withConfig(config);
+    }
+    
+    // Apply transforms if provided
+    if (transforms && transforms.length > 0) {
+      const transformInstances = this._createTransformers(transforms);
+      
+      if (transformInstances.length > 0) {
+        builder = builder.withTransforms(...transformInstances);
+      }
+    }
+    
+    // Use toStandardJson extension method instead of toJson
+    return builder.toStandardJson();
+  }
+  
+  /**
    * Convert JSON to XML
+   * Auto-detects whether input is XJX JSON or standard JSON
    * @param {Object} json - JSON object
    * @param {Object} config - Configuration object
    * @param {Array} transforms - Array of transform objects
@@ -69,7 +115,7 @@ class XJXService {
     // Create a new instance for each conversion
     const xjx = new XJX();
     
-    // Start the conversion chain
+    // Start the conversion chain - fromJson will auto-detect format
     let builder = xjx.fromJson(json);
     
     // Apply config if provided
@@ -79,14 +125,7 @@ class XJXService {
     
     // Apply transforms if provided
     if (transforms && transforms.length > 0) {
-      const transformInstances = transforms.map(t => {
-        const TransformerClass = transformerMap[t.type];
-        if (!TransformerClass) {
-          console.error(`Transformer class not found for type: ${t.type}`);
-          return null;
-        }
-        return new TransformerClass(t.options);
-      }).filter(Boolean); // Remove any null entries
+      const transformInstances = this._createTransformers(transforms);
       
       if (transformInstances.length > 0) {
         builder = builder.withTransforms(...transformInstances);
@@ -114,9 +153,10 @@ class XJXService {
    * @param {string|Object} content - Current content
    * @param {Object} config - Configuration object
    * @param {Array} transforms - Transform pipeline
+   * @param {string} jsonFormat - JSON format ('xjx' or 'standard')
    * @returns {string} Fluent API code
    */
-  generateFluentAPI(fromType, content, config, transforms) {
+  generateFluentAPI(fromType, content, config, transforms, jsonFormat = 'xjx') {
     // Use the fluent API in the examples
     let code = `import { XJX } from 'xjx';\n\n`;
     code += `const xjx = new XJX();\n`;
@@ -136,9 +176,34 @@ class XJXService {
       code += `\n  .withTransforms(\n    ${transformsStr}\n  )`;
     }
     
-    code += `\n  .to${fromType === 'xml' ? 'Json' : 'Xml'}();`;
+    // Determine the appropriate terminal method based on direction and format
+    let terminalMethod;
+    if (fromType === 'xml') {
+      terminalMethod = jsonFormat === 'standard' ? 'toStandardJson' : 'toJson';
+    } else {
+      terminalMethod = 'toXml';
+    }
+    
+    code += `\n  .${terminalMethod}();`;
     
     return code;
+  }
+  
+  /**
+   * Create transformer instances from transformer configurations
+   * @param {Array} transforms - Array of transform objects
+   * @returns {Array} Array of transformer instances
+   * @private
+   */
+  _createTransformers(transforms) {
+    return transforms.map(t => {
+      const TransformerClass = transformerMap[t.type];
+      if (!TransformerClass) {
+        console.error(`Transformer class not found for type: ${t.type}`);
+        return null;
+      }
+      return new TransformerClass(t.options);
+    }).filter(Boolean); // Remove any null entries
   }
 }
 

@@ -3,7 +3,7 @@
  * 
  * Converts JSON objects to XNode representation using the new static utilities.
  */
-import { JsonToXNodeConverter } from './converter-interfaces';
+import { XjxJsonToXNodeConverter } from './converter-interfaces';
 import { Config, Configuration } from '../core/config';
 import { NodeType } from '../core/dom';
 import { logger, validate, ParseError, handleError, ErrorType } from '../core/error';
@@ -13,7 +13,7 @@ import { XNode } from '../core/xnode';
 /**
  * Converts JSON objects to XNode representation
  */
-export class DefaultJsonToXNodeConverter implements JsonToXNodeConverter {
+export class DefaultXjxJsonToXNodeConverter implements XjxJsonToXNodeConverter {
   private config: Configuration;
   private namespaceMap: Record<string, string> = {};
 

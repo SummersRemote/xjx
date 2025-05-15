@@ -9,7 +9,7 @@
   export {
     Converter,
     XmlToXNodeConverter,
-    JsonToXNodeConverter,
+    XjxJsonToXNodeConverter as JsonToXNodeConverter,
     XNodeToXmlConverter,
     XNodeToJsonConverter,
     XNodeTransformer,
@@ -19,7 +19,7 @@
   
   // Default converter implementations
   export { DefaultXmlToXNodeConverter } from './xml-to-xnode-converter';
-  export { DefaultJsonToXNodeConverter } from './xjx-json-to-xnode-converter';
+  export { DefaultXjxJsonToXNodeConverter as DefaultJsonToXNodeConverter } from './xjx-json-to-xnode-converter';
   export { DefaultXNodeToXmlConverter } from './xnode-to-xml-converter';
   export { DefaultXNodeToJsonConverter } from './xnode-to-xjx-json-converter';
   export { DefaultXNodeTransformer } from './xnode-transformer';

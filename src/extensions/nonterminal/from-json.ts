@@ -9,7 +9,7 @@
  * - fromObjJson: Enforces standard object parsing with direct conversion
  */
 import { XJX } from "../../XJX";
-import { DefaultJsonToXNodeConverter } from "../../converters/xjx-json-to-xnode-converter";
+import { DefaultXjxJsonToXNodeConverter } from "../../converters/xjx-json-to-xnode-converter";
 import { DefaultStandardJsonToXNodeConverter } from "../../converters/std-json-to-xnode-converter";
 import { FORMATS } from "../../core/transform";
 import { logger, validate, ParseError, handleError, ErrorType } from "../../core/error";
@@ -147,7 +147,7 @@ function fromXjxJson(this: XJX, source: Record<string, any>): void {
     });
     
     // Convert XJX to XNode using the appropriate converter
-    const converter = new DefaultJsonToXNodeConverter(this.config);
+    const converter = new DefaultXjxJsonToXNodeConverter(this.config);
     
     try {
       this.xnode = converter.convert(source);

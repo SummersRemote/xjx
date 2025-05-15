@@ -2,7 +2,7 @@
  * Configuration system for the XJX library
  */
 import { Common } from './common';
-import { logger, validate, ValidationError, ConfigurationError, handleError, ErrorType } from './error';
+import { logger, validate, ConfigurationError, handleError, ErrorType } from './error';
 
 /**
  * Configuration interface for the library

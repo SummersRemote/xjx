@@ -1,42 +1,20 @@
 /**
- * Extension Registry
+ * XJX Extension Registry
  * 
- * This module imports all core extensions to ensure they're registered.
+ * This module imports and registers all built-in extensions.
+ * For ESM compatibility, we use explicit file extensions.
  */
 
-// Import all core extensions
-// Terminal extensions
-import './terminal/to-xml';
-import './terminal/to-json';
-import './terminal/to-json-string';
+// Terminal extensions - always return a value
+import './terminal/to-xml.js';
+import './terminal/to-json.js';
+import './terminal/to-json-string.js';
 
-// Non-terminal extensions
-import './nonterminal/from-xml';
-import './nonterminal/from-json';
-import './nonterminal/with-config';
-import './nonterminal/with-transforms';
+// Non-terminal extensions - always return the XJX instance for chaining
+import './nonterminal/from-xml.js';
+import './nonterminal/from-json.js';
+import './nonterminal/with-config.js';
+import './nonterminal/with-transforms.js';
 
-// Export types only for developer experience
-export interface XJX {
-  // Instance properties
-  xnode: any | null;
-  transforms: any[];
-  config: any;
-  sourceFormat: string | null;
-  
-  // Utility methods
-  validateSource(): void;
-  deepClone<T>(obj: T): T;
-  deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T;
-  
-  // Terminal extensions
-  toXml(): string;
-  toJson(): Record<string, any>;
-  toJsonString(indent?: number): string;
-  
-  // Non-terminal extensions
-  fromXml(source: string): XJX;
-  fromJson(json: Record<string, any>): XJX;
-  withConfig(config: any): XJX;
-  withTransforms(...transforms: any[]): XJX;
-}
+// Export a marker to make side effects explicit
+export const __EXTENSION_REGISTRY__ = true;

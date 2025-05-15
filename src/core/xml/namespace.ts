@@ -1,7 +1,7 @@
 /**
  * XML namespace management utilities
  */
-import { logger, validate, ParseError, ValidationError, handleError, ErrorType } from '../error';
+import { logger, validate, handleError, ErrorType } from '../error';
 import { XNode } from '../xnode';
 
 /**

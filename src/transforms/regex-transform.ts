@@ -11,7 +11,7 @@ import {
   FormatId,
   createTransformResult,
 } from "../core/transform";
-import { logger, validate, ValidationError, TransformError, handleError, ErrorType } from "../core/error";
+import { logger, validate, ValidationError, handleError, ErrorType } from "../core/error";
 
 /**
  * Options for regex transformer

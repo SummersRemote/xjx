@@ -4,7 +4,7 @@
 import { Configuration } from './config';
 import { Transform, FormatId } from './transform';
 import { XNode } from './xnode';
-import { logger, validate, ValidationError, handleError, ErrorType } from './error';
+import { logger, validate, handleError, ErrorType } from './error';
 
 /**
  * Base context interface for extension functions

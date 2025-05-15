@@ -1,6 +1,6 @@
 // services/XJXService.js
-// Wrapper service for the XJX library
-import { XJX, BooleanTransform, NumberTransform, RegexTransform } from '../../../dist/esm/xjx.full'; // Import from full bundle
+// Wrapper service for the XJX library with webpack-compatibility
+import { XJX, BooleanTransform, NumberTransform, RegexTransform } from '../../../dist/esm/index.js'; 
 
 // Create a map of transformer types to their constructors
 const transformerMap = {
@@ -15,7 +15,7 @@ class XJXService {
    * @returns {Object} Default configuration
    */
   getDefaultConfig() {
-    // Create a new instance to get default config
+    // Create an instance to extract default config
     const xjx = new XJX();
     return xjx.config;
   }
@@ -31,7 +31,7 @@ class XJXService {
     // Create a new instance for each conversion
     const xjx = new XJX();
     
-    // Start the conversion chain
+    // Start the conversion chain with fluent API
     let builder = xjx.fromXml(xml);
     
     // Apply config if provided
@@ -117,9 +117,10 @@ class XJXService {
    * @returns {string} Fluent API code
    */
   generateFluentAPI(fromType, content, config, transforms) {
-    // Generate code that uses the instance-based approach
-    let code = `const xjx = new XJX();\n`;
-    code += `xjx.from${fromType === 'xml' ? 'Xml' : 'Json'}(${fromType === 'xml' ? 'xml' : 'json'})`;
+    // Use the fluent API in the examples
+    let code = `import { XJX } from 'xjx';\n\n`;
+    code += `const xjx = new XJX();\n`;
+    code += `const builder = xjx.from${fromType === 'xml' ? 'Xml' : 'Json'}(${fromType === 'xml' ? 'xml' : 'json'})`;
     
     if (config) {
       code += `\n  .withConfig(${JSON.stringify(config, null, 2)})`;
@@ -135,7 +136,7 @@ class XJXService {
       code += `\n  .withTransforms(\n    ${transformsStr}\n  )`;
     }
     
-    code += `\n  .to${fromType === 'xml' ? 'Json' : 'Xml'}()`;
+    code += `\n  .to${fromType === 'xml' ? 'Json' : 'Xml'}();`;
     
     return code;
   }

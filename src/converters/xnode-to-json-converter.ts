@@ -6,7 +6,7 @@
 import { XNodeToJsonConverter } from './converter-interfaces';
 import { Config, Configuration } from '../core/config';
 import { NodeType } from '../core/dom';
-import { logger, validate, SerializeError, handleError, ErrorType } from '../core/error';
+import { logger, validate, handleError, ErrorType } from '../core/error';
 import { JSON } from '../core/json';
 import { XNode } from '../core/xnode';
 

@@ -3,7 +3,6 @@
  * 
  * Defines the interfaces for the different converters in the transformation pipeline.
  */
-import {   Configuration } from "../core/config";
 import { 
   Transform, 
   TransformContext,

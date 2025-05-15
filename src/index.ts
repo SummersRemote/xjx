@@ -1,21 +1,20 @@
 /**
  * XJX Library - XML/JSON transformation with fluent API
- *
- * Main entry point and exports for the library
+ * Self-registering extensions for webpack compatibility
  */
 
-// Import extensions to ensure they're registered
+// Pre-register all extensions to prevent tree-shaking issues
+// IMPORTANT: This import has side effects!
 import './extensions';
 
-// Main entry point
-export { XJX } from "./XJX";
+// Export the main class (for instantiation)
+export { XJX } from './XJX.js';
 
-// Configuration types
-export { Configuration } from "./core/config";
+// Export configuration types
+export { Configuration } from './core/config.js';
 
-// Core interfaces and types needed by consumers
+// Export core interfaces and types
 export {
-  // Transform interfaces for extension authors
   Transform,
   TransformTarget,
   TransformContext,
@@ -23,9 +22,9 @@ export {
   FormatId,
   FORMATS,
   createTransformResult,
-} from "./core/transform";
+} from './core/transform.js';
 
-// Error handling
+// Export error handling
 export {
   ValidationError,
   ParseError,
@@ -36,22 +35,25 @@ export {
   validate,
   logger,
   LogLevel,
-} from "./core/error";
+} from './core/error.js';
 
-// Key model classes
-export { XNode } from "./core/xnode";
+// Export model classes
+export { XNode } from './core/xnode.js';
 
-// Core transformers - only essential ones for common use cases
+// Export core transformers
 export {
   BooleanTransform,
   BooleanTransformOptions,
-} from "./transforms/boolean-transform";
+} from './transforms/boolean-transform.js';
 export {
   NumberTransform,
   NumberTransformOptions,
-} from "./transforms/number-transform";
-export { RegexTransform, RegexOptions } from "./transforms/regex-transform";
+} from './transforms/number-transform.js';
+export { 
+  RegexTransform, 
+  RegexOptions 
+} from './transforms/regex-transform.js';
 export {
   MetadataTransform,
   MetadataTransformOptions,
-} from "./transforms/metadata-transform";
+} from './transforms/metadata-transform.js';

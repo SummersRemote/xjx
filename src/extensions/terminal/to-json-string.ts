@@ -6,7 +6,7 @@ import { DefaultXNodeTransformer } from "../../converters/xnode-transformer";
 import { DefaultXNodeToJsonConverter } from "../../converters/xnode-to-json-converter";
 import { FORMATS } from "../../core/transform";
 import { XNode } from "../../core/xnode";
-import { logger, validate, SerializeError, handleError, ErrorType } from "../../core/error";
+import { logger, validate, handleError, ErrorType } from "../../core/error";
 
 // Type augmentation - add method to XJX interface
 declare module '../../XJX' {

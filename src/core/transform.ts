@@ -3,7 +3,7 @@
  */
 import { Configuration } from './config';
 import { XNode } from './xnode';
-import { logger, validate, ValidationError, TransformError, handleError, ErrorType } from './error';
+import { logger, validate, handleError, ErrorType } from './error';
 
 /**
  * Format identifier type

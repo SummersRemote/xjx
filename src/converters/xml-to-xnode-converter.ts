@@ -7,7 +7,7 @@ import { XmlToXNodeConverter } from './converter-interfaces';
 import { Config, Configuration } from '../core/config';
 import { XmlParser } from '../core/xml';
 import { NodeType } from '../core/dom';
-import { logger, validate, ParseError, handleError, ErrorType } from '../core/error';
+import { logger, validate, handleError, ErrorType } from '../core/error';
 import { XmlNamespace } from '../core/xml';
 import { XmlEntity } from '../core/xml';
 import { XNode } from '../core/xnode';

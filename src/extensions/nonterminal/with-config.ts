@@ -3,7 +3,7 @@
  */
 import { XJX } from "../../XJX";
 import { Configuration, Config } from "../../core/config";
-import { logger, validate, ConfigurationError, ValidationError, handleError, ErrorType } from "../../core/error";
+import { logger, validate, ConfigurationError, handleError, ErrorType } from "../../core/error";
 
 // Type augmentation - add method to XJX interface
 declare module '../../XJX' {

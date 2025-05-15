@@ -8,7 +8,7 @@ import { Config, Configuration } from '../core/config';
 import { XmlSerializer } from '../core/xml';
 import { DOM } from '../core/dom';
 import { NodeType } from '../core/dom';
-import { logger, validate, SerializeError, handleError, ErrorType } from '../core/error';
+import { logger, validate, handleError, ErrorType } from '../core/error';
 import { XmlNamespace } from '../core/xml';
 import { XmlEntity } from '../core/xml';
 import { XNode } from '../core/xnode';
@@ -140,7 +140,7 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
           
           // Handle attributes with namespaces
           if (XmlNamespace.hasPrefix(name) && this.config.preserveNamespaces) {
-            const { prefix, localName } = XmlNamespace.parseQualifiedName(name);
+            const { prefix } = XmlNamespace.parseQualifiedName(name);
             
             if (prefix) {
               const attrNs = this.findNamespaceForPrefix(node, prefix);

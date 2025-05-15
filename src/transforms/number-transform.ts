@@ -11,7 +11,6 @@ import {
   createTransformResult,
   FORMATS
 } from '../core/transform';
-import { Common } from '../core/common';
 import { handleError, ErrorType } from '../core/error';
   
 /**

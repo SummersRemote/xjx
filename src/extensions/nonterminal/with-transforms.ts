@@ -3,7 +3,7 @@
  */
 import { XJX } from "../../XJX";
 import { Transform } from "../../core/transform";
-import { logger, validate, ValidationError, TransformError, handleError, ErrorType } from "../../core/error";
+import { logger, validate, handleError, ErrorType } from "../../core/error";
 
 // Type augmentation - add method to XJX interface
 declare module '../../XJX' {

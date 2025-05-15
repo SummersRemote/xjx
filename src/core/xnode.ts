@@ -6,7 +6,7 @@
  */
 import { Common } from './common';
 import { NodeType, DOM } from './dom';
-import { logger, validate, ValidationError, handleError, ErrorType } from './error';
+import { logger, validate, handleError, ErrorType } from './error';
 
 /**
  * XNode class representing an XML node in the object model

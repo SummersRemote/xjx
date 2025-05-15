@@ -1,7 +1,7 @@
 /**
  * XML entity handling utilities
  */
-import { logger, validate, ValidationError, handleError, ErrorType } from '../error';
+import { logger, validate, handleError, ErrorType } from '../error';
 
 export class XmlEntity {
     /**

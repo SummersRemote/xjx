@@ -1,9 +1,8 @@
 /**
  * XML serialization utilities
  */
-import { Configuration } from '../config';
 import { DOM } from '../dom';
-import { logger, validate, SerializeError, ValidationError, handleError, ErrorType } from '../error';
+import { logger, validate, handleError, ErrorType } from '../error';
 import { XmlEntity } from './entity';
 
 /**

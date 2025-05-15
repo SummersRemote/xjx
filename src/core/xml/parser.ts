@@ -1,9 +1,8 @@
 /**
  * XML parsing utilities
  */
-import { Configuration } from '../config';
 import { DOM } from '../dom';
-import { logger, validate, ParseError, ValidationError, handleError, ErrorType } from '../error';
+import { logger, validate, ParseError, handleError, ErrorType } from '../error';
 import { ValidationResult } from '../transform';
 import { XmlEntity } from './entity';
 
@@ -20,7 +19,6 @@ export class XmlParser {
    */
   static parse(
     xmlString: string, 
-    config?: Configuration, 
     contentType: string = 'text/xml'
   ): Document {
     try {

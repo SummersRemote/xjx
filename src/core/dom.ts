@@ -1,7 +1,7 @@
 /**
  * DOM operations with unified interface for browser and Node.js
  */
-import { logger, validate, ValidationError, EnvironmentError, ParseError, SerializeError, handleError, ErrorType } from './error';
+import { logger, validate, ParseError, handleError, ErrorType } from './error';
 
 /**
  * DOM node types as an enum for better type safety

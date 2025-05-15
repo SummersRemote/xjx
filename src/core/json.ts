@@ -3,7 +3,7 @@
  */
 import { Common } from './common';
 import { Configuration } from './config';
-import { logger, validate, ValidationError, SerializeError, ParseError, handleError, ErrorType } from './error';
+import { logger, validate, handleError, ErrorType } from './error';
 
 /**
  * Basic JSON primitive types

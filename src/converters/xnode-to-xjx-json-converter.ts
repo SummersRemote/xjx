@@ -1,7 +1,7 @@
 /**
  * XNode to JSON converter implementation
  * 
- * Converts XNode to JSON object using the new static utilities.
+ * Converts XNode to JSON object without redundant preservation checks.
  */
 import { XNodeToJsonConverter } from './converter-interfaces';
 import { Config, Configuration } from '../core/config';
@@ -100,26 +100,22 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
       
       const namingConfig = this.config.converters.xjxJson.naming;
 
-      // Add namespace and prefix if present
-      if (node.namespace && this.config.preserveNamespaces) {
+      // Add namespace and prefix if present in the XNode
+      if (node.namespace) {
         nodeObj[namingConfig.namespace] = node.namespace;
       }
 
-      if (node.prefix && this.config.preserveNamespaces) {
+      if (node.prefix) {
         nodeObj[namingConfig.prefix] = node.prefix;
       }
 
-      // Add value if present
-      if (node.value !== undefined && this.config.preserveTextNodes) {
+      // Add value if present in the XNode
+      if (node.value !== undefined) {
         nodeObj[namingConfig.value] = node.value;
       }
 
-      // Add attributes
-      if (
-        this.config.preserveAttributes &&
-        node.attributes &&
-        Object.keys(node.attributes).length > 0
-      ) {
+      // Add attributes if present in the XNode
+      if (node.attributes && Object.keys(node.attributes).length > 0) {
         const attrs: Array<Record<string, any>> = [];
 
         // Add regular attributes
@@ -130,8 +126,8 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
           attrs.push(attrObj);
         }
 
-        // Add namespace declarations
-        if (node.namespaceDeclarations && this.config.preserveNamespaces) {
+        // Add namespace declarations if present in the XNode
+        if (node.namespaceDeclarations) {
           for (const [prefix, uri] of Object.entries(
             node.namespaceDeclarations
           )) {
@@ -148,39 +144,31 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
         }
       }
 
-      // Add children
+      // Add children if present in the XNode
       if (node.children && node.children.length > 0) {
         const children: Array<Record<string, any>> = [];
 
         for (const child of node.children) {
           switch (child.type) {
             case NodeType.TEXT_NODE:
-              if (this.config.preserveTextNodes) {
-                children.push({ [namingConfig.value]: child.value });
-              }
+              children.push({ [namingConfig.value]: child.value });
               break;
 
             case NodeType.CDATA_SECTION_NODE:
-              if (this.config.preserveCDATA) {
-                children.push({ [namingConfig.cdata]: child.value });
-              }
+              children.push({ [namingConfig.cdata]: child.value });
               break;
 
             case NodeType.COMMENT_NODE:
-              if (this.config.preserveComments) {
-                children.push({ [namingConfig.comment]: child.value });
-              }
+              children.push({ [namingConfig.comment]: child.value });
               break;
 
             case NodeType.PROCESSING_INSTRUCTION_NODE:
-              if (this.config.preserveProcessingInstr) {
-                children.push({
-                  [namingConfig.processingInstr]: {
-                    [namingConfig.target]: child.attributes?.target,
-                    [namingConfig.value]: child.value,
-                  },
-                });
-              }
+              children.push({
+                [namingConfig.processingInstr]: {
+                  [namingConfig.target]: child.attributes?.target,
+                  [namingConfig.value]: child.value,
+                },
+              });
               break;
 
             case NodeType.ELEMENT_NODE:

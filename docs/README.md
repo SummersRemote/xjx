@@ -212,6 +212,37 @@ node.setAttribute('id', '123');
 node.addChild(new XJX.XNode('name').setTextContent('John Doe'));
 ```
 
+### Preservation Settings
+
+XJX uses a boundary-based approach to enforce preservation settings. This architectural design ensures consistent behavior across all conversion paths:
+
+1. **Filtering at Input Boundaries**: All preservation settings (`preserveNamespaces`, `preserveComments`, etc.) are applied when data first enters the system - during conversion to the XNode model.
+
+2. **XNode as Source of Truth**: The XNode model only contains features that match the user's preservation settings. For example, if `preserveComments: false`, comments won't appear in the XNode model at all.
+
+3. **Consistent Output Conversion**: Output converters simply convert what's in the XNode model without additional filtering, resulting in consistent behavior regardless of input format.
+
+```javascript
+// Configure what to preserve
+new XJX()
+  .withConfig({
+    preserveComments: false,    // Comments will be filtered during parsing
+    preserveNamespaces: true,   // Namespaces will be preserved
+    preserveAttributes: true,   // Attributes will be preserved
+    preserveProcessingInstr: false // Processing instructions will be filtered
+  })
+  .fromXml(xmlWithComments)
+  // Comments are already filtered out, so any output format
+  // will consistently exclude them:
+  .toXml();                    // No comments in output XML
+  // OR
+  .toJson();                   // No comments in output JSON
+  // OR
+  .toStandardJson();           // No comments in output Standard JSON
+```
+
+This approach ensures that once data is in the XNode model, its representation is consistent regardless of which output format you choose. It also simplifies the architecture by centralizing filtering logic at the system boundaries.
+
 ### JSON Formats
 
 XJX supports two JSON formats:

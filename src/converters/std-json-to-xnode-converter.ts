@@ -1,7 +1,8 @@
 /**
  * standard-json-to-xnode-converter.ts
  * 
- * Converts standard JSON objects to XNode representation.
+ * Implements conversion from standard JSON objects to XNode representation
+ * with proper application of preservation settings.
  */
 import { Converter } from './converter-interfaces';
 import { Config, Configuration } from '../core/config';
@@ -35,8 +36,9 @@ export class DefaultStandardJsonToXNodeConverter implements StandardJsonToXNodeC
       }
       
       // Access config properties to avoid unused variable warning
-      logger.debug('StandardJsonToXNodeConverter initialized with config', { 
-        preserveWhitespace: this.config.preserveWhitespace
+      logger.debug('StandardJsonToXNodeConverter initialized', { 
+        preserveTextNodes: this.config.preserveTextNodes,
+        preserveAttributes: this.config.preserveAttributes
       });
     } catch (err) {
       // If validation/update fails, use default config
@@ -73,13 +75,17 @@ export class DefaultStandardJsonToXNodeConverter implements StandardJsonToXNodeC
         
         source.forEach(item => {
           const childNode = this.convertValue(arrayItemName, item);
-          rootNode.addChild(childNode);
+          if (childNode) {
+            rootNode.addChild(childNode);
+          }
         });
       } else {
         // Process object properties
         Object.entries(source).forEach(([key, value]) => {
           const childNode = this.convertValue(this.sanitizeNodeName(key), value);
-          rootNode.addChild(childNode);
+          if (childNode) {
+            rootNode.addChild(childNode);
+          }
         });
       }
       
@@ -101,41 +107,73 @@ export class DefaultStandardJsonToXNodeConverter implements StandardJsonToXNodeC
    * Convert a JSON value to an XNode
    * @param name Node name
    * @param value JSON value
-   * @returns XNode representation
+   * @returns XNode representation or null if filtered
    * @private
    */
-  private convertValue(name: string, value: any): XNode {
+  private convertValue(name: string, value: any): XNode | null {
     try {
       // Create node with sanitized name
       const node = new XNode(this.sanitizeNodeName(name), NodeType.ELEMENT_NODE);
       
+      // Handle null/undefined
       if (value === null || value === undefined) {
-        // Handle null/undefined
-        node.value = null;
         return node;
       }
       
+      // Handle primitive values (apply preserveTextNodes)
       if (typeof value !== 'object') {
-        // Handle primitive values
-        node.value = value;
+        if (this.config.preserveTextNodes) {
+          const normalizedValue = typeof value === 'string' && !this.config.preserveWhitespace ? 
+                                  value.trim() : value;
+          node.value = normalizedValue;
+        }
         return node;
       }
       
+      // Handle arrays
       if (Array.isArray(value)) {
-        // Handle arrays - use the configured array item name
+        // Use the configured array item name
         const arrayItemName = this.config.converters.stdJson.naming.arrayItem;
         
         value.forEach(item => {
           const childNode = this.convertValue(arrayItemName, item);
-          node.addChild(childNode);
+          if (childNode) {
+            node.addChild(childNode);
+          }
         });
         return node;
       }
       
-      // Handle objects
+      // Handle standard JavaScript objects by inspecting properties structure
+      const options = this.config.converters.stdJson.options;
+      
+      // Check for attribute handling based on the options
+      if (this.config.preserveAttributes) {
+        this.processObjectAttributes(node, value, options);
+      }
+      
+      // Process object properties as child nodes
       Object.entries(value).forEach(([key, propValue]) => {
+        // Skip properties that might have been handled as attributes
+        if (this.isAttributeProperty(key, options)) {
+          return;
+        }
+        
+        // Skip text property if it's designated as the text content holder
+        if (key === options.textPropertyName && typeof propValue !== 'object') {
+          if (this.config.preserveTextNodes) {
+            const normalized = typeof propValue === 'string' && !this.config.preserveWhitespace ? 
+                             propValue.trim() : propValue;
+            node.value = normalized;
+          }
+          return;
+        }
+        
+        // Process regular properties as child nodes
         const childNode = this.convertValue(this.sanitizeNodeName(key), propValue);
-        node.addChild(childNode);
+        if (childNode) {
+          node.addChild(childNode);
+        }
       });
       
       return node;
@@ -144,6 +182,104 @@ export class DefaultStandardJsonToXNodeConverter implements StandardJsonToXNodeC
         data: { name, valueType: typeof value },
         errorType: ErrorType.PARSE,
         fallback: new XNode(this.sanitizeNodeName(name), NodeType.ELEMENT_NODE)
+      });
+    }
+  }
+  
+  /**
+   * Process object attributes based on configuration
+   * @param node XNode to add attributes to
+   * @param obj Object containing potential attributes
+   * @param options Standard JSON options
+   * @private
+   */
+  private processObjectAttributes(node: XNode, obj: Record<string, any>, options: any): void {
+    try {
+      // Define attribute properties based on attributeHandling option
+      let attributeProps: Record<string, any> = {};
+      
+      switch (options.attributeHandling) {
+        case 'property':
+          // Attributes in a specific property
+          const propName = options.attributePropertyName;
+          if (obj[propName] && typeof obj[propName] === 'object') {
+            attributeProps = obj[propName];
+          }
+          break;
+          
+        case 'prefix':
+          // Attributes with a specific prefix
+          const prefix = options.attributePrefix;
+          Object.entries(obj).forEach(([key, value]) => {
+            if (key.startsWith(prefix)) {
+              const attrName = key.substring(prefix.length);
+              attributeProps[attrName] = value;
+            }
+          });
+          break;
+          
+        case 'merge':
+          // All primitive properties could be attributes
+          Object.entries(obj).forEach(([key, value]) => {
+            // Only consider primitives, not objects/arrays, and not the text content property
+            if ((typeof value !== 'object' || value === null) && 
+                key !== options.textPropertyName) {
+              attributeProps[key] = value;
+            }
+          });
+          break;
+          
+        // For 'ignore', we don't process attributes
+      }
+      
+      // Add attributes to the node
+      if (Object.keys(attributeProps).length > 0) {
+        node.attributes = {};
+        
+        Object.entries(attributeProps).forEach(([name, value]) => {
+          node.attributes![name] = value;
+        });
+      }
+    } catch (err) {
+      handleError(err, 'process object attributes', {
+        data: { 
+          nodeName: node.name,
+          objectKeys: Object.keys(obj)
+        }
+      });
+      // Continue even if attribute processing fails
+    }
+  }
+  
+  /**
+   * Check if a property is an attribute based on the configuration
+   * @param key Property key
+   * @param options Standard JSON options
+   * @returns True if it's an attribute property
+   * @private
+   */
+  private isAttributeProperty(key: string, options: any): boolean {
+    try {
+      switch (options.attributeHandling) {
+        case 'property':
+          return key === options.attributePropertyName;
+          
+        case 'prefix':
+          return key.startsWith(options.attributePrefix);
+          
+        case 'merge':
+          // In merge mode, we can't definitively say which properties are attributes
+          // since they're merged with regular properties
+          return false;
+          
+        case 'ignore':
+        default:
+          return false;
+      }
+    } catch (err) {
+      return handleError(err, 'check if property is attribute', {
+        data: { key },
+        fallback: false
       });
     }
   }

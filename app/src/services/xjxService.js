@@ -102,7 +102,8 @@ class XJXService {
       }
     }
     
-    return builder.toJson();
+    // Use the updated method name: toXjxJson
+    return builder.toXjxJson();
   }
   
   /**
@@ -133,7 +134,7 @@ class XJXService {
       }
     }
     
-    // Use toStandardJson extension method instead of toJson
+    // Use toStandardJson method name (unchanged)
     return builder.toStandardJson();
   }
   
@@ -166,9 +167,8 @@ class XJXService {
       }
     }
     
-    // Call stringify() on the DOM object returned by toXml()
-    const xmlDom = builder.toXml();
-    return xmlDom.stringify();
+    // Use the new toXmlString method instead of calling stringify on the DOM
+    return builder.toXmlString();
   }
   
   /**
@@ -215,19 +215,15 @@ class XJXService {
     // Determine the appropriate terminal method based on direction and format
     let terminalMethod;
     if (fromType === 'xml') {
-      terminalMethod = jsonFormat === 'standard' ? 'toStandardJson' : 'toJson';
+      // Updated method names for JSON output
+      terminalMethod = jsonFormat === 'standard' ? 'toStandardJson' : 'toXjxJson';
     } else {
-      // For XML output, now we need to call stringify() on the DOM
-      terminalMethod = 'toXml().stringify()';
+      // For XML output, now we use toXmlString directly
+      terminalMethod = 'toXmlString';
     }
     
-    // Handle the XML case differently because of the stringify() call
-    if (fromType === 'json') {
-      code += `\n  .${terminalMethod}`;
-    } else {
-      code += `\n  .${terminalMethod}`;
-    }
-    
+    // Add the terminal method
+    code += `\n  .${terminalMethod}()`;
     code += ';';
     
     return code;

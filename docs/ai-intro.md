@@ -12,6 +12,7 @@
 - **Format Awareness**: Tools adjust behavior based on target format for optimal results in either direction.
 - **Performance Conscious**: Early-exit patterns and lazy evaluation to minimize unnecessary processing.
 - **Self-Documenting**: Explicit naming and patterns over implicit conventions.
+- **DOM Access**: Direct access to underlying DOM structures with serialization controls.
 
 ## Architecture
 
@@ -19,14 +20,15 @@ XJX is a bidirectional XML/JSON conversion library with a modular, extensible ar
 
 1. Parse source (XML/JSON) → XNode (internal model)
 2. Apply transforms to XNode
-3. Convert XNode → target format (XML/JSON)
+3. Convert XNode → target format (XML DOM/JSON)
+4. Optional: Serialize target format to string representation
 
 ## Core Components
 
 - **XNode**: Central data model representing XML nodes with attributes, values, children
 - **Converters**: Convert between formats and XNode
   - XML → XNode
-  - XNode → XML
+  - XNode → XML DOM (with stringify capability)
   - JSON (XJX format) → XNode
   - XNode → JSON (XJX format)
   - Standard JSON → XNode
@@ -37,10 +39,10 @@ XJX is a bidirectional XML/JSON conversion library with a modular, extensible ar
 ## Data Flow
 
 ```
-╔════════════╗      ╔═══════════════╗      ╔════════════╗
-║ XML/JSON   ║ ──→  ║ XNode + Transforms ║ ──→  ║ XML/JSON   ║
-║ Source     ║      ║ (Internal Model)  ║      ║ Target     ║
-╚════════════╝      ╚═══════════════╝      ╚════════════╝
+╔════════════╗      ╔═══════════════╗      ╔════════════════════╗      ╔════════════╗
+║ XML/JSON   ║ ──→  ║ XNode +       ║ ──→  ║ DOM Document/JSON  ║ ──→  ║ String     ║
+║ Source     ║      ║ Transforms    ║      ║ (with stringify)   ║      ║ (optional) ║
+╚════════════╝      ╚═══════════════╝      ╚════════════════════╝      ╚════════════╝
 ```
 
 ## Configuration System
@@ -62,17 +64,45 @@ Configuration is organized by format:
   converters: {
     // Standard JSON settings
     stdJson: {
-      options: { /* attribute handling, arrays, etc. */ },
-      naming: { /* naming conventions */ }
+      options: { 
+        attributeHandling: 'merge',    // ignore, merge, prefix, property
+        attributePrefix: '@',          // prefix for attributes if using 'prefix' mode
+        attributePropertyName: '_attrs', // property for attributes if using 'property' mode
+        textPropertyName: '_text',     // property for text content with attributes/children
+        alwaysCreateArrays: false,     // always create arrays for elements with same name
+        preserveMixedContent: true,    // preserve mixed content (text + elements)
+        emptyElementsAsNull: false     // represent empty elements as null
+      },
+      naming: { 
+        arrayItem: "item"              // name for array items in XML
+      }
     },
+    
     // XJX JSON settings
     xjxJson: {
-      options: { /* compact mode, etc. */ },
-      naming: { /* property names */ }
+      options: { 
+        compact: true                  // remove empty nodes/properties
+      },
+      naming: { 
+        namespace: "$ns",              // namespace URI property
+        prefix: "$pre",                // namespace prefix property
+        attribute: "$attr",            // attributes collection property
+        value: "$val",                 // node value property
+        cdata: "$cdata",               // CDATA content property
+        comment: "$cmnt",              // comment content property
+        processingInstr: "$pi",        // processing instruction property
+        target: "$trgt",               // PI target property
+        children: "$children"          // child nodes collection property
+      }
     },
+    
     // XML settings
     xml: {
-      options: { /* declaration, formatting */ }
+      options: {
+        declaration: true,             // include XML declaration
+        prettyPrint: true,             // format with indentation
+        indent: 2                      // indentation spaces
+      }
     }
   }
 }
@@ -90,6 +120,15 @@ interface Transform {
 // Converter interface
 interface Converter<TInput, TOutput> {
   convert(input: TInput): TOutput;
+}
+
+// Enhanced Document interface (new)
+interface EnhancedDocument extends Document {
+  stringify(options?: {
+    prettyPrint?: boolean;
+    indent?: number;
+    declaration?: boolean;
+  }): string;
 }
 
 // Extension registration
@@ -149,18 +188,36 @@ Centralized error handling system with typed errors:
 
 ```javascript
 // Convert XML to Standard JSON
-new XJX()
-  .fromXml(xml)
+const standardJson = new XJX()
   .withConfig({
     converters: {
       stdJson: { options: { attributeHandling: 'merge' } }
     }
   })
+  .fromXml(xml)
   .withTransforms(
     new BooleanTransform(),
     new NumberTransform()
   )
   .toStandardJson();
+
+// Convert XML to DOM with stringify capability
+const xmlDoc = new XJX()
+  .fromXml(xml)
+  .toXml();
+
+// Manipulate the DOM
+const elements = xmlDoc.getElementsByTagName('user');
+xmlDoc.documentElement.setAttribute('timestamp', Date.now());
+
+// Serialize with default options from config
+const xmlString = xmlDoc.stringify();
+
+// Serialize with custom options
+const compactXml = xmlDoc.stringify({ 
+  prettyPrint: false, 
+  declaration: false 
+});
 ```
 
 ## Extension Points
@@ -169,6 +226,7 @@ new XJX()
 - Create terminal/non-terminal extensions for new conversion paths 
 - Use metadata to control conversion behavior
 - Override format-specific handling at node level
+- Extend the DOM interface with custom methods
 
 ## Refactoring Considerations
 
@@ -183,3 +241,4 @@ new XJX()
 - **Type safety**: Maintain strong typing throughout the codebase
 - **Test boundary cases**: Handle empty values, deep nesting, unusual XML structures
 - **Performance profiling**: Focus optimizations on the critical conversion path
+- **DOM access patterns**: Provide consistent methods for DOM manipulation and serialization

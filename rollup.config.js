@@ -1,93 +1,169 @@
-import typescript from '@rollup/plugin-typescript';
-import { nodeResolve } from '@rollup/plugin-node-resolve';
-import commonjs from '@rollup/plugin-commonjs';
-import terser from '@rollup/plugin-terser';
-import dts from 'rollup-plugin-dts';
-import { readFileSync } from 'fs';
+// rollup.config.js
+import typescript from "@rollup/plugin-typescript";
+import { nodeResolve } from "@rollup/plugin-node-resolve";
+import commonjs from "@rollup/plugin-commonjs";
+import terser from "@rollup/plugin-terser";
+import filesize from "rollup-plugin-filesize";
+import { readFileSync } from "fs";
 
-import filesize from 'rollup-plugin-filesize';
-import { visualizer } from 'rollup-plugin-visualizer';
+// Read package.json for external dependencies
+const pkg = JSON.parse(readFileSync("./package.json", "utf8"));
+const isProd = process.env.NODE_ENV === "production";
 
-const packageJson = JSON.parse(readFileSync('./package.json', 'utf8'));
-const isProd = process.env.NODE_ENV === 'production';
+// Don't bundle dependencies
+const external = [
+  ...Object.keys(pkg.dependencies || {}),
+  ...Object.keys(pkg.peerDependencies || {}),
+];
 
-const baseConfig = {
-  input: 'src/index.ts',
-  external: [...Object.keys(packageJson.peerDependencies || {})],
-  plugins: [
-    nodeResolve({
-      browser: true,
-      extensions: ['.ts', '.js']
-    }),
-    commonjs(),
-    typescript({
-      tsconfig: './tsconfig.json',
-      declaration: true
-    }),
-    visualizer({
-      filename: 'dist/stats.html',
-      title: 'XJX Bundle Visualizer',
-      gzipSize: true,
-      brotliSize: true,
-      open: false // set to true to auto-open the report in browser
-    }),
-    filesize()
-  ]
-};
+// Common plugins for all builds
+const commonPlugins = [
+  nodeResolve({
+    browser: true,
+    extensions: [".ts", ".js"],
+  }),
+  commonjs(),
+  filesize(),
+];
 
+// Production-only plugins for minification
+const prodPlugins = isProd ? [terser()] : [];
+
+// Define configs
 export default [
   // ESM build
   {
-    ...baseConfig,
+    input: "src/index.ts",
     output: {
-      file: 'dist/index.js',
-      format: 'esm',
+      dir: "dist/esm",
+      format: "es",
       sourcemap: !isProd,
-      exports: 'named'
-    }
+      preserveModules: true,
+      preserveModulesRoot: "src",
+      exports: "named" // Fix for mixed exports warning
+    },
+    external,
+    plugins: [
+      ...commonPlugins,
+      typescript({
+        tsconfig: "./tsconfig.json",
+        declaration: false, // Skip declarations in this build
+        outDir: "dist/esm",
+        rootDir: "src",
+      }),
+    ],
+    // Critical: preserving side effects for extension registration
+    treeshake: {
+      moduleSideEffects: "no-external",
+      preset: "recommended"
+    },
   },
-  // UMD build (browser-compatible)
+  
+  // CommonJS build
   {
-    ...baseConfig,
+    input: "src/index.ts",
     output: {
-      file: 'dist/xjx.umd.js',
-      format: 'umd',
-      name: 'XJX',
+      dir: "dist/cjs",
+      format: "cjs",
       sourcemap: !isProd,
-      exports: 'named',
+      preserveModules: true,
+      preserveModulesRoot: "src",
+      exports: "named" // Fix for mixed exports warning
+    },
+    external,
+    plugins: [
+      ...commonPlugins,
+      typescript({
+        tsconfig: "./tsconfig.json",
+        declaration: false, // Skip declarations in this build
+        outDir: "dist/cjs",
+        rootDir: "src",
+      }),
+    ],
+    // Critical: preserving side effects for extension registration
+    treeshake: {
+      moduleSideEffects: "no-external",
+      preset: "recommended"
+    },
+  },
+  
+  // UMD build (browser-friendly)
+  {
+    input: "src/index.ts",
+    output: {
+      file: "dist/umd/xjx.js",
+      format: "umd",
+      name: "XJX",
+      sourcemap: !isProd,
+      exports: "named", // Fix for mixed exports warning
       globals: {
-        // Define global variable names for external dependencies if any
-        'jsdom': 'JSDOM',
-        '@xmldom/xmldom': 'xmldom'
-      }
+        jsdom: "JSDOM",
+        "@xmldom/xmldom": "xmldom",
+      },
     },
+    external,
     plugins: [
-      ...baseConfig.plugins,
-      isProd && terser()
-    ].filter(Boolean)
+      ...commonPlugins,
+      typescript({
+        tsconfig: "./tsconfig.json",
+        declaration: false, // Skip declarations in this build
+        declarationMap: false, // Turn off declaration maps to match
+        composite: false, // Make sure composite is off
+      }),
+      ...prodPlugins,
+    ],
+    // UMD build should preserve everything
+    treeshake: false,
   },
-  // Browser-specific IIFE build
-  {
-    ...baseConfig,
+  
+  // Minified UMD build
+  isProd && {
+    input: "src/index.ts",
     output: {
-      file: 'dist/xjx.min.js',
-      format: 'iife',
-      name: 'XJX',
-      sourcemap: !isProd,
-      exports: 'named'
+      file: "dist/umd/xjx.min.js",
+      format: "umd",
+      name: "XJX",
+      sourcemap: false,
+      exports: "named", // Fix for mixed exports warning
+      globals: {
+        jsdom: "JSDOM",
+        "@xmldom/xmldom": "xmldom",
+      },
     },
+    external,
     plugins: [
-      ...baseConfig.plugins,
-      terser()
-    ]
+      ...commonPlugins,
+      typescript({
+        tsconfig: "./tsconfig.json",
+        declaration: false, // Skip declarations in this build
+        declarationMap: false, // Turn off declaration maps to match
+        composite: false, // Make sure composite is off
+      }),
+      terser(),
+    ],
+    // UMD build should preserve everything
+    treeshake: false,
   },
-  // Type definitions
+  
+  // Declaration files build (separate)
   {
-    input: 'dist/dts/index.d.ts',
+    input: "src/index.ts",
     output: {
-      file: 'dist/index.d.ts',
-      format: 'es'
+      dir: "dist/types",
+      format: "es", // Format doesn't matter for declarations
+      preserveModules: true,
+      preserveModulesRoot: "src",
     },
-    plugins: [dts()]
-  }
-];
+    external,
+    plugins: [
+      typescript({
+        tsconfig: "./tsconfig.json",
+        declaration: true, // Generate declarations
+        declarationMap: true, // Generate declaration maps
+        declarationDir: "dist/types", // Output to types directory
+        emitDeclarationOnly: true, // Only output declarations
+        rootDir: "src",
+      }),
+    ],
+  },
+].filter(Boolean);

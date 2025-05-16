@@ -1,145 +1,254 @@
-/**
- * XJX Service
- * 
- * Provides a wrapper around the XJX library for centralized management
- * of XML/JSON conversion and other operations.
- */
-import { XJX } from 'xjx';
+// services/XJXService.js
+// Wrapper service for the XJX library with webpack-compatibility
+import { XJX, BooleanTransform, NumberTransform, RegexTransform } from '../../../dist/esm/index.js';
 
+// Create a map of transformer types to their constructors
+const transformerMap = {
+  'BooleanTransform': BooleanTransform,
+  'NumberTransform': NumberTransform,
+  'RegexTransform': RegexTransform
+};
 
-export default class XjxService {
+class XJXService {
   /**
-   * Creates an XJX instance with the provided configuration
-   * @param {Object} config - XJX configuration options
-   * @returns {XJX} XJX instance
+   * Get default configuration
+   * @returns {Object} Default configuration
    */
-  static createInstance(config) {
-    return new XJX(config);
-  }
+  getDefaultConfig() {
+    // Create a default configuration that matches the updated structure
+    return {
+      // Preservation options
+      preserveNamespaces: true,
+      preserveComments: true,
+      preserveProcessingInstr: true,
+      preserveCDATA: true,
+      preserveTextNodes: true,
+      preserveWhitespace: false,
+      preserveAttributes: true,
 
-  /**
-   * Convert XML string to JSON
-   * @param {string} xmlString - XML content
-   * @param {Object} config - XJX configuration options
-   * @returns {Object} JSON representation of the XML
-   */
-  static xmlToJson(xmlString, config) {
-    const xjx = this.createInstance(config);
-    try {
-      const result = xjx.xmlToJson(xmlString);
-      return result;
-    } finally {
-      xjx.cleanup();
-    }
-  }
-
-  /**
-   * Convert JSON object to XML string
-   * @param {Object} jsonObj - JSON content
-   * @param {Object} config - XJX configuration options
-   * @returns {string} XML representation of the JSON
-   */
-  static jsonToXml(jsonObj, config) {
-    const xjx = this.createInstance(config);
-    try {
-      const result = xjx.jsonToXml(jsonObj);
-      return result;
-    } finally {
-      xjx.cleanup();
-    }
-  }
-
-  /**
-   * Pretty print XML string
-   * @param {string} xmlString - XML content
-   * @param {Object} config - XJX configuration options
-   * @returns {string} Formatted XML
-   */
-  static prettyPrintXml(xmlString, config) {
-    const xjx = this.createInstance(config);
-    try {
-      const result = xjx.prettyPrintXml(xmlString);
-      return result;
-    } finally {
-      xjx.cleanup();
-    }
-  }
-
-  /**
-   * Validate XML string
-   * @param {string} xmlString - XML content
-   * @param {Object} config - XJX configuration options
-   * @returns {Object} Validation result {isValid, message}
-   */
-  static validateXml(xmlString, config) {
-    const xjx = this.createInstance(config);
-    try {
-      const result = xjx.validateXML(xmlString);
-      return result;
-    } finally {
-      xjx.cleanup();
-    }
-  }
-
-  /**
-   * Get a value from JSON object using a path
-   * @param {Object} jsonObj - JSON object
-   * @param {string} path - Dot notation path
-   * @param {Object} config - XJX configuration options
-   * @param {any} fallback - Fallback value if path doesn't exist
-   * @returns {any} Retrieved value
-   */
-  static getPath(jsonObj, path, config, fallback) {
-    const xjx = this.createInstance(config);
-    try {
-      const result = xjx.getPath(jsonObj, path, fallback);
-      return result;
-    } finally {
-      xjx.cleanup();
-    }
-  }
-
-  /**
-   * Format JSON string with proper indentation
-   * @param {string} jsonString - JSON string
-   * @param {number} indent - Indentation spaces
-   * @returns {string} Formatted JSON string
-   */
-  static formatJson(jsonString, indent = 2) {
-    try {
-      const jsonObj = JSON.parse(jsonString);
-      return JSON.stringify(jsonObj, null, indent);
-    } catch (error) {
-      throw new Error(`Failed to format JSON: ${error.message}`);
-    }
-  }
-
-  /**
-   * Validate JSON string
-   * @param {string} jsonString - JSON string
-   * @returns {Object} Validation result {isValid, message}
-   */
-  static validateJson(jsonString) {
-    try {
-      JSON.parse(jsonString);
-      return { isValid: true };
-    } catch (error) {
-      return { isValid: false, message: error.message };
-    }
+      // Converters section with format-specific settings
+      converters: {
+        // Standard JSON converter settings
+        stdJson: {
+          options: {
+            attributeHandling: 'ignore',    // ignore, merge, prefix, property
+            attributePrefix: '@',
+            attributePropertyName: '_attrs',
+            textPropertyName: '_text',
+            alwaysCreateArrays: false,
+            preserveMixedContent: true,
+            emptyElementsAsNull: false
+          },
+          naming: {
+            arrayItem: "item"
+          }
+        },
+        
+        // XJX JSON converter settings
+        xjxJson: {
+          options: {
+            compact: true
+          },
+          naming: {
+            namespace: "$ns",
+            prefix: "$pre",
+            attribute: "$attr",
+            value: "$val",
+            cdata: "$cdata",
+            comment: "$cmnt",
+            processingInstr: "$pi",
+            target: "$trgt",
+            children: "$children"
+          }
+        },
+        
+        // XML converter settings
+        xml: {
+          options: {
+            declaration: true,
+            prettyPrint: true,
+            indent: 2
+          }
+        }
+      }
+    };
   }
   
   /**
-   * Generate a JSON schema based on the current configuration
-   * @param {Object} config - XJX configuration options
-   * @returns {Object} JSON schema object for validating XML-JSON documents
+   * Convert XML to JSON (XJX format)
+   * @param {string} xml - XML string
+   * @param {Object} config - Configuration object
+   * @param {Array} transforms - Array of transform objects
+   * @returns {Object} Resulting JSON
    */
-  static generateJsonSchema(config) {
-    const xjx = this.createInstance(config);
-    try {
-      const schema = xjx.generateJsonSchema();
-      return schema;
-    } finally {
-      xjx.cleanup();
+  convertXmlToJson(xml, config, transforms) {
+    // Create a new instance for each conversion
+    const xjx = new XJX();
+    
+    // Start the conversion chain with fluent API
+    let builder = xjx.fromXml(xml);
+    
+    // Apply config if provided
+    if (config) {
+      builder = builder.withConfig(config);
     }
+    
+    // Apply transforms if provided
+    if (transforms && transforms.length > 0) {
+      const transformInstances = this._createTransformers(transforms);
+      
+      if (transformInstances.length > 0) {
+        builder = builder.withTransforms(...transformInstances);
+      }
+    }
+    
+    return builder.toJson();
+  }
+  
+  /**
+   * Convert XML to standard JSON
+   * @param {string} xml - XML string
+   * @param {Object} config - Configuration object
+   * @param {Array} transforms - Array of transform objects
+   * @returns {Object} Resulting standard JSON
+   */
+  convertXmlToStandardJson(xml, config, transforms) {
+    // Create a new instance for each conversion
+    const xjx = new XJX();
+    
+    // Start the conversion chain with fluent API
+    let builder = xjx.fromXml(xml);
+    
+    // Apply config if provided
+    if (config) {
+      builder = builder.withConfig(config);
+    }
+    
+    // Apply transforms if provided
+    if (transforms && transforms.length > 0) {
+      const transformInstances = this._createTransformers(transforms);
+      
+      if (transformInstances.length > 0) {
+        builder = builder.withTransforms(...transformInstances);
+      }
+    }
+    
+    // Use toStandardJson extension method instead of toJson
+    return builder.toStandardJson();
+  }
+  
+  /**
+   * Convert JSON to XML
+   * Auto-detects whether input is XJX JSON or standard JSON
+   * @param {Object} json - JSON object
+   * @param {Object} config - Configuration object
+   * @param {Array} transforms - Array of transform objects
+   * @returns {string} Resulting XML
+   */
+  convertJsonToXml(json, config, transforms) {
+    // Create a new instance for each conversion
+    const xjx = new XJX();
+    
+    // Start the conversion chain - fromJson will auto-detect format
+    let builder = xjx.fromJson(json);
+    
+    // Apply config if provided
+    if (config) {
+      builder = builder.withConfig(config);
+    }
+    
+    // Apply transforms if provided
+    if (transforms && transforms.length > 0) {
+      const transformInstances = this._createTransformers(transforms);
+      
+      if (transformInstances.length > 0) {
+        builder = builder.withTransforms(...transformInstances);
+      }
+    }
+    
+    // Call stringify() on the DOM object returned by toXml()
+    const xmlDom = builder.toXml();
+    return xmlDom.stringify();
+  }
+  
+  /**
+   * Get available transformers from the XJX library
+   * @returns {Object} Available transformers
+   */
+  getAvailableTransformers() {
+    return {
+      BooleanTransform: 'BooleanTransform',
+      NumberTransform: 'NumberTransform',
+      RegexTransform: 'RegexTransform'
+    };
+  }
+  
+  /**
+   * Generate fluent API code string
+   * @param {string} fromType - 'xml' or 'json'
+   * @param {string|Object} content - Current content
+   * @param {Object} config - Configuration object
+   * @param {Array} transforms - Transform pipeline
+   * @param {string} jsonFormat - JSON format ('xjx' or 'standard')
+   * @returns {string} Fluent API code
+   */
+  generateFluentAPI(fromType, content, config, transforms, jsonFormat = 'xjx') {
+    // Use the fluent API in the examples
+    let code = `import { XJX } from 'xjx';\n\n`;
+    code += `const xjx = new XJX();\n`;
+    code += `const builder = xjx.from${fromType === 'xml' ? 'Xml' : 'Json'}(${fromType === 'xml' ? 'xml' : 'json'})`;
+    
+    if (config) {
+      code += `\n  .withConfig(${JSON.stringify(config, null, 2)})`;
+    }
+    
+    if (transforms && transforms.length > 0) {
+      const transformsStr = transforms.map(t => {
+        const type = t.type;
+        const options = JSON.stringify(t.options);
+        return `new ${type}(${options})`;
+      }).join(',\n    ');
+      
+      code += `\n  .withTransforms(\n    ${transformsStr}\n  )`;
+    }
+    
+    // Determine the appropriate terminal method based on direction and format
+    let terminalMethod;
+    if (fromType === 'xml') {
+      terminalMethod = jsonFormat === 'standard' ? 'toStandardJson' : 'toJson';
+    } else {
+      // For XML output, now we need to call stringify() on the DOM
+      terminalMethod = 'toXml().stringify()';
+    }
+    
+    // Handle the XML case differently because of the stringify() call
+    if (fromType === 'json') {
+      code += `\n  .${terminalMethod}`;
+    } else {
+      code += `\n  .${terminalMethod}`;
+    }
+    
+    code += ';';
+    
+    return code;
+  }
+  
+  /**
+   * Create transformer instances from transformer configurations
+   * @param {Array} transforms - Array of transform objects
+   * @returns {Array} Array of transformer instances
+   * @private
+   */
+  _createTransformers(transforms) {
+    return transforms.map(t => {
+      const TransformerClass = transformerMap[t.type];
+      if (!TransformerClass) {
+        console.error(`Transformer class not found for type: ${t.type}`);
+        return null;
+      }
+      return new TransformerClass(t.options);
+    }).filter(Boolean); // Remove any null entries
   }
 }
+
+export default new XJXService();

@@ -1,16 +1,59 @@
-// Import locally so you can use it below
-import { XJX } from './XJX';
+/**
+ * XJX Library - XML/JSON transformation with fluent API
+ * Self-registering extensions for webpack compatibility
+ */
 
-// Core components
-export { XJX };
-export { Configuration } from './core/types/config-types';
-export { DEFAULT_CONFIG } from './core/config/config';
+// Pre-register all extensions to prevent tree-shaking issues
+// IMPORTANT: This import has side effects!
+import './extensions';
 
-// Error handling
-export { XJXError } from './core/types/error-types';
+// Export the main class (for instantiation)
+export { XJX } from './XJX.js';
 
-// Allow custom transformers
-export { ValueTransformer } from './core/transformers/ValueTransformer';
+// Export configuration types
+export { Configuration } from './core/config.js';
 
-// Default export
-export default XJX;
+// Export core interfaces and types
+export {
+  Transform,
+  TransformTarget,
+  TransformContext,
+  TransformResult,
+  FormatId,
+  FORMATS,
+  createTransformResult,
+} from './core/transform.js';
+
+// Export error handling
+export {
+  ValidationError,
+  ParseError,
+  SerializeError,
+  ConfigurationError,
+  TransformError,
+  EnvironmentError,
+  validate,
+  logger,
+  LogLevel,
+} from './core/error.js';
+
+// Export model classes
+export { XNode } from './core/xnode.js';
+
+// Export core transformers
+export {
+  BooleanTransform,
+  BooleanTransformOptions,
+} from './transforms/boolean-transform.js';
+export {
+  NumberTransform,
+  NumberTransformOptions,
+} from './transforms/number-transform.js';
+export { 
+  RegexTransform, 
+  RegexOptions 
+} from './transforms/regex-transform.js';
+export {
+  MetadataTransform,
+  MetadataTransformOptions,
+} from './transforms/metadata-transform.js';

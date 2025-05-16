@@ -6,7 +6,9 @@ node_modules/
 build/
 lib/
 out/
+dist/
 reports/
+.yalc/
 
 # TypeScript cache
 *.tsbuildinfo
@@ -38,13 +40,5 @@ pnpm-debug.log*
 # Windows
 Thumbs.db
 ehthumbs.db
-
-# Optional: if using Yarn PnP
-.pnp.*
-.yarn/cache/
-.yarn/unplugged/
-.yarn/build-state.yml
-.yarn/install-state.gz
-
-# Optional: if using TurboRepo or similar monorepo tools
-.turbo/
+reports/jest-html-reporters-attach/test-report/result.js
+app/yalc.lock

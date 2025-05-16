@@ -1,152 +1,267 @@
 /**
- * XJX - Facade class for XML-JSON conversion operations
+ * XJX - Main class with extensible fluent API
+ *
+ * Core implementation that allows extensions through prototype methods.
  */
-import { XmlToJsonConverter } from "./core/converters/xml-to-json-converter";
-import { JsonToXmlConverter } from "./core/converters/json-to-xml-converter";
-import { Configuration } from "./core/types/config-types";
-import { DEFAULT_CONFIG } from "./core/config/config";
-import { DOMAdapter } from "./core/adapters/dom-adapter";
-import { XmlUtil } from "./core/utils/xml-utils";
-import { JsonUtil } from "./core/utils/json-utils";
-import { ValueTransformer } from "./core/transformers";
+import { Configuration, Config } from "./core/config";
+import { XmlParser, XmlSerializer } from "./core/xml";
+import { Transform, FormatId } from "./core/transform";
+import { XNode } from "./core/xnode";
+import {
+  logger,
+  validate,
+  ValidationError,
+  ConfigurationError,
+  handleError,
+  ErrorType,
+} from "./core/error";
+import { Common } from "./core/common";
 
+/**
+ * Main XJX class - provides the fluent API and manages extensions
+ */
 export class XJX {
-  private config: Configuration;
-  private xmlToJsonConverter: XmlToJsonConverter;
-  private jsonToXmlConverter: JsonToXmlConverter;
-  private jsonUtil: JsonUtil;
-  private xmlUtil: XmlUtil;
-
-  /**
-   * Constructor for XJX utility
-   * @param config Configuration options
-   */
-  constructor(config: Partial<Configuration> = {}) {
-    // First create a jsonUtil instance with default config to use its methods
-    this.jsonUtil = new JsonUtil(DEFAULT_CONFIG);
+  // Allow dynamic property access for extensions
+  [key: string]: any;
   
-    // Create a deep clone of the default config
-    const defaultClone = this.jsonUtil.deepClone(DEFAULT_CONFIG);
+  // Instance properties
+  public xnode: XNode | null = null;
+  public transforms: Transform[] = [];
+  public config: Configuration;
+  public sourceFormat: FormatId | null = null;
   
-    // Deep merge with the provided config
-    this.config = this.jsonUtil.deepMerge(defaultClone, config);
+  // Static registry properties for tracking extensions
+  private static terminalExtensions: Map<string, Function> = new Map();
+  private static nonTerminalExtensions: Map<string, Function> = new Map();
   
-    // Re-initialize jsonUtil with the merged config
-    this.jsonUtil = new JsonUtil(this.config);
+  /**
+   * Create a new XJX instance
+   * @param config Optional configuration
+   */
+  constructor(config?: Partial<Configuration>) {
+    try {
+      this.config = Config.createOrUpdate(config);
+      logger.debug('Created new XJX instance with configuration', {
+        preserveNamespaces: this.config.preserveNamespaces,
+        preserveComments: this.config.preserveComments,
+        preserveProcessingInstr: this.config.preserveProcessingInstr,
+        preserveCDATA: this.config.preserveCDATA,
+        preserveTextNodes: this.config.preserveTextNodes,
+        preserveWhitespace: this.config.preserveWhitespace,
+        preserveAttributes: this.config.preserveAttributes
+      });
+    } catch (err) {
+      this.config = Config.getDefault();
+      handleError(err, "initialize XJX instance", {
+        errorType: ErrorType.CONFIGURATION
+      });
+    }
+  }
   
-    // Initialize other components
-    this.xmlUtil = new XmlUtil(this.config);
-    this.xmlToJsonConverter = new XmlToJsonConverter(this.config);
-    this.jsonToXmlConverter = new JsonToXmlConverter(this.config);
-  }
-
   /**
-   * Convert XML string to JSON
-   * @param xmlString XML content as string
-   * @returns JSON object representing the XML content
-   */
-  public xmlToJson(xmlString: string): Record<string, any> {
-    return this.xmlToJsonConverter.convert(xmlString);
-  }
-
-  /**
-   * Convert JSON object back to XML string
-   * @param jsonObj JSON object to convert
-   * @returns XML string
-   */
-  public jsonToXml(jsonObj: Record<string, any>): string {
-    return this.jsonToXmlConverter.convert(jsonObj);
-  }
-
-  /**
-   * Pretty print an XML string
-   * @param xmlString XML string to format
-   * @returns Formatted XML string
-   */
-  public prettyPrintXml(xmlString: string): string {
-    return this.xmlUtil.prettyPrintXml(xmlString);
-  }
-
-  /**
-   * Safely retrieves a value from a JSON object using a dot-separated path.
-   * @param obj The input JSON object
-   * @param path The dot-separated path string (e.g., "root.item.description.$val")
-   * @param fallback Value to return if the path does not resolve
-   * @returns The value at the specified path or the fallback value
-   */
-  public getPath(
-    obj: Record<string, any>,
-    path: string,
-    fallback: any = undefined
-  ): any {
-    return this.jsonUtil.getPath(obj, path, fallback);
-  }
-
-  /**
-   * Validate XML string
+   * Utility method to validate XML string
    * @param xmlString XML string to validate
-   * @returns Validation result
+   * @returns Validation result with isValid flag and optional error message
    */
-  public validateXML(xmlString: string): {
+  public static validateXml(xmlString: string): {
     isValid: boolean;
     message?: string;
   } {
-    return this.xmlUtil.validateXML(xmlString);
-  }
-
-  /**
-   * Generate a JSON schema based on the current configuration
-   * @returns JSON schema object for validating XML-JSON documents
-   */
-  public generateJsonSchema(): Record<string, any> {
-    return this.jsonUtil.generateJsonSchema();
-  }
-
-  /**
-   * Convert a standard JSON object to the XML-like JSON structure
-   * @param obj Standard JSON object
-   * @param root Optional root element configuration (string or object with properties)
-   * @returns XML-like JSON object ready for conversion to XML
-   */
-  public objectToXJX(obj: any, root?: string | Record<string, any>): Record<string, any> {
-    return this.jsonUtil.objectToXJX(obj, root);
-  }
-
-  /**
-   * Generate an example JSON object that matches the current configuration
-   * @param rootName Name of the root element
-   * @returns Example JSON object
-   */
-  public generateJsonExample(rootName: string = "root"): Record<string, any> {
-    return this.jsonUtil.generateExample(rootName);
-  }
-
-  /**
-   * Add a value transformer to the configuration
-   * @param transformer Value transformer to add
-   * @returns This XJX instance for chaining
-   */
-  public addTransformer(transformer: ValueTransformer): XJX {
-    if (!this.config.valueTransforms) {
-      this.config.valueTransforms = [];
+    try {
+      validate(typeof xmlString === "string", "XML string must be a string");
+      logger.debug("Validating XML string", { length: xmlString.length });
+      return XmlParser.validate(xmlString);
+    } catch (err) {
+      return handleError(err, "validate XML", {
+        data: { xmlLength: xmlString?.length },
+        fallback: { isValid: false, message: String(err) },
+      });
     }
-    this.config.valueTransforms.push(transformer);
-    return this;
   }
 
   /**
-   * Removes all value transformers from the configuration
-   * @returns This XJX instance for chaining
+   * Utility method to pretty print XML string
+   * @param xmlString XML string to format
+   * @param indent Optional indentation level (default: 2)
+   * @returns Formatted XML string
    */
-  public clearTransformers(): XJX {
-    this.config.valueTransforms = [];
-    return this;
+  public static prettyPrintXml(xmlString: string, indent: number = 2): string {
+    try {
+      validate(typeof xmlString === "string", "XML string must be a string");
+      validate(
+        Number.isInteger(indent) && indent >= 0,
+        "Indent must be a non-negative integer"
+      );
+
+      logger.debug("Pretty printing XML string", {
+        length: xmlString.length,
+        indent,
+      });
+
+      return XmlSerializer.prettyPrint(xmlString, indent);
+    } catch (err) {
+      return handleError(err, "pretty print XML", {
+        data: {
+          xmlLength: xmlString?.length,
+          indent,
+        },
+        errorType: ErrorType.SERIALIZE,
+        fallback: xmlString,
+      });
+    }
   }
 
   /**
-   * Clean up any resources
+   * Register a terminal extension method (returns a value)
+   * @param name Extension name
+   * @param method Implementation function
    */
-  public cleanup(): void {
-    DOMAdapter.cleanup();
+  public static registerTerminalExtension(name: string, method: Function): void {
+    try {
+      // Validate inputs
+      validate(typeof name === "string" && name.length > 0, "Extension name must be a non-empty string");
+      validate(typeof method === "function", "Extension method must be a function");
+      
+      // Check for conflicts
+      if ((XJX.prototype as any)[name]) {
+        const err = new ConfigurationError(`Extension '${name}' conflicts with an existing method`);
+        handleError(err, "register terminal extension", {
+          data: { name },
+          errorType: ErrorType.CONFIGURATION
+        });
+        return;
+      }
+      
+      // Register the extension
+      this.terminalExtensions.set(name, method);
+      
+      // Add to prototype - directly assign the method
+      (XJX.prototype as any)[name] = method;
+      
+      logger.debug('Terminal extension registered', { name });
+    } catch (err) {
+      handleError(err, "register terminal extension", {
+        data: { name },
+        errorType: ErrorType.CONFIGURATION
+      });
+    }
+  }
+
+  /**
+   * Register a non-terminal extension method (returns this for chaining)
+   * @param name Extension name
+   * @param method Implementation function
+   */
+  public static registerNonTerminalExtension(name: string, method: Function): void {
+    try {
+      // Validate inputs
+      validate(typeof name === "string" && name.length > 0, "Extension name must be a non-empty string");
+      validate(typeof method === "function", "Extension method must be a function");
+      
+      // Check for conflicts
+      if ((XJX.prototype as any)[name]) {
+        const err = new ConfigurationError(`Extension '${name}' conflicts with an existing method`);
+        handleError(err, "register non-terminal extension", {
+          data: { name },
+          errorType: ErrorType.CONFIGURATION
+        });
+        return;
+      }
+      
+      // Register the extension
+      this.nonTerminalExtensions.set(name, method);
+      
+      // Add to prototype - use a wrapper to ensure it returns 'this'
+      (XJX.prototype as any)[name] = function(...args: any[]) {
+        method.apply(this, args);
+        return this;
+      };
+      
+      logger.debug('Non-terminal extension registered', { name });
+    } catch (err) {
+      handleError(err, "register non-terminal extension", {
+        data: { name },
+        errorType: ErrorType.CONFIGURATION
+      });
+    }
+  }
+  
+  /**
+   * Get all registered terminal extensions
+   * @returns Array of extension names
+   */
+  public static getTerminalExtensions(): string[] {
+    return Array.from(this.terminalExtensions.keys());
+  }
+  
+  /**
+   * Get all registered non-terminal extensions
+   * @returns Array of extension names
+   */
+  public static getNonTerminalExtensions(): string[] {
+    return Array.from(this.nonTerminalExtensions.keys());
+  }
+  
+  /**
+   * Deep clone an object (utility method)
+   * @param obj Object to clone
+   * @returns Deep clone of the object
+   */
+  public deepClone<T>(obj: T): T {
+    try {
+      return Common.deepClone(obj);
+    } catch (err) {
+      return handleError(err, "deep clone object", {
+        data: { objectType: typeof obj },
+        fallback: obj
+      });
+    }
+  }
+  
+  /**
+   * Deep merge two objects (utility method)
+   * @param target Target object
+   * @param source Source object to merge into target
+   * @returns New object with merged properties
+   */
+  public deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
+    try {
+      return Common.deepMerge(target, source);
+    } catch (err) {
+      return handleError(err, "deep merge objects", {
+        data: { 
+          targetType: typeof target,
+          sourceType: typeof source
+        },
+        fallback: target
+      });
+    }
+  }
+  
+  /**
+   * Validate that a source has been set before transformation
+   * @throws Error if no source has been set
+   */
+  public validateSource(): void {
+    try {
+      if (!this.xnode || !this.sourceFormat) {
+        throw new ValidationError('No source set: call a source-setting extension before transformation');
+      }
+      logger.debug('Source validation passed', {
+        sourceFormat: this.sourceFormat,
+        rootNodeName: this.xnode.name
+      });
+    } catch (err) {
+      handleError(err, "validate source", {
+        data: { 
+          hasNode: this.xnode !== null,
+          sourceFormat: this.sourceFormat
+        },
+        errorType: ErrorType.VALIDATION
+      });
+    }
   }
 }
+
+// Export default for easier importing
+export default XJX;

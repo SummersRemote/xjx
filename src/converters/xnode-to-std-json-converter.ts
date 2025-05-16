@@ -37,7 +37,7 @@ export class DefaultXNodeToStandardJsonConverter implements XNodeToStandardJsonC
       
       // Access config properties to avoid unused variable warning
       logger.debug('StandardJsonToXNodeConverter initialized', { 
-        hasStandardJsonDefaults: !!this.config.standardJsonDefaults 
+        hasStdJsonConfig: !!this.config.converters.stdJson 
       });
     } catch (err) {
       // If validation/update fails, use default config
@@ -127,8 +127,8 @@ export class DefaultXNodeToStandardJsonConverter implements XNodeToStandardJsonC
    */
   private processElementNode(node: XNode): any {
     try {
-      // Get standard JSON options with defaults
-      const options = this.getStandardJsonOptions();
+      // Get standard JSON options
+      const options = this.config.converters.stdJson.options;
       
       // Handle special cases
       if (!node.children || node.children.length === 0) {
@@ -188,7 +188,7 @@ export class DefaultXNodeToStandardJsonConverter implements XNodeToStandardJsonC
       }
       
       // Complex case - has attributes
-      const textProperty = options.textPropertyName || '_text';
+      const textProperty = options.textPropertyName;
       
       switch (options.attributeHandling) {
         case 'merge':
@@ -206,7 +206,7 @@ export class DefaultXNodeToStandardJsonConverter implements XNodeToStandardJsonC
           
         case 'property':
           // Create object with attributes property and direct value
-          const attrProperty = options.attributePropertyName || '_attrs';
+          const attrProperty = options.attributePropertyName;
           return {
             [attrProperty]: this.processAttributes(node, options),
             [textProperty]: value
@@ -236,7 +236,7 @@ export class DefaultXNodeToStandardJsonConverter implements XNodeToStandardJsonC
       
       // Add attributes if needed
       if (node.attributes && Object.keys(node.attributes).length > 0) {
-        const attrProperty = options.attributePropertyName || '_attrs';
+        const attrProperty = options.attributePropertyName;
         
         switch (options.attributeHandling) {
           case 'merge':
@@ -283,7 +283,7 @@ export class DefaultXNodeToStandardJsonConverter implements XNodeToStandardJsonC
       
       // Add mixed content if present and configured to preserve
       if (hasMixedContent && options.preserveMixedContent) {
-        const textProperty = options.textPropertyName || '_text';
+        const textProperty = options.textPropertyName;
         result[textProperty] = textContent;
       }
       
@@ -324,7 +324,7 @@ export class DefaultXNodeToStandardJsonConverter implements XNodeToStandardJsonC
         return result;
       }
       
-      const attrPrefix = options.attributePrefix || '@';
+      const attrPrefix = options.attributePrefix;
       
       Object.entries(node.attributes).forEach(([name, value]) => {
         // Apply attribute handling based on configuration
@@ -348,29 +348,5 @@ export class DefaultXNodeToStandardJsonConverter implements XNodeToStandardJsonC
         fallback: {}
       });
     }
-  }
-  
-  /**
-   * Get standard JSON options with defaults
-   * @returns StandardJSON options with all defaults applied
-   * @private
-   */
-  private getStandardJsonOptions(): Record<string, any> {
-    // Default options
-    const defaultOptions = {
-      attributeHandling: 'ignore',
-      attributePrefix: '@',
-      attributePropertyName: '_attrs',
-      textPropertyName: '_text',
-      alwaysCreateArrays: false,
-      preserveMixedContent: true,
-      emptyElementsAsNull: false
-    };
-    
-    // Get options from config
-    const configOptions = this.config.standardJsonDefaults || {};
-    
-    // Merge defaults with config options
-    return { ...defaultOptions, ...configOptions };
   }
 }

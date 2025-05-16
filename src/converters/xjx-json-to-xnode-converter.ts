@@ -86,45 +86,41 @@ export class DefaultXjxJsonToXNodeConverter implements XjxJsonToXNodeConverter {
       }
 
       const nodeData = jsonObj[nodeName];
+      const namingConfig = this.config.converters.xjxJson.naming;
 
       // Create base XNode
       const xnode = new XNode(nodeName, NodeType.ELEMENT_NODE);
       xnode.parent = parentNode;
 
       // Process namespace and prefix
-      const namespaceKey = this.config.propNames.namespace;
-      const prefixKey = this.config.propNames.prefix;
-      
-      if (nodeData[namespaceKey] && this.config.preserveNamespaces) {
-        xnode.namespace = nodeData[namespaceKey];
+      if (nodeData[namingConfig.namespace] && this.config.preserveNamespaces) {
+        xnode.namespace = nodeData[namingConfig.namespace];
       }
 
-      if (nodeData[prefixKey] && this.config.preserveNamespaces) {
-        xnode.prefix = nodeData[prefixKey];
+      if (nodeData[namingConfig.prefix] && this.config.preserveNamespaces) {
+        xnode.prefix = nodeData[namingConfig.prefix];
       }
 
       // Process value
-      const valueKey = this.config.propNames.value;
-      if (nodeData[valueKey] !== undefined) {
-        xnode.value = nodeData[valueKey];
+      if (nodeData[namingConfig.value] !== undefined) {
+        xnode.value = nodeData[namingConfig.value];
       }
 
       // Process attributes
-      const attributesKey = this.config.propNames.attributes;
       if (this.config.preserveAttributes && 
-          nodeData[attributesKey] && 
-          Array.isArray(nodeData[attributesKey])) {
+          nodeData[namingConfig.attribute] && 
+          Array.isArray(nodeData[namingConfig.attribute])) {
         
         xnode.attributes = {};
         const namespaceDecls: Record<string, string> = {};
         let hasNamespaceDecls = false;
 
-        for (const attrObj of nodeData[attributesKey]) {
+        for (const attrObj of nodeData[namingConfig.attribute]) {
           const attrName = Object.keys(attrObj)[0];
           if (!attrName) continue;
 
           const attrData = attrObj[attrName];
-          const attrValue = attrData[valueKey];
+          const attrValue = attrData[namingConfig.value];
 
           if (this.processNamespaceDeclaration(attrName, attrValue, namespaceDecls)) {
             hasNamespaceDecls = true;
@@ -141,9 +137,8 @@ export class DefaultXjxJsonToXNodeConverter implements XjxJsonToXNodeConverter {
       }
 
       // Process children
-      const childrenKey = this.config.propNames.children;
-      if (nodeData[childrenKey] && Array.isArray(nodeData[childrenKey])) {
-        xnode.children = this.processChildren(nodeData[childrenKey], xnode);
+      if (nodeData[namingConfig.children] && Array.isArray(nodeData[namingConfig.children])) {
+        xnode.children = this.processChildren(nodeData[namingConfig.children], xnode);
       }
 
       logger.debug('Converted JSON object to XNode', { 
@@ -219,10 +214,11 @@ export class DefaultXjxJsonToXNodeConverter implements XjxJsonToXNodeConverter {
       validate(parentNode instanceof XNode, "Parent node must be an XNode");
       
       const result: XNode[] = [];
+      const namingConfig = this.config.converters.xjxJson.naming;
       
       for (const child of children) {
         // Special node types
-        if (this.processSpecialChild(child, result, parentNode)) {
+        if (this.processSpecialChild(child, result, parentNode, namingConfig)) {
           continue;
         }
         
@@ -249,46 +245,46 @@ export class DefaultXjxJsonToXNodeConverter implements XjxJsonToXNodeConverter {
    * @param child Child data from JSON
    * @param result Output children array
    * @param parentNode Parent XNode
+   * @param namingConfig JSON naming configuration
    * @returns True if processed as special node
    * @private
    */
-  private processSpecialChild(child: any, result: XNode[], parentNode: XNode): boolean {
+  private processSpecialChild(
+    child: any, 
+    result: XNode[], 
+    parentNode: XNode, 
+    namingConfig: any
+  ): boolean {
     try {
-      const valueKey = this.config.propNames.value;
-      const cdataKey = this.config.propNames.cdata;
-      const commentsKey = this.config.propNames.comments;
-      const instructionKey = this.config.propNames.instruction;
-      const targetKey = this.config.propNames.target;
-      
       // Text node
-      if (child[valueKey] !== undefined && this.config.preserveTextNodes) {
-        const textNode = XNode.createTextNode(child[valueKey]);
+      if (child[namingConfig.value] !== undefined && this.config.preserveTextNodes) {
+        const textNode = XNode.createTextNode(child[namingConfig.value]);
         textNode.parent = parentNode;
         result.push(textNode);
         return true;
       }
       
       // CDATA section
-      if (child[cdataKey] !== undefined && this.config.preserveCDATA) {
-        const cdataNode = XNode.createCDATANode(child[cdataKey]);
+      if (child[namingConfig.cdata] !== undefined && this.config.preserveCDATA) {
+        const cdataNode = XNode.createCDATANode(child[namingConfig.cdata]);
         cdataNode.parent = parentNode;
         result.push(cdataNode);
         return true;
       }
       
       // Comment
-      if (child[commentsKey] !== undefined && this.config.preserveComments) {
-        const commentNode = XNode.createCommentNode(child[commentsKey]);
+      if (child[namingConfig.comment] !== undefined && this.config.preserveComments) {
+        const commentNode = XNode.createCommentNode(child[namingConfig.comment]);
         commentNode.parent = parentNode;
         result.push(commentNode);
         return true;
       }
       
       // Processing instruction
-      if (child[instructionKey] !== undefined && this.config.preserveProcessingInstr) {
-        const piData = child[instructionKey];
-        const target = piData[targetKey];
-        const value = piData[valueKey] || "";
+      if (child[namingConfig.processingInstr] !== undefined && this.config.preserveProcessingInstr) {
+        const piData = child[namingConfig.processingInstr];
+        const target = piData[namingConfig.target];
+        const value = piData[namingConfig.value] || "";
         
         if (target) {
           const piNode = XNode.createProcessingInstructionNode(target, value);

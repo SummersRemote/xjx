@@ -77,12 +77,12 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
       let xmlString = XmlSerializer.serialize(doc);
       
       // Apply pretty printing if enabled
-      if (this.config.outputOptions.prettyPrint) {
-        xmlString = XmlSerializer.prettyPrint(xmlString, this.config.outputOptions.indent);
+      if (this.config.converters.xml.options.prettyPrint) {
+        xmlString = XmlSerializer.prettyPrint(xmlString, this.config.converters.xml.options.indent);
       }
       
       // Add XML declaration if configured
-      if (this.config.outputOptions.xml.declaration) {
+      if (this.config.converters.xml.options.declaration) {
         xmlString = XmlSerializer.ensureXMLDeclaration(xmlString);
       }
       

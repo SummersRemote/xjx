@@ -57,7 +57,7 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
       let jsonResult = this.xnodeToJson(node);
       
       // Apply compact mode if configured
-      if (this.config.outputOptions.compact) {
+      if (this.config.converters.xjxJson.options.compact) {
         const compactedJson = JSON.compact(jsonResult);
         
         // If compaction returns undefined (completely empty), return an empty object
@@ -97,19 +97,21 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
       
       const result: Record<string, any> = {};
       const nodeObj: Record<string, any> = {};
+      
+      const namingConfig = this.config.converters.xjxJson.naming;
 
       // Add namespace and prefix if present
       if (node.namespace && this.config.preserveNamespaces) {
-        nodeObj[this.config.propNames.namespace] = node.namespace;
+        nodeObj[namingConfig.namespace] = node.namespace;
       }
 
       if (node.prefix && this.config.preserveNamespaces) {
-        nodeObj[this.config.propNames.prefix] = node.prefix;
+        nodeObj[namingConfig.prefix] = node.prefix;
       }
 
       // Add value if present
       if (node.value !== undefined && this.config.preserveTextNodes) {
-        nodeObj[this.config.propNames.value] = node.value;
+        nodeObj[namingConfig.value] = node.value;
       }
 
       // Add attributes
@@ -123,7 +125,7 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
         // Add regular attributes
         for (const [name, value] of Object.entries(node.attributes)) {
           const attrObj: Record<string, any> = {
-            [name]: { [this.config.propNames.value]: value },
+            [name]: { [namingConfig.value]: value },
           };
           attrs.push(attrObj);
         }
@@ -135,14 +137,14 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
           )) {
             const attrName = prefix === "" ? "xmlns" : `xmlns:${prefix}`;
             const attrObj: Record<string, any> = {
-              [attrName]: { [this.config.propNames.value]: uri },
+              [attrName]: { [namingConfig.value]: uri },
             };
             attrs.push(attrObj);
           }
         }
 
         if (attrs.length > 0) {
-          nodeObj[this.config.propNames.attributes] = attrs;
+          nodeObj[namingConfig.attribute] = attrs;
         }
       }
 
@@ -154,28 +156,28 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
           switch (child.type) {
             case NodeType.TEXT_NODE:
               if (this.config.preserveTextNodes) {
-                children.push({ [this.config.propNames.value]: child.value });
+                children.push({ [namingConfig.value]: child.value });
               }
               break;
 
             case NodeType.CDATA_SECTION_NODE:
               if (this.config.preserveCDATA) {
-                children.push({ [this.config.propNames.cdata]: child.value });
+                children.push({ [namingConfig.cdata]: child.value });
               }
               break;
 
             case NodeType.COMMENT_NODE:
               if (this.config.preserveComments) {
-                children.push({ [this.config.propNames.comments]: child.value });
+                children.push({ [namingConfig.comment]: child.value });
               }
               break;
 
             case NodeType.PROCESSING_INSTRUCTION_NODE:
               if (this.config.preserveProcessingInstr) {
                 children.push({
-                  [this.config.propNames.instruction]: {
-                    [this.config.propNames.target]: child.attributes?.target,
-                    [this.config.propNames.value]: child.value,
+                  [namingConfig.processingInstr]: {
+                    [namingConfig.target]: child.attributes?.target,
+                    [namingConfig.value]: child.value,
                   },
                 });
               }
@@ -188,7 +190,7 @@ export class DefaultXNodeToJsonConverter implements XNodeToJsonConverter {
         }
 
         if (children.length > 0) {
-          nodeObj[this.config.propNames.children] = children;
+          nodeObj[namingConfig.children] = children;
         }
       }
 

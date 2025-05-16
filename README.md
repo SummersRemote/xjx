@@ -14,6 +14,7 @@ XJX is a modular, extensible library for converting between XML and JSON formats
 - 🧩 Modular design for tree-shaking
 - 💻 Works in both Node.js and browser environments
 - 📝 TypeScript definitions included
+- ✨ Multiple JSON formats (XJX format with full fidelity or standard format for natural usage)
 
 ## Installation
 
@@ -48,7 +49,7 @@ pnpm add xjx
 
 ## Basic Usage
 
-### XML to JSON
+### XML to JSON (XJX format)
 
 ```javascript
 import { XJX } from 'xjx';
@@ -88,7 +89,78 @@ console.log(json);
 // }
 ```
 
-### JSON to XML
+### XML to Standard JSON
+
+```javascript
+import { XJX } from 'xjx';
+
+const xml = `
+<user id="123">
+  <name>John Doe</name>
+  <email>john@example.com</email>
+  <active>true</active>
+  <score>85.5</score>
+</user>
+`;
+
+// Convert XML to Standard JSON format
+const standardJson = new XJX()
+  .fromXml(xml)
+  .withTransforms(
+    new XJX.BooleanTransform(),
+    new XJX.NumberTransform()
+  )
+  .toStandardJson();
+
+console.log(standardJson);
+// Output:
+// {
+//   "user": {
+//     "id": "123",
+//     "name": "John Doe",
+//     "email": "john@example.com",
+//     "active": true,
+//     "score": 85.5
+//   }
+// }
+```
+
+### Standard JSON to XML
+
+```javascript
+import { XJX } from 'xjx';
+
+const standardJson = {
+  "user": {
+    "id": "123",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "active": true,
+    "score": 85.5
+  }
+};
+
+// Convert Standard JSON to XML
+const xml = new XJX()
+  .fromObjJson(standardJson)  // Use fromObjJson for standard JSON objects
+  .withTransforms(
+    new XJX.BooleanTransform(),
+    new XJX.NumberTransform()
+  )
+  .toXml();
+
+console.log(xml);
+// Output:
+// <?xml version="1.0" encoding="UTF-8"?>
+// <user id="123">
+//   <name>John Doe</name>
+//   <email>john@example.com</email>
+//   <active>true</active>
+//   <score>85.5</score>
+// </user>
+```
+
+### XJX-formatted JSON to XML
 
 ```javascript
 import { XJX } from 'xjx';
@@ -107,9 +179,9 @@ const json = {
   }
 };
 
-// Convert JSON to XML with type conversion
+// Convert XJX-formatted JSON to XML
 const xml = new XJX()
-  .fromJson(json)
+  .fromJson(json)  // Automatically detects XJX format
   .withTransforms(
     new XJX.BooleanTransform(),
     new XJX.NumberTransform()
@@ -140,6 +212,17 @@ node.setAttribute('id', '123');
 node.addChild(new XJX.XNode('name').setTextContent('John Doe'));
 ```
 
+### JSON Formats
+
+XJX supports two JSON formats:
+
+1. **XJX Format**: Full-fidelity representation with preserved namespaces, CDATA, comments, etc.
+2. **Standard Format**: Natural JavaScript object structure for easier integration with other libraries
+
+You can choose the format that best suits your use case:
+- Use XJX Format when you need full round-trip preservation of XML features
+- Use Standard Format when working with typical JavaScript data structures
+
 ### Transforms
 
 Transforms are operations applied to XNode during the conversion process. They can modify values, attributes, element names, or structure.
@@ -163,8 +246,8 @@ new XJX()
 
 Extensions enhance the XJX API with additional functionality. There are two types of extensions:
 
-- **Terminal extensions** - Return a value (e.g., `toXml()`, `toJson()`)
-- **Non-terminal extensions** - Return the XJX instance for chaining (e.g., `fromXml()`, `withTransforms()`)
+- **Terminal extensions** - Return a value (e.g., `toXml()`, `toJson()`, `toStandardJson()`)
+- **Non-terminal extensions** - Return the XJX instance for chaining (e.g., `fromXml()`, `fromJson()`, `fromObjJson()`)
 
 ```javascript
 // Using the built-in extensions
@@ -176,7 +259,7 @@ new XJX()
   .withTransforms(        // Non-terminal extension
     new XJX.BooleanTransform()
   )
-  .toJson();              // Terminal extension
+  .toStandardJson();      // Terminal extension
 ```
 
 ## Configuration Options
@@ -195,28 +278,75 @@ new XJX()
     preserveWhitespace: false,      // Preserve whitespace in text nodes
     preserveAttributes: true,       // Preserve XML attributes
 
-    // Output options
-    outputOptions: {
-      prettyPrint: true,            // Format output with indentation
-      indent: 2,                    // Indentation spaces
-      compact: true,                // Remove empty nodes/attributes
-      json: {},                     // JSON-specific options
+    // Converters section with format-specific settings
+    converters: {
+      // Standard JSON converter settings
+      stdJson: {
+        options: {
+          // How to handle attributes in standard JSON
+          // - 'ignore': Discard all attributes
+          // - 'merge': Merge attributes with element content
+          // - 'prefix': Add attributes with a prefix (e.g., '@name')
+          // - 'property': Add attributes under a property (e.g., '_attrs')
+          attributeHandling: 'merge',
+          
+          // Prefix for attributes when using 'prefix' mode
+          attributePrefix: '@',
+          
+          // Property name for attributes when using 'property' mode
+          attributePropertyName: '_attrs',
+          
+          // Property name for text content when there are also attributes
+          textPropertyName: '_text',
+          
+          // Whether to always create arrays for elements with the same name
+          alwaysCreateArrays: false,
+          
+          // Whether to preserve mixed content (text + elements)
+          preserveMixedContent: true,
+          
+          // Whether to represent empty elements as null
+          emptyElementsAsNull: false
+        },
+        naming: {
+          // Name to use for array items when converting from JSON to XML
+          arrayItem: "item"
+        }
+      },
+      
+      // XJX JSON converter settings
+      xjxJson: {
+        options: {
+          // Remove empty nodes and properties
+          compact: true
+        },
+        naming: {
+          // Property names for XJX format
+          namespace: "$ns",
+          prefix: "$pre",
+          attribute: "$attr",
+          value: "$val",
+          cdata: "$cdata",
+          comment: "$cmnt",
+          processingInstr: "$pi",
+          target: "$trgt",
+          children: "$children"
+        }
+      },
+      
+      // XML converter settings
       xml: {
-        declaration: true           // Include XML declaration
+        options: {
+          // Include XML declaration
+          declaration: true,
+          
+          // Format output with indentation
+          prettyPrint: true,
+          
+          // Number of spaces for indentation
+          indent: 2
+        }
       }
-    },
-
-    // Property names in JSON representation
-    propNames: {
-      namespace: "$ns",             // Namespace URI
-      prefix: "$pre",               // Namespace prefix
-      attributes: "$attr",          // Attributes array
-      value: "$val",                // Node value
-      cdata: "$cdata",              // CDATA content
-      comments: "$cmnt",            // Comment content
-      instruction: "$pi",           // Processing instruction
-      target: "$trgt",              // Processing instruction target
-      children: "$children"         // Child nodes
     }
   });
 ```
@@ -286,7 +416,9 @@ XJX provides several built-in extensions for its fluent API:
 ### Non-terminal Extensions (Return XJX instance)
 
 - `fromXml(xml)` - Set XML string as the source
-- `fromJson(json)` - Set JSON object as the source
+- `fromJson(json)` - Set JSON object as source (auto-detects format)
+- `fromXjxJson(json)` - Set XJX-formatted JSON as source
+- `fromObjJson(json)` - Set standard JavaScript object as source
 - `withConfig(config)` - Set configuration options
 - `withTransforms(...transforms)` - Add transforms to the pipeline
 - `setLogLevel(level)` - Set logger level (debug, info, warn, error, suppress)
@@ -294,10 +426,146 @@ XJX provides several built-in extensions for its fluent API:
 ### Terminal Extensions (Return a value)
 
 - `toXml()` - Convert to XML string
-- `toJson()` - Convert to JSON object
-- `toJsonString()` - Convert to JSON string
+- `toJson()` - Convert to XJX-formatted JSON
+- `toStandardJson()` - Convert to standard JavaScript object
+- `toJsonString()` - Convert to JSON string (using XJX format)
 
 ## Advanced Usage
+
+### Working with Standard JSON
+
+The standard JSON format provides a more natural JavaScript object structure:
+
+```javascript
+import { XJX } from 'xjx';
+
+// Convert XML to standard JSON
+const standardJson = new XJX()
+  .fromXml(`
+    <library>
+      <book category="fiction">
+        <title>The Hobbit</title>
+        <author>J.R.R. Tolkien</author>
+        <year>1937</year>
+      </book>
+      <book category="non-fiction">
+        <title>A Brief History of Time</title>
+        <author>Stephen Hawking</author>
+        <year>1988</year>
+      </book>
+    </library>
+  `)
+  .withTransforms(new XJX.NumberTransform())
+  .toStandardJson();
+
+console.log(standardJson);
+// Output:
+// {
+//   "library": {
+//     "book": [
+//       {
+//         "category": "fiction",
+//         "title": "The Hobbit",
+//         "author": "J.R.R. Tolkien",
+//         "year": 1937
+//       },
+//       {
+//         "category": "non-fiction",
+//         "title": "A Brief History of Time",
+//         "author": "Stephen Hawking",
+//         "year": 1988
+//       }
+//     ]
+//   }
+// }
+
+// Convert standard JSON back to XML
+const backToXml = new XJX()
+  .fromObjJson(standardJson)
+  .toXml();
+```
+
+### Configuring Standard JSON Behavior
+
+You can customize how attributes, text and arrays are handled in standard JSON:
+
+```javascript
+import { XJX } from 'xjx';
+
+const xml = `
+<product id="123" sku="ABC-123">
+  <name>Smartphone</name>
+  <description>A high-end smartphone with great features</description>
+  <price currency="USD">799.99</price>
+</product>
+`;
+
+// Configure attribute handling
+const result = new XJX()
+  .withConfig({
+    converters: {
+      stdJson: {
+        options: {
+          // Use 'property' mode for attributes
+          attributeHandling: 'property',
+          attributePropertyName: '_attrs',
+          textPropertyName: '_value'
+        }
+      }
+    }
+  })
+  .fromXml(xml)
+  .toStandardJson();
+
+console.log(result);
+// Output:
+// {
+//   "product": {
+//     "_attrs": {
+//       "id": "123",
+//       "sku": "ABC-123"
+//     },
+//     "name": "Smartphone",
+//     "description": "A high-end smartphone with great features",
+//     "price": {
+//       "_attrs": {
+//         "currency": "USD"
+//       },
+//       "_value": "799.99"
+//     }
+//   }
+// }
+
+// Or use prefix mode
+const prefixResult = new XJX()
+  .withConfig({
+    converters: {
+      stdJson: {
+        options: {
+          attributeHandling: 'prefix',
+          attributePrefix: '@'
+        }
+      }
+    }
+  })
+  .fromXml(xml)
+  .toStandardJson();
+
+console.log(prefixResult);
+// Output:
+// {
+//   "product": {
+//     "@id": "123",
+//     "@sku": "ABC-123",
+//     "name": "Smartphone",
+//     "description": "A high-end smartphone with great features",
+//     "price": {
+//       "@currency": "USD",
+//       "_text": "799.99"
+//     }
+//   }
+// }
+```
 
 ### Custom Configuration
 
@@ -308,14 +576,29 @@ import { XJX } from 'xjx';
 const config = {
   preserveComments: true,
   preserveWhitespace: true,
-  outputOptions: {
-    prettyPrint: true,
-    indent: 4
-  },
-  propNames: {
-    // Custom property names for JSON representation
-    value: "_value",
-    children: "_children"
+  
+  converters: {
+    xml: {
+      options: {
+        prettyPrint: true,
+        indent: 4
+      }
+    },
+    xjxJson: {
+      naming: {
+        // Custom property names for XJX JSON representation
+        value: "_value",
+        children: "_children"
+      }
+    },
+    stdJson: {
+      options: {
+        // Always group same-named elements into arrays
+        alwaysCreateArrays: true,
+        // Convert empty elements to null
+        emptyElementsAsNull: true
+      }
+    }
   }
 };
 
@@ -355,7 +638,7 @@ const result = new XJX()
       }
     })
   )
-  .toJson();
+  .toStandardJson();
 ```
 
 ### Full Bundle
@@ -375,7 +658,7 @@ const result = new XJX()
     new XJX.RegexTransform({ /* ... */ }),
     new XJX.MetadataTransform({ /* ... */ })
   )
-  .toJson();
+  .toStandardJson();
 ```
 
 ## Browser Environment
@@ -397,7 +680,7 @@ XJX automatically detects the browser environment and uses the browser's DOM API
           new XJX.BooleanTransform(),
           new XJX.NumberTransform()
         )
-        .toJson();
+        .toStandardJson(); // Use standard JSON for easier DOM manipulation
       
       document.getElementById('json-output').textContent = 
         JSON.stringify(result, null, 2);
@@ -422,7 +705,7 @@ try {
   const result = new XJX()
     .setLogLevel(LogLevel.DEBUG)  // Set logging level
     .fromXml(invalidXml)
-    .toJson();
+    .toStandardJson();
 } catch (error) {
   console.error('Error type:', error.name);
   console.error('Error message:', error.message);
@@ -443,6 +726,18 @@ import { XJX, XNode, Configuration, Transform, BooleanTransform } from 'xjx';
 const config: Configuration = {
   preserveNamespaces: true,
   // ...
+  converters: {
+    stdJson: {
+      options: {
+        attributeHandling: 'merge',
+        // ...
+      },
+      naming: {
+        arrayItem: 'item'
+      }
+    },
+    // ...
+  }
 };
 
 // Create a custom transform
@@ -460,7 +755,7 @@ const result = new XJX()
   .withConfig(config)
   .fromXml(xml)
   .withTransforms(new CustomTransform())
-  .toJson();
+  .toStandardJson();
 ```
 
 ## Documentation

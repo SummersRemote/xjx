@@ -1,798 +1,1216 @@
-# XJX Extensions Guide
+# XJX Transforms Guide
 
-This guide provides detailed information about the XJX extension system, which allows you to extend and customize the XJX library's functionality.
+This guide provides detailed information about the XJX transform system, which allows you to modify data during XML/JSON conversion.
 
 ## Table of Contents
 
-- [Understanding the Extension System](#understanding-the-extension-system)
-- [Types of Extensions](#types-of-extensions)
-- [Using Built-in Extensions](#using-built-in-extensions)
-- [Creating Custom Extensions](#creating-custom-extensions)
+- [Understanding the Transform System](#understanding-the-transform-system)
+- [Transform Concepts](#transform-concepts)
+- [Built-in Transforms](#built-in-transforms)
+- [Creating Custom Transforms](#creating-custom-transforms)
 - [Advanced Use Cases](#advanced-use-cases)
 - [Best Practices](#best-practices)
 
-## Understanding the Extension System
+## Understanding the Transform System
 
-The XJX extension system is designed to provide a flexible, modular way to extend the library's functionality. Extensions form the basis of XJX's fluent API, allowing you to chain method calls to create complex transformation pipelines.
+The transform system in XJX provides a powerful way to modify data during the conversion process between XML and JSON. Transforms operate on the internal XNode representation, allowing for precise control over the conversion process.
 
-Each extension method is registered with the XJX class and becomes available on all XJX instances. Extensions access the internal state of the XJX instance, including the current XNode, transformation pipeline, and configuration.
+Key features of the transform system:
 
-The extension system provides:
+- **Format-aware**: Transforms can behave differently based on target format (XML, XJX JSON, or Standard JSON)
+- **Targeted**: Each transform can target specific node types (elements, attributes, text, etc.)
+- **Chainable**: Multiple transforms can be applied in sequence
+- **Stateless**: Transforms don't maintain state between transformations
+- **Immutable**: Transforms don't modify the original data, but create new versions
 
-- **Modular architecture**: Add only the features you need
-- **Fluent API**: Chain method calls for readable, concise code
-- **Type safety**: Full TypeScript support for extension methods
-- **Dynamic registration**: Register extensions at runtime
+## Transform Concepts
 
-## Types of Extensions
+### XNode Model
 
-XJX supports two types of extensions:
+All transforms operate on the XNode model, which represents XML data:
 
-### 1. Terminal Extensions
+```javascript
+// XNode structure (simplified)
+interface XNode {
+  name: string;              // Node name
+  type: number;              // Node type (element, text, comment, etc.)
+  value?: any;               // Node value
+  attributes?: Record<string, any>; // Node attributes
+  children?: XNode[];        // Child nodes
+  namespace?: string;        // Namespace URI
+  prefix?: string;           // Namespace prefix
+  parent?: XNode;            // Parent node
+  metadata?: Record<string, any>; // Metadata (for transform hints)
+}
+```
 
-Terminal extensions perform an operation and return a value other than the XJX instance. They typically represent the end of a transformation chain.
+### Transform Interface
 
-Examples of built-in terminal extensions:
-- `toXml()` - Convert to XML string
-- `toJson()` - Convert to XJX-formatted JSON object
-- `toJsonString()` - Convert to JSON string
-- `toStandardJson()` - Convert to standard JavaScript object/array
+All transforms implement the `Transform` interface:
 
-Terminal extensions are registered using `XJX.registerTerminalExtension()`.
+```typescript
+interface Transform {
+  // Types of nodes this transform targets
+  targets: TransformTarget[];
+  
+  // Transform method
+  transform(value: any, context: TransformContext): TransformResult<any>;
+}
 
-### 2. Non-terminal Extensions
+// Target types
+enum TransformTarget {
+  Value = 'value',                   // Node values
+  Attribute = 'attribute',           // Node attributes
+  Element = 'element',               // Element nodes
+  Text = 'text',                     // Text nodes
+  CDATA = 'cdata',                   // CDATA nodes
+  Comment = 'comment',               // Comment nodes
+  ProcessingInstruction = 'processingInstruction', // PI nodes
+  Namespace = 'namespace'            // Namespace declarations
+}
 
-Non-terminal extensions perform an operation and return the XJX instance, allowing for method chaining.
+// Context provided to each transform
+interface TransformContext {
+  nodeName: string;         // Name of the current node
+  nodeType: number;         // Type of the current node
+  path: string;             // Path to the current node
+  isAttribute?: boolean;    // Whether this is an attribute
+  attributeName?: string;   // Attribute name (if applicable)
+  isText?: boolean;         // Whether this is a text node
+  isCDATA?: boolean;        // Whether this is a CDATA node
+  isComment?: boolean;      // Whether this is a comment node
+  isProcessingInstruction?: boolean; // Whether this is a PI node
+  namespace?: string;       // Namespace URI
+  prefix?: string;          // Namespace prefix
+  parent?: TransformContext; // Parent context
+  config: Configuration;    // XJX configuration
+  targetFormat: FormatId;   // Target format (xml or json)
+}
 
-Examples of built-in non-terminal extensions:
-- `fromXml()` - Set XML string as the source
-- `fromJson()` - Set JSON object as the source (auto-detects format)
-- `fromXjxJson()` - Set XJX-formatted JSON as the source
-- `fromObjJson()` - Set standard JavaScript object as the source
-- `withConfig()` - Set configuration options
-- `withTransforms()` - Add transforms to the pipeline
-- `setLogLevel()` - Set logger level
+// Result of a transformation
+interface TransformResult<T> {
+  value: T;      // Transformed value
+  remove: boolean; // Whether to remove this node
+}
+```
 
-Non-terminal extensions are registered using `XJX.registerNonTerminalExtension()`.
+### Transform Application
 
-## Using Built-in Extensions
-
-XJX comes with several built-in extensions that form its fluent API:
+Transforms are applied to XNodes during conversion:
 
 ```javascript
 import { XJX } from 'xjx';
 
-// Using the built-in extensions
+// Apply transforms during conversion
+const xmlDoc = new XJX()
+  .fromXml(xml)
+  .withTransforms(
+    new XJX.BooleanTransform(),
+    new XJX.NumberTransform()
+  )
+  .toXml();
+
+// Serialize to string
+const xmlString = xmlDoc.stringify();
+```
+
+### Format-Aware Transforms
+
+Transforms can behave differently based on the target format. The updated configuration structure adds support for Standard JSON format, in addition to the existing XML and XJX JSON formats:
+
+```javascript
+import { XJX, Transform, FORMATS } from 'xjx';
+
+class MyTransform implements Transform {
+  targets = [TransformTarget.Value];
+  
+  transform(value: any, context: TransformContext): TransformResult<any> {
+    if (context.targetFormat === FORMATS.XML) {
+      // XML-specific transformation
+      return createTransformResult(/* transformed for XML */);
+    } else if (context.targetFormat === FORMATS.JSON) {
+      // JSON-specific transformation (for both XJX and Standard JSON)
+      return createTransformResult(/* transformed for JSON */);
+    }
+    
+    // Default behavior
+    return createTransformResult(value);
+  }
+}
+```
+
+## Built-in Transforms
+
+XJX includes several built-in transforms:
+
+### BooleanTransform
+
+Converts string values to booleans and vice versa.
+
+```javascript
+import { XJX, BooleanTransform } from 'xjx';
+
+// Create a boolean transform with custom settings
+const booleanTransform = new BooleanTransform({
+  trueValues: ['true', 'yes', '1', 'on', 'active'],    // Values considered as true
+  falseValues: ['false', 'no', '0', 'off', 'inactive'], // Values considered as false
+  ignoreCase: true                                     // Ignore case when matching
+});
+
+// Apply the transform
+const xmlDoc = new XJX()
+  .fromXml('<user><active>yes</active><subscribed>no</subscribed></user>')
+  .withTransforms(booleanTransform)
+  .toXml();
+
+// Serialize to string
+const xmlString = xmlDoc.stringify();
+
+// Alternatively, convert to standard JSON
+const standardJson = new XJX()
+  .fromXml('<user><active>yes</active><subscribed>no</subscribed></user>')
+  .withTransforms(booleanTransform)
+  .toStandardJson();
+
+// Result:
+// {
+//   "user": {
+//     "active": true,
+//     "subscribed": false
+//   }
+// }
+```
+
+### NumberTransform
+
+Converts string values to numbers and vice versa.
+
+```javascript
+import { XJX, NumberTransform } from 'xjx';
+
+// Create a number transform with custom settings
+const numberTransform = new NumberTransform({
+  integers: true,                // Convert integer strings to numbers
+  decimals: true,                // Convert decimal strings to numbers
+  scientific: true,              // Convert scientific notation
+  decimalSeparator: '.',         // Decimal separator character
+  thousandsSeparator: ','        // Thousands separator character
+});
+
+// Apply the transform
+const xmlDoc = new XJX()
+  .fromXml('<data><count>42</count><price>19.99</price><large>1,234,567</large></data>')
+  .withTransforms(numberTransform)
+  .toXml();
+
+// Serialize to string
+const xmlString = xmlDoc.stringify();
+
+// Or convert to standard JSON
+const standardJson = new XJX()
+  .fromXml('<data><count>42</count><price>19.99</price><large>1,234,567</large></data>')
+  .withTransforms(numberTransform)
+  .toStandardJson();
+
+// Result:
+// {
+//   "data": {
+//     "count": 42,
+//     "price": 19.99,
+//     "large": 1234567
+//   }
+// }
+```
+
+### RegexTransform
+
+Performs regex replacements on text values.
+
+```javascript
+import { XJX, RegexTransform } from 'xjx';
+
+// Create a regex transform
+const dateFormatTransform = new RegexTransform({
+  pattern: /(\d{4})-(\d{2})-(\d{2})/g,  // ISO date format
+  replacement: '$2/$3/$1',              // MM/DD/YYYY format
+  format: 'json'                        // Only apply when converting to JSON
+});
+
+// Apply the transform
 const result = new XJX()
-  .fromXml(xml)                  // Non-terminal extension
-  .withConfig({                  // Non-terminal extension
-    preserveComments: true,
-    converters: {
-      stdJson: {
-        options: {
-          attributeHandling: 'merge'
+  .fromXml('<user><birth-date>2023-01-15</birth-date></user>')
+  .withTransforms(dateFormatTransform)
+  .toStandardJson();
+
+// Result:
+// {
+//   "user": {
+//     "birth-date": "01/15/2023"
+//   }
+// }
+```
+
+### MetadataTransform
+
+Manages metadata on XNode objects. Metadata can be used for processing hints, validation rules, and other custom information.
+
+```javascript
+import { XJX, MetadataTransform } from 'xjx';
+
+// Create a metadata transform
+const validationMetadataTransform = new MetadataTransform({
+  selector: 'user',                // Apply to 'user' elements
+  metadata: {                      // Metadata to apply
+    validation: {
+      required: ['name', 'email'],
+      minLength: {
+        name: 2,
+        email: 5
+      }
+    }
+  },
+  formatMetadata: [                // Format-specific metadata
+    {
+      format: 'json',
+      metadata: {
+        jsonSchema: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            email: { type: 'string' }
+          }
         }
       }
     }
-  })
-  .withTransforms(               // Non-terminal extension
-    new XJX.BooleanTransform()
-  )
-  .toStandardJson();             // Terminal extension
-```
+  ],
+  replace: false,                  // Merge with existing metadata
+  removeKeys: [],                  // Keys to remove
+  maxDepth: 2                      // Maximum depth to apply
+});
 
-### JSON Format Extensions
-
-XJX now supports multiple JSON formats with specialized extensions:
-
-```javascript
-// Auto-detect format (XJX or standard)
-const result1 = new XJX()
-  .fromJson(jsonData)  // Automatically detects format
-  .toXml();
-
-// Explicitly use XJX format
-const result2 = new XJX()
-  .fromXjxJson(xjxFormatData)  // Only accepts XJX format
-  .toXml();
-
-// Use standard JavaScript objects
-const result3 = new XJX()
-  .fromObjJson(standardObject)  // Accepts regular JavaScript objects
-  .toXml();
-
-// Convert to standard JSON format
-const standardJson = new XJX()
-  .fromXml(xml)
-  .toStandardJson();  // Returns natural JavaScript objects
-```
-
-## Creating Custom Extensions
-
-You can create custom extensions to add specialized functionality to XJX. Here's how to create and register both types of extensions:
-
-### Creating a Custom Terminal Extension
-
-Terminal extensions return a value and typically represent the end of a chain.
-
-```javascript
-import { XJX } from 'xjx';
-
-// Define a function that becomes a terminal extension method
-function toObject(this: XJX): Record<string, any> {
-  // First, validate that we have a source set
-  this.validateSource();
-  
-  // Get the standard JSON output as a base
-  const json = this.toStandardJson();
-  
-  // Transform it to a more application-friendly format
-  return {
-    name: json.root?.name || '',
-    value: json.root?.value || '',
-    // Add more custom transformations as needed
-  };
-}
-
-// Register the terminal extension
-XJX.registerTerminalExtension('toObject', toObject);
-
-// Now you can use it in your code
+// Apply the transform
 const result = new XJX()
-  .fromXml('<root><name>John</name><value>42</value></root>')
-  .toObject(); // Returns { name: "John", value: "42" }
-```
-
-### Type Augmentation for TypeScript
-
-When creating custom extensions in TypeScript, you need to augment the XJX interface to include your new methods:
-
-```typescript
-import { XJX } from 'xjx';
-
-// Augment the XJX interface to include your custom method
-declare module 'xjx' {
-  interface XJX {
-    toObject(): Record<string, any>;
-  }
-}
-
-// Define and register the extension as before
-function toObject(this: XJX): Record<string, any> {
-  // Implementation
-}
-
-XJX.registerTerminalExtension('toObject', toObject);
-```
-
-### Creating a Custom Non-terminal Extension
-
-Non-terminal extensions return the XJX instance for method chaining.
-
-```javascript
-import { XJX } from 'xjx';
-
-// Define a function that becomes a non-terminal extension method
-function withValidator(this: XJX, validator: (xnode: XNode) => boolean): void {
-  // Store the validator in the instance
-  this._validator = validator;
-  
-  // Note: The registration wrapper will handle returning 'this'
-}
-
-// Register the non-terminal extension
-XJX.registerNonTerminalExtension('withValidator', withValidator);
-
-// Type augmentation for TypeScript
-declare module 'xjx' {
-  interface XJX {
-    _validator?: (xnode: XNode) => boolean;
-    withValidator(validator: (xnode: XNode) => boolean): XJX;
-  }
-}
-
-// Now you can use it in your code
-const result = new XJX()
-  .fromXml(xml)
-  .withValidator((xnode) => xnode.name !== 'forbidden')
+  .fromXml('<root><user><name>John</name><email>john@example.com</email></user></root>')
+  .withTransforms(validationMetadataTransform)
   .toJson();
+
+// The XNode now has metadata attached that can be used by other processing
+```
+
+## Creating Custom Transforms
+
+You can create custom transforms to implement specialized transformation logic:
+
+### Basic Custom Transform
+
+```javascript
+import { 
+  XJX, 
+  Transform, 
+  TransformContext, 
+  TransformResult, 
+  TransformTarget,
+  createTransformResult 
+} from 'xjx';
+
+// Create a custom transform to uppercase all text values
+class UppercaseTransform implements Transform {
+  // Target text values
+  targets = [TransformTarget.Value];
+  
+  // Transform method
+  transform(value: any, context: TransformContext): TransformResult<any> {
+    // Skip non-string values
+    if (typeof value !== 'string') {
+      return createTransformResult(value);
+    }
+    
+    // Convert to uppercase
+    return createTransformResult(value.toUpperCase());
+  }
+}
+
+// Apply the custom transform
+const xmlDoc = new XJX()
+  .fromXml('<greeting>Hello, world!</greeting>')
+  .withTransforms(new UppercaseTransform())
+  .toXml();
+
+// Serialize to string
+const xmlString = xmlDoc.stringify();
+
+// Output XML:
+// <greeting>HELLO, WORLD!</greeting>
+
+// Or convert to standard JSON
+const result = new XJX()
+  .fromXml('<greeting>Hello, world!</greeting>')
+  .withTransforms(new UppercaseTransform())
+  .toStandardJson();
+
+// Result:
+// {
+//   "greeting": "HELLO, WORLD!"
+// }
+```
+
+### Format-Aware Transform with Standard JSON Support
+
+```javascript
+import { 
+  XJX, 
+  Transform, 
+  TransformContext, 
+  TransformResult, 
+  TransformTarget,
+  createTransformResult,
+  FORMATS 
+} from 'xjx';
+
+// Create a custom transform that behaves differently based on the target format
+class CaseTransform implements Transform {
+  // Target text values
+  targets = [TransformTarget.Value];
+  
+  // Transform method
+  transform(value: any, context: TransformContext): TransformResult<any> {
+    // Skip non-string values
+    if (typeof value !== 'string') {
+      return createTransformResult(value);
+    }
+    
+    // Apply different transformations based on target format
+    if (context.targetFormat === FORMATS.JSON) {
+      // To JSON (both XJX and Standard): uppercase
+      return createTransformResult(value.toUpperCase());
+    } else if (context.targetFormat === FORMATS.XML) {
+      // To XML: lowercase
+      return createTransformResult(value.toLowerCase());
+    }
+    
+    // For other formats, return as is
+    return createTransformResult(value);
+  }
+}
+
+// Apply the custom transform
+const jsonResult = new XJX()
+  .fromXml('<greeting>Hello, world!</greeting>')
+  .withTransforms(new CaseTransform())
+  .toStandardJson();
+
+// Result when converting to Standard JSON:
+// {
+//   "greeting": "HELLO, WORLD!"
+// }
+
+const xmlDoc = new XJX()
+  .fromObjJson({ "greeting": "Hello, WORLD!" })
+  .withTransforms(new CaseTransform())
+  .toXml();
+
+const xmlString = xmlDoc.stringify();
+
+// Result when converting to XML:
+// <greeting>hello, world!</greeting>
+```
+
+### Attribute Transform
+
+```javascript
+import { 
+  XJX, 
+  Transform, 
+  TransformContext, 
+  TransformResult, 
+  TransformTarget,
+  createTransformResult 
+} from 'xjx';
+
+// Create a custom transform for attributes
+class AttributePrefixTransform implements Transform {
+  // Target attributes
+  targets = [TransformTarget.Attribute];
+  
+  // Transform method
+  transform(attr: [string, any], context: TransformContext): TransformResult<[string, any]> {
+    // Skip non-attribute contexts
+    if (!context.isAttribute) {
+      return createTransformResult(attr);
+    }
+    
+    const [name, value] = attr;
+    
+    // Add a prefix to attribute names
+    const newName = 'data-' + name;
+    
+    return createTransformResult([newName, value]);
+  }
+}
+
+// Apply the custom transform
+const xmlDoc = new XJX()
+  .fromXml('<div id="main" class="container"></div>')
+  .withTransforms(new AttributePrefixTransform())
+  .toXml();
+
+const xmlString = xmlDoc.stringify();
+
+// Result:
+// <div data-id="main" data-class="container"></div>
+```
+
+### Element Transform
+
+```javascript
+import { 
+  XJX, 
+  Transform, 
+  TransformContext, 
+  TransformResult, 
+  TransformTarget,
+  createTransformResult 
+} from 'xjx';
+
+// Create a custom transform for elements
+class ElementRenameTransform implements Transform {
+  // Target elements
+  targets = [TransformTarget.Element];
+  
+  // Element name mapping
+  private mapping: Record<string, string>;
+  
+  constructor(mapping: Record<string, string>) {
+    this.mapping = mapping;
+  }
+  
+  // Transform method
+  transform(node: XNode, context: TransformContext): TransformResult<XNode> {
+    // Skip non-element nodes
+    if (node.type !== 1) { // NodeType.ELEMENT_NODE
+      return createTransformResult(node);
+    }
+    
+    // Check if we have a mapping for this element name
+    if (this.mapping[node.name]) {
+      // Create a new node with the mapped name
+      const newNode = node.clone(false); // Shallow clone
+      newNode.name = this.mapping[node.name];
+      
+      // Copy children
+      newNode.children = node.children;
+      
+      return createTransformResult(newNode);
+    }
+    
+    // No mapping, return unchanged
+    return createTransformResult(node);
+  }
+}
+
+// Apply the custom transform
+const result = new XJX()
+  .fromXml('<user><n>John</n><location>New York</location></user>')
+  .withTransforms(new ElementRenameTransform({
+    'n': 'name',
+    'location': 'address'
+  }))
+  .toStandardJson();
+
+// Result:
+// {
+//   "user": {
+//     "name": "John",
+//     "address": "New York"
+//   }
+// }
+```
+
+### Transform for Standard JSON Format
+
+```javascript
+import { 
+  XJX, 
+  Transform, 
+  TransformContext, 
+  TransformResult, 
+  TransformTarget,
+  createTransformResult,
+  FORMATS 
+} from 'xjx';
+
+// Transform that specifically targets standard JSON conversion
+class StandardJsonTransform implements Transform {
+  targets = [TransformTarget.Value];
+  
+  transform(value: any, context: TransformContext): TransformResult<any> {
+    // Only apply when converting to JSON and target is Standard JSON
+    if (context.targetFormat === FORMATS.JSON && 
+        context.config.converters.stdJson.options.attributeHandling !== 'ignore') {
+      
+      // Specific transformation for Standard JSON format
+      if (typeof value === 'string' && value.includes('$')) {
+        // Replace dollar signs with 'USD' text
+        return createTransformResult(value.replace('$', 'USD '));
+      }
+    }
+    
+    // Return unchanged for other formats
+    return createTransformResult(value);
+  }
+}
+
+// Apply the transform
+const result = new XJX()
+  .fromXml('<price>$10.99</price>')
+  .withTransforms(new StandardJsonTransform())
+  .toStandardJson();
+
+// Result:
+// {
+//   "price": "USD 10.99"
+// }
 ```
 
 ## Advanced Use Cases
 
-### Custom JSON Format Extension
-
-This example creates a terminal extension that converts XML to a different JSON format:
+### Standard JSON Attribute Handling
 
 ```javascript
-import { XJX } from 'xjx';
+import { 
+  XJX, 
+  Transform, 
+  TransformContext, 
+  TransformResult, 
+  TransformTarget,
+  createTransformResult 
+} from 'xjx';
 
-function toFlatJson(this: XJX): Record<string, any> {
-  this.validateSource();
+// Transform that works with both types of JSON formats
+class ProductTransform implements Transform {
+  targets = [TransformTarget.Element];
   
-  // First get the standard JSON
-  const standardJson = this.toStandardJson();
-  
-  // Now flatten the structure
-  const result: Record<string, any> = {};
-  
-  function flattenObject(obj: any, prefix = '') {
-    for (const [key, value] of Object.entries(obj)) {
-      const newKey = prefix ? `${prefix}.${key}` : key;
-      
-      if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
-        // Recursively flatten nested objects
-        flattenObject(value, newKey);
-      } else {
-        // Add leaf value
-        result[newKey] = value;
+  transform(node: XNode, context: TransformContext): TransformResult<XNode> {
+    // Skip non-element nodes or non-product nodes
+    if (node.type !== 1 || node.name !== 'product') {
+      return createTransformResult(node);
+    }
+    
+    // Create a new node
+    const newNode = node.clone(false);
+    newNode.children = node.children;
+    
+    // Add custom metadata for the standard JSON converter
+    if (!newNode.metadata) {
+      newNode.metadata = {};
+    }
+    
+    // Add format-specific processing hint
+    newNode.metadata.standardJsonFormat = {
+      attributeHandling: 'prefix',  // Override global config for this node
+      onlyTheseAttributes: ['id', 'sku']  // Only process these attributes
+    };
+    
+    return createTransformResult(newNode);
+  }
+}
+
+// Apply the transform with a config
+const result = new XJX()
+  .withConfig({
+    converters: {
+      stdJson: {
+        options: {
+          attributeHandling: 'merge'  // Global setting
+        }
       }
     }
-  }
-  
-  flattenObject(standardJson);
-  return result;
-}
+  })
+  .fromXml('<product id="123" sku="ABC" internal="xyz"><name>Phone</name></product>')
+  .withTransforms(new ProductTransform())
+  .toStandardJson();
 
-// Register the extension
-XJX.registerTerminalExtension('toFlatJson', toFlatJson);
-
-// Type definition
-declare module 'xjx' {
-  interface XJX {
-    toFlatJson(): Record<string, any>;
-  }
-}
-
-// Usage
-const flatJson = new XJX()
-  .fromXml(`
-    <user>
-      <name>John</name>
-      <address>
-        <street>123 Main St</street>
-        <city>Anytown</city>
-      </address>
-    </user>
-  `)
-  .toFlatJson();
-
-// Output:
+// Result:
 // {
-//   "user.name": "John",
-//   "user.address.street": "123 Main St",
-//   "user.address.city": "Anytown"
+//   "product": {
+//     "@id": "123",
+//     "@sku": "ABC",
+//     "name": "Phone"
+//   }
+// }
+// Note: 'internal' attribute is not prefixed due to the metadata hint
+```
+
+### Metadata Transform for Validation
+
+```javascript
+import { 
+  XJX, 
+  Transform, 
+  TransformContext, 
+  TransformResult, 
+  TransformTarget,
+  createTransformResult,
+  MetadataTransform 
+} from 'xjx';
+
+// Create a validation transform that uses metadata
+class ValidationTransform implements Transform {
+  targets = [TransformTarget.Element];
+  
+  transform(node: XNode, context: TransformContext): TransformResult<XNode> {
+    // Skip non-element nodes
+    if (node.type !== 1) { // NodeType.ELEMENT_NODE
+      return createTransformResult(node);
+    }
+    
+    // Check if the node has validation metadata
+    const validation = node.getMetadata('validation');
+    if (!validation) {
+      return createTransformResult(node);
+    }
+    
+    // Check required fields
+    if (validation.required && Array.isArray(validation.required)) {
+      for (const requiredField of validation.required) {
+        const found = node.children?.some(child => child.name === requiredField);
+        if (!found) {
+          // Add validation error metadata
+          const newNode = node.clone(false);
+          newNode.children = node.children;
+          
+          if (!newNode.metadata) {
+            newNode.metadata = {};
+          }
+          
+          if (!newNode.metadata.validationErrors) {
+            newNode.metadata.validationErrors = [];
+          }
+          
+          newNode.metadata.validationErrors.push(
+            `Missing required field: ${requiredField}`
+          );
+          
+          return createTransformResult(newNode);
+        }
+      }
+    }
+    
+    // More validation rules...
+    
+    return createTransformResult(node);
+  }
+}
+
+// Usage: First apply metadata, then validate
+const result = new XJX()
+  .fromXml('<user><name>John</name></user>')
+  .withTransforms(
+    // Add validation rules as metadata
+    new MetadataTransform({
+      selector: 'user',
+      metadata: {
+        validation: {
+          required: ['name', 'email']
+        }
+      }
+    }),
+    // Validate based on metadata
+    new ValidationTransform()
+  )
+  .toStandardJson();
+
+// The resulting XNode will have validation errors attached
+```
+
+### Format Conversion Transform with Standard JSON
+
+```javascript
+import { 
+  XJX, 
+  Transform, 
+  TransformContext, 
+  TransformResult, 
+  TransformTarget,
+  createTransformResult,
+  FORMATS
+} from 'xjx';
+
+// Transform to convert between different XML formats
+class FormatConversionTransform implements Transform {
+  targets = [TransformTarget.Element];
+  
+  transform(node: XNode, context: TransformContext): TransformResult<XNode> {
+    // Only transform SOAP envelopes and only when targeting JSON
+    if (node.name !== 'soap:Envelope' || context.targetFormat !== FORMATS.JSON) {
+      return createTransformResult(node);
+    }
+    
+    // Extract the actual content from SOAP envelope
+    const bodyNode = node.findChild('soap:Body');
+    if (!bodyNode) {
+      return createTransformResult(node);
+    }
+    
+    const contentNode = bodyNode.children?.[0];
+    if (!contentNode) {
+      return createTransformResult(node);
+    }
+    
+    // Add metadata to influence standard JSON conversion
+    const newNode = contentNode.clone(true); // Deep clone the content node
+    
+    if (!newNode.metadata) {
+      newNode.metadata = {};
+    }
+    
+    // Add a hint for standard JSON conversion to use property mode for attributes
+    newNode.metadata.standardJsonFormat = {
+      attributeHandling: 'property',
+      attributePropertyName: 'params'
+    };
+    
+    // Get version from SOAP header and add as attribute
+    const headerNode = node.findChild('soap:Header');
+    if (headerNode) {
+      const versionNode = headerNode.findChild('Version');
+      if (versionNode) {
+        if (!newNode.attributes) {
+          newNode.attributes = {};
+        }
+        newNode.attributes.version = versionNode.getTextContent();
+      }
+    }
+    
+    return createTransformResult(newNode);
+  }
+}
+
+// Apply the transform to convert SOAP to REST
+const result = new XJX()
+  .fromXml(`
+    <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+      <soap:Header>
+        <Version>1.0</Version>
+      </soap:Header>
+      <soap:Body>
+        <GetUserRequest>
+          <userId>123</userId>
+          <includeDetails>true</includeDetails>
+        </GetUserRequest>
+      </soap:Body>
+    </soap:Envelope>
+  `)
+  .withTransforms(
+    new FormatConversionTransform(),
+    new BooleanTransform()
+  )
+  .toStandardJson();
+
+// Result:
+// {
+//   "GetUserRequest": {
+//     "params": {
+//       "version": "1.0"
+//     },
+//     "userId": "123",
+//     "includeDetails": true
+//   }
 // }
 ```
 
-### Extension Dependencies
-
-Extensions can depend on other extensions and coordinate their behavior:
+### Combining Multiple Transforms
 
 ```javascript
-import { XJX } from 'xjx';
+import { 
+  XJX, 
+  BooleanTransform, 
+  NumberTransform, 
+  RegexTransform, 
+  MetadataTransform 
+} from 'xjx';
 
-// Extension that adds schema validation capabilities
-function withSchema(this: XJX, schema: Record<string, any>): void {
-  this._schema = schema;
-}
-
-// Extension that depends on the schema extension
-function validate(this: XJX): boolean {
-  if (!this._schema) {
-    throw new Error('No schema set: call withSchema() before validation');
-  }
-  
-  this.validateSource();
-  
-  // Get standard JSON to validate against the schema
-  const standardJson = this.toStandardJson();
-  return validateAgainstSchema(standardJson, this._schema);
-}
-
-// Type augmentation
-declare module 'xjx' {
-  interface XJX {
-    _schema?: Record<string, any>;
-    withSchema(schema: Record<string, any>): XJX;
-    validate(): boolean;
-  }
-}
-
-// Register extensions
-XJX.registerNonTerminalExtension('withSchema', withSchema);
-XJX.registerTerminalExtension('validate', validate);
-
-// Use them together
-const isValid = new XJX()
-  .fromXml(xml)
-  .withSchema({
-    type: 'object',
-    properties: {
-      name: { type: 'string' },
-      age: { type: 'number' }
-    }
-  })
-  .validate();
-```
-
-### Format Converter Extension
-
-This example creates a terminal extension that converts XML to CSV:
-
-```javascript
-import { XJX } from 'xjx';
-
-function toCSV(this: XJX, options = { header: true }): string {
-  this.validateSource();
-  
-  // Convert to standard JSON first (better for this use case than XJX format)
-  const json = this.toStandardJson();
-  
-  // Get all records (assuming they're in a consistent format)
-  let records: any[] = [];
-  
-  // Find the array of records in the JSON (assuming a common structure)
-  // This example assumes records are in the first array property found
-  function findRecordsArray(obj: any): any[] | null {
-    if (Array.isArray(obj)) {
-      return obj;
-    }
-    
-    if (obj && typeof obj === 'object') {
-      for (const key of Object.keys(obj)) {
-        const value = obj[key];
-        if (Array.isArray(value) && value.length > 0) {
-          return value;
-        }
-        
-        const nestedResult = findRecordsArray(value);
-        if (nestedResult) {
-          return nestedResult;
-        }
-      }
-    }
-    
-    return null;
-  }
-  
-  records = findRecordsArray(json) || [];
-  
-  // If no records found, try to use the root object itself as a single record
-  if (records.length === 0 && json && typeof json === 'object') {
-    records = [json];
-  }
-  
-  // Extract headers from the first record
-  const headers = records.length > 0 ? Object.keys(records[0]) : [];
-  
-  // Build CSV string
-  let csv = options.header ? headers.join(',') + '\n' : '';
-  
-  records.forEach(record => {
-    const values = headers.map(header => {
-      const value = record[header];
-      // Escape quotes and handle commas
-      return typeof value === 'string' 
-        ? `"${value.replace(/"/g, '""')}"` 
-        : value;
-    });
-    csv += values.join(',') + '\n';
-  });
-  
-  return csv;
-}
-
-// Register the extension
-XJX.registerTerminalExtension('toCSV', toCSV);
-
-// Type definition
-declare module 'xjx' {
-  interface XJX {
-    toCSV(options?: { header?: boolean }): string;
-  }
-}
-
-// Usage
-const csv = new XJX()
+// Apply multiple transforms in sequence for standard JSON output
+const xmlDoc = new XJX()
   .fromXml(`
-    <records>
-      <record>
-        <name>John</name>
-        <age>30</age>
-      </record>
-      <record>
-        <name>Jane</name>
-        <age>28</age>
-      </record>
-    </records>
+    <order>
+      <orderDate>2023-05-15</orderDate>
+      <items>
+        <item>
+          <id>123</id>
+          <name>Widget</name>
+          <price>19.99</price>
+          <quantity>2</quantity>
+          <inStock>true</inStock>
+        </item>
+        <item>
+          <id>456</id>
+          <name>Gadget</name>
+          <price>29.99</price>
+          <quantity>1</quantity>
+          <inStock>false</inStock>
+        </item>
+      </items>
+    </order>
   `)
-  .withTransforms(new XJX.NumberTransform())
-  .toCSV();
-
-// Output:
-// name,age
-// "John",30
-// "Jane",28
-```
-
-### CRUD Extension Suite
-
-This example creates a suite of extensions for CRUD operations on XML data, using the standard JSON format for easier manipulation:
-
-```javascript
-import { XJX } from 'xjx';
-
-// Create extension
-function createElement(this: XJX, path: string, element: Record<string, any>): void {
-  this.validateSource();
-  
-  // Convert to standard JSON for easier manipulation
-  const standardJson = this.toStandardJson();
-  
-  // Navigate to the target parent path
-  const pathParts = path.split('.');
-  let current = standardJson;
-  
-  // Navigate to the target parent node
-  for (let i = 0; i < pathParts.length - 1; i++) {
-    const part = pathParts[i];
-    if (!current[part]) {
-      current[part] = {};
-    }
-    current = current[part];
-  }
-  
-  // Get the new element name
-  const newElementName = pathParts[pathParts.length - 1];
-  
-  // Add the new element
-  if (Array.isArray(current)) {
-    // If current is an array, add to it
-    current.push({ [newElementName]: element });
-  } else {
-    // If the same element already exists, make an array
-    if (current[newElementName]) {
-      if (!Array.isArray(current[newElementName])) {
-        current[newElementName] = [current[newElementName]];
-      }
-      current[newElementName].push(element);
-    } else {
-      // Otherwise just set it
-      current[newElementName] = element;
-    }
-  }
-  
-  // Update the XNode using the standard JSON converter
-  this.xnode = new DefaultStandardJsonToXNodeConverter(this.config).convert(standardJson);
-}
-
-// Read extension
-function getElement(this: XJX, path: string): Record<string, any> | null {
-  this.validateSource();
-  
-  // Convert to standard JSON
-  const standardJson = this.toStandardJson();
-  
-  // Navigate to the requested path
-  const pathParts = path.split('.');
-  let current = standardJson;
-  
-  for (const part of pathParts) {
-    if (!current || typeof current !== 'object' || !(part in current)) {
-      return null;
-    }
-    current = current[part];
-  }
-  
-  return current;
-}
-
-// Update extension
-function updateElement(this: XJX, path: string, updates: Record<string, any>): void {
-  this.validateSource();
-  
-  // Convert to standard JSON
-  const standardJson = this.toStandardJson();
-  
-  // Navigate to the requested path
-  const pathParts = path.split('.');
-  let current = standardJson;
-  
-  // Navigate to the parent of the target node
-  for (let i = 0; i < pathParts.length - 1; i++) {
-    const part = pathParts[i];
-    if (!current || typeof current !== 'object' || !(part in current)) {
-      throw new Error(`Path not found: ${pathParts.slice(0, i + 1).join('.')}`);
-    }
-    current = current[part];
-  }
-  
-  // Get the target element name
-  const targetName = pathParts[pathParts.length - 1];
-  
-  // Apply updates
-  if (current && typeof current === 'object' && targetName in current) {
-    if (typeof current[targetName] === 'object' && !Array.isArray(current[targetName])) {
-      // Merge objects
-      current[targetName] = { ...current[targetName], ...updates };
-    } else {
-      // Replace non-objects
-      current[targetName] = updates;
-    }
+  .withTransforms(
+    // Convert boolean values
+    new BooleanTransform(),
     
-    // Update the XNode using the standard JSON converter
-    this.xnode = new DefaultStandardJsonToXNodeConverter(this.config).convert(standardJson);
-  } else {
-    throw new Error(`Element not found at path: ${path}`);
-  }
-}
-
-// Delete extension
-function deleteElement(this: XJX, path: string): boolean {
-  this.validateSource();
-  
-  // Convert to standard JSON
-  const standardJson = this.toStandardJson();
-  
-  // Navigate to the requested path
-  const pathParts = path.split('.');
-  let current = standardJson;
-  
-  // Navigate to the parent of the target node
-  for (let i = 0; i < pathParts.length - 1; i++) {
-    const part = pathParts[i];
-    if (!current || typeof current !== 'object' || !(part in current)) {
-      return false;
-    }
-    current = current[part];
-  }
-  
-  // Get the target element name
-  const targetName = pathParts[pathParts.length - 1];
-  
-  // Delete the element
-  if (current && typeof current === 'object' && targetName in current) {
-    if (Array.isArray(current)) {
-      // For arrays, filter out the target index
-      const index = parseInt(targetName);
-      if (!isNaN(index) && index >= 0 && index < current.length) {
-        current.splice(index, 1);
-      } else {
-        return false;
-      }
-    } else {
-      // For objects, delete the property
-      delete current[targetName];
-    }
+    // Convert numeric values
+    new NumberTransform(),
     
-    // Update the XNode using the standard JSON converter
-    this.xnode = new DefaultStandardJsonToXNodeConverter(this.config).convert(standardJson);
-    return true;
-  }
-  
-  return false;
-}
+    // Format dates
+    new RegexTransform({
+      pattern: /(\d{4})-(\d{2})-(\d{2})/,
+      replacement: '$2/$3/$1'
+    }),
+    
+    // Add metadata for UI rendering
+    new MetadataTransform({
+      selector: 'order',
+      metadata: {
+        ui: { component: 'OrderComponent' }
+      }
+    }),
+    
+    // Add metadata for validation
+    new MetadataTransform({
+      selector: 'item',
+      metadata: {
+        validation: {
+          required: ['id', 'name', 'price', 'quantity']
+        }
+      }
+    })
+  )
+  .toXml();
 
-// Register the extensions
-XJX.registerNonTerminalExtension('createElement', createElement);
-XJX.registerTerminalExtension('getElement', getElement);
-XJX.registerNonTerminalExtension('updateElement', updateElement);
-XJX.registerNonTerminalExtension('deleteElement', deleteElement);
+// Serialize to string
+const xmlString = xmlDoc.stringify();
 
-// Type augmentation
-declare module 'xjx' {
-  interface XJX {
-    createElement(path: string, element: Record<string, any>): XJX;
-    getElement(path: string): Record<string, any> | null;
-    updateElement(path: string, updates: Record<string, any>): XJX;
-    deleteElement(path: string): XJX;
-  }
-}
+// You can also convert to standard JSON
+const standardJson = new XJX()
+  .fromXml(`
+    <order>
+      <orderDate>2023-05-15</orderDate>
+      <items>
+        <item>
+          <id>123</id>
+          <name>Widget</name>
+          <price>19.99</price>
+          <quantity>2</quantity>
+          <inStock>true</inStock>
+        </item>
+        <item>
+          <id>456</id>
+          <name>Gadget</name>
+          <price>29.99</price>
+          <quantity>1</quantity>
+          <inStock>false</inStock>
+        </item>
+      </items>
+    </order>
+  `)
+  .withTransforms(
+    new BooleanTransform(),
+    new NumberTransform(),
+    new RegexTransform({
+      pattern: /(\d{4})-(\d{2})-(\d{2})/,
+      replacement: '$2/$3/$1'
+    })
+  )
+  .toStandardJson();
 
-// Usage example:
-const xjx = new XJX().fromXml('<users></users>');
-
-// Create
-xjx.createElement('users.user', {
-  id: '123',
-  name: 'John Doe',
-  email: 'john@example.com'
-});
-
-// Read
-const user = xjx.getElement('users.user');
-
-// Update
-xjx.updateElement('users.user', {
-  status: 'active'
-});
-
-// Delete
-xjx.deleteElement('users.user');
-
-// Complete operation
-const xml = xjx.toXml();
+// Result: Standard JSON with converted types
+// {
+//   "order": {
+//     "orderDate": "05/15/2023",
+//     "items": {
+//       "item": [
+//         {
+//           "id": 123,
+//           "name": "Widget",
+//           "price": 19.99,
+//           "quantity": 2,
+//           "inStock": true
+//         },
+//         {
+//           "id": 456,
+//           "name": "Gadget",
+//           "price": 29.99,
+//           "quantity": 1,
+//           "inStock": false
+//         }
+//       ]
+//     }
+//   }
+// }
 ```
 
 ## Best Practices
 
-When creating and using extensions, follow these best practices:
+When creating and using transforms, follow these best practices:
 
-### 1. Validation
+### 1. Target Specificity
 
-Always validate inputs and state:
+Target only the node types you need:
 
 ```javascript
-function customExtension(this: XJX, param: string): void {
-  // Validate parameter
-  if (!param || typeof param !== 'string') {
-    throw new Error('Invalid parameter: must be a non-empty string');
-  }
-  
-  // Validate XJX state if needed
-  if (this.sourceFormat === 'xml') {
-    // XML-specific logic
-  } else if (this.sourceFormat === 'json') {
-    // JSON-specific logic
-  } else {
-    throw new Error('No source set: call fromXml() or fromJson() first');
-  }
+// Good: Only targets values
+class ValueTransform implements Transform {
+  targets = [TransformTarget.Value];
+  // ...
+}
+
+// Bad: Targets everything
+class ExcessiveTransform implements Transform {
+  targets = [
+    TransformTarget.Value,
+    TransformTarget.Attribute,
+    TransformTarget.Element,
+    TransformTarget.Text,
+    TransformTarget.CDATA,
+    TransformTarget.Comment,
+    TransformTarget.ProcessingInstruction
+  ];
+  // ...
 }
 ```
 
-### 2. Error Handling
+### 2. Immutability
+
+Never modify input values, create new ones:
+
+```javascript
+// Good: Creates new objects
+transform(node: XNode, context: TransformContext): TransformResult<XNode> {
+  const newNode = node.clone(false);
+  newNode.name = 'new-name';
+  newNode.children = node.children;
+  return createTransformResult(newNode);
+}
+
+// Bad: Modifies input
+transform(node: XNode, context: TransformContext): TransformResult<XNode> {
+  node.name = 'new-name'; // ❌ Don't modify input directly
+  return createTransformResult(node);
+}
+```
+
+### 3. Error Handling
 
 Use the built-in error handling system:
 
 ```javascript
-import { XJX, handleError, ErrorType } from 'xjx';
+import { handleError, ErrorType } from 'xjx';
 
-function customExtension(this: XJX, param: string): void {
+// Good: Uses error handling system
+transform(value: any, context: TransformContext): TransformResult<any> {
   try {
-    // Implementation
+    // Transformation logic
+    return createTransformResult(transformedValue);
   } catch (err) {
-    handleError(err, "custom extension operation", {
-      data: { param },
-      errorType: ErrorType.VALIDATION
+    return handleError(err, "custom transform operation", {
+      data: { 
+        value,
+        context
+      },
+      errorType: ErrorType.TRANSFORM,
+      fallback: createTransformResult(value) // Return original as fallback
     });
   }
 }
 ```
 
-### 3. Naming Conventions
+### 4. Performance Considerations
 
-Follow consistent naming conventions:
+Be mindful of performance:
 
-- **Terminal extensions**: Use names that describe the output (`toXml`, `toJson`, `toCSV`, `toStandardJson`)
-- **Non-terminal extensions**: Use names that describe the action (`fromXml`, `fromObjJson`, `withConfig`, `addTransform`)
+```javascript
+// Good: Fast path for common case
+transform(value: any, context: TransformContext): TransformResult<any> {
+  // Quick check to skip unnecessary work
+  if (typeof value !== 'string' || value.length === 0) {
+    return createTransformResult(value);
+  }
+  
+  // More expensive transformation logic
+  // ...
+}
 
-### 4. Documentation
+// Bad: Unnecessary deep operations
+transform(value: any, context: TransformContext): TransformResult<any> {
+  // Deep cloning every time is expensive
+  const clonedValue = JSON.parse(JSON.stringify(value));
+  // ...
+}
+```
 
-Document your extensions thoroughly:
+### 5. Format Awareness
+
+Make transforms format-aware:
+
+```javascript
+// Good: Different behavior based on format
+transform(value: any, context: TransformContext): TransformResult<any> {
+  if (context.targetFormat === FORMATS.JSON) {
+    // Access config to check which JSON format is being used
+    const isStandardJson = context.config.converters.stdJson.options.attributeHandling !== 'ignore';
+    
+    if (isStandardJson) {
+      // Standard JSON-specific transformation
+    } else {
+      // XJX JSON-specific transformation
+    }
+  } else if (context.targetFormat === FORMATS.XML) {
+    // XML-specific transformation
+  }
+  return createTransformResult(value);
+}
+```
+
+### 6. Composition
+
+Compose transforms for complex operations:
+
+```javascript
+// Good: Separate transforms for distinct operations
+const xmlDoc = new XJX()
+  .fromXml(xml)
+  .withTransforms(
+    new TypeConversionTransform(),
+    new NamingConventionTransform(),
+    new ValidationTransform()
+  )
+  .toXml();
+
+const xmlString = xmlDoc.stringify();
+
+// Bad: Single monolithic transform
+const xmlDoc = new XJX()
+  .fromXml(xml)
+  .withTransforms(
+    new DoEverythingTransform() // ❌ Too many responsibilities
+  )
+  .toXml();
+
+const xmlString = xmlDoc.stringify();
+```
+
+### 7. Context Awareness
+
+Use the context to make informed decisions:
+
+```javascript
+// Good: Uses context information
+transform(value: any, context: TransformContext): TransformResult<any> {
+  // Check node type
+  if (context.isText) {
+    // Text-specific logic
+  }
+  
+  // Check node name
+  if (context.nodeName === 'email') {
+    // Email-specific logic
+  }
+  
+  // Check path
+  if (context.path.includes('address')) {
+    // Address-related logic
+  }
+  
+  // Check configuration
+  if (context.config.converters.stdJson.options.attributeHandling === 'prefix') {
+    // Handle prefix-style attributes
+  }
+  
+  return createTransformResult(value);
+}
+```
+
+### 8. Documentation
+
+Document your transforms thoroughly:
 
 ```javascript
 /**
- * Converts the current XNode to a custom format
+ * SensitiveDataTransform - Redacts sensitive data in XML/JSON
  * 
- * @param options - Conversion options
- * @param options.compact - Whether to use compact format
- * @param options.indent - Indentation level
- * @returns The converted string
+ * Redacts values in fields that contain sensitive information such as:
+ * - Social Security Numbers (SSN)
+ * - Credit card numbers
+ * - Passwords
+ * 
+ * Example usage:
+ * ```
+ * new XJX()
+ *   .fromXml(xml)
+ *   .withTransforms(new SensitiveDataTransform({
+ *     fields: ['password', 'ssn', 'creditCard']
+ *   }))
+ *   .toStandardJson();
+ * ```
  */
-function toCustomFormat(this: XJX, options?: { compact?: boolean; indent?: number }): string {
-  // Implementation
+class SensitiveDataTransform implements Transform {
+  // ...
 }
 ```
 
-### 5. Modular Design
+### 9. Standard JSON Compatibility
 
-Keep extensions focused on a single responsibility:
-
-```javascript
-// Good: Focused on a single task
-XJX.registerNonTerminalExtension('withSchema', withSchema);
-XJX.registerTerminalExtension('validate', validate);
-
-// Bad: Trying to do too much
-XJX.registerNonTerminalExtension('withSchemaAndValidate', withSchemaAndValidate);
-```
-
-### 6. Immutable Transforms
-
-Ensure extensions don't mutate the original data:
+Ensure transforms work with both JSON formats:
 
 ```javascript
-// Good: Creates a new XNode instead of modifying the original
-function customTransform(this: XJX): void {
-  this.validateSource();
-  
-  const originalNode = this.xnode;
-  const newNode = originalNode.clone(true); // Deep clone
-  
-  // Modify newNode...
-  
-  this.xnode = newNode;
-}
-```
-
-### 7. Consistent Return Types
-
-Ensure consistent return types:
-
-- Terminal extensions should return a specific value type
-- Non-terminal extensions should never return a value (the registration handles returning `this`)
-
-### 8. Extension Versioning
-
-When creating public extensions:
-
-```javascript
-// Version your extensions
-const MY_EXTENSION_VERSION = '1.0.0';
-
-function withCustomFeature(this: XJX, options: any): void {
-  this._customFeatureVersion = MY_EXTENSION_VERSION;
-  // Implementation
-}
-
-function useCustomFeature(this: XJX): any {
-  // Version check
-  if (this._customFeatureVersion !== MY_EXTENSION_VERSION) {
-    throw new Error(`Extension version mismatch: expected ${MY_EXTENSION_VERSION}, got ${this._customFeatureVersion || 'none'}`);
+// Good: Handles both JSON formats appropriately
+transform(value: any, context: TransformContext): TransformResult<any> {
+  if (context.targetFormat === FORMATS.JSON) {
+    // Check which JSON format we're targeting via the config
+    const attributeHandling = context.config.converters.stdJson.options.attributeHandling;
+    const isStandardJson = attributeHandling !== 'ignore';
+    
+    if (isStandardJson) {
+      // Standard JSON output - may need different handling
+    } else {
+      // XJX format output - full fidelity
+    }
   }
-  
-  // Implementation
+  return createTransformResult(value);
 }
 ```
 
-### 9. JSON Format Awareness
+### 10. Metadata for Format Control
 
-Make extensions compatible with both JSON formats:
-
-```javascript
-function customExtension(this: XJX, param: string): void {
-  this.validateSource();
-  
-  // Work with standard JSON for easier manipulation
-  const standardJson = this.toStandardJson();
-  
-  // Perform operations...
-  
-  // Convert back to XNode using standard JSON converter
-  this.xnode = new DefaultStandardJsonToXNodeConverter(this.config).convert(modifiedJson);
-}
-```
-
-## Package Organization
-
-When publishing extensions as a package:
+Use metadata to control format-specific behavior:
 
 ```javascript
-// my-xjx-extensions.js
-import { XJX } from 'xjx';
+// Add format-specific metadata
+const xmlDoc = new XJX()
+  .fromXml(xml)
+  .withTransforms(
+    new MetadataTransform({
+      selector: 'user',
+      formatMetadata: [
+        {
+          format: 'json',
+          metadata: {
+            standardJsonFormat: {
+              // Override standard JSON format for this node
+              attributeHandling: 'property',
+              attributePropertyName: 'attrs'
+            }
+          }
+        }
+      ]
+    })
+  )
+  .toXml();
 
-// Extension implementation
-function toCustomFormat(this: XJX, options = {}): string {
-  // Implementation
-}
-
-// Register when the module is imported
-XJX.registerTerminalExtension('toCustomFormat', toCustomFormat);
-
-// Also export the function for testing
-export { toCustomFormat };
-
-// Type augmentation
-declare module 'xjx' {
-  interface XJX {
-    toCustomFormat(options?: Record<string, any>): string;
-  }
-}
+const xmlString = xmlDoc.stringify();
 ```
 
 ## Conclusion
 
-The XJX extension system provides a powerful way to enhance and customize the library's functionality. By creating your own extensions, you can adapt XJX to fit your specific needs and workflows.
+The transform system in XJX provides a powerful way to modify data during conversion between XML and JSON. With the addition of Standard JSON support, you can now create transforms that work with both the full-fidelity XJX JSON format and the more natural Standard JSON format.
 
-For more information on the transform system, which complements the extension system, see the [Transforms Guide](./TRANSFORMS.md).
+For more information on the extension system, which complements the transform system, see the [Extensions Guide](./EXTENSIONS.md).

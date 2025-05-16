@@ -15,6 +15,7 @@ XJX is a modular, extensible library for converting between XML and JSON formats
 - 💻 Works in both Node.js and browser environments
 - 📝 TypeScript definitions included
 - ✨ Multiple JSON formats (XJX format with full fidelity or standard format for natural usage)
+- 🏗️ Direct DOM access and manipulation
 
 ## Installation
 
@@ -141,13 +142,16 @@ const standardJson = {
 };
 
 // Convert Standard JSON to XML
-const xml = new XJX()
+const xmlDoc = new XJX()
   .fromObjJson(standardJson)  // Use fromObjJson for standard JSON objects
   .withTransforms(
     new XJX.BooleanTransform(),
     new XJX.NumberTransform()
   )
   .toXml();
+
+// Serialize to string with default options
+const xml = xmlDoc.stringify();
 
 console.log(xml);
 // Output:
@@ -157,6 +161,53 @@ console.log(xml);
 //   <email>john@example.com</email>
 //   <active>true</active>
 //   <score>85.5</score>
+// </user>
+```
+
+### Direct DOM Manipulation and Customized Serialization
+
+```javascript
+import { XJX } from 'xjx';
+
+const standardJson = {
+  "user": {
+    "id": "123",
+    "name": "John Doe",
+    "email": "john@example.com"
+  }
+};
+
+// Convert to XML DOM
+const xmlDoc = new XJX()
+  .fromObjJson(standardJson)
+  .toXml();
+
+// Add new elements using standard DOM API
+const phoneElement = xmlDoc.createElement('phone');
+phoneElement.textContent = '555-123-4567';
+xmlDoc.documentElement.appendChild(phoneElement);
+
+// Serialize with default options
+const defaultXml = xmlDoc.stringify();
+
+// Serialize with custom options
+const minifiedXml = xmlDoc.stringify({
+  prettyPrint: false,
+  declaration: false
+});
+
+// Serialize with different indentation
+const customIndentXml = xmlDoc.stringify({
+  indent: 4
+});
+
+console.log(customIndentXml);
+// Output:
+// <?xml version="1.0" encoding="UTF-8"?>
+// <user id="123">
+//     <name>John Doe</name>
+//     <email>john@example.com</email>
+//     <phone>555-123-4567</phone>
 // </user>
 ```
 
@@ -180,13 +231,15 @@ const json = {
 };
 
 // Convert XJX-formatted JSON to XML
-const xml = new XJX()
+const xmlDoc = new XJX()
   .fromJson(json)  // Automatically detects XJX format
   .withTransforms(
     new XJX.BooleanTransform(),
     new XJX.NumberTransform()
   )
   .toXml();
+
+const xml = xmlDoc.stringify();
 
 console.log(xml);
 // Output:
@@ -224,7 +277,7 @@ XJX uses a boundary-based approach to enforce preservation settings. This archit
 
 ```javascript
 // Configure what to preserve
-new XJX()
+const xmlDoc = new XJX()
   .withConfig({
     preserveComments: false,    // Comments will be filtered during parsing
     preserveNamespaces: true,   // Namespaces will be preserved
@@ -232,13 +285,10 @@ new XJX()
     preserveProcessingInstr: false // Processing instructions will be filtered
   })
   .fromXml(xmlWithComments)
-  // Comments are already filtered out, so any output format
-  // will consistently exclude them:
-  .toXml();                    // No comments in output XML
-  // OR
-  .toJson();                   // No comments in output JSON
-  // OR
-  .toStandardJson();           // No comments in output Standard JSON
+  .toXml();
+  
+// Comments are already filtered out during parsing
+const xmlString = xmlDoc.stringify(); // No comments in output XML
 ```
 
 This approach ensures that once data is in the XNode model, its representation is consistent regardless of which output format you choose. It also simplifies the architecture by centralizing filtering logic at the system boundaries.
@@ -260,7 +310,7 @@ Transforms are operations applied to XNode during the conversion process. They c
 
 ```javascript
 // Apply transforms to convert string values to appropriate types
-new XJX()
+const xmlDoc = new XJX()
   .fromXml(xml)
   .withTransforms(
     new XJX.BooleanTransform(),
@@ -270,7 +320,9 @@ new XJX()
       replacement: '$2/$3/$1'
     })
   )
-  .toJson();
+  .toXml();
+
+const xmlString = xmlDoc.stringify();
 ```
 
 ### Extensions
@@ -282,7 +334,7 @@ Extensions enhance the XJX API with additional functionality. There are two type
 
 ```javascript
 // Using the built-in extensions
-new XJX()
+const xmlDoc = new XJX()
   .fromXml(xml)           // Non-terminal extension
   .withConfig({           // Non-terminal extension
     preserveComments: true
@@ -290,7 +342,9 @@ new XJX()
   .withTransforms(        // Non-terminal extension
     new XJX.BooleanTransform()
   )
-  .toStandardJson();      // Terminal extension
+  .toXml();               // Terminal extension
+
+const xmlString = xmlDoc.stringify(); // Serialize to string
 ```
 
 ## Configuration Options
@@ -456,7 +510,7 @@ XJX provides several built-in extensions for its fluent API:
 
 ### Terminal Extensions (Return a value)
 
-- `toXml()` - Convert to XML string
+- `toXml()` - Convert to XML DOM with stringify method
 - `toJson()` - Convert to XJX-formatted JSON
 - `toStandardJson()` - Convert to standard JavaScript object
 - `toJsonString()` - Convert to JSON string (using XJX format)
@@ -511,9 +565,61 @@ console.log(standardJson);
 // }
 
 // Convert standard JSON back to XML
-const backToXml = new XJX()
+const xmlDoc = new XJX()
   .fromObjJson(standardJson)
   .toXml();
+
+const xml = xmlDoc.stringify();
+```
+
+### Working with Direct DOM Access
+
+```javascript
+import { XJX } from 'xjx';
+
+// Convert XML to DOM
+const xmlDoc = new XJX()
+  .fromXml(`
+    <library>
+      <book category="fiction">
+        <title>The Hobbit</title>
+        <author>J.R.R. Tolkien</author>
+        <year>1937</year>
+      </book>
+    </library>
+  `)
+  .toXml();
+
+// Use standard DOM methods to manipulate the document
+const books = xmlDoc.getElementsByTagName('book');
+console.log(`Found ${books.length} books`);
+
+// Create a new book element
+const newBook = xmlDoc.createElement('book');
+newBook.setAttribute('category', 'science-fiction');
+
+const titleElement = xmlDoc.createElement('title');
+titleElement.textContent = 'Foundation';
+const authorElement = xmlDoc.createElement('author');
+authorElement.textContent = 'Isaac Asimov';
+const yearElement = xmlDoc.createElement('year');
+yearElement.textContent = '1951';
+
+newBook.appendChild(titleElement);
+newBook.appendChild(authorElement);
+newBook.appendChild(yearElement);
+
+// Add the new book to the library
+xmlDoc.documentElement.appendChild(newBook);
+
+// Serialize with default options from config
+const xmlString = xmlDoc.stringify();
+
+// Serialize with custom options
+const minifiedXml = xmlDoc.stringify({
+  prettyPrint: false,
+  declaration: false
+});
 ```
 
 ### Configuring Standard JSON Behavior
@@ -634,16 +740,19 @@ const config = {
 };
 
 // Apply the configuration
-const result = new XJX()
+const xmlDoc = new XJX()
   .withConfig(config)
   .fromXml(xml)
-  .toJson();
+  .toXml();
+
+// Serialize respecting the custom indent configuration
+const xmlString = xmlDoc.stringify();
 ```
 
 ### Combining Multiple Transforms
 
 ```javascript
-import { XJX, BooleanTransform, NumberTransform, RegexTransform } from 'xjx';
+import { XJX, BooleanTransform, NumberTransform, RegexTransform, MetadataTransform } from 'xjx';
 
 // Apply multiple transforms in sequence
 const result = new XJX()
@@ -705,22 +814,27 @@ XJX automatically detects the browser environment and uses the browser's DOM API
     document.addEventListener('DOMContentLoaded', function() {
       const xml = document.getElementById('xml-input').value;
       
-      const result = new XJX()
+      const xmlDoc = new XJX()
         .fromXml(xml)
         .withTransforms(
           new XJX.BooleanTransform(),
           new XJX.NumberTransform()
         )
-        .toStandardJson(); // Use standard JSON for easier DOM manipulation
+        .toXml();
       
-      document.getElementById('json-output').textContent = 
-        JSON.stringify(result, null, 2);
+      // Get standard XML string
+      document.getElementById('xml-output').textContent = xmlDoc.stringify();
+      
+      // Get compact XML string
+      document.getElementById('compact-xml').textContent = 
+        xmlDoc.stringify({ prettyPrint: false, declaration: false });
     });
   </script>
 </head>
 <body>
   <textarea id="xml-input"><user><name>John</name></user></textarea>
-  <pre id="json-output"></pre>
+  <pre id="xml-output"></pre>
+  <pre id="compact-xml"></pre>
 </body>
 </html>
 ```
@@ -733,10 +847,12 @@ XJX includes comprehensive error handling with different error types and logging
 import { XJX, LogLevel } from 'xjx';
 
 try {
-  const result = new XJX()
+  const xmlDoc = new XJX()
     .setLogLevel(LogLevel.DEBUG)  // Set logging level
     .fromXml(invalidXml)
-    .toStandardJson();
+    .toXml();
+    
+  const xmlString = xmlDoc.stringify();
 } catch (error) {
   console.error('Error type:', error.name);
   console.error('Error message:', error.message);
@@ -751,7 +867,7 @@ try {
 XJX is written in TypeScript and provides comprehensive type definitions:
 
 ```typescript
-import { XJX, XNode, Configuration, Transform, BooleanTransform } from 'xjx';
+import { XJX, XNode, Configuration, Transform, BooleanTransform, EnhancedDocument } from 'xjx';
 
 // Use TypeScript interfaces
 const config: Configuration = {
@@ -782,11 +898,13 @@ class CustomTransform implements Transform {
 }
 
 // Apply transforms with type safety
-const result = new XJX()
+const xmlDoc: EnhancedDocument = new XJX()
   .withConfig(config)
   .fromXml(xml)
   .withTransforms(new CustomTransform())
-  .toStandardJson();
+  .toXml();
+
+const xmlString: string = xmlDoc.stringify();
 ```
 
 ## Documentation

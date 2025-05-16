@@ -12,7 +12,7 @@
 - **Format Awareness**: Tools adjust behavior based on target format for optimal results in either direction.
 - **Performance Conscious**: Early-exit patterns and lazy evaluation to minimize unnecessary processing.
 - **Self-Documenting**: Explicit naming and patterns over implicit conventions.
-- **DOM Access**: Direct access to underlying DOM structures with serialization controls.
+- **DOM Access**: Direct access to underlying DOM structures with explicit serialization methods.
 
 ## Architecture
 
@@ -21,14 +21,14 @@ XJX is a bidirectional XML/JSON conversion library with a modular, extensible ar
 1. Parse source (XML/JSON) → XNode (internal model)
 2. Apply transforms to XNode
 3. Convert XNode → target format (XML DOM/JSON)
-4. Optional: Serialize target format to string representation
+4. Optional: Convert target format to string representation
 
 ## Core Components
 
 - **XNode**: Central data model representing XML nodes with attributes, values, children
 - **Converters**: Convert between formats and XNode
   - XML → XNode
-  - XNode → XML DOM (with stringify capability)
+  - XNode → XML DOM
   - JSON (XJX format) → XNode
   - XNode → JSON (XJX format)
   - Standard JSON → XNode
@@ -41,7 +41,7 @@ XJX is a bidirectional XML/JSON conversion library with a modular, extensible ar
 ```
 ╔════════════╗      ╔═══════════════╗      ╔════════════════════╗      ╔════════════╗
 ║ XML/JSON   ║ ──→  ║ XNode +       ║ ──→  ║ DOM Document/JSON  ║ ──→  ║ String     ║
-║ Source     ║      ║ Transforms    ║      ║ (with stringify)   ║      ║ (optional) ║
+║ Source     ║      ║ Transforms    ║      ║ Object              ║      ║ (optional) ║
 ╚════════════╝      ╚═══════════════╝      ╚════════════════════╝      ╚════════════╝
 ```
 
@@ -122,18 +122,25 @@ interface Converter<TInput, TOutput> {
   convert(input: TInput): TOutput;
 }
 
-// Enhanced Document interface (new)
-interface EnhancedDocument extends Document {
-  stringify(options?: {
-    prettyPrint?: boolean;
-    indent?: number;
-    declaration?: boolean;
-  }): string;
-}
-
 // Extension registration
 XJX.registerTerminalExtension(name: string, method: Function): void;
 XJX.registerNonTerminalExtension(name: string, method: Function): void;
+```
+
+## Terminal Methods
+
+```typescript
+// XML output methods
+toXml(): Document                 // Returns a standard DOM Document
+toXmlString(options?): string     // Returns an XML string with optional formatting
+
+// XJX JSON output methods (full fidelity)
+toXjxJson(): object               // Returns an XJX-formatted JSON object
+toXjxJsonString(): string         // Returns an XJX-formatted JSON string
+
+// Standard JSON output methods (natural JS objects)
+toStandardJson(): any             // Returns a standard JavaScript object
+toStandardJsonString(): string    // Returns a standard JSON string
 ```
 
 ## JSON Formats
@@ -165,6 +172,8 @@ XJX.registerNonTerminalExtension(name: string, method: Function): void;
   - `/src/core/json/`: JSON processing
 - `/src/transforms/`: Built-in transforms
 - `/src/extensions/`: Extension registration
+  - `/src/extensions/terminal/`: Terminal (value-returning) extensions
+  - `/src/extensions/nonterminal/`: Non-terminal (chainable) extensions
 - `/src/converters/`: Format converters
 
 ## Error Handling
@@ -201,23 +210,25 @@ const standardJson = new XJX()
   )
   .toStandardJson();
 
-// Convert XML to DOM with stringify capability
+// Convert XML to DOM and string
 const xmlDoc = new XJX()
   .fromXml(xml)
   .toXml();
 
-// Manipulate the DOM
-const elements = xmlDoc.getElementsByTagName('user');
-xmlDoc.documentElement.setAttribute('timestamp', Date.now());
+// Get XML string directly
+const xmlString = new XJX()
+  .fromXml(xml)
+  .toXmlString({ prettyPrint: true, indent: 4 });
 
-// Serialize with default options from config
-const xmlString = xmlDoc.stringify();
+// Get XJX JSON string
+const xjxJsonString = new XJX()
+  .fromXml(xml)
+  .toXjxJsonString();
 
-// Serialize with custom options
-const compactXml = xmlDoc.stringify({ 
-  prettyPrint: false, 
-  declaration: false 
-});
+// Get Standard JSON string
+const stdJsonString = new XJX()
+  .fromXml(xml)
+  .toStandardJsonString();
 ```
 
 ## Extension Points

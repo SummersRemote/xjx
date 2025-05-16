@@ -1,7 +1,5 @@
 /**
- * to-standard-json.ts
- * 
- * Extension for converting XNode to standard JavaScript objects
+ * Core extension that implements the toStandardJson and toStandardJsonString methods
  */
 import { XJX } from "../../XJX";
 import { DefaultXNodeToStandardJsonConverter } from "../../converters/xnode-to-std-json-converter";
@@ -10,7 +8,7 @@ import { FORMATS } from "../../core/transform";
 import { XNode } from "../../core/xnode";
 import { logger, validate, handleError, ErrorType } from "../../core/error";
 
-// Type augmentation - add method to XJX interface
+// Type augmentation - add methods to XJX interface
 declare module '../../XJX' {
   interface XJX {
     /**
@@ -19,6 +17,13 @@ declare module '../../XJX' {
      * @returns Standard JavaScript object
      */
     toStandardJson(): any;
+
+    /**
+     * Convert current XNode to a standard JSON string
+     * This sacrifices round-trip fidelity for a more natural string representation
+     * @returns Stringified standard JSON representation
+     */
+    toStandardJsonString(): string;
   }
 }
 
@@ -79,5 +84,42 @@ function toStandardJson(this: XJX): any {
   }
 }
 
-// Register the extension
+/**
+ * Convert current XNode to a standard JSON string
+ * @returns Stringified standard JSON representation
+ */
+function toStandardJsonString(this: XJX): string {
+  try {
+    // Validate source is set (will be re-validated in toStandardJson call)
+    validate(this.xnode !== null, "No source set: call fromXml() or fromJson() before conversion");
+    
+    logger.debug('Starting toStandardJsonString conversion');
+    
+    // First get the standard JSON object using the toStandardJson method
+    const jsonObject = this.toStandardJson();
+    
+    // Use the indent value from config
+    const indent = this.config.converters.xml.options.indent;
+    const result = JSON.stringify(jsonObject, null, indent);
+    
+    logger.debug('Successfully converted to standard JSON string', {
+      resultLength: result.length,
+      indent
+    });
+    
+    return result;
+  } catch (err) {
+    return handleError(err, "convert to standard JSON string", {
+      data: {
+        sourceFormat: this.sourceFormat,
+        hasNode: this.xnode !== null
+      },
+      errorType: ErrorType.SERIALIZE,
+      fallback: "null" // Return null JSON string as fallback
+    });
+  }
+}
+
+// Register the extensions
 XJX.registerTerminalExtension("toStandardJson", toStandardJson);
+XJX.registerTerminalExtension("toStandardJsonString", toStandardJsonString);

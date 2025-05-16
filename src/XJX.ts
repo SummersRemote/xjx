@@ -4,7 +4,6 @@
  * Core implementation that allows extensions through prototype methods.
  */
 import { Configuration, Config } from "./core/config";
-import { XmlParser, XmlSerializer } from "./core/xml";
 import { Transform, FormatId } from "./core/transform";
 import { XNode } from "./core/xnode";
 import {
@@ -58,58 +57,26 @@ export class XJX {
     }
   }
   
-  /**
-   * Utility method to validate XML string
-   * @param xmlString XML string to validate
-   * @returns Validation result with isValid flag and optional error message
-   */
-  public static validateXml(xmlString: string): {
-    isValid: boolean;
-    message?: string;
-  } {
-    try {
-      validate(typeof xmlString === "string", "XML string must be a string");
-      logger.debug("Validating XML string", { length: xmlString.length });
-      return XmlParser.validate(xmlString);
-    } catch (err) {
-      return handleError(err, "validate XML", {
-        data: { xmlLength: xmlString?.length },
-        fallback: { isValid: false, message: String(err) },
-      });
-    }
-  }
-
-  /**
-   * Utility method to pretty print XML string
-   * @param xmlString XML string to format
-   * @param indent Optional indentation level (default: 2)
-   * @returns Formatted XML string
-   */
-  public static prettyPrintXml(xmlString: string, indent: number = 2): string {
-    try {
-      validate(typeof xmlString === "string", "XML string must be a string");
-      validate(
-        Number.isInteger(indent) && indent >= 0,
-        "Indent must be a non-negative integer"
-      );
-
-      logger.debug("Pretty printing XML string", {
-        length: xmlString.length,
-        indent,
-      });
-
-      return XmlSerializer.prettyPrint(xmlString, indent);
-    } catch (err) {
-      return handleError(err, "pretty print XML", {
-        data: {
-          xmlLength: xmlString?.length,
-          indent,
-        },
-        errorType: ErrorType.SERIALIZE,
-        fallback: xmlString,
-      });
-    }
-  }
+  // /**
+  //  * Utility method to validate XML string
+  //  * @param xmlString XML string to validate
+  //  * @returns Validation result with isValid flag and optional error message
+  //  */
+  // public static validateXml(xmlString: string): {
+  //   isValid: boolean;
+  //   message?: string;
+  // } {
+  //   try {
+  //     validate(typeof xmlString === "string", "XML string must be a string");
+  //     logger.debug("Validating XML string", { length: xmlString.length });
+  //     return XmlParser.validate(xmlString);
+  //   } catch (err) {
+  //     return handleError(err, "validate XML", {
+  //       data: { xmlLength: xmlString?.length },
+  //       fallback: { isValid: false, message: String(err) },
+  //     });
+  //   }
+  // }
 
   /**
    * Register a terminal extension method (returns a value)

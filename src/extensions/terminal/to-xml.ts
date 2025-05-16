@@ -1,49 +1,41 @@
 /**
- * Core extension that implements the enhanced toXml method
- * 
- * Returns a DOM Document with a stringify method that honors config options
+ * Core extension that implements the toXml and toXmlString methods
  */
 import { XJX } from "../../XJX";
 import { DefaultXNodeToXmlConverter } from "../../converters/xnode-to-xml-converter";
 import { DefaultXNodeTransformer } from "../../converters/xnode-transformer";
 import { FORMATS } from "../../core/transform";
 import { XNode } from "../../core/xnode";
-import { DOM } from "../../core/dom";
 import { XmlSerializer } from "../../core/xml";
 import { logger, validate, handleError, ErrorType } from "../../core/error";
 
-// Type augmentation - add method to XJX interface
+// Type augmentation - add methods to XJX interface
 declare module '../../XJX' {
   interface XJX {
     /**
      * Convert current XNode to XML DOM
-     * @returns Enhanced DOM Document with stringify method
+     * @returns DOM Document
      */
-    toXml(): EnhancedDocument;
+    toXml(): Document;
+
+    /**
+     * Convert current XNode to XML string
+     * @param options Optional serialization options to override config
+     * @returns XML string representation
+     */
+    toXmlString(options?: {
+      prettyPrint?: boolean;
+      indent?: number;
+      declaration?: boolean;
+    }): string;
   }
 }
 
 /**
- * Interface for enhanced Document with stringify method
+ * Convert current XNode to XML DOM
+ * @returns DOM Document
  */
-export interface EnhancedDocument extends Document {
-  /**
-   * Convert Document to XML string
-   * @param options Optional serialization options to override config
-   * @returns XML string representation
-   */
-  stringify(options?: {
-    prettyPrint?: boolean;
-    indent?: number;
-    declaration?: boolean;
-  }): string;
-}
-
-/**
- * Convert current XNode to XML DOM with stringify capability
- * @returns Enhanced DOM Document
- */
-function toXml(this: XJX): EnhancedDocument {
+function toXml(this: XJX): Document {
   try {
     // API boundary validation
     validate(this.xnode !== null, "No source set: call fromXml() or fromJson() before conversion");
@@ -76,63 +68,17 @@ function toXml(this: XJX): EnhancedDocument {
     
     // Convert XNode to DOM
     const converter = new DefaultXNodeToXmlConverter(this.config);
-    // Use the new createDomDocument method
+    // Use the createDomDocument method
     const doc = converter.createDomDocument(nodeToConvert);
     
-    // Add stringify method to the document
-    const configRef = this.config; // Keep a reference to the config
-    const enhancedDoc = doc as EnhancedDocument;
-    
-    enhancedDoc.stringify = function(options?: {
-      prettyPrint?: boolean;
-      indent?: number;
-      declaration?: boolean;
-    }) {
-      try {
-        // Get config options, allowing overrides from the options parameter
-        const prettyPrint = options?.prettyPrint !== undefined ? 
-          options.prettyPrint : configRef.converters.xml.options.prettyPrint;
-        
-        const indent = options?.indent !== undefined ? 
-          options.indent : configRef.converters.xml.options.indent;
-        
-        const declaration = options?.declaration !== undefined ? 
-          options.declaration : configRef.converters.xml.options.declaration;
-        
-        // Serialize the document
-        let xmlString = XmlSerializer.serialize(this);
-        
-        // Apply pretty printing if enabled
-        if (prettyPrint) {
-          xmlString = XmlSerializer.prettyPrint(xmlString, indent);
-        }
-        
-        // Add XML declaration if configured
-        if (declaration) {
-          xmlString = XmlSerializer.ensureXMLDeclaration(xmlString);
-        }
-        
-        return xmlString;
-      } catch (err) {
-        return handleError(err, "convert DOM to string", {
-          errorType: ErrorType.SERIALIZE,
-          fallback: "<root/>" // Return minimal XML as fallback
-        });
-      }
-    };
-    
-    logger.debug('Successfully converted XNode to enhanced DOM', {
-      documentElement: enhancedDoc.documentElement?.nodeName
+    logger.debug('Successfully converted XNode to DOM', {
+      documentElement: doc.documentElement?.nodeName
     });
     
-    return enhancedDoc;
+    return doc;
   } catch (err) {
-    // Create a minimal document with stringify method as fallback
-    const fallbackDoc = DOM.createDocument() as EnhancedDocument;
-    
-    fallbackDoc.stringify = function() {
-      return "<root/>";
-    };
+    // Create a minimal document as fallback
+    const fallbackDoc = document.implementation.createDocument(null, "root", null);
     
     return handleError(err, "convert to XML DOM", {
       data: {
@@ -146,5 +92,68 @@ function toXml(this: XJX): EnhancedDocument {
   }
 }
 
-// Register the extension
+/**
+ * Convert current XNode to XML string
+ * @param options Optional serialization options to override config
+ * @returns XML string representation
+ */
+function toXmlString(this: XJX, options?: {
+  prettyPrint?: boolean;
+  indent?: number;
+  declaration?: boolean;
+}): string {
+  try {
+    // Validate source is set (will be re-validated in toXml call)
+    validate(this.xnode !== null, "No source set: call fromXml() or fromJson() before conversion");
+    
+    logger.debug('Starting toXmlString conversion');
+    
+    // First get the DOM Document using the toXml method
+    const doc = this.toXml();
+    
+    // Get config options, allowing overrides from the options parameter
+    const prettyPrint = options?.prettyPrint !== undefined ? 
+      options.prettyPrint : this.config.converters.xml.options.prettyPrint;
+    
+    const indent = options?.indent !== undefined ? 
+      options.indent : this.config.converters.xml.options.indent;
+    
+    const declaration = options?.declaration !== undefined ? 
+      options.declaration : this.config.converters.xml.options.declaration;
+    
+    // Serialize the document
+    let xmlString = XmlSerializer.serialize(doc);
+    
+    // Apply pretty printing if enabled
+    if (prettyPrint) {
+      xmlString = XmlSerializer.prettyPrint(xmlString, indent);
+    }
+    
+    // Add XML declaration if configured
+    if (declaration) {
+      xmlString = XmlSerializer.ensureXMLDeclaration(xmlString);
+    }
+    
+    logger.debug('Successfully converted to XML string', {
+      xmlLength: xmlString.length,
+      prettyPrint,
+      indent,
+      declaration
+    });
+    
+    return xmlString;
+  } catch (err) {
+    return handleError(err, "convert to XML string", {
+      data: {
+        sourceFormat: this.sourceFormat,
+        hasNode: this.xnode !== null
+      },
+      errorType: ErrorType.SERIALIZE,
+      fallback: "<root/>" // Return minimal XML as fallback
+    });
+  }
+}
+
+// Register the extensions
 XJX.registerTerminalExtension("toXml", toXml);
+XJX.registerTerminalExtension("toXmlString", toXmlString);

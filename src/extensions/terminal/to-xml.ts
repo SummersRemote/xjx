@@ -1,7 +1,7 @@
 /**
  * Core extension that implements the enhanced toXml method
  * 
- * Returns a DOM Document with a toString method that honors config options
+ * Returns a DOM Document with a stringify method that honors config options
  */
 import { XJX } from "../../XJX";
 import { DefaultXNodeToXmlConverter } from "../../converters/xnode-to-xml-converter";
@@ -17,14 +17,14 @@ declare module '../../XJX' {
   interface XJX {
     /**
      * Convert current XNode to XML DOM
-     * @returns Enhanced DOM Document with toString method
+     * @returns Enhanced DOM Document with stringify method
      */
     toXml(): EnhancedDocument;
   }
 }
 
 /**
- * Interface for enhanced Document with toString method
+ * Interface for enhanced Document with stringify method
  */
 export interface EnhancedDocument extends Document {
   /**
@@ -32,7 +32,7 @@ export interface EnhancedDocument extends Document {
    * @param options Optional serialization options to override config
    * @returns XML string representation
    */
-  toString(options?: {
+  stringify(options?: {
     prettyPrint?: boolean;
     indent?: number;
     declaration?: boolean;
@@ -40,7 +40,7 @@ export interface EnhancedDocument extends Document {
 }
 
 /**
- * Convert current XNode to XML DOM with toString capability
+ * Convert current XNode to XML DOM with stringify capability
  * @returns Enhanced DOM Document
  */
 function toXml(this: XJX): EnhancedDocument {
@@ -79,11 +79,11 @@ function toXml(this: XJX): EnhancedDocument {
     // Use the new createDomDocument method
     const doc = converter.createDomDocument(nodeToConvert);
     
-    // Add toString method to the document
+    // Add stringify method to the document
     const configRef = this.config; // Keep a reference to the config
     const enhancedDoc = doc as EnhancedDocument;
     
-    enhancedDoc.toString = function(options?: {
+    enhancedDoc.stringify = function(options?: {
       prettyPrint?: boolean;
       indent?: number;
       declaration?: boolean;
@@ -127,10 +127,10 @@ function toXml(this: XJX): EnhancedDocument {
     
     return enhancedDoc;
   } catch (err) {
-    // Create a minimal document with toString method as fallback
+    // Create a minimal document with stringify method as fallback
     const fallbackDoc = DOM.createDocument() as EnhancedDocument;
     
-    fallbackDoc.toString = function() {
+    fallbackDoc.stringify = function() {
       return "<root/>";
     };
     

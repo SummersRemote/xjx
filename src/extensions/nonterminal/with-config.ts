@@ -17,6 +17,17 @@ declare module '../../XJX' {
   }
 }
 
+// List of preservation settings to check for changes
+const PRESERVATION_SETTINGS = [
+  "preserveNamespaces",
+  "preserveComments", 
+  "preserveProcessingInstr", 
+  "preserveCDATA", 
+  "preserveTextNodes",
+  "preserveWhitespace", 
+  "preserveAttributes"
+];
+
 /**
  * Set configuration options
  * @param config Partial configuration to merge with defaults
@@ -32,13 +43,27 @@ function withConfig(this: XJX, config: Partial<Configuration>): void {
       return;
     }
     
+    // Check if any preservation settings are being changed after initialization
+    if (this.xnode !== null) {
+      // Source has already been set, check for preservation setting changes
+      const changedSettings = PRESERVATION_SETTINGS.filter(
+        setting => config[setting as keyof Configuration] !== undefined && 
+                   config[setting as keyof Configuration] !== this.config[setting as keyof Configuration]
+      );
+      
+      if (changedSettings.length > 0) {
+        throw new ConfigurationError(
+          `Cannot change preservation settings (${changedSettings.join(', ')}) after source is set. ` +
+          `These settings must be configured in the XJX constructor or via withConfig() before setting a source.`,
+          { changedSettings, xnodeExists: true }
+        );
+      }
+    }
+    
     // Validate configuration structure
     try {
       // Check core properties if provided
-      const coreProps = [
-        "preserveNamespaces", "preserveComments", "preserveProcessingInstr", 
-        "preserveCDATA", "preserveTextNodes", "preserveWhitespace", "preserveAttributes"
-      ];
+      const coreProps = PRESERVATION_SETTINGS;
       
       coreProps.forEach(prop => {
         if (prop in config && typeof config[prop as keyof Configuration] !== 'boolean') {

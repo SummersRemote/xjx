@@ -1,33 +1,19 @@
+// jest.config.mjs
 export default {
-  preset: 'ts-jest',
   testEnvironment: 'jsdom',
-  moduleNameMapper: {
-    '^xjx$': '<rootDir>/src/index.ts',
-    '^xjx/(.*)$': '<rootDir>/src/$1'
+  transform: {},
+  moduleFileExtensions: ['js', 'mjs', 'json', 'ts'],
+  // extensionsToTreatAsEsm: ['.js'],
+  "moduleNameMapper": {
+    "/^(\.{1,2}\/.*)\.js$/": "$1"
   },
-  transform: {
-    '^.+\\.tsx?$': [
-      'ts-jest',
-      {
-        useESM: true,
-      },
-    ],
-  },
-  extensionsToTreatAsEsm: ['.ts'],
-  coverageDirectory: 'coverage',
+  testMatch: ['**/__tests__/**/*.js', '**/?(*.)+(spec|test).js'],
+  testPathIgnorePatterns: ['/node_modules/', '/dist/'],
+  collectCoverage: true,
   collectCoverageFrom: [
-    'src/**/*.{ts,tsx}',
-    '!src/**/*.d.ts',
-    '!src/**/*.test.{ts,tsx}',
-    '!src/**/*.spec.{ts,tsx}'
+    'src/**/*.js',
+    '!**/node_modules/**'
   ],
-  testMatch: [
-    '**/__tests__/**/*.ts?(x)',
-    '**/?(*.)+(spec|test).ts?(x)'
-  ],
-  testPathIgnorePatterns: [
-    '/node_modules/',
-    '/dist/'
-  ],
-  setupFiles: ['./jest.setup.js']
+  coverageReporters: ['text', 'lcov'],
+  setupFilesAfterEnv: ['./tests/setup.js']
 };

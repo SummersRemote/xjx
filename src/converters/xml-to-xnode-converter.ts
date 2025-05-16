@@ -1,7 +1,7 @@
 /**
  * XML to XNode converter implementation
  * 
- * Converts XML strings to XNode representation using the new static utilities.
+ * Converts XML strings to XNode representation with consistent application of preservation settings.
  */
 import { XmlToXNodeConverter } from './converter-interfaces';
 import { Config, Configuration } from '../core/config';
@@ -91,35 +91,47 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
         NodeType.ELEMENT_NODE
       );
       
-      xnode.namespace = element.namespaceURI || undefined;
-      xnode.prefix = element.prefix || undefined;
+      // Only store namespace information if we're preserving namespaces
+      if (this.config.preserveNamespaces) {
+        xnode.namespace = element.namespaceURI || undefined;
+        xnode.prefix = element.prefix || undefined;
+      }
+      
       xnode.parent = parentNode;
 
       // Process attributes and namespace declarations
       if (element.attributes.length > 0) {
-        xnode.attributes = {};
-
-        // Get namespace declarations
-        const namespaceDecls = XmlNamespace.getNamespaceDeclarations(element);
-        if (Object.keys(namespaceDecls).length > 0) {
-          xnode.namespaceDeclarations = namespaceDecls;
-          xnode.isDefaultNamespace = XmlNamespace.hasDefaultNamespace(element);
-
-          // Update global namespace map
-          Object.assign(this.namespaceMap, namespaceDecls);
+        // Only create attributes object if preserving attributes or namespaces
+        if (this.config.preserveAttributes || 
+           (this.config.preserveNamespaces && this.hasNamespaceDeclarations(element))) {
+          xnode.attributes = {};
         }
 
-        // Process regular attributes
-        for (let i = 0; i < element.attributes.length; i++) {
-          const attr = element.attributes[i];
+        // Get namespace declarations if preserving namespaces
+        if (this.config.preserveNamespaces) {
+          const namespaceDecls = XmlNamespace.getNamespaceDeclarations(element);
+          if (Object.keys(namespaceDecls).length > 0) {
+            xnode.namespaceDeclarations = namespaceDecls;
+            xnode.isDefaultNamespace = XmlNamespace.hasDefaultNamespace(element);
 
-          // Skip namespace declarations
-          if (attr.name === "xmlns" || attr.name.startsWith("xmlns:")) continue;
+            // Update global namespace map
+            Object.assign(this.namespaceMap, namespaceDecls);
+          }
+        }
 
-          // Add regular attribute
-          const attrName =
-            attr.localName || attr.name.split(":").pop() || attr.name;
-          xnode.attributes[attrName] = attr.value;
+        // Process regular attributes if preserving attributes
+        if (this.config.preserveAttributes && xnode.attributes) {
+          for (let i = 0; i < element.attributes.length; i++) {
+            const attr = element.attributes[i];
+
+            // Skip namespace declarations
+            if (attr.name === "xmlns" || attr.name.startsWith("xmlns:")) continue;
+
+            // Add regular attribute
+            const attrName =
+              attr.localName || attr.name.split(":").pop() || attr.name;
+            xnode.attributes[attrName] = attr.value;
+          }
         }
       }
 
@@ -194,6 +206,29 @@ export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
           elementNodeType: element?.nodeType
         },
         errorType: ErrorType.PARSE
+      });
+    }
+  }
+
+  /**
+   * Check if element has namespace declarations
+   * @param element DOM element
+   * @returns True if it has namespace declarations
+   * @private
+   */
+  private hasNamespaceDeclarations(element: Element): boolean {
+    try {
+      for (let i = 0; i < element.attributes.length; i++) {
+        const attr = element.attributes[i];
+        if (attr.name === "xmlns" || attr.name.startsWith("xmlns:")) {
+          return true;
+        }
+      }
+      return false;
+    } catch (err) {
+      return handleError(err, 'check for namespace declarations', {
+        data: { elementName: element?.nodeName },
+        fallback: false
       });
     }
   }

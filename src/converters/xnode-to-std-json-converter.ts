@@ -1,8 +1,8 @@
 /**
  * standard-json-converter.ts
  * 
- * Implements conversion from XNode to standard JavaScript objects and arrays.
- * This converter sacrifices round-trip fidelity for a more natural object structure.
+ * Implements conversion from XNode to standard JavaScript objects and arrays
+ * without redundant preservation checks.
  */
 import { Converter } from './converter-interfaces';
 import { Config, Configuration } from '../core/config';
@@ -97,11 +97,11 @@ export class DefaultXNodeToStandardJsonConverter implements XNodeToStandardJsonC
           return node.value;
           
         case NodeType.COMMENT_NODE:
-          // Comments are discarded in standard JSON output
+          // Comments are already filtered out during XML parsing if not preserved
           return undefined;
           
         case NodeType.PROCESSING_INSTRUCTION_NODE:
-          // Processing instructions are discarded in standard JSON output
+          // PIs are already filtered out during XML parsing if not preserved
           return undefined;
           
         default:
@@ -277,7 +277,7 @@ export class DefaultXNodeToStandardJsonConverter implements XNodeToStandardJsonC
             }
             childrenByName[child.name].push(child);
           }
-          // Ignore comments and processing instructions
+          // Comments and processing instructions were already filtered if not preserved
         });
       }
       

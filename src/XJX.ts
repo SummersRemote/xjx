@@ -41,7 +41,15 @@ export class XJX {
   constructor(config?: Partial<Configuration>) {
     try {
       this.config = Config.createOrUpdate(config);
-      logger.debug('Created new XJX instance');
+      logger.debug('Created new XJX instance with configuration', {
+        preserveNamespaces: this.config.preserveNamespaces,
+        preserveComments: this.config.preserveComments,
+        preserveProcessingInstr: this.config.preserveProcessingInstr,
+        preserveCDATA: this.config.preserveCDATA,
+        preserveTextNodes: this.config.preserveTextNodes,
+        preserveWhitespace: this.config.preserveWhitespace,
+        preserveAttributes: this.config.preserveAttributes
+      });
     } catch (err) {
       this.config = Config.getDefault();
       handleError(err, "initialize XJX instance", {

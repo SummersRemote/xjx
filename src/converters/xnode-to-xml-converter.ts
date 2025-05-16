@@ -1,7 +1,7 @@
 /**
  * XNode to XML converter implementation
  * 
- * Converts XNode to XML string using the new static utilities.
+ * Converts XNode to XML string or DOM document with consistent application of preservation settings.
  */
 import { XNodeToXmlConverter } from './converter-interfaces';
 import { Config, Configuration } from '../core/config';
@@ -14,7 +14,7 @@ import { XmlEntity } from '../core/xml';
 import { XNode } from '../core/xnode';
 
 /**
- * Converts XNode to XML string
+ * Converts XNode to XML string or DOM document
  */
 export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
   private config: Configuration;
@@ -24,7 +24,7 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
    * Create a new converter
    * @param config Configuration
    */
- constructor(config: Configuration) {
+  constructor(config: Configuration) {
     // Initialize properties first to satisfy TypeScript
     this.config = config;
     
@@ -52,28 +52,15 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
       // VALIDATION: Check for valid input
       validate(node instanceof XNode, "Node must be an XNode instance");
       
-      // Reset namespace map
-      this.namespaceMap = {};
-
-      // Create DOM document
-      const doc = DOM.createDocument();
-      
       logger.debug('Starting XNode to XML conversion', { 
         nodeName: node.name, 
         nodeType: node.type 
       });
       
-      // Convert XNode to DOM
-      const element = this.xnodeToDom(node, doc);
+      // First create a DOM document from the XNode
+      const doc = this.createDomDocument(node);
       
-      // Handle the root element
-      if (doc.documentElement && doc.documentElement.nodeName === "temp") {
-        doc.replaceChild(element, doc.documentElement);
-      } else {
-        doc.appendChild(element);
-      }
-      
-      // Serialize and format XML
+      // Then serialize according to configuration
       let xmlString = XmlSerializer.serialize(doc);
       
       // Apply pretty printing if enabled
@@ -95,7 +82,56 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
           nodeName: node?.name,
           nodeType: node?.type
         },
-        errorType: ErrorType.SERIALIZE
+        errorType: ErrorType.SERIALIZE,
+        fallback: "<root/>" // Return minimal XML as fallback
+      });
+    }
+  }
+
+  /**
+   * Create a DOM Document from an XNode
+   * @param node XNode to convert
+   * @returns DOM Document
+   */
+  public createDomDocument(node: XNode): Document {
+    try {
+      // VALIDATION: Check for valid input
+      validate(node instanceof XNode, "Node must be an XNode instance");
+      
+      // Reset namespace map
+      this.namespaceMap = {};
+
+      // Create DOM document
+      const doc = DOM.createDocument();
+      
+      logger.debug('Creating DOM document from XNode', { 
+        nodeName: node.name, 
+        nodeType: node.type 
+      });
+      
+      // Convert XNode to DOM
+      const element = this.xnodeToDom(node, doc);
+      
+      // Handle the root element
+      if (doc.documentElement && doc.documentElement.nodeName === "temp") {
+        doc.replaceChild(element, doc.documentElement);
+      } else {
+        doc.appendChild(element);
+      }
+      
+      logger.debug('Successfully created DOM document', {
+        documentElement: doc.documentElement?.nodeName
+      });
+      
+      return doc;
+    } catch (err) {
+      return handleError(err, 'create DOM document from XNode', {
+        data: { 
+          nodeName: node?.name,
+          nodeType: node?.type
+        },
+        errorType: ErrorType.SERIALIZE,
+        fallback: DOM.createDocument() // Return empty document as fallback
       });
     }
   }
@@ -114,16 +150,16 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
       
       let element: Element;
       
-      // Create element with namespace if needed
-      if (node.namespace && this.config.preserveNamespaces) {
+      // Create element with namespace if provided in the XNode
+      if (node.namespace) {
         const qualifiedName = XmlNamespace.createQualifiedName(node.prefix, node.name);
         element = doc.createElementNS(node.namespace, qualifiedName);
       } else {
         element = doc.createElement(node.name);
       }
       
-      // Add namespace declarations
-      if (node.namespaceDeclarations && this.config.preserveNamespaces) {
+      // Add namespace declarations if present in XNode
+      if (node.namespaceDeclarations) {
         XmlNamespace.addNamespaceDeclarations(element, node.namespaceDeclarations);
         
         // Update namespace map
@@ -132,14 +168,14 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
         });
       }
       
-      // Add attributes
-      if (this.config.preserveAttributes && node.attributes) {
+      // Add attributes if present in XNode
+      if (node.attributes) {
         for (const [name, value] of Object.entries(node.attributes)) {
           // Skip xmlns attributes (handled separately)
           if (name === "xmlns" || name.startsWith("xmlns:")) continue;
           
           // Handle attributes with namespaces
-          if (XmlNamespace.hasPrefix(name) && this.config.preserveNamespaces) {
+          if (XmlNamespace.hasPrefix(name)) {
             const { prefix } = XmlNamespace.parseQualifiedName(name);
             
             if (prefix) {
@@ -199,6 +235,7 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
    * @param element Parent DOM element
    * @param child Child XNode
    * @param doc DOM document
+   * @private
    */
   private appendChildNode(element: Element, child: XNode, doc: Document): void {
     try {
@@ -207,29 +244,25 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
       validate(child instanceof XNode, "Child must be an XNode instance");
       validate(doc instanceof Document, "Doc must be a Document instance");
       
+      // Process the child based on its type - no preservation checks
+      // since these were already applied during XML-to-XNode conversion
       switch (child.type) {
         case NodeType.TEXT_NODE:
-          if (this.config.preserveTextNodes) {
-            element.appendChild(
-              doc.createTextNode(XmlEntity.safeText(String(child.value)))
-            );
-          }
+          element.appendChild(
+            doc.createTextNode(XmlEntity.safeText(String(child.value)))
+          );
           break;
           
         case NodeType.CDATA_SECTION_NODE:
-          if (this.config.preserveCDATA) {
-            element.appendChild(doc.createCDATASection(String(child.value)));
-          }
+          element.appendChild(doc.createCDATASection(String(child.value)));
           break;
           
         case NodeType.COMMENT_NODE:
-          if (this.config.preserveComments) {
-            element.appendChild(doc.createComment(String(child.value)));
-          }
+          element.appendChild(doc.createComment(String(child.value)));
           break;
           
         case NodeType.PROCESSING_INSTRUCTION_NODE:
-          if (this.config.preserveProcessingInstr && child.attributes?.target) {
+          if (child.attributes?.target) {
             element.appendChild(
               doc.createProcessingInstruction(child.attributes.target, String(child.value || ""))
             );
@@ -257,6 +290,7 @@ export class DefaultXNodeToXmlConverter implements XNodeToXmlConverter {
    * @param node XNode to start from
    * @param prefix Prefix to find
    * @returns Namespace URI or undefined
+   * @private
    */
   private findNamespaceForPrefix(node: XNode, prefix: string): string | undefined {
     try {

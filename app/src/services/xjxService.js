@@ -166,7 +166,9 @@ class XJXService {
       }
     }
     
-    return builder.toXml();
+    // Call stringify() on the DOM object returned by toXml()
+    const xmlDom = builder.toXml();
+    return xmlDom.stringify();
   }
   
   /**
@@ -215,10 +217,18 @@ class XJXService {
     if (fromType === 'xml') {
       terminalMethod = jsonFormat === 'standard' ? 'toStandardJson' : 'toJson';
     } else {
-      terminalMethod = 'toXml';
+      // For XML output, now we need to call stringify() on the DOM
+      terminalMethod = 'toXml().stringify()';
     }
     
-    code += `\n  .${terminalMethod}();`;
+    // Handle the XML case differently because of the stringify() call
+    if (fromType === 'json') {
+      code += `\n  .${terminalMethod}`;
+    } else {
+      code += `\n  .${terminalMethod}`;
+    }
+    
+    code += ';';
     
     return code;
   }

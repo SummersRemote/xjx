@@ -142,16 +142,15 @@
         .getElementById("roundtrip-button")
         .addEventListener("click", () => {
           const xml = document.getElementById("roundtrip-input").textContent;
-
+          const xjxNoNS = new XJX({ preserveNamespaces: false });
           // XML to JSON
-          const json = xjx.fromXml(xml).toJson();
+          const json = xjxNoNS.fromXml(xml).toJson();
           document.getElementById("roundtrip-json").textContent =
             JSON.stringify(json, null, 2);
 
           // JSON back to XML
-          const newXml = xjx
-            .fromJson(json)
-            .withConfig({ preserveNamespaces: false })
+          const newXml = xjxNoNS
+          .fromJson(json)
             .toXml();
           document.getElementById("roundtrip-xml").textContent = newXml;
         });

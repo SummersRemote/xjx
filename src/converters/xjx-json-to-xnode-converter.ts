@@ -1,7 +1,8 @@
 /**
  * JSON to XNode converter implementation
  * 
- * Converts JSON objects to XNode representation using the new static utilities.
+ * Converts XJX-formatted JSON objects to XNode representation with proper 
+ * application of preservation settings.
  */
 import { XjxJsonToXNodeConverter } from './converter-interfaces';
 import { Config, Configuration } from '../core/config';
@@ -11,7 +12,7 @@ import { JSON } from '../core/json';
 import { XNode } from '../core/xnode';
 
 /**
- * Converts JSON objects to XNode representation
+ * Converts XJX-formatted JSON objects to XNode representation
  */
 export class DefaultXjxJsonToXNodeConverter implements XjxJsonToXNodeConverter {
   private config: Configuration;
@@ -34,14 +35,14 @@ export class DefaultXjxJsonToXNodeConverter implements XjxJsonToXNodeConverter {
     } catch (err) {
       // If validation/update fails, use default config
       this.config = Config.getDefault();
-      handleError(err, "initialize XML to XNode converter", {
+      handleError(err, "initialize XJX JSON to XNode converter", {
         errorType: ErrorType.CONFIGURATION
       });
     }
   }
 
   /**
-   * Convert JSON object to XNode
+   * Convert XJX-formatted JSON object to XNode
    * @param json JSON object
    * @returns XNode representation
    */
@@ -56,14 +57,14 @@ export class DefaultXjxJsonToXNodeConverter implements XjxJsonToXNodeConverter {
       // Validate JSON
       this.validateJsonObject(json);
       
-      logger.debug('Starting JSON to XNode conversion', {
+      logger.debug('Starting XJX JSON to XNode conversion', {
         jsonKeys: Object.keys(json)
       });
       
       // Convert to XNode
       return this.jsonToXNode(json);
     } catch (err) {
-      return handleError(err, 'convert JSON to XNode', {
+      return handleError(err, 'convert XJX JSON to XNode', {
         data: { jsonKeys: Object.keys(json || {}) },
         errorType: ErrorType.PARSE
       });
@@ -92,56 +93,85 @@ export class DefaultXjxJsonToXNodeConverter implements XjxJsonToXNodeConverter {
       const xnode = new XNode(nodeName, NodeType.ELEMENT_NODE);
       xnode.parent = parentNode;
 
-      // Process namespace and prefix
-      if (nodeData[namingConfig.namespace] && this.config.preserveNamespaces) {
-        xnode.namespace = nodeData[namingConfig.namespace];
+      // Process namespace and prefix - only if preserving namespaces
+      if (this.config.preserveNamespaces) {
+        if (nodeData[namingConfig.namespace]) {
+          xnode.namespace = nodeData[namingConfig.namespace];
+        }
+
+        if (nodeData[namingConfig.prefix]) {
+          xnode.prefix = nodeData[namingConfig.prefix];
+        }
       }
 
-      if (nodeData[namingConfig.prefix] && this.config.preserveNamespaces) {
-        xnode.prefix = nodeData[namingConfig.prefix];
-      }
-
-      // Process value
-      if (nodeData[namingConfig.value] !== undefined) {
+      // Process value - only if preserving text nodes
+      if (this.config.preserveTextNodes && nodeData[namingConfig.value] !== undefined) {
         xnode.value = nodeData[namingConfig.value];
       }
 
-      // Process attributes
-      if (this.config.preserveAttributes && 
+      // Process attributes - only if preserving attributes or namespace declarations
+      if ((this.config.preserveAttributes || this.config.preserveNamespaces) && 
           nodeData[namingConfig.attribute] && 
           Array.isArray(nodeData[namingConfig.attribute])) {
         
-        xnode.attributes = {};
-        const namespaceDecls: Record<string, string> = {};
-        let hasNamespaceDecls = false;
+        const hasAttributes = this.config.preserveAttributes;
+        const hasNamespaceDecls = this.config.preserveNamespaces && 
+                                 this.hasNamespaceDeclarations(nodeData[namingConfig.attribute]);
+        
+        // Only create attributes object if needed
+        if (hasAttributes || hasNamespaceDecls) {
+          xnode.attributes = {};
+        }
+        
+        if (hasNamespaceDecls) {
+          const namespaceDecls: Record<string, string> = {};
+          let hasNamespaces = false;
 
-        for (const attrObj of nodeData[namingConfig.attribute]) {
-          const attrName = Object.keys(attrObj)[0];
-          if (!attrName) continue;
+          // First process namespace declarations
+          for (const attrObj of nodeData[namingConfig.attribute]) {
+            const attrName = Object.keys(attrObj)[0];
+            if (!attrName) continue;
 
-          const attrData = attrObj[attrName];
-          const attrValue = attrData[namingConfig.value];
+            const attrData = attrObj[attrName];
+            const attrValue = attrData[namingConfig.value];
 
-          if (this.processNamespaceDeclaration(attrName, attrValue, namespaceDecls)) {
-            hasNamespaceDecls = true;
-          } else {
-            // Regular attribute
-            xnode.attributes[attrName] = attrValue;
+            if (this.processNamespaceDeclaration(attrName, attrValue, namespaceDecls)) {
+              hasNamespaces = true;
+            }
+          }
+
+          // Add namespace declarations if any were found
+          if (hasNamespaces) {
+            xnode.namespaceDeclarations = namespaceDecls;
           }
         }
+        
+        // Then process regular attributes if preserving
+        if (hasAttributes && xnode.attributes) {
+          for (const attrObj of nodeData[namingConfig.attribute]) {
+            const attrName = Object.keys(attrObj)[0];
+            if (!attrName) continue;
 
-        // Add namespace declarations if any were found
-        if (hasNamespaceDecls) {
-          xnode.namespaceDeclarations = namespaceDecls;
+            // Skip xmlns attributes (handled separately)
+            if (attrName === "xmlns" || attrName.startsWith("xmlns:")) continue;
+
+            const attrData = attrObj[attrName];
+            xnode.attributes[attrName] = attrData[namingConfig.value];
+          }
         }
       }
 
       // Process children
       if (nodeData[namingConfig.children] && Array.isArray(nodeData[namingConfig.children])) {
         xnode.children = this.processChildren(nodeData[namingConfig.children], xnode);
+        
+        // If no children were processed (all filtered out), set to undefined
+        if (xnode.children && xnode.children.length === 0) {
+          xnode.children = undefined;
+        }
       }
 
-      logger.debug('Converted JSON object to XNode', { 
+      logger.debug('Converted XJX JSON object to XNode', { 
         nodeName: xnode.name,
         hasChildren: !!xnode.children && xnode.children.length > 0,
         hasAttributes: xnode.attributes ? Object.keys(xnode.attributes).length > 0 : false
@@ -149,12 +179,40 @@ export class DefaultXjxJsonToXNodeConverter implements XjxJsonToXNodeConverter {
       
       return xnode;
     } catch (err) {
-      return handleError(err, 'convert JSON object to XNode', {
+      return handleError(err, 'convert XJX JSON object to XNode', {
         data: { 
           objectKeys: Object.keys(jsonObj || {}),
           parentNodeName: parentNode?.name
         },
         errorType: ErrorType.PARSE
+      });
+    }
+  }
+
+  /**
+   * Check if attribute array contains namespace declarations
+   * @param attributes Array of attributes
+   * @returns True if namespace declarations exist
+   */
+  private hasNamespaceDeclarations(attributes: any[]): boolean {
+    try {
+      if (!Array.isArray(attributes)) return false;
+      
+      // const namingConfig = this.config.converters.xjxJson.naming;
+      
+      for (const attrObj of attributes) {
+        const attrName = Object.keys(attrObj)[0];
+        if (!attrName) continue;
+        
+        if (attrName === "xmlns" || attrName.startsWith("xmlns:")) {
+          return true;
+        }
+      }
+      
+      return false;
+    } catch (err) {
+      return handleError(err, 'check for namespace declarations', {
+        fallback: false
       });
     }
   }
@@ -256,7 +314,7 @@ export class DefaultXjxJsonToXNodeConverter implements XjxJsonToXNodeConverter {
     namingConfig: any
   ): boolean {
     try {
-      // Text node
+      // Text node - only if preserving text nodes
       if (child[namingConfig.value] !== undefined && this.config.preserveTextNodes) {
         const textNode = XNode.createTextNode(child[namingConfig.value]);
         textNode.parent = parentNode;
@@ -264,7 +322,7 @@ export class DefaultXjxJsonToXNodeConverter implements XjxJsonToXNodeConverter {
         return true;
       }
       
-      // CDATA section
+      // CDATA section - only if preserving CDATA
       if (child[namingConfig.cdata] !== undefined && this.config.preserveCDATA) {
         const cdataNode = XNode.createCDATANode(child[namingConfig.cdata]);
         cdataNode.parent = parentNode;
@@ -272,7 +330,7 @@ export class DefaultXjxJsonToXNodeConverter implements XjxJsonToXNodeConverter {
         return true;
       }
       
-      // Comment
+      // Comment - only if preserving comments
       if (child[namingConfig.comment] !== undefined && this.config.preserveComments) {
         const commentNode = XNode.createCommentNode(child[namingConfig.comment]);
         commentNode.parent = parentNode;
@@ -280,7 +338,7 @@ export class DefaultXjxJsonToXNodeConverter implements XjxJsonToXNodeConverter {
         return true;
       }
       
-      // Processing instruction
+      // Processing instruction - only if preserving PIs
       if (child[namingConfig.processingInstr] !== undefined && this.config.preserveProcessingInstr) {
         const piData = child[namingConfig.processingInstr];
         const target = piData[namingConfig.target];

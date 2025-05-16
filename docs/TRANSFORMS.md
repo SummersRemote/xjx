@@ -108,7 +108,8 @@ const result = new XJX()
     new BooleanTransform(),
     new NumberTransform()
   )
-  .toJson();
+  .toXml()  // Returns a DOM Document with stringify method
+  .stringify();  // Convert to XML string
 ```
 
 ### Format-Aware Transforms
@@ -155,18 +156,17 @@ const booleanTransform = new BooleanTransform({
 });
 
 // Apply the transform
-const result = new XJX()
+const xmlDoc = new XJX()
   .fromXml('<user><active>yes</active><subscribed>no</subscribed></user>')
   .withTransforms(booleanTransform)
-  .toStandardJson();
+  .toXml();
 
+const result = xmlDoc.stringify();
 // Result:
-// {
-//   "user": {
-//     "active": true,
-//     "subscribed": false
-//   }
-// }
+// <user>
+//   <active>true</active>
+//   <subscribed>false</subscribed>
+// </user>
 ```
 
 ### NumberTransform
@@ -268,10 +268,10 @@ const validationMetadataTransform = new MetadataTransform({
 });
 
 // Apply the transform
-const result = new XJX()
+const xmlDoc = new XJX()
   .fromXml('<root><user><name>John</name><email>john@example.com</email></user></root>')
   .withTransforms(validationMetadataTransform)
-  .toJson();
+  .toXml();
 
 // The XNode now has metadata attached that can be used by other processing
 ```
@@ -310,15 +310,13 @@ class UppercaseTransform implements Transform {
 }
 
 // Apply the custom transform
-const result = new XJX()
+const xmlDoc = new XJX()
   .fromXml('<greeting>Hello, world!</greeting>')
   .withTransforms(new UppercaseTransform())
-  .toStandardJson();
+  .toXml();
 
-// Result:
-// {
-//   "greeting": "HELLO, WORLD!"
-// }
+// Result (after stringify):
+// <greeting>HELLO, WORLD!</greeting>
 ```
 
 ### Format-Aware Transform with Standard JSON Support
@@ -371,10 +369,12 @@ const jsonResult = new XJX()
 //   "greeting": "HELLO, WORLD!"
 // }
 
-const xmlResult = new XJX()
+const xmlDoc = new XJX()
   .fromObjJson({ "greeting": "Hello, WORLD!" })
   .withTransforms(new CaseTransform())
   .toXml();
+
+const xmlResult = xmlDoc.stringify();
 
 // Result when converting to XML:
 // <greeting>hello, world!</greeting>
@@ -414,10 +414,12 @@ class AttributePrefixTransform implements Transform {
 }
 
 // Apply the custom transform
-const result = new XJX()
+const xmlDoc = new XJX()
   .fromXml('<div id="main" class="container"></div>')
   .withTransforms(new AttributePrefixTransform())
   .toXml();
+
+const result = xmlDoc.stringify();
 
 // Result:
 // <div data-id="main" data-class="container"></div>
@@ -794,7 +796,7 @@ import {
 } from 'xjx';
 
 // Apply multiple transforms in sequence for standard JSON output
-const result = new XJX()
+const xmlDoc = new XJX()
   .fromXml(`
     <order>
       <orderDate>2023-05-15</orderDate>
@@ -847,32 +849,34 @@ const result = new XJX()
       }
     })
   )
-  .toStandardJson();
+  .toXml();
 
-// Result: Standard JSON with converted types
-// {
-//   "order": {
-//     "orderDate": "05/15/2023",
-//     "items": {
-//       "item": [
-//         {
-//           "id": 123,
-//           "name": "Widget",
-//           "price": 19.99,
-//           "quantity": 2,
-//           "inStock": true
-//         },
-//         {
-//           "id": 456,
-//           "name": "Gadget",
-//           "price": 29.99,
-//           "quantity": 1,
-//           "inStock": false
-//         }
-//       ]
-//     }
-//   }
-// }
+// Serialize to string
+const xml = xmlDoc.stringify({
+  prettyPrint: true,
+  indent: 2
+});
+
+// Result: Transformed XML with formatted date
+// <order>
+//   <orderDate>05/15/2023</orderDate>
+//   <items>
+//     <item>
+//       <id>123</id>
+//       <name>Widget</name>
+//       <price>19.99</price>
+//       <quantity>2</quantity>
+//       <inStock>true</inStock>
+//     </item>
+//     <item>
+//       <id>456</id>
+//       <name>Gadget</name>
+//       <price>29.99</price>
+//       <quantity>1</quantity>
+//       <inStock>false</inStock>
+//     </item>
+//   </items>
+// </order>
 ```
 
 ## Best Practices
@@ -1003,14 +1007,17 @@ Compose transforms for complex operations:
 
 ```javascript
 // Good: Separate transforms for distinct operations
-const result = new XJX()
+const xmlDoc = new XJX()
   .fromXml(xml)
   .withTransforms(
     new TypeConversionTransform(),
     new NamingConventionTransform(),
     new ValidationTransform()
   )
-  .toStandardJson();
+  .toXml();
+
+// Serialize with custom options
+const result = xmlDoc.stringify({ prettyPrint: true, indent: 4 });
 
 // Bad: Single monolithic transform
 const result = new XJX()
@@ -1132,6 +1139,6 @@ new XJX()
 
 ## Conclusion
 
-The transform system in XJX provides a powerful way to modify data during conversion between XML and JSON. With the addition of Standard JSON support, you can now create transforms that work with both the full-fidelity XJX JSON format and the more natural Standard JSON format.
+The transform system in XJX provides a powerful way to modify data during conversion between XML and JSON. With the addition of Standard JSON support and enhanced DOM access in XML output, you can now create transforms that work with both the full-fidelity XJX JSON format and the more natural Standard JSON format, as well as manipulate the DOM directly before serialization.
 
 For more information on the extension system, which complements the transform system, see the [Extensions Guide](./EXTENSIONS.md).

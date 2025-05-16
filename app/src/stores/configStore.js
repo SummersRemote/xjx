@@ -1,6 +1,7 @@
 // stores/configStore.js
 import { defineStore } from 'pinia';
 import XJXService from '../services/XJXService';
+import { useAPIStore } from './apiStore';
 
 export const useConfigStore = defineStore('config', {
   state: () => ({
@@ -13,6 +14,10 @@ export const useConfigStore = defineStore('config', {
      */
     updateConfig(config) {
       this.config = config;
+      
+      // Update the API store to generate new fluent API code
+      const apiStore = useAPIStore();
+      apiStore.updateFluentAPI();
     },
     
     /**
@@ -21,6 +26,10 @@ export const useConfigStore = defineStore('config', {
     resetToDefault() {
       // Make sure we get a fresh copy of the default config
       this.config = XJXService.getDefaultConfig();
+      
+      // Update the API store to generate new fluent API code
+      const apiStore = useAPIStore();
+      apiStore.updateFluentAPI();
     }
   }
 });

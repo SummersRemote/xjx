@@ -1,6 +1,6 @@
 // services/XJXService.js
 // Wrapper service for the XJX library with webpack-compatibility
-import { XJX, BooleanTransform, NumberTransform, RegexTransform } from '../../../dist/esm/index.js'; 
+import { XJX, BooleanTransform, NumberTransform, RegexTransform } from '../../../dist/esm/index.js';
 
 // Create a map of transformer types to their constructors
 const transformerMap = {
@@ -15,29 +15,63 @@ class XJXService {
    * @returns {Object} Default configuration
    */
   getDefaultConfig() {
-    // Create an instance to extract default config
-    const xjx = new XJX();
-    
-    // Ensure standardJsonDefaults is initialized
-    const config = xjx.config;
-    if (!config.standardJsonDefaults) {
-      config.standardJsonDefaults = {
-        attributeHandling: 'ignore',
-        attributePrefix: '@',
-        attributePropertyName: '_attrs',
-        textPropertyName: '_text',
-        alwaysCreateArrays: false,
-        preserveMixedContent: true,
-        emptyElementsAsNull: false
-      };
-    }
-    
-    // Ensure arrayItemName is initialized
-    if (!config.arrayItemName) {
-      config.arrayItemName = 'item';
-    }
-    
-    return config;
+    // Create a default configuration that matches the updated structure
+    return {
+      // Preservation options
+      preserveNamespaces: true,
+      preserveComments: true,
+      preserveProcessingInstr: true,
+      preserveCDATA: true,
+      preserveTextNodes: true,
+      preserveWhitespace: false,
+      preserveAttributes: true,
+
+      // Converters section with format-specific settings
+      converters: {
+        // Standard JSON converter settings
+        stdJson: {
+          options: {
+            attributeHandling: 'ignore',    // ignore, merge, prefix, property
+            attributePrefix: '@',
+            attributePropertyName: '_attrs',
+            textPropertyName: '_text',
+            alwaysCreateArrays: false,
+            preserveMixedContent: true,
+            emptyElementsAsNull: false
+          },
+          naming: {
+            arrayItem: "item"
+          }
+        },
+        
+        // XJX JSON converter settings
+        xjxJson: {
+          options: {
+            compact: true
+          },
+          naming: {
+            namespace: "$ns",
+            prefix: "$pre",
+            attribute: "$attr",
+            value: "$val",
+            cdata: "$cdata",
+            comment: "$cmnt",
+            processingInstr: "$pi",
+            target: "$trgt",
+            children: "$children"
+          }
+        },
+        
+        // XML converter settings
+        xml: {
+          options: {
+            declaration: true,
+            prettyPrint: true,
+            indent: 2
+          }
+        }
+      }
+    };
   }
   
   /**

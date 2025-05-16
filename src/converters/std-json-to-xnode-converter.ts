@@ -69,7 +69,7 @@ export class DefaultStandardJsonToXNodeConverter implements StandardJsonToXNodeC
       // Process the source
       if (Array.isArray(source)) {
         // Process array items using the configured array item name
-        const arrayItemName = this.config.arrayItemName || "item";
+        const arrayItemName = this.config.converters.stdJson.naming.arrayItem;
         
         source.forEach(item => {
           const childNode = this.convertValue(arrayItemName, item);
@@ -122,8 +122,8 @@ export class DefaultStandardJsonToXNodeConverter implements StandardJsonToXNodeC
       }
       
       if (Array.isArray(value)) {
-        // Handle arrays - use the configured array item name or default to "item"
-        const arrayItemName = this.config.arrayItemName || "item";
+        // Handle arrays - use the configured array item name
+        const arrayItemName = this.config.converters.stdJson.naming.arrayItem;
         
         value.forEach(item => {
           const childNode = this.convertValue(arrayItemName, item);

@@ -34,8 +34,9 @@ Terminal extensions perform an operation and return a value other than the XJX i
 
 Examples of built-in terminal extensions:
 - `toXml()` - Convert to XML string
-- `toJson()` - Convert to JSON object
+- `toJson()` - Convert to XJX-formatted JSON object
 - `toJsonString()` - Convert to JSON string
+- `toStandardJson()` - Convert to standard JavaScript object/array
 
 Terminal extensions are registered using `XJX.registerTerminalExtension()`.
 
@@ -45,7 +46,9 @@ Non-terminal extensions perform an operation and return the XJX instance, allowi
 
 Examples of built-in non-terminal extensions:
 - `fromXml()` - Set XML string as the source
-- `fromJson()` - Set JSON object as the source
+- `fromJson()` - Set JSON object as the source (auto-detects format)
+- `fromXjxJson()` - Set XJX-formatted JSON as the source
+- `fromObjJson()` - Set standard JavaScript object as the source
 - `withConfig()` - Set configuration options
 - `withTransforms()` - Add transforms to the pipeline
 - `setLogLevel()` - Set logger level
@@ -61,14 +64,47 @@ import { XJX } from 'xjx';
 
 // Using the built-in extensions
 const result = new XJX()
-  .fromXml(xml)             // Non-terminal extension
-  .withConfig({             // Non-terminal extension
-    preserveComments: true  
+  .fromXml(xml)                  // Non-terminal extension
+  .withConfig({                  // Non-terminal extension
+    preserveComments: true,
+    converters: {
+      stdJson: {
+        options: {
+          attributeHandling: 'merge'
+        }
+      }
+    }
   })
-  .withTransforms(          // Non-terminal extension
+  .withTransforms(               // Non-terminal extension
     new XJX.BooleanTransform()
   )
-  .toJson();                // Terminal extension
+  .toStandardJson();             // Terminal extension
+```
+
+### JSON Format Extensions
+
+XJX now supports multiple JSON formats with specialized extensions:
+
+```javascript
+// Auto-detect format (XJX or standard)
+const result1 = new XJX()
+  .fromJson(jsonData)  // Automatically detects format
+  .toXml();
+
+// Explicitly use XJX format
+const result2 = new XJX()
+  .fromXjxJson(xjxFormatData)  // Only accepts XJX format
+  .toXml();
+
+// Use standard JavaScript objects
+const result3 = new XJX()
+  .fromObjJson(standardObject)  // Accepts regular JavaScript objects
+  .toXml();
+
+// Convert to standard JSON format
+const standardJson = new XJX()
+  .fromXml(xml)
+  .toStandardJson();  // Returns natural JavaScript objects
 ```
 
 ## Creating Custom Extensions
@@ -87,13 +123,13 @@ function toObject(this: XJX): Record<string, any> {
   // First, validate that we have a source set
   this.validateSource();
   
-  // Get the JSON output
-  const json = this.toJson();
+  // Get the standard JSON output as a base
+  const json = this.toStandardJson();
   
   // Transform it to a more application-friendly format
   return {
-    name: json.root?.$children?.[0]?.name?.$val || '',
-    value: json.root?.$children?.[1]?.value?.$val || '',
+    name: json.root?.name || '',
+    value: json.root?.value || '',
     // Add more custom transformations as needed
   };
 }
@@ -164,6 +200,71 @@ const result = new XJX()
 
 ## Advanced Use Cases
 
+### Custom JSON Format Extension
+
+This example creates a terminal extension that converts XML to a different JSON format:
+
+```javascript
+import { XJX } from 'xjx';
+
+function toFlatJson(this: XJX): Record<string, any> {
+  this.validateSource();
+  
+  // First get the standard JSON
+  const standardJson = this.toStandardJson();
+  
+  // Now flatten the structure
+  const result: Record<string, any> = {};
+  
+  function flattenObject(obj: any, prefix = '') {
+    for (const [key, value] of Object.entries(obj)) {
+      const newKey = prefix ? `${prefix}.${key}` : key;
+      
+      if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+        // Recursively flatten nested objects
+        flattenObject(value, newKey);
+      } else {
+        // Add leaf value
+        result[newKey] = value;
+      }
+    }
+  }
+  
+  flattenObject(standardJson);
+  return result;
+}
+
+// Register the extension
+XJX.registerTerminalExtension('toFlatJson', toFlatJson);
+
+// Type definition
+declare module 'xjx' {
+  interface XJX {
+    toFlatJson(): Record<string, any>;
+  }
+}
+
+// Usage
+const flatJson = new XJX()
+  .fromXml(`
+    <user>
+      <name>John</name>
+      <address>
+        <street>123 Main St</street>
+        <city>Anytown</city>
+      </address>
+    </user>
+  `)
+  .toFlatJson();
+
+// Output:
+// {
+//   "user.name": "John",
+//   "user.address.street": "123 Main St",
+//   "user.address.city": "Anytown"
+// }
+```
+
 ### Extension Dependencies
 
 Extensions can depend on other extensions and coordinate their behavior:
@@ -183,7 +284,10 @@ function validate(this: XJX): boolean {
   }
   
   this.validateSource();
-  return validateAgainstSchema(this.xnode, this._schema);
+  
+  // Get standard JSON to validate against the schema
+  const standardJson = this.toStandardJson();
+  return validateAgainstSchema(standardJson, this._schema);
 }
 
 // Type augmentation
@@ -212,7 +316,7 @@ const isValid = new XJX()
   .validate();
 ```
 
-### Creating a Format Converter Extension
+### Format Converter Extension
 
 This example creates a terminal extension that converts XML to CSV:
 
@@ -222,23 +326,42 @@ import { XJX } from 'xjx';
 function toCSV(this: XJX, options = { header: true }): string {
   this.validateSource();
   
-  // Convert to JSON first
-  const json = this.toJson();
+  // Convert to standard JSON first (better for this use case than XJX format)
+  const json = this.toStandardJson();
   
   // Get all records (assuming they're in a consistent format)
-  const recordsNode = json.root?.$children || [];
-  const records = recordsNode.map(record => {
-    const obj = {};
-    const children = record[Object.keys(record)[0]].$children || [];
+  let records: any[] = [];
+  
+  // Find the array of records in the JSON (assuming a common structure)
+  // This example assumes records are in the first array property found
+  function findRecordsArray(obj: any): any[] | null {
+    if (Array.isArray(obj)) {
+      return obj;
+    }
     
-    children.forEach(child => {
-      const key = Object.keys(child)[0];
-      const value = child[key].$val;
-      obj[key] = value;
-    });
+    if (obj && typeof obj === 'object') {
+      for (const key of Object.keys(obj)) {
+        const value = obj[key];
+        if (Array.isArray(value) && value.length > 0) {
+          return value;
+        }
+        
+        const nestedResult = findRecordsArray(value);
+        if (nestedResult) {
+          return nestedResult;
+        }
+      }
+    }
     
-    return obj;
-  });
+    return null;
+  }
+  
+  records = findRecordsArray(json) || [];
+  
+  // If no records found, try to use the root object itself as a single record
+  if (records.length === 0 && json && typeof json === 'object') {
+    records = [json];
+  }
   
   // Extract headers from the first record
   const headers = records.length > 0 ? Object.keys(records[0]) : [];
@@ -273,7 +396,7 @@ declare module 'xjx' {
 // Usage
 const csv = new XJX()
   .fromXml(`
-    <root>
+    <records>
       <record>
         <name>John</name>
         <age>30</age>
@@ -282,8 +405,9 @@ const csv = new XJX()
         <name>Jane</name>
         <age>28</age>
       </record>
-    </root>
+    </records>
   `)
+  .withTransforms(new XJX.NumberTransform())
   .toCSV();
 
 // Output:
@@ -292,112 +416,9 @@ const csv = new XJX()
 // "Jane",28
 ```
 
-### Creating a Data Validation Extension
+### CRUD Extension Suite
 
-This example creates extensions for schema-based validation:
-
-```javascript
-import { XJX } from 'xjx';
-
-// Define validation schema types
-interface ValidationSchema {
-  type: 'object' | 'array' | 'string' | 'number' | 'boolean';
-  properties?: Record<string, ValidationSchema>;
-  items?: ValidationSchema;
-  required?: string[];
-  pattern?: string;
-  minLength?: number;
-  maxLength?: number;
-  minimum?: number;
-  maximum?: number;
-}
-
-// Schema extension
-function withValidationSchema(this: XJX, schema: ValidationSchema): void {
-  this._validationSchema = schema;
-}
-
-// Validation function
-function validate(this: XJX): { valid: boolean; errors: string[] } {
-  if (!this._validationSchema) {
-    throw new Error('No validation schema set');
-  }
-  
-  this.validateSource();
-  const json = this.toJson();
-  
-  const errors: string[] = [];
-  const valid = validateAgainstSchema(json, this._validationSchema, '', errors);
-  
-  return { valid, errors };
-}
-
-// Helper function (simplified)
-function validateAgainstSchema(
-  value: any, 
-  schema: ValidationSchema, 
-  path: string,
-  errors: string[]
-): boolean {
-  // Type checking
-  if (schema.type === 'object' && (typeof value !== 'object' || Array.isArray(value))) {
-    errors.push(`${path}: expected object, got ${typeof value}`);
-    return false;
-  }
-  
-  // Required properties checking
-  if (schema.type === 'object' && schema.properties && schema.required) {
-    for (const prop of schema.required) {
-      if (!(prop in value)) {
-        errors.push(`${path}: missing required property ${prop}`);
-        return false;
-      }
-    }
-  }
-  
-  // More validation logic...
-  
-  return errors.length === 0;
-}
-
-// Register extensions
-XJX.registerNonTerminalExtension('withValidationSchema', withValidationSchema);
-XJX.registerTerminalExtension('validate', validate);
-
-// Type augmentation
-declare module 'xjx' {
-  interface XJX {
-    _validationSchema?: ValidationSchema;
-    withValidationSchema(schema: ValidationSchema): XJX;
-    validate(): { valid: boolean; errors: string[] };
-  }
-}
-
-// Usage
-const result = new XJX()
-  .fromXml('<user><name>John</name><age>30</age></user>')
-  .withValidationSchema({
-    type: 'object',
-    properties: {
-      user: {
-        type: 'object',
-        properties: {
-          name: { type: 'string', minLength: 2 },
-          age: { type: 'number', minimum: 0 }
-        },
-        required: ['name', 'age']
-      }
-    }
-  })
-  .validate();
-
-console.log(result.valid); // true or false
-console.log(result.errors); // Array of validation errors
-```
-
-### Creating a CRUD Extension Suite
-
-This example creates a suite of extensions for CRUD operations on XML data:
+This example creates a suite of extensions for CRUD operations on XML data, using the standard JSON format for easier manipulation:
 
 ```javascript
 import { XJX } from 'xjx';
@@ -406,143 +427,151 @@ import { XJX } from 'xjx';
 function createElement(this: XJX, path: string, element: Record<string, any>): void {
   this.validateSource();
   
+  // Convert to standard JSON for easier manipulation
+  const standardJson = this.toStandardJson();
+  
+  // Navigate to the target parent path
   const pathParts = path.split('.');
-  let currentNode = this.xnode;
+  let current = standardJson;
   
   // Navigate to the target parent node
   for (let i = 0; i < pathParts.length - 1; i++) {
-    const child = currentNode.findChild(pathParts[i]);
-    if (!child) {
-      throw new Error(`Path not found: ${pathParts.slice(0, i + 1).join('.')}`);
+    const part = pathParts[i];
+    if (!current[part]) {
+      current[part] = {};
     }
-    currentNode = child;
+    current = current[part];
   }
   
-  // Create new element
-  const newNode = new XJX.XNode(pathParts[pathParts.length - 1]);
+  // Get the new element name
+  const newElementName = pathParts[pathParts.length - 1];
   
-  // Add attributes and children
-  Object.entries(element).forEach(([key, value]) => {
-    if (key === 'attributes' && typeof value === 'object') {
-      Object.entries(value).forEach(([attrName, attrValue]) => {
-        newNode.setAttribute(attrName, attrValue);
-      });
-    } else if (key === 'value') {
-      newNode.value = value;
-    } else if (key === 'children' && Array.isArray(value)) {
-      value.forEach(child => {
-        const childNode = new XJX.XNode(Object.keys(child)[0]);
-        childNode.value = child[Object.keys(child)[0]];
-        newNode.addChild(childNode);
-      });
+  // Add the new element
+  if (Array.isArray(current)) {
+    // If current is an array, add to it
+    current.push({ [newElementName]: element });
+  } else {
+    // If the same element already exists, make an array
+    if (current[newElementName]) {
+      if (!Array.isArray(current[newElementName])) {
+        current[newElementName] = [current[newElementName]];
+      }
+      current[newElementName].push(element);
+    } else {
+      // Otherwise just set it
+      current[newElementName] = element;
     }
-  });
+  }
   
-  // Add to the parent
-  currentNode.addChild(newNode);
+  // Update the XNode using the standard JSON converter
+  this.xnode = new DefaultStandardJsonToXNodeConverter(this.config).convert(standardJson);
 }
 
 // Read extension
 function getElement(this: XJX, path: string): Record<string, any> | null {
   this.validateSource();
   
-  const pathParts = path.split('.');
-  let currentNode = this.xnode;
+  // Convert to standard JSON
+  const standardJson = this.toStandardJson();
   
-  // Navigate to the target node
+  // Navigate to the requested path
+  const pathParts = path.split('.');
+  let current = standardJson;
+  
   for (const part of pathParts) {
-    const child = currentNode.findChild(part);
-    if (!child) {
+    if (!current || typeof current !== 'object' || !(part in current)) {
       return null;
     }
-    currentNode = child;
+    current = current[part];
   }
   
-  // Convert to object
-  const result: Record<string, any> = {};
-  
-  if (currentNode.attributes) {
-    result.attributes = { ...currentNode.attributes };
-  }
-  
-  if (currentNode.value !== undefined) {
-    result.value = currentNode.value;
-  }
-  
-  if (currentNode.children && currentNode.children.length > 0) {
-    result.children = currentNode.children.map(child => {
-      return { [child.name]: child.value };
-    });
-  }
-  
-  return result;
+  return current;
 }
 
 // Update extension
 function updateElement(this: XJX, path: string, updates: Record<string, any>): void {
   this.validateSource();
   
-  const pathParts = path.split('.');
-  let currentNode = this.xnode;
+  // Convert to standard JSON
+  const standardJson = this.toStandardJson();
   
-  // Navigate to the target node
-  for (const part of pathParts) {
-    const child = currentNode.findChild(part);
-    if (!child) {
-      throw new Error(`Path not found: ${path}`);
+  // Navigate to the requested path
+  const pathParts = path.split('.');
+  let current = standardJson;
+  
+  // Navigate to the parent of the target node
+  for (let i = 0; i < pathParts.length - 1; i++) {
+    const part = pathParts[i];
+    if (!current || typeof current !== 'object' || !(part in current)) {
+      throw new Error(`Path not found: ${pathParts.slice(0, i + 1).join('.')}`);
     }
-    currentNode = child;
+    current = current[part];
   }
   
+  // Get the target element name
+  const targetName = pathParts[pathParts.length - 1];
+  
   // Apply updates
-  Object.entries(updates).forEach(([key, value]) => {
-    if (key === 'attributes' && typeof value === 'object') {
-      if (!currentNode.attributes) {
-        currentNode.attributes = {};
-      }
-      Object.entries(value).forEach(([attrName, attrValue]) => {
-        currentNode.attributes![attrName] = attrValue;
-      });
-    } else if (key === 'value') {
-      currentNode.value = value;
-    } else if (key === 'children' && Array.isArray(value)) {
-      // Replace all children
-      currentNode.children = [];
-      value.forEach(child => {
-        const childNode = new XJX.XNode(Object.keys(child)[0]);
-        childNode.value = child[Object.keys(child)[0]];
-        currentNode.addChild(childNode);
-      });
+  if (current && typeof current === 'object' && targetName in current) {
+    if (typeof current[targetName] === 'object' && !Array.isArray(current[targetName])) {
+      // Merge objects
+      current[targetName] = { ...current[targetName], ...updates };
+    } else {
+      // Replace non-objects
+      current[targetName] = updates;
     }
-  });
+    
+    // Update the XNode using the standard JSON converter
+    this.xnode = new DefaultStandardJsonToXNodeConverter(this.config).convert(standardJson);
+  } else {
+    throw new Error(`Element not found at path: ${path}`);
+  }
 }
 
 // Delete extension
 function deleteElement(this: XJX, path: string): boolean {
   this.validateSource();
   
+  // Convert to standard JSON
+  const standardJson = this.toStandardJson();
+  
+  // Navigate to the requested path
   const pathParts = path.split('.');
-  let currentNode = this.xnode;
+  let current = standardJson;
   
   // Navigate to the parent of the target node
   for (let i = 0; i < pathParts.length - 1; i++) {
-    const child = currentNode.findChild(pathParts[i]);
-    if (!child) {
+    const part = pathParts[i];
+    if (!current || typeof current !== 'object' || !(part in current)) {
       return false;
     }
-    currentNode = child;
+    current = current[part];
   }
   
-  // Find the target child
+  // Get the target element name
   const targetName = pathParts[pathParts.length - 1];
-  const targetChild = currentNode.findChild(targetName);
   
-  if (!targetChild) {
-    return false;
+  // Delete the element
+  if (current && typeof current === 'object' && targetName in current) {
+    if (Array.isArray(current)) {
+      // For arrays, filter out the target index
+      const index = parseInt(targetName);
+      if (!isNaN(index) && index >= 0 && index < current.length) {
+        current.splice(index, 1);
+      } else {
+        return false;
+      }
+    } else {
+      // For objects, delete the property
+      delete current[targetName];
+    }
+    
+    // Update the XNode using the standard JSON converter
+    this.xnode = new DefaultStandardJsonToXNodeConverter(this.config).convert(standardJson);
+    return true;
   }
   
-  // Remove the child
-  return currentNode.removeChild(targetChild);
+  return false;
 }
 
 // Register the extensions
@@ -566,11 +595,9 @@ const xjx = new XJX().fromXml('<users></users>');
 
 // Create
 xjx.createElement('users.user', {
-  attributes: { id: '123' },
-  children: [
-    { name: 'John Doe' },
-    { email: 'john@example.com' }
-  ]
+  id: '123',
+  name: 'John Doe',
+  email: 'john@example.com'
 });
 
 // Read
@@ -578,7 +605,7 @@ const user = xjx.getElement('users.user');
 
 // Update
 xjx.updateElement('users.user', {
-  attributes: { status: 'active' }
+  status: 'active'
 });
 
 // Delete
@@ -637,8 +664,8 @@ function customExtension(this: XJX, param: string): void {
 
 Follow consistent naming conventions:
 
-- **Terminal extensions**: Use names that describe the output (`toXml`, `toJson`, `toCSV`)
-- **Non-terminal extensions**: Use names that describe the action (`fromXml`, `withConfig`, `addTransform`)
+- **Terminal extensions**: Use names that describe the output (`toXml`, `toJson`, `toCSV`, `toStandardJson`)
+- **Non-terminal extensions**: Use names that describe the action (`fromXml`, `fromObjJson`, `withConfig`, `addTransform`)
 
 ### 4. Documentation
 
@@ -716,6 +743,24 @@ function useCustomFeature(this: XJX): any {
   }
   
   // Implementation
+}
+```
+
+### 9. JSON Format Awareness
+
+Make extensions compatible with both JSON formats:
+
+```javascript
+function customExtension(this: XJX, param: string): void {
+  this.validateSource();
+  
+  // Work with standard JSON for easier manipulation
+  const standardJson = this.toStandardJson();
+  
+  // Perform operations...
+  
+  // Convert back to XNode using standard JSON converter
+  this.xnode = new DefaultStandardJsonToXNodeConverter(this.config).convert(modifiedJson);
 }
 ```
 

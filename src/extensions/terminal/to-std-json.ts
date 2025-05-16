@@ -16,7 +16,6 @@ declare module '../../XJX' {
     /**
      * Convert current XNode to standard JavaScript object
      * This sacrifices round-trip fidelity for a more natural object structure
-     * @param options Options for controlling the conversion process
      * @returns Standard JavaScript object
      */
     toStandardJson(): any;
@@ -25,7 +24,6 @@ declare module '../../XJX' {
 
 /**
  * Convert current XNode to standard JavaScript object
- * @param options Options for controlling the conversion process
  * @returns Standard JavaScript object
  */
 function toStandardJson(this: XJX): any {
@@ -39,7 +37,7 @@ function toStandardJson(this: XJX): any {
     // First, validate source is set
     this.validateSource();
     
-    // Apply transformations if any are registered (FIX: Add this section)
+    // Apply transformations if any are registered
     let nodeToConvert = this.xnode as XNode;
     
     if (this.transforms && this.transforms.length > 0) {
@@ -56,7 +54,7 @@ function toStandardJson(this: XJX): any {
       });
     }
     
-    // Create converter with the new config
+    // Create converter with the config
     const converter = new DefaultXNodeToStandardJsonConverter(this.config);
     
     // Convert XNode to standard JSON

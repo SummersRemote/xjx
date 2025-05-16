@@ -39,7 +39,7 @@ export interface XMLJSONNode {
  * Structure of an XML element in JSON representation
  */
 export interface XMLJSONElement {
-  // These fields will match the propNames in Configuration
+  // These fields will match the naming in Configuration.converters.xjxJson.naming
   [key: string]: JSONValue | XMLJSONNode[];
 }
 
@@ -75,10 +75,13 @@ export class JSON {
       }
 
       if (root && typeof root === "object" && !Array.isArray(root)) {
+        // Get naming configuration
+        const namingConfig = config.converters.xjxJson.naming;
+        
         // Handle root with config-based keys
         const elementName = ((root as JSONObject).name as string) || "root"; // Default to "root" if no name is provided
         const prefix =
-          ((root as JSONObject)[config.propNames.prefix] as string) || "";
+          ((root as JSONObject)[namingConfig.prefix] as string) || "";
         const qualifiedName = prefix ? `${prefix}:${elementName}` : elementName;
 
         const result: XMLJSONNode = {
@@ -88,13 +91,13 @@ export class JSON {
         const rootElement = result[qualifiedName];
 
         // Add attributes to the root element if defined
-        const attrsKey = config.propNames.attributes;
+        const attrsKey = namingConfig.attribute;
         if (root[attrsKey] && Array.isArray(root[attrsKey])) {
           rootElement[attrsKey] = root[attrsKey] as JSONArray;
         }
 
         // Merge existing children with the new generated children
-        const childrenKey = config.propNames.children;
+        const childrenKey = namingConfig.children;
         const children = root[childrenKey]
           ? (root[childrenKey] as JSONArray)
           : [];
@@ -104,7 +107,7 @@ export class JSON {
         ] as unknown as XMLJSONNode[];
 
         // Add namespace and prefix if defined
-        const nsKey = config.propNames.namespace;
+        const nsKey = namingConfig.namespace;
         if (root[nsKey]) {
           rootElement[nsKey] = root[nsKey] as JSONValue;
         }
@@ -146,8 +149,10 @@ export class JSON {
    */
   private static wrapObject(value: JSONValue, config: Configuration): JSONObject {
     try {
-      const valKey = config.propNames.value;
-      const childrenKey = config.propNames.children;
+      // Get naming configuration
+      const namingConfig = config.converters.xjxJson.naming;
+      const valKey = namingConfig.value;
+      const childrenKey = namingConfig.children;
 
       if (
         value === null ||

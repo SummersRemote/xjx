@@ -47,10 +47,10 @@ declare module '../../XJX' {
  * Detect if an object is in XJX JSON format
  * This checks if the object has XJX-specific property structures
  * @param obj JSON object to check
- * @param propNames Property names from configuration
+ * @param namingConfig Naming configuration from converters.xjxJson.naming
  * @returns true if the object is in XJX format
  */
-function isXjxFormat(obj: Record<string, any>, propNames: Record<string, string>): boolean {
+function isXjxFormat(obj: Record<string, any>, namingConfig: Record<string, string>): boolean {
   try {
     // Empty object is not in XJX format
     if (Object.keys(obj).length === 0) return false;
@@ -64,14 +64,14 @@ function isXjxFormat(obj: Record<string, any>, propNames: Record<string, string>
     
     // Check for XJX-specific properties
     const hasXjxProps = 
-      rootObj[propNames.value] !== undefined ||
-      rootObj[propNames.children] !== undefined ||
-      rootObj[propNames.attributes] !== undefined ||
-      rootObj[propNames.namespace] !== undefined ||
-      rootObj[propNames.prefix] !== undefined ||
-      rootObj[propNames.cdata] !== undefined ||
-      rootObj[propNames.comments] !== undefined ||
-      rootObj[propNames.instruction] !== undefined;
+      rootObj[namingConfig.value] !== undefined ||
+      rootObj[namingConfig.children] !== undefined ||
+      rootObj[namingConfig.attribute] !== undefined ||
+      rootObj[namingConfig.namespace] !== undefined ||
+      rootObj[namingConfig.prefix] !== undefined ||
+      rootObj[namingConfig.cdata] !== undefined ||
+      rootObj[namingConfig.comment] !== undefined ||
+      rootObj[namingConfig.processingInstr] !== undefined;
     
     return hasXjxProps;
   } catch (err) {
@@ -138,8 +138,11 @@ function fromXjxJson(this: XJX, source: Record<string, any>): void {
     validate(!Array.isArray(source), "XJX JSON source cannot be an array");
     validate(Object.keys(source).length > 0, "XJX JSON source cannot be empty");
     
+    // Get naming config from the new configuration structure
+    const namingConfig = this.config.converters.xjxJson.naming;
+    
     // Validate that source is actually in XJX format
-    const isXjx = isXjxFormat(source, this.config.propNames);
+    const isXjx = isXjxFormat(source, namingConfig);
     validate(isXjx, "Source is not in XJX format, use fromObjJson() instead");
     
     logger.debug('Setting XJX JSON source for transformation', {
@@ -195,7 +198,9 @@ function fromJson(this: XJX, source: Record<string, any>): void {
     const isArray = Array.isArray(source);
     
     if (!isArray && Object.keys(source).length > 0) {
-      const isXjx = isXjxFormat(source, this.config.propNames);
+      // Get naming config from the new configuration structure
+      const namingConfig = this.config.converters.xjxJson.naming;
+      const isXjx = isXjxFormat(source, namingConfig);
       
       if (isXjx) {
         // Try XJX format first

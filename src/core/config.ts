@@ -23,92 +23,157 @@ export interface Configuration {
   preserveWhitespace: boolean;
   preserveAttributes: boolean;
 
-  // Output options
-  outputOptions: {
-    prettyPrint: boolean;
-    indent: number;
-    compact: boolean;
-    json: {};
+  // Converters section with format-specific settings
+  converters: {
+    // Standard JSON converter settings
+    stdJson: {
+      options: {
+        /**
+         * How to handle XML attributes in the standard JSON output
+         * - 'ignore': Discard all attributes (default)
+         * - 'merge': Merge attributes with element content
+         * - 'prefix': Add attributes with a prefix (e.g., '@name')
+         * - 'property': Add attributes under a property (e.g., '_attrs')
+         */
+        attributeHandling: 'ignore' | 'merge' | 'prefix' | 'property';
+
+        /**
+         * Prefix to use for attributes if attributeHandling is 'prefix'
+         * Default: '@'
+         */
+        attributePrefix: string;
+
+        /**
+         * Property name to use for attributes if attributeHandling is 'property'
+         * Default: '_attrs'
+         */
+        attributePropertyName: string;
+
+        /**
+         * Property to use for element text content when there are also attributes or children
+         * Default: '_text'
+         */
+        textPropertyName: string;
+
+        /**
+         * When true, elements with the same name are always grouped into arrays
+         * When false, only create arrays when there are multiple elements with the same name
+         * Default: false
+         */
+        alwaysCreateArrays: boolean;
+
+        /**
+         * When true, mixed content (elements with both text and child elements) 
+         * preserves text nodes with a special property name
+         * Default: true
+         */
+        preserveMixedContent: boolean;
+        
+        /**
+         * When true, empty elements are converted to null
+         * When false, empty elements become empty objects {}
+         * Default: false
+         */
+        emptyElementsAsNull: boolean;
+      };
+      naming: {
+        /**
+         * Name to use for array items when converting from standard JSON to XML
+         * Default: "item"
+         */
+        arrayItem: string;
+      };
+    };
+    
+    // XJX JSON converter settings
+    xjxJson: {
+      options: {
+        /**
+         * Compact mode: removes empty nodes and properties
+         * Default: true
+         */
+        compact: boolean;
+      };
+      naming: {
+        /**
+         * Property name for namespace URI
+         * Default: "$ns"
+         */
+        namespace: string;
+        
+        /**
+         * Property name for namespace prefix
+         * Default: "$pre"
+         */
+        prefix: string;
+        
+        /**
+         * Property name for attributes collection
+         * Default: "$attr"
+         */
+        attribute: string;
+        
+        /**
+         * Property name for node value
+         * Default: "$val"
+         */
+        value: string;
+        
+        /**
+         * Property name for CDATA section content
+         * Default: "$cdata"
+         */
+        cdata: string;
+        
+        /**
+         * Property name for comment content
+         * Default: "$cmnt"
+         */
+        comment: string;
+        
+        /**
+         * Property name for processing instruction
+         * Default: "$pi"
+         */
+        processingInstr: string;
+        
+        /**
+         * Property name for processing instruction target
+         * Default: "$trgt"
+         */
+        target: string;
+        
+        /**
+         * Property name for child nodes collection
+         * Default: "$children"
+         */
+        children: string;
+      };
+    };
+    
+    // XML converter settings
     xml: {
-      declaration: boolean;
+      options: {
+        /**
+         * Include XML declaration
+         * Default: true
+         */
+        declaration: boolean;
+        
+        /**
+         * Format output with indentation
+         * Default: true
+         */
+        prettyPrint: boolean;
+        
+        /**
+         * Number of spaces for indentation
+         * Default: 2
+         */
+        indent: number;
+      };
     };
   };
-
-  // Property names in the JSON representation
-  propNames: {
-    namespace: string;
-    prefix: string;
-    attributes: string;
-    value: string;
-    cdata: string;
-    comments: string;
-    instruction: string;
-    target: string;
-    children: string;
-  };
-
-// --- JSON Conversion Options ---
-  
-  /**
-   * Name to use for array items when converting from standard JSON to XML
-   * Default: "item"
-   */
-  arrayItemName?: string;
-  
-  /**
-   * Default options for standard JSON conversion
-   * These can be overridden when calling toStandardJson()
-   */
-  standardJsonDefaults?: {
-    /**
-     * How to handle XML attributes in the standard JSON output
-     * - 'ignore': Discard all attributes (default)
-     * - 'merge': Merge attributes with element content
-     * - 'prefix': Add attributes with a prefix (e.g., '@name')
-     * - 'property': Add attributes under a property (e.g., '_attrs')
-     */
-    attributeHandling?: 'ignore' | 'merge' | 'prefix' | 'property';
-
-    /**
-     * Prefix to use for attributes if attributeHandling is 'prefix'
-     * Default: '@'
-     */
-    attributePrefix?: string;
-
-    /**
-     * Property name to use for attributes if attributeHandling is 'property'
-     * Default: '_attrs'
-     */
-    attributePropertyName?: string;
-
-    /**
-     * Property to use for element text content when there are also attributes or children
-     * Default: '_text'
-     */
-    textPropertyName?: string;
-
-    /**
-     * When true, elements with the same name are always grouped into arrays
-     * When false, only create arrays when there are multiple elements with the same name
-     * Default: false
-     */
-    alwaysCreateArrays?: boolean;
-
-    /**
-     * When true, mixed content (elements with both text and child elements) 
-     * preserves text nodes with a special property name
-     * Default: true
-     */
-    preserveMixedContent?: boolean;
-    
-    /**
-     * When true, empty elements are converted to null
-     * When false, empty elements become empty objects {}
-     * Default: false
-     */
-    emptyElementsAsNull?: boolean;
-  };
-
 }
 
 /**
@@ -123,40 +188,45 @@ export const DEFAULT_CONFIG: Configuration = {
   preserveWhitespace: false,
   preserveAttributes: true,
 
-  outputOptions: {
-    prettyPrint: true,
-    indent: 2,
-    compact: true,
-    json: {},
-    xml: {
-      declaration: true,
+  converters: {
+    stdJson: {
+      options: {
+        attributeHandling: 'ignore',
+        attributePrefix: '@',
+        attributePropertyName: '_attrs',
+        textPropertyName: '_text',
+        alwaysCreateArrays: false,
+        preserveMixedContent: true,
+        emptyElementsAsNull: false
+      },
+      naming: {
+        arrayItem: "item"
+      }
     },
-  },
-
-  propNames: {
-    namespace: "$ns",
-    prefix: "$pre",
-    attributes: "$attr",
-    value: "$val",
-    cdata: "$cdata",
-    comments: "$cmnt",
-    instruction: "$pi",
-    target: "$trgt",
-    children: "$children",
-  },
-
-    // --- JSON Conversion Options ---
-    arrayItemName: "item",
-  
-    standardJsonDefaults: {
-      attributeHandling: 'ignore',
-      attributePrefix: '@',
-      attributePropertyName: '_attrs',
-      textPropertyName: '_text',
-      alwaysCreateArrays: false,
-      preserveMixedContent: true,
-      emptyElementsAsNull: false
+    xjxJson: {
+      options: {
+        compact: true
+      },
+      naming: {
+        namespace: "$ns",
+        prefix: "$pre",
+        attribute: "$attr",
+        value: "$val",
+        cdata: "$cdata",
+        comment: "$cmnt",
+        processingInstr: "$pi",
+        target: "$trgt",
+        children: "$children"
+      }
+    },
+    xml: {
+      options: {
+        declaration: true,
+        prettyPrint: true,
+        indent: 2
+      }
     }
+  }
 };
 
 /**
@@ -186,7 +256,6 @@ export class Config {
 
   /**
    * Validate that a configuration has all required fields
-   * Simple validation that ensures core properties exist
    * @param config Configuration to validate
    * @returns True if configuration is valid
    */
@@ -194,6 +263,7 @@ export class Config {
     // Simple existence check for required properties
     if (!config || typeof config !== "object") return false;
 
+    // Check core properties
     const requiredProps = [
       "preserveNamespaces",
       "preserveComments",
@@ -202,49 +272,94 @@ export class Config {
       "preserveTextNodes",
       "preserveWhitespace",
       "preserveAttributes",
-      "outputOptions",
-      "propNames",
+      "converters"
     ];
 
     for (const prop of requiredProps) {
       if (config[prop] === undefined) return false;
     }
 
-    // Check for output options
-    if (!config.outputOptions || typeof config.outputOptions !== "object")
-      return false;
-    if (
-      !config.outputOptions.xml ||
-      typeof config.outputOptions.xml !== "object"
-    )
-      return false;
-
-    // Check for prop names
-    if (!config.propNames || typeof config.propNames !== "object") return false;
-
-    const requiredPropNames = [
-      "namespace",
-      "prefix",
-      "attributes",
-      "value",
-      "cdata",
-      "comments",
-      "instruction",
-      "target",
-      "children",
-    ];
-
-    for (const prop of requiredPropNames) {
-      if (!config.propNames[prop]) return false;
+    // Check converters section
+    if (!config.converters || typeof config.converters !== "object") return false;
+    
+    // Check required converters
+    const requiredConverters = ["stdJson", "xjxJson", "xml"];
+    for (const converter of requiredConverters) {
+      if (!config.converters[converter]) return false;
     }
 
+    // Check converter sections
+    if (!this.validateStdJsonConfig(config.converters.stdJson)) return false;
+    if (!this.validateXjxJsonConfig(config.converters.xjxJson)) return false;
+    if (!this.validateXmlConfig(config.converters.xml)) return false;
+
+    return true;
+  }
+
+  /**
+   * Validate the stdJson converter configuration
+   * @param config StdJson converter configuration
+   * @returns True if configuration is valid
+   * @private
+   */
+  private static validateStdJsonConfig(config: any): boolean {
+    if (!config || typeof config !== "object") return false;
+    if (!config.options || typeof config.options !== "object") return false;
+    if (!config.naming || typeof config.naming !== "object") return false;
+    
+    // Check specific properties
+    if (config.naming.arrayItem === undefined) return false;
+    
+    return true;
+  }
+
+  /**
+   * Validate the xjxJson converter configuration
+   * @param config XjxJson converter configuration
+   * @returns True if configuration is valid
+   * @private
+   */
+  private static validateXjxJsonConfig(config: any): boolean {
+    if (!config || typeof config !== "object") return false;
+    if (!config.options || typeof config.options !== "object") return false;
+    if (!config.naming || typeof config.naming !== "object") return false;
+    
+    // Check naming properties
+    const requiredNaming = [
+      "namespace", "prefix", "attribute", "value",
+      "cdata", "comment", "processingInstr", "target", "children"
+    ];
+    
+    for (const prop of requiredNaming) {
+      if (config.naming[prop] === undefined) return false;
+    }
+    
+    return true;
+  }
+
+  /**
+   * Validate the xml converter configuration
+   * @param config Xml converter configuration
+   * @returns True if configuration is valid
+   * @private
+   */
+  private static validateXmlConfig(config: any): boolean {
+    if (!config || typeof config !== "object") return false;
+    if (!config.options || typeof config.options !== "object") return false;
+    
+    // Check options properties
+    const requiredOptions = ["declaration", "prettyPrint", "indent"];
+    for (const prop of requiredOptions) {
+      if (config.options[prop] === undefined) return false;
+    }
+    
     return true;
   }
 
   /**
    * Get a value from configuration using dot notation path
    * @param config Configuration object
-   * @param path Path to value (e.g., "outputOptions.indent")
+   * @param path Path to value (e.g., "converters.xml.options.indent")
    * @param defaultValue Default value if path doesn't exist
    * @returns Value at path or default value
    */
@@ -284,19 +399,33 @@ export class Config {
 
       // Validate configuration structure
       try {
-        // Ensure config has required sections or can be merged properly
-        if (config.propNames) {
+        // Ensure converters section structure is valid if provided
+        if (config.converters) {
           validate(
-            typeof config.propNames === "object",
-            "propNames must be an object"
+            typeof config.converters === "object",
+            "converters must be an object"
           );
-        }
-
-        if (config.outputOptions) {
-          validate(
-            typeof config.outputOptions === "object",
-            "outputOptions must be an object"
-          );
+          
+          if (config.converters.stdJson) {
+            validate(
+              typeof config.converters.stdJson === "object",
+              "converters.stdJson must be an object"
+            );
+          }
+          
+          if (config.converters.xjxJson) {
+            validate(
+              typeof config.converters.xjxJson === "object",
+              "converters.xjxJson must be an object"
+            );
+          }
+          
+          if (config.converters.xml) {
+            validate(
+              typeof config.converters.xml === "object",
+              "converters.xml must be an object"
+            );
+          }
         }
       } catch (validationErr) {
         throw new ConfigurationError("Invalid configuration structure", config);
@@ -312,7 +441,7 @@ export class Config {
 
         logger.debug("Successfully created/updated configuration", {
           preserveNamespaces: result.preserveNamespaces,
-          prettyPrint: result.outputOptions?.prettyPrint,
+          prettyPrint: result.converters.xml.options.prettyPrint,
         });
 
         return result;

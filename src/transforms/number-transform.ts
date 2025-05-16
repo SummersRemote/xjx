@@ -152,7 +152,6 @@ export class NumberTransform implements Transform {
         const trimmed = value.trim();
         const parsed = Number(trimmed);
         
-        // FIXED LINE: now returns the parsed number, not the original value
         if (!isNaN(parsed)) {
           return createTransformResult(parsed);
         }

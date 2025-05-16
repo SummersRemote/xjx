@@ -30,7 +30,7 @@ function toJsonString(this: XJX): string {
     const jsonObject = this.toJson();
     
     // Use the indent value from config
-    const indent = this.config.outputOptions.indent;
+    const indent = this.config.converters.xml.options.indent;
     const result = JSON.stringify(jsonObject, null, indent);
     
     logger.debug('Successfully converted to JSON string', {

@@ -17,7 +17,7 @@ The transform system in XJX provides a powerful way to modify data during the co
 
 Key features of the transform system:
 
-- **Format-aware**: Transforms can behave differently based on target format (XML or JSON)
+- **Format-aware**: Transforms can behave differently based on target format (XML, XJX JSON, or Standard JSON)
 - **Targeted**: Each transform can target specific node types (elements, attributes, text, etc.)
 - **Chainable**: Multiple transforms can be applied in sequence
 - **Stateless**: Transforms don't maintain state between transformations
@@ -111,6 +111,31 @@ const result = new XJX()
   .toJson();
 ```
 
+### Format-Aware Transforms
+
+Transforms can behave differently based on the target format. The updated configuration structure adds support for Standard JSON format, in addition to the existing XML and XJX JSON formats:
+
+```javascript
+import { XJX, Transform, FORMATS } from 'xjx';
+
+class MyTransform implements Transform {
+  targets = [TransformTarget.Value];
+  
+  transform(value: any, context: TransformContext): TransformResult<any> {
+    if (context.targetFormat === FORMATS.XML) {
+      // XML-specific transformation
+      return createTransformResult(/* transformed for XML */);
+    } else if (context.targetFormat === FORMATS.JSON) {
+      // JSON-specific transformation (for both XJX and Standard JSON)
+      return createTransformResult(/* transformed for JSON */);
+    }
+    
+    // Default behavior
+    return createTransformResult(value);
+  }
+}
+```
+
 ## Built-in Transforms
 
 XJX includes several built-in transforms:
@@ -133,15 +158,13 @@ const booleanTransform = new BooleanTransform({
 const result = new XJX()
   .fromXml('<user><active>yes</active><subscribed>no</subscribed></user>')
   .withTransforms(booleanTransform)
-  .toJson();
+  .toStandardJson();
 
 // Result:
 // {
 //   "user": {
-//     "$children": [
-//       { "active": { "$val": true } },
-//       { "subscribed": { "$val": false } }
-//     ]
+//     "active": true,
+//     "subscribed": false
 //   }
 // }
 ```
@@ -166,16 +189,14 @@ const numberTransform = new NumberTransform({
 const result = new XJX()
   .fromXml('<data><count>42</count><price>19.99</price><large>1,234,567</large></data>')
   .withTransforms(numberTransform)
-  .toJson();
+  .toStandardJson();
 
 // Result:
 // {
 //   "data": {
-//     "$children": [
-//       { "count": { "$val": 42 } },
-//       { "price": { "$val": 19.99 } },
-//       { "large": { "$val": 1234567 } }
-//     ]
+//     "count": 42,
+//     "price": 19.99,
+//     "large": 1234567
 //   }
 // }
 ```
@@ -198,14 +219,12 @@ const dateFormatTransform = new RegexTransform({
 const result = new XJX()
   .fromXml('<user><birth-date>2023-01-15</birth-date></user>')
   .withTransforms(dateFormatTransform)
-  .toJson();
+  .toStandardJson();
 
 // Result:
 // {
 //   "user": {
-//     "$children": [
-//       { "birth-date": { "$val": "01/15/2023" } }
-//     ]
+//     "birth-date": "01/15/2023"
 //   }
 // }
 ```
@@ -294,17 +313,15 @@ class UppercaseTransform implements Transform {
 const result = new XJX()
   .fromXml('<greeting>Hello, world!</greeting>')
   .withTransforms(new UppercaseTransform())
-  .toJson();
+  .toStandardJson();
 
 // Result:
 // {
-//   "greeting": {
-//     "$val": "HELLO, WORLD!"
-//   }
+//   "greeting": "HELLO, WORLD!"
 // }
 ```
 
-### Format-Aware Transform
+### Format-Aware Transform with Standard JSON Support
 
 ```javascript
 import { 
@@ -331,7 +348,7 @@ class CaseTransform implements Transform {
     
     // Apply different transformations based on target format
     if (context.targetFormat === FORMATS.JSON) {
-      // To JSON: uppercase
+      // To JSON (both XJX and Standard): uppercase
       return createTransformResult(value.toUpperCase());
     } else if (context.targetFormat === FORMATS.XML) {
       // To XML: lowercase
@@ -347,17 +364,15 @@ class CaseTransform implements Transform {
 const jsonResult = new XJX()
   .fromXml('<greeting>Hello, world!</greeting>')
   .withTransforms(new CaseTransform())
-  .toJson();
+  .toStandardJson();
 
-// Result when converting to JSON:
+// Result when converting to Standard JSON:
 // {
-//   "greeting": {
-//     "$val": "HELLO, WORLD!"
-//   }
+//   "greeting": "HELLO, WORLD!"
 // }
 
 const xmlResult = new XJX()
-  .fromJson({ "greeting": { "$val": "Hello, WORLD!" } })
+  .fromObjJson({ "greeting": "Hello, WORLD!" })
   .withTransforms(new CaseTransform())
   .toXml();
 
@@ -463,13 +478,66 @@ const result = new XJX()
     'n': 'name',
     'location': 'address'
   }))
-  .toXml();
+  .toStandardJson();
 
 // Result:
-// <user><name>John</name><address>New York</address></user>
+// {
+//   "user": {
+//     "name": "John",
+//     "address": "New York"
+//   }
+// }
 ```
 
-### Removing Nodes Transform
+### Transform for Standard JSON Format
+
+```javascript
+import { 
+  XJX, 
+  Transform, 
+  TransformContext, 
+  TransformResult, 
+  TransformTarget,
+  createTransformResult,
+  FORMATS 
+} from 'xjx';
+
+// Transform that specifically targets standard JSON conversion
+class StandardJsonTransform implements Transform {
+  targets = [TransformTarget.Value];
+  
+  transform(value: any, context: TransformContext): TransformResult<any> {
+    // Only apply when converting to JSON and target is Standard JSON
+    if (context.targetFormat === FORMATS.JSON && 
+        context.config.converters.stdJson.options.attributeHandling !== 'ignore') {
+      
+      // Specific transformation for Standard JSON format
+      if (typeof value === 'string' && value.includes('$')) {
+        // Replace dollar signs with 'USD' text
+        return createTransformResult(value.replace('$', 'USD '));
+      }
+    }
+    
+    // Return unchanged for other formats
+    return createTransformResult(value);
+  }
+}
+
+// Apply the transform
+const result = new XJX()
+  .fromXml('<price>$10.99</price>')
+  .withTransforms(new StandardJsonTransform())
+  .toStandardJson();
+
+// Result:
+// {
+//   "price": "USD 10.99"
+// }
+```
+
+## Advanced Use Cases
+
+### Standard JSON Attribute Handling
 
 ```javascript
 import { 
@@ -481,41 +549,60 @@ import {
   createTransformResult 
 } from 'xjx';
 
-// Create a custom transform to remove nodes
-class RemoveNodesTransform implements Transform {
-  // Target elements
+// Transform that works with both types of JSON formats
+class ProductTransform implements Transform {
   targets = [TransformTarget.Element];
   
-  // Node names to remove
-  private nodeNames: string[];
-  
-  constructor(nodeNames: string[]) {
-    this.nodeNames = nodeNames;
-  }
-  
-  // Transform method
   transform(node: XNode, context: TransformContext): TransformResult<XNode> {
-    // Check if this node should be removed
-    if (this.nodeNames.includes(node.name)) {
-      return createTransformResult(node, true); // Set remove flag to true
+    // Skip non-element nodes or non-product nodes
+    if (node.type !== 1 || node.name !== 'product') {
+      return createTransformResult(node);
     }
     
-    // Keep the node
-    return createTransformResult(node);
+    // Create a new node
+    const newNode = node.clone(false);
+    newNode.children = node.children;
+    
+    // Add custom metadata for the standard JSON converter
+    if (!newNode.metadata) {
+      newNode.metadata = {};
+    }
+    
+    // Add format-specific processing hint
+    newNode.metadata.standardJsonFormat = {
+      attributeHandling: 'prefix',  // Override global config for this node
+      onlyTheseAttributes: ['id', 'sku']  // Only process these attributes
+    };
+    
+    return createTransformResult(newNode);
   }
 }
 
-// Apply the custom transform
+// Apply the transform with a config
 const result = new XJX()
-  .fromXml('<user><name>John</name><password>secret123</password><email>john@example.com</email></user>')
-  .withTransforms(new RemoveNodesTransform(['password']))
-  .toXml();
+  .withConfig({
+    converters: {
+      stdJson: {
+        options: {
+          attributeHandling: 'merge'  // Global setting
+        }
+      }
+    }
+  })
+  .fromXml('<product id="123" sku="ABC" internal="xyz"><name>Phone</name></product>')
+  .withTransforms(new ProductTransform())
+  .toStandardJson();
 
 // Result:
-// <user><name>John</name><email>john@example.com</email></user>
+// {
+//   "product": {
+//     "@id": "123",
+//     "@sku": "ABC",
+//     "name": "Phone"
+//   }
+// }
+// Note: 'internal' attribute is not prefixed due to the metadata hint
 ```
-
-## Advanced Use Cases
 
 ### Metadata Transform for Validation
 
@@ -594,12 +681,12 @@ const result = new XJX()
     // Validate based on metadata
     new ValidationTransform()
   )
-  .toJson();
+  .toStandardJson();
 
 // The resulting XNode will have validation errors attached
 ```
 
-### Complex XNode Transformation
+### Format Conversion Transform with Standard JSON
 
 ```javascript
 import { 
@@ -608,7 +695,8 @@ import {
   TransformContext, 
   TransformResult, 
   TransformTarget,
-  createTransformResult 
+  createTransformResult,
+  FORMATS
 } from 'xjx';
 
 // Transform to convert between different XML formats
@@ -616,54 +704,48 @@ class FormatConversionTransform implements Transform {
   targets = [TransformTarget.Element];
   
   transform(node: XNode, context: TransformContext): TransformResult<XNode> {
-    // Only transform the root node
-    if (context.parent) {
+    // Only transform SOAP envelopes and only when targeting JSON
+    if (node.name !== 'soap:Envelope' || context.targetFormat !== FORMATS.JSON) {
       return createTransformResult(node);
     }
     
-    // Skip non-element nodes
-    if (node.type !== 1) { // NodeType.ELEMENT_NODE
+    // Extract the actual content from SOAP envelope
+    const bodyNode = node.findChild('soap:Body');
+    if (!bodyNode) {
       return createTransformResult(node);
     }
     
-    // Transform from one format to another
-    if (node.name === 'soap:Envelope') {
-      // Extract the actual content from SOAP envelope
-      const bodyNode = node.findChild('soap:Body');
-      if (!bodyNode) {
-        return createTransformResult(node);
-      }
-      
-      const contentNode = bodyNode.children?.[0];
-      if (!contentNode) {
-        return createTransformResult(node);
-      }
-      
-      // Convert SOAP request to REST-style
-      const newNode = new XNode('api-request');
-      
-      // Add method attribute
-      newNode.setAttribute('method', contentNode.name.replace('Request', ''));
-      
-      // Add version attribute from SOAP header
-      const headerNode = node.findChild('soap:Header');
-      if (headerNode) {
-        const versionNode = headerNode.findChild('Version');
-        if (versionNode) {
-          newNode.setAttribute('version', versionNode.getTextContent());
+    const contentNode = bodyNode.children?.[0];
+    if (!contentNode) {
+      return createTransformResult(node);
+    }
+    
+    // Add metadata to influence standard JSON conversion
+    const newNode = contentNode.clone(true); // Deep clone the content node
+    
+    if (!newNode.metadata) {
+      newNode.metadata = {};
+    }
+    
+    // Add a hint for standard JSON conversion to use property mode for attributes
+    newNode.metadata.standardJsonFormat = {
+      attributeHandling: 'property',
+      attributePropertyName: 'params'
+    };
+    
+    // Get version from SOAP header and add as attribute
+    const headerNode = node.findChild('soap:Header');
+    if (headerNode) {
+      const versionNode = headerNode.findChild('Version');
+      if (versionNode) {
+        if (!newNode.attributes) {
+          newNode.attributes = {};
         }
+        newNode.attributes.version = versionNode.getTextContent();
       }
-      
-      // Add all parameters
-      contentNode.children?.forEach(paramNode => {
-        newNode.addChild(paramNode);
-      });
-      
-      return createTransformResult(newNode);
     }
     
-    // No transformation needed
-    return createTransformResult(node);
+    return createTransformResult(newNode);
   }
 }
 
@@ -682,14 +764,22 @@ const result = new XJX()
       </soap:Body>
     </soap:Envelope>
   `)
-  .withTransforms(new FormatConversionTransform())
-  .toXml();
+  .withTransforms(
+    new FormatConversionTransform(),
+    new BooleanTransform()
+  )
+  .toStandardJson();
 
 // Result:
-// <api-request method="GetUser" version="1.0">
-//   <userId>123</userId>
-//   <includeDetails>true</includeDetails>
-// </api-request>
+// {
+//   "GetUserRequest": {
+//     "params": {
+//       "version": "1.0"
+//     },
+//     "userId": "123",
+//     "includeDetails": true
+//   }
+// }
 ```
 
 ### Combining Multiple Transforms
@@ -703,7 +793,7 @@ import {
   MetadataTransform 
 } from 'xjx';
 
-// Apply multiple transforms in sequence
+// Apply multiple transforms in sequence for standard JSON output
 const result = new XJX()
   .fromXml(`
     <order>
@@ -757,451 +847,32 @@ const result = new XJX()
       }
     })
   )
-  .toJson();
+  .toStandardJson();
 
-// Result: JSON with converted types and metadata attached
-```
-
-### Conditional Transforms
-
-```javascript
-import { 
-  XJX, 
-  Transform, 
-  TransformContext, 
-  TransformResult, 
-  TransformTarget,
-  createTransformResult 
-} from 'xjx';
-
-// Create a transform that applies conditionally
-class ConditionalTransform implements Transform {
-  targets = [TransformTarget.Value];
-  
-  private condition: (value: any, context: TransformContext) => boolean;
-  private transform: (value: any) => any;
-  
-  constructor(
-    condition: (value: any, context: TransformContext) => boolean,
-    transform: (value: any) => any
-  ) {
-    this.condition = condition;
-    this.transform = transform;
-  }
-  
-  transform(value: any, context: TransformContext): TransformResult<any> {
-    // Apply transform only if condition is met
-    if (this.condition(value, context)) {
-      return createTransformResult(this.transform(value));
-    }
-    
-    // Otherwise return unchanged
-    return createTransformResult(value);
-  }
-}
-
-// Apply conditional transforms
-const result = new XJX()
-  .fromXml(`
-    <user>
-      <email>john.doe@example.com</email>
-      <phone>555-123-4567</phone>
-      <ssn>123-45-6789</ssn>
-    </user>
-  `)
-  .withTransforms(
-    // Redact SSN
-    new ConditionalTransform(
-      (value, context) => context.nodeName === 'ssn',
-      (value) => 'XXX-XX-' + String(value).slice(-4)
-    ),
-    
-    // Anonymize email
-    new ConditionalTransform(
-      (value, context) => typeof value === 'string' && value.includes('@'),
-      (value) => {
-        const [username, domain] = String(value).split('@');
-        return username.charAt(0) + '***@' + domain;
-      }
-    )
-  )
-  .toJson();
-
-// Result:
+// Result: Standard JSON with converted types
 // {
-//   "user": {
-//     "$children": [
-//       { "email": { "$val": "j***@example.com" } },
-//       { "phone": { "$val": "555-123-4567" } },
-//       { "ssn": { "$val": "XXX-XX-6789" } }
-//     ]
+//   "order": {
+//     "orderDate": "05/15/2023",
+//     "items": {
+//       "item": [
+//         {
+//           "id": 123,
+//           "name": "Widget",
+//           "price": 19.99,
+//           "quantity": 2,
+//           "inStock": true
+//         },
+//         {
+//           "id": 456,
+//           "name": "Gadget",
+//           "price": 29.99,
+//           "quantity": 1,
+//           "inStock": false
+//         }
+//       ]
+//     }
 //   }
 // }
-```
-
-### Path-Based Transform
-
-```javascript
-import { 
-  XJX, 
-  Transform, 
-  TransformContext, 
-  TransformResult, 
-  TransformTarget,
-  createTransformResult 
-} from 'xjx';
-
-// Create a transform that applies based on node path
-class PathBasedTransform implements Transform {
-  targets = [TransformTarget.Value];
-  
-  private pathPatterns: RegExp[];
-  private transform: (value: any) => any;
-  
-  constructor(
-    pathPatterns: RegExp[],
-    transform: (value: any) => any
-  ) {
-    this.pathPatterns = pathPatterns;
-    this.transform = transform;
-  }
-  
-  transform(value: any, context: TransformContext): TransformResult<any> {
-    // Check if the current path matches any of the patterns
-    const matchesPath = this.pathPatterns.some(pattern => 
-      pattern.test(context.path)
-    );
-    
-    if (matchesPath) {
-      return createTransformResult(this.transform(value));
-    }
-    
-    // Otherwise return unchanged
-    return createTransformResult(value);
-  }
-}
-
-// Apply path-based transforms
-const result = new XJX()
-  .fromXml(`
-    <data>
-      <users>
-        <user>
-          <id>1</id>
-          <name>John Doe</name>
-          <email>john@example.com</email>
-        </user>
-        <user>
-          <id>2</id>
-          <name>Jane Smith</name>
-          <email>jane@example.com</email>
-        </user>
-      </users>
-      <settings>
-        <email>notify@example.com</email>
-      </settings>
-    </data>
-  `)
-  .withTransforms(
-    // Apply to all email fields under users
-    new PathBasedTransform(
-      [/^data\.users\.user\[\d+\]\.email$/],
-      (value) => {
-        const [username, domain] = String(value).split('@');
-        return username.charAt(0) + '***@' + domain;
-      }
-    ),
-    
-    // Apply to all IDs
-    new PathBasedTransform(
-      [/\.id\[\d+\]$/],
-      (value) => Number(value) // Convert ID to number
-    )
-  )
-  .toJson();
-
-// Result:
-// User emails are anonymized but settings email is unchanged
-// IDs are converted to numbers
-```
-
-### Metadata-Driven Transforms
-
-```javascript
-import { 
-  XJX, 
-  Transform, 
-  TransformContext, 
-  TransformResult, 
-  TransformTarget,
-  createTransformResult,
-  MetadataTransform 
-} from 'xjx';
-
-// Create a transform that uses metadata to guide transformation
-class MetadataDrivenTransform implements Transform {
-  targets = [
-    TransformTarget.Element,
-    TransformTarget.Value,
-    TransformTarget.Attribute
-  ];
-  
-  transform(value: any, context: TransformContext): TransformResult<any> {
-    // Get the node from context
-    const node = value instanceof XNode ? value : null;
-    
-    // Skip if no node or no metadata
-    if (!node || !node.metadata) {
-      return createTransformResult(value);
-    }
-    
-    // Check for transform instructions in metadata
-    const transformInstructions = node.getMetadata('transform');
-    if (!transformInstructions) {
-      return createTransformResult(value);
-    }
-    
-    // Apply transformations based on metadata
-    let result = value;
-    
-    // Transform element name
-    if (transformInstructions.rename && node.type === 1) { // NodeType.ELEMENT_NODE
-      const newNode = node.clone(false);
-      newNode.name = transformInstructions.rename;
-      newNode.children = node.children;
-      result = newNode;
-    }
-    
-    // Transform value format
-    if (transformInstructions.format && typeof node.value === 'string') {
-      const format = transformInstructions.format;
-      
-      if (format === 'uppercase') {
-        node.value = node.value.toUpperCase();
-      } else if (format === 'lowercase') {
-        node.value = node.value.toLowerCase();
-      } else if (format === 'capitalize') {
-        node.value = node.value.charAt(0).toUpperCase() + node.value.slice(1);
-      }
-      
-      result = node;
-    }
-    
-    // More transformation types...
-    
-    return createTransformResult(result);
-  }
-}
-
-// Apply metadata-driven transforms
-const result = new XJX()
-  .fromXml(`
-    <user>
-      <firstname>john</firstname>
-      <lastname>doe</lastname>
-      <email>JOHN.DOE@EXAMPLE.COM</email>
-    </user>
-  `)
-  .withTransforms(
-    // Add transformation instructions as metadata
-    new MetadataTransform({
-      selector: 'firstname',
-      metadata: {
-        transform: {
-          rename: 'firstName',
-          format: 'capitalize'
-        }
-      }
-    }),
-    new MetadataTransform({
-      selector: 'lastname',
-      metadata: {
-        transform: {
-          rename: 'lastName',
-          format: 'capitalize'
-        }
-      }
-    }),
-    new MetadataTransform({
-      selector: 'email',
-      metadata: {
-        transform: {
-          format: 'lowercase'
-        }
-      }
-    }),
-    
-    // Apply the metadata-driven transform
-    new MetadataDrivenTransform()
-  )
-  .toXml();
-
-// Result:
-// <user>
-//   <firstName>John</firstName>
-//   <lastName>Doe</lastName>
-//   <email>john.doe@example.com</email>
-// </user>
-```
-
-### Schema Generation Transform
-
-```javascript
-import { 
-  XJX, 
-  Transform, 
-  TransformContext, 
-  TransformResult, 
-  TransformTarget,
-  createTransformResult 
-} from 'xjx';
-
-// Create a transform that generates JSON Schema
-class SchemaGeneratorTransform implements Transform {
-  targets = [TransformTarget.Element];
-  
-  transform(node: XNode, context: TransformContext): TransformResult<XNode> {
-    // Only apply to the root node
-    if (context.parent) {
-      return createTransformResult(node);
-    }
-    
-    // Generate schema and attach as metadata
-    const schema = this.generateSchema(node);
-    
-    const newNode = node.clone(false);
-    newNode.children = node.children;
-    
-    if (!newNode.metadata) {
-      newNode.metadata = {};
-    }
-    
-    newNode.metadata.jsonSchema = schema;
-    
-    return createTransformResult(newNode);
-  }
-  
-  private generateSchema(node: XNode): Record<string, any> {
-    // Basic schema structure
-    const schema: Record<string, any> = {
-      type: 'object',
-      properties: {},
-      required: []
-    };
-    
-    // Process attributes
-    if (node.attributes) {
-      schema.properties = {
-        ...schema.properties,
-        ...Object.keys(node.attributes).reduce((props, key) => {
-          const value = node.attributes![key];
-          props[key] = this.inferType(value);
-          return props;
-        }, {} as Record<string, any>)
-      };
-    }
-    
-    // Process children
-    if (node.children) {
-      // Group children by name
-      const childrenByName: Record<string, XNode[]> = {};
-      
-      node.children.forEach(child => {
-        if (child.type === 1) { // NodeType.ELEMENT_NODE
-          if (!childrenByName[child.name]) {
-            childrenByName[child.name] = [];
-          }
-          childrenByName[child.name].push(child);
-        }
-      });
-      
-      // Add properties for each child group
-      Object.entries(childrenByName).forEach(([name, children]) => {
-        if (children.length > 1) {
-          // Array of items
-          schema.properties[name] = {
-            type: 'array',
-            items: this.generateSchema(children[0])
-          };
-        } else {
-          // Single item
-          const child = children[0];
-          
-          if (child.children && child.children.length > 0) {
-            // Complex type
-            schema.properties[name] = this.generateSchema(child);
-          } else {
-            // Simple type
-            schema.properties[name] = this.inferType(child.value);
-          }
-        }
-        
-        // Assume all properties are required
-        schema.required.push(name);
-      });
-    }
-    
-    return schema;
-  }
-  
-  private inferType(value: any): Record<string, any> {
-    if (value === null || value === undefined) {
-      return { type: 'null' };
-    }
-    
-    if (typeof value === 'string') {
-      return { type: 'string' };
-    }
-    
-    if (typeof value === 'number') {
-      return { type: 'number' };
-    }
-    
-    if (typeof value === 'boolean') {
-      return { type: 'boolean' };
-    }
-    
-    if (Array.isArray(value)) {
-      return { 
-        type: 'array',
-        items: value.length > 0 ? this.inferType(value[0]) : {}
-      };
-    }
-    
-    if (typeof value === 'object') {
-      return { type: 'object' };
-    }
-    
-    return { type: 'string' };
-  }
-}
-
-// Apply schema generator transform
-const result = new XJX()
-  .fromXml(`
-    <user id="123">
-      <firstname>John</firstname>
-      <lastname>Doe</lastname>
-      <age>30</age>
-      <email>john@example.com</email>
-      <address>
-        <street>123 Main St</street>
-        <city>Anytown</city>
-        <zipcode>12345</zipcode>
-      </address>
-      <phones>
-        <phone type="home">555-1234</phone>
-        <phone type="mobile">555-5678</phone>
-      </phones>
-    </user>
-  `)
-  .withTransforms(
-    new NumberTransform(),
-    new SchemaGeneratorTransform()
-  )
-  .toJson();
-
-// The resulting XNode will have JSON Schema metadata attached
 ```
 
 ## Best Practices
@@ -1310,9 +981,16 @@ Make transforms format-aware:
 ```javascript
 // Good: Different behavior based on format
 transform(value: any, context: TransformContext): TransformResult<any> {
-  if (context.targetFormat === 'json') {
-    // JSON-specific transformation
-  } else if (context.targetFormat === 'xml') {
+  if (context.targetFormat === FORMATS.JSON) {
+    // Access config to check which JSON format is being used
+    const isStandardJson = context.config.converters.stdJson.options.attributeHandling !== 'ignore';
+    
+    if (isStandardJson) {
+      // Standard JSON-specific transformation
+    } else {
+      // XJX JSON-specific transformation
+    }
+  } else if (context.targetFormat === FORMATS.XML) {
     // XML-specific transformation
   }
   return createTransformResult(value);
@@ -1332,7 +1010,7 @@ const result = new XJX()
     new NamingConventionTransform(),
     new ValidationTransform()
   )
-  .toJson();
+  .toStandardJson();
 
 // Bad: Single monolithic transform
 const result = new XJX()
@@ -1340,7 +1018,7 @@ const result = new XJX()
   .withTransforms(
     new DoEverythingTransform() // ❌ Too many responsibilities
   )
-  .toJson();
+  .toStandardJson();
 ```
 
 ### 7. Context Awareness
@@ -1363,6 +1041,11 @@ transform(value: any, context: TransformContext): TransformResult<any> {
   // Check path
   if (context.path.includes('address')) {
     // Address-related logic
+  }
+  
+  // Check configuration
+  if (context.config.converters.stdJson.options.attributeHandling === 'prefix') {
+    // Handle prefix-style attributes
   }
   
   return createTransformResult(value);
@@ -1389,7 +1072,7 @@ Document your transforms thoroughly:
  *   .withTransforms(new SensitiveDataTransform({
  *     fields: ['password', 'ssn', 'creditCard']
  *   }))
- *   .toJson();
+ *   .toStandardJson();
  * ```
  */
 class SensitiveDataTransform implements Transform {
@@ -1397,8 +1080,58 @@ class SensitiveDataTransform implements Transform {
 }
 ```
 
+### 9. Standard JSON Compatibility
+
+Ensure transforms work with both JSON formats:
+
+```javascript
+// Good: Handles both JSON formats appropriately
+transform(value: any, context: TransformContext): TransformResult<any> {
+  if (context.targetFormat === FORMATS.JSON) {
+    // Check which JSON format we're targeting via the config
+    const attributeHandling = context.config.converters.stdJson.options.attributeHandling;
+    const isStandardJson = attributeHandling !== 'ignore';
+    
+    if (isStandardJson) {
+      // Standard JSON output - may need different handling
+    } else {
+      // XJX format output - full fidelity
+    }
+  }
+  return createTransformResult(value);
+}
+```
+
+### 10. Metadata for Format Control
+
+Use metadata to control format-specific behavior:
+
+```javascript
+// Add format-specific metadata
+new XJX()
+  .fromXml(xml)
+  .withTransforms(
+    new MetadataTransform({
+      selector: 'user',
+      formatMetadata: [
+        {
+          format: 'json',
+          metadata: {
+            standardJsonFormat: {
+              // Override standard JSON format for this node
+              attributeHandling: 'property',
+              attributePropertyName: 'attrs'
+            }
+          }
+        }
+      ]
+    })
+  )
+  .toStandardJson();
+```
+
 ## Conclusion
 
-The transform system in XJX provides a powerful way to modify data during conversion between XML and JSON. By creating custom transforms, you can adapt the library to fit your specific needs and implement complex transformation logic.
+The transform system in XJX provides a powerful way to modify data during conversion between XML and JSON. With the addition of Standard JSON support, you can now create transforms that work with both the full-fidelity XJX JSON format and the more natural Standard JSON format.
 
 For more information on the extension system, which complements the transform system, see the [Extensions Guide](./EXTENSIONS.md).

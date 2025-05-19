@@ -4,7 +4,7 @@
  * Applies transformations to XNode with a functional core.
  */
 import { XNodeTransformer } from "./converter-interfaces";
-import { BaseConverter } from "./base-converter";
+import { BaseConverter } from "../core/converter";
 import { XNode } from "../core/xnode";
 import {
   Transform,

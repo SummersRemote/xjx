@@ -1,9 +1,22 @@
 /**
  * Base converter abstract class with common functionality for all converters
  */
-import { Converter } from './converter-interfaces';
-import { Configuration, Config } from '../core/config';
-import { validate, handleError, ErrorType } from '../core/error';
+import { Configuration, Config } from './config';
+import { validate, handleError, ErrorType } from './error';
+
+
+
+/**
+ * Base converter interface
+ */
+export interface Converter<TInput, TOutput> {
+  /**
+   * Convert from input to output format
+   * @param input Input data
+   * @returns Converted output
+   */
+  convert(input: TInput): TOutput;
+}
 
 /**
  * Abstract base converter with common functionality for all converters

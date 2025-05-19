@@ -6,11 +6,11 @@
  */
 
 // Base converter
-export { BaseConverter } from './base-converter';
+export {   Converter,
+  BaseConverter } from '../core/converter';
   
 // Converter interfaces
 export {
-  Converter,
   XmlToXNodeConverter,
   XjxJsonToXNodeConverter as JsonToXNodeConverter,
   XNodeToXmlConverter,

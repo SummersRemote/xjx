@@ -8,19 +8,8 @@ import {
   TransformContext,
   FormatId
 } from '../core/transform';
+import { Converter } from '../core/converter';
 import { XNode } from '../core/xnode';
-  
-/**
- * Base converter interface
- */
-export interface Converter<TInput, TOutput> {
-  /**
-   * Convert from input to output format
-   * @param input Input data
-   * @returns Converted output
-   */
-  convert(input: TInput): TOutput;
-}
   
 /**
  * XML string to XNode converter

@@ -4,7 +4,7 @@
  * Converts XJX-formatted JSON objects to XNode representation.
  */
 import { XjxJsonToXNodeConverter } from './converter-interfaces';
-import { BaseConverter } from './base-converter';
+import { BaseConverter } from '../core/converter';
 import { NodeType } from '../core/dom';
 import { logger, ParseError, handleError, ErrorType } from '../core/error';
 import { JSON } from '../core/json';

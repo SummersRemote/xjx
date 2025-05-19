@@ -4,7 +4,7 @@
  * Converts XNode to standard JavaScript objects and arrays without redundant preservation checks.
  */
 import { XNodeToStandardJsonConverter } from './converter-interfaces';
-import { BaseConverter } from './base-converter';
+import { BaseConverter } from '../core/converter';
 import { NodeType } from '../core/dom';
 import { logger, handleError, ErrorType } from '../core/error';
 import { XNode } from '../core/xnode';

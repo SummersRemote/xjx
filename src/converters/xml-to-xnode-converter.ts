@@ -9,7 +9,7 @@ import { NodeType } from '../core/dom';
 import { logger, handleError, ErrorType } from '../core/error';
 import { XmlParser, XmlEntity, XmlNamespace } from '../core/xml';
 import { XNode } from '../core/xnode';
-import { BaseConverter } from './base-converter';
+import { BaseConverter } from '../core/converter';
 
 /**
  * Context type for XML to XNode conversion

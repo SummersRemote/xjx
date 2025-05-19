@@ -12,7 +12,7 @@ import { logger, handleError, ErrorType } from '../core/error';
 // import { XmlNamespace } from '../core/xml';
 import { XmlEntity } from '../core/xml';
 import { XNode } from '../core/xnode';
-import { BaseConverter } from './base-converter';
+import { BaseConverter } from '../core/converter';
 
 /**
  * Context type for XNode to XML conversion

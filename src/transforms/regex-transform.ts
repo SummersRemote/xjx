@@ -1,15 +1,14 @@
 /**
  * RegexTransform - Performs regex replacements on values
  *
- * Updated to use target format instead of direction.
+ * Simplified implementation using the BaseTransform from core
  */
 import {
-  Transform,
   TransformContext,
   TransformResult,
   TransformTarget,
-  FormatId,
-  createTransformResult,
+  BaseTransform,
+  FormatId
 } from "../core/transform";
 import { logger, validate, ValidationError, handleError, ErrorType } from "../core/error";
 
@@ -58,14 +57,6 @@ export interface RegexOptions {
  *    }))
  *    .toJson();
  *
- * // String pattern with embedded flags - NEW!
- * XJX.fromXml(xml)
- *    .withTransforms(new RegexTransform({
- *      pattern: "/world/i",
- *      replacement: "World"
- *    }))
- *    .toJson();
- *
  * // Format-specific replacement (only applied when converting to XML)
  * XJX.fromJson(json)
  *    .withTransforms(new RegexTransform({
@@ -76,15 +67,7 @@ export interface RegexOptions {
  *    .toXml();
  * ```
  */
-export class RegexTransform implements Transform {
-  // Target text values, CDATA, and comments
-  targets = [
-    TransformTarget.Value,
-    TransformTarget.Text,
-    TransformTarget.CDATA,
-    TransformTarget.Comment,
-  ];
-
+export class RegexTransform extends BaseTransform {
   private regex!: RegExp;
   private replacement: string;
   private format?: FormatId;
@@ -94,6 +77,14 @@ export class RegexTransform implements Transform {
    * @param options Transformer options
    */
   constructor(options: RegexOptions) {
+    // Target text values, CDATA, and comments
+    super([
+      TransformTarget.Value,
+      TransformTarget.Text,
+      TransformTarget.CDATA,
+      TransformTarget.Comment,
+    ]);
+
     try {
       // Validate required options
       validate(!!options.pattern, "RegexTransform requires a pattern option");
@@ -148,21 +139,24 @@ export class RegexTransform implements Transform {
    */
   transform(value: any, context: TransformContext): TransformResult<any> {
     try {
+      // Validate context using base class method
+      this.validateContext(context);
+      
       // If format-specific and doesn't match current format, skip
       if (this.format !== undefined && this.format !== context.targetFormat) {
-        return createTransformResult(value);
+        return this.success(value);
       }
 
       // Skip non-string values
       if (typeof value !== "string") {
-        return createTransformResult(value);
+        return this.success(value);
       }
 
       // Perform the replacement
       const result = value.replace(this.regex, this.replacement);
 
       // Only return the new value if something changed
-      return createTransformResult(result !== value ? result : value);
+      return this.success(result !== value ? result : value);
     } catch (err) {
       return handleError(err, "apply regex transform", {
         data: {
@@ -174,7 +168,7 @@ export class RegexTransform implements Transform {
           replacement: this.replacement
         },
         errorType: ErrorType.TRANSFORM,
-        fallback: createTransformResult(value) // Return original value as fallback
+        fallback: this.success(value) // Return original value as fallback
       });
     }
   }

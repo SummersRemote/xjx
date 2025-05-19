@@ -1,17 +1,17 @@
 /**
  * MetadataTransform - General purpose transform for managing XNode metadata
  * 
- * Updated to use target format instead of direction.
+ * Simplified implementation using the BaseTransform from core
  */
 import { 
-  Transform, 
   TransformContext, 
   TransformResult, 
   TransformTarget, 
-  FormatId,
-  createTransformResult 
+  BaseTransform,
+  FormatId
 } from '../core/transform';
 import { XNode } from '../core/xnode';
+import { Common } from '../core/common';
 import { handleError, ErrorType } from '../core/error';
 
 /**
@@ -112,16 +112,7 @@ export interface MetadataTransformOptions {
  *    .toJson();
  * ```
  */
-export class MetadataTransform implements Transform {
-  // Target elements and other node types
-  targets = [
-    TransformTarget.Element,
-    TransformTarget.Text,
-    TransformTarget.CDATA,
-    TransformTarget.Comment,
-    TransformTarget.ProcessingInstruction
-  ];
-  
+export class MetadataTransform extends BaseTransform {
   private selector?: NodeSelector;
   private applyToRoot: boolean;
   private applyToAll: boolean;
@@ -136,9 +127,17 @@ export class MetadataTransform implements Transform {
    * @param options Transformer options
    */
   constructor(options: MetadataTransformOptions = {}) {
+    // Initialize with Element, Text, CDATA, Comment, and PI targets
+    super([
+      TransformTarget.Element,
+      TransformTarget.Text,
+      TransformTarget.CDATA,
+      TransformTarget.Comment,
+      TransformTarget.ProcessingInstruction
+    ]);
+
     try {
-      // Validation is handled by handleError in case of errors
-      
+      // Store configuration options
       this.selector = options.selector;
       this.applyToRoot = options.applyToRoot || false;
       this.applyToAll = options.applyToAll || false;
@@ -188,11 +187,14 @@ export class MetadataTransform implements Transform {
    */
   transform(node: XNode, context: TransformContext): TransformResult<XNode> {
     try {
+      // Validate context using base class method
+      this.validateContext(context);
+      
       // Check depth constraint if specified
       if (this.maxDepth !== undefined) {
         const depth = context.path.split('.').length - 1;
         if (depth > this.maxDepth) {
-          return createTransformResult(node);
+          return this.success(node);
         }
       }
       
@@ -203,7 +205,7 @@ export class MetadataTransform implements Transform {
         this.matchesSelector(node, context);
       
       if (!shouldApply) {
-        return createTransformResult(node);
+        return this.success(node);
       }
       
       // Clone the node to avoid modifying original
@@ -215,7 +217,7 @@ export class MetadataTransform implements Transform {
       // Apply metadata modifications
       this.applyMetadataToNode(clonedNode, context);
       
-      return createTransformResult(clonedNode);
+      return this.success(clonedNode);
     } catch (err) {
       return handleError(err, "transform metadata", {
         data: {
@@ -225,7 +227,7 @@ export class MetadataTransform implements Transform {
           targetFormat: context.targetFormat
         },
         errorType: ErrorType.TRANSFORM,
-        fallback: createTransformResult(node) // Return original node as fallback
+        fallback: this.success(node) // Return original node as fallback
       });
     }
   }
@@ -281,7 +283,7 @@ export class MetadataTransform implements Transform {
           if (typeof value === 'object' && value !== null && 
               typeof node.metadata[key] === 'object' && node.metadata[key] !== null) {
             // Deep merge objects
-            node.metadata[key] = this.deepMerge(node.metadata[key], value);
+            node.metadata[key] = Common.deepMerge(node.metadata[key], value);
           } else {
             // Simple assignment for primitives or when target doesn't exist
             node.metadata[key] = value;
@@ -298,7 +300,6 @@ export class MetadataTransform implements Transform {
           removeKeysCount: this.removeKeys.length
         },
         errorType: ErrorType.TRANSFORM
-        // No fallback - we're already in a void function
       });
     }
   }
@@ -340,46 +341,6 @@ export class MetadataTransform implements Transform {
           selectorType: typeof this.selector
         },
         fallback: false
-      });
-    }
-  }
-  
-  /**
-   * Deep merge two objects
-   * @param target Target object
-   * @param source Source object
-   * @returns Merged object
-   * @private
-   */
-  private deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
-    try {
-      const result = { ...target };
-      
-      for (const key in source) {
-        if (source.hasOwnProperty(key)) {
-          const sourceValue = source[key];
-          const targetValue = target[key];
-          
-          if (typeof sourceValue === 'object' && sourceValue !== null &&
-              typeof targetValue === 'object' && targetValue !== null &&
-              !Array.isArray(sourceValue) && !Array.isArray(targetValue)) {
-            // Recursively merge nested objects
-            result[key] = this.deepMerge(targetValue, sourceValue);
-          } else {
-            // Simple assignment for primitives or arrays
-            result[key] = sourceValue as any;
-          }
-        }
-      }
-      
-      return result;
-    } catch (err) {
-      return handleError(err, "deep merge objects", {
-        data: {
-          targetKeys: Object.keys(target || {}),
-          sourceKeys: Object.keys(source || {})
-        },
-        fallback: { ...target } // Return copy of target as fallback
       });
     }
   }

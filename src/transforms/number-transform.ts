@@ -1,14 +1,13 @@
 /**
  * NumberTransform - Converts string values to numbers
  * 
- * Updated to use target format instead of direction.
+ * Simplified implementation using the BaseTransform from core
  */
 import { 
-  Transform, 
   TransformContext, 
   TransformResult, 
-  TransformTarget, 
-  createTransformResult,
+  TransformTarget,
+  BaseTransform,
   FORMATS
 } from '../core/transform';
 import { handleError, ErrorType } from '../core/error';
@@ -64,10 +63,7 @@ export interface NumberTransformOptions {
  *    .toJson();
  * ```
  */
-export class NumberTransform implements Transform {
-  // Target value and attribute values
-  targets = [TransformTarget.Value];
-  
+export class NumberTransform extends BaseTransform {
   private integers: boolean;
   private decimals: boolean;
   private scientific: boolean;
@@ -80,6 +76,9 @@ export class NumberTransform implements Transform {
    * @param options Transformer options
    */
   constructor(options: NumberTransformOptions = {}) {
+    // Initialize with Value target
+    super([TransformTarget.Value]);
+    
     this.integers = options.integers !== false; // Default to true
     this.decimals = options.decimals !== false; // Default to true
     this.scientific = options.scientific !== false; // Default to true
@@ -101,9 +100,12 @@ export class NumberTransform implements Transform {
    */
   transform(value: any, context: TransformContext): TransformResult<any> {
     try {
+      // Validate context using base class method
+      this.validateContext(context);
+      
       // If format-specific and doesn't match current format, skip
       if (this.format !== undefined && this.format !== context.targetFormat) {
-        return createTransformResult(value);
+        return this.success(value);
       }
       
       // Check if we're transforming to JSON or XML
@@ -116,7 +118,7 @@ export class NumberTransform implements Transform {
       }
       
       // For any other format, keep as is
-      return createTransformResult(value);
+      return this.success(value);
     } catch (err) {
       return handleError(err, "transform number value", {
         data: { 
@@ -126,7 +128,7 @@ export class NumberTransform implements Transform {
           path: context.path
         },
         errorType: ErrorType.TRANSFORM,
-        fallback: createTransformResult(value) // Return original value as fallback
+        fallback: this.success(value) // Return original value as fallback
       });
     }
   }
@@ -139,12 +141,12 @@ export class NumberTransform implements Transform {
     try {
       // Already a number, return as is
       if (typeof value === 'number') {
-        return createTransformResult(value);
+        return this.success(value);
       }
       
       // Skip non-string values
       if (typeof value !== 'string') {
-        return createTransformResult(value);
+        return this.success(value);
       }
       
       // Try simple conversion first
@@ -153,7 +155,7 @@ export class NumberTransform implements Transform {
         const parsed = Number(trimmed);
         
         if (!isNaN(parsed)) {
-          return createTransformResult(parsed);
+          return this.success(parsed);
         }
       }
       
@@ -167,7 +169,7 @@ export class NumberTransform implements Transform {
           path: context.path
         },
         errorType: ErrorType.TRANSFORM,
-        fallback: createTransformResult(value) // Return original value as fallback
+        fallback: this.success(value) // Return original value as fallback
       });
     }
   }
@@ -180,11 +182,11 @@ export class NumberTransform implements Transform {
     try {
       // Only convert number values
       if (typeof value === 'number') {
-        return createTransformResult(String(value));
+        return this.success(String(value));
       }
       
       // Otherwise return unchanged
-      return createTransformResult(value);
+      return this.success(value);
     } catch (err) {
       return handleError(err, "convert number to string", {
         data: { 
@@ -193,7 +195,7 @@ export class NumberTransform implements Transform {
           path: context.path
         },
         errorType: ErrorType.TRANSFORM,
-        fallback: createTransformResult(value) // Return original value as fallback
+        fallback: this.success(value) // Return original value as fallback
       });
     }
   }
@@ -226,7 +228,7 @@ export class NumberTransform implements Transform {
   private transformComplex(value: any): TransformResult<any> {
     try {
       const strValue = String(value).trim();
-      if (!strValue) return createTransformResult(value);
+      if (!strValue) return this.success(value);
     
       let patternParts: string[] = [];
       let escapedDecimal = this.decimalSeparator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -254,7 +256,7 @@ export class NumberTransform implements Transform {
       const regex = new RegExp(fullPattern);
     
       if (!regex.test(strValue)) {
-        return createTransformResult(value);
+        return this.success(value);
       }
     
       // Normalize to JS-parsable format
@@ -271,12 +273,12 @@ export class NumberTransform implements Transform {
       }
     
       const parsed = parseFloat(normalized);
-      return createTransformResult(isNaN(parsed) ? value : parsed);
+      return this.success(isNaN(parsed) ? value : parsed);
     } catch (err) {
       return handleError(err, "transform complex number", {
         data: { value },
         errorType: ErrorType.TRANSFORM,
-        fallback: createTransformResult(value) // Return original value as fallback
+        fallback: this.success(value) // Return original value as fallback
       });
     }
   }

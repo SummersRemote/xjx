@@ -1,12 +1,13 @@
 /**
  * BooleanTransform - Converts string values to booleans
+ * 
+ * Simplified implementation using the BaseTransform from core
  */
 import { 
-  Transform, 
   TransformContext, 
   TransformResult, 
-  TransformTarget, 
-  createTransformResult,
+  TransformTarget,
+  BaseTransform,
   FORMATS
 } from '../core/transform';
 import { Common } from '../core/common';
@@ -51,10 +52,7 @@ const DEFAULT_FALSE_VALUES = ['false', 'no', '0', 'off'];
  *    .toJson();
  * ```
  */
-export class BooleanTransform implements Transform {
-  // Target value and attribute values
-  targets = [TransformTarget.Value];
-  
+export class BooleanTransform extends BaseTransform {
   private trueValues: string[];
   private falseValues: string[];
   private ignoreCase: boolean;
@@ -64,6 +62,9 @@ export class BooleanTransform implements Transform {
    * @param options Transformer options
    */
   constructor(options: BooleanTransformOptions = {}) {
+    // Initialize with Value target
+    super([TransformTarget.Value]);
+    
     this.trueValues = options.trueValues || DEFAULT_TRUE_VALUES;
     this.falseValues = options.falseValues || DEFAULT_FALSE_VALUES;
     this.ignoreCase = options.ignoreCase !== false; // Default to true
@@ -82,6 +83,9 @@ export class BooleanTransform implements Transform {
    */
   transform(value: any, context: TransformContext): TransformResult<any> {
     try {
+      // Validate context using base class method
+      this.validateContext(context);
+      
       // Check if we're transforming to JSON or XML
       if (context.targetFormat === FORMATS.JSON) {
         // To JSON: Convert strings to booleans
@@ -92,7 +96,7 @@ export class BooleanTransform implements Transform {
       }
       
       // For any other format, keep as is
-      return createTransformResult(value);
+      return this.success(value);
     } catch (err) {
       return handleError(err, "transform boolean value", {
         data: { 
@@ -102,7 +106,7 @@ export class BooleanTransform implements Transform {
           path: context.path
         },
         errorType: ErrorType.TRANSFORM,
-        fallback: createTransformResult(value) // Return original value as fallback
+        fallback: this.success(value) // Return original value as fallback
       });
     }
   }
@@ -115,12 +119,12 @@ export class BooleanTransform implements Transform {
     try {
       // Already a boolean, return as is
       if (typeof value === 'boolean') {
-        return createTransformResult(value);
+        return this.success(value);
       }
       
       // Skip non-string values
       if (typeof value !== 'string') {
-        return createTransformResult(value);
+        return this.success(value);
       }
       
       // Try to use Common for simple cases
@@ -133,7 +137,7 @@ export class BooleanTransform implements Transform {
         // Only transform if it was actually converted to a boolean
         if (typeof boolValue === 'boolean' && 
             (boolValue === true || boolValue === false)) {
-          return createTransformResult(boolValue);
+          return this.success(boolValue);
         }
       }
       
@@ -145,7 +149,7 @@ export class BooleanTransform implements Transform {
       for (const trueVal of this.trueValues) {
         const compareTrue = this.ignoreCase ? trueVal.toLowerCase() : trueVal;
         if (compareValue === compareTrue) {
-          return createTransformResult(true);
+          return this.success(true);
         }
       }
       
@@ -153,12 +157,12 @@ export class BooleanTransform implements Transform {
       for (const falseVal of this.falseValues) {
         const compareFalse = this.ignoreCase ? falseVal.toLowerCase() : falseVal;
         if (compareValue === compareFalse) {
-          return createTransformResult(false);
+          return this.success(false);
         }
       }
       
       // No match, return original value
-      return createTransformResult(value);
+      return this.success(value);
     } catch (err) {
       return handleError(err, "convert string to boolean", {
         data: { 
@@ -167,7 +171,7 @@ export class BooleanTransform implements Transform {
           path: context.path
         },
         errorType: ErrorType.TRANSFORM,
-        fallback: createTransformResult(value) // Return original value as fallback
+        fallback: this.success(value) // Return original value as fallback
       });
     }
   }
@@ -180,11 +184,11 @@ export class BooleanTransform implements Transform {
     try {
       // Only convert boolean values
       if (typeof value === 'boolean') {
-        return createTransformResult(value ? 'true' : 'false');
+        return this.success(value ? 'true' : 'false');
       }
       
       // Otherwise return unchanged
-      return createTransformResult(value);
+      return this.success(value);
     } catch (err) {
       return handleError(err, "convert boolean to string", {
         data: { 
@@ -193,7 +197,7 @@ export class BooleanTransform implements Transform {
           path: context.path
         },
         errorType: ErrorType.TRANSFORM,
-        fallback: createTransformResult(value) // Return original value as fallback
+        fallback: this.success(value) // Return original value as fallback
       });
     }
   }

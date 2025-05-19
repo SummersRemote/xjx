@@ -86,6 +86,122 @@ export interface Transform {
 }
 
 /**
+ * Abstract base class for all transforms
+ */
+export abstract class BaseTransform implements Transform {
+  /**
+   * Target node types this transformer can handle
+   */
+  public readonly targets: TransformTarget[];
+  
+  /**
+   * Create a new transform
+   * @param targets Target node types this transformer can handle
+   */
+  constructor(targets: TransformTarget[]) {
+    this.validateTargets(targets);
+    this.targets = targets;
+  }
+  
+  /**
+   * Transform a value based on the context
+   * This method must be implemented by subclasses
+   * @param value Value to transform
+   * @param context Transformation context
+   * @returns Transformation result
+   */
+  abstract transform(value: any, context: TransformContext): TransformResult<any>;
+  
+  /**
+   * Validate transformation context
+   * @param context Context to validate
+   * @param errorMessage Optional error message
+   * @returns Validated context
+   * @protected
+   */
+  protected validateContext(context: TransformContext, errorMessage?: string): TransformContext {
+    try {
+      validate(
+        context && typeof context === 'object',
+        errorMessage || "Transformation context must be a valid object"
+      );
+      
+      validate(
+        context.config && typeof context.config === 'object',
+        errorMessage || "Transformation context must have a valid config"
+      );
+      
+      validate(
+        typeof context.targetFormat === 'string',
+        errorMessage || "Transformation context must have a valid targetFormat"
+      );
+      
+      return context;
+    } catch (err) {
+      throw handleError(err, "validate transformation context", {
+        data: { context },
+        errorType: ErrorType.VALIDATION
+      });
+    }
+  }
+  
+  /**
+   * Validate transform targets
+   * @param targets Targets to validate
+   * @returns Validated targets
+   * @private
+   */
+  private validateTargets(targets: TransformTarget[]): TransformTarget[] {
+    try {
+      validate(
+        Array.isArray(targets),
+        "Transform targets must be an array"
+      );
+      
+      validate(
+        targets.length > 0,
+        "Transform targets array must not be empty"
+      );
+      
+      // Validate each target is a valid TransformTarget
+      for (const target of targets) {
+        validate(
+          Object.values(TransformTarget).includes(target),
+          `Invalid transform target: ${target}`
+        );
+      }
+      
+      return targets;
+    } catch (err) {
+      throw handleError(err, "validate transform targets", {
+        data: { targets },
+        errorType: ErrorType.VALIDATION
+      });
+    }
+  }
+  
+  /**
+   * Create a successful transform result
+   * @param value Transformed value
+   * @returns Transform result
+   * @protected
+   */
+  protected success<T>(value: T): TransformResult<T> {
+    return createTransformResult(value);
+  }
+  
+  /**
+   * Create a removal transform result
+   * @param value Optional value to include
+   * @returns Transform result with remove flag set
+   * @protected
+   */
+  protected remove<T>(value?: T): TransformResult<T> {
+    return createTransformResult(value as T, true);
+  }
+}
+
+/**
  * Helper function to create a transform result
  */
 export function createTransformResult<T>(value: T, remove: boolean = false): TransformResult<T> {
@@ -271,182 +387,11 @@ export class TransformUtils {
   }
   
   /**
-   * Compose multiple transforms into a single transform
-   * @param transforms Array of transforms to compose
-   * @returns A single transform that applies all transforms in sequence
-   */
-  static composeTransforms(...transforms: Transform[]): Transform {
-    try {
-      // VALIDATION: Check for valid input
-      validate(Array.isArray(transforms), "Transforms must be an array");
-      
-      // Combine all target types
-      const allTargets = transforms.reduce((targets, transform) => {
-        transform.targets.forEach(target => {
-          if (!targets.includes(target)) {
-            targets.push(target);
-          }
-        });
-        return targets;
-      }, [] as TransformTarget[]);
-      
-      logger.debug('Composing transforms', { 
-        transformCount: transforms.length,
-        targetTypes: allTargets
-      });
-      
-      return {
-        targets: allTargets,
-        transform: (value, context) => {
-          try {
-            // Find transforms that match this context's target
-            const targetType = TransformUtils.getContextTargetType(context);
-            const applicableTransforms = transforms.filter(t => 
-              t.targets.includes(targetType)
-            );
-            
-            // Apply each transform in sequence
-            let result = { value, remove: false };
-            
-            for (const transform of applicableTransforms) {
-              result = transform.transform(result.value, context);
-              
-              // If a transform says to remove, we're done
-              if (result.remove) {
-                break;
-              }
-            }
-            
-            return result;
-          } catch (err) {
-            return handleError(err, "apply composed transform", {
-              data: {
-                context,
-                valueType: typeof value
-              },
-              errorType: ErrorType.TRANSFORM,
-              fallback: { value, remove: false } // Return original as fallback
-            });
-          }
-        }
-      };
-    } catch (err) {
-      return handleError(err, "compose transforms", {
-        data: {
-          transformCount: transforms?.length
-        },
-        errorType: ErrorType.TRANSFORM,
-        fallback: {
-          targets: [TransformTarget.Value],
-          transform: (value: any) => ({ value, remove: false })
-        }
-      });
-    }
-  }
-  
-  /**
-   * Create a conditional transform that only applies when condition is true
-   * @param condition Condition function
-   * @param transform Transform to apply when condition is true
-   * @returns Conditional transform
-   */
-  static conditionalTransform(
-    condition: (value: any, context: TransformContext) => boolean,
-    transform: Transform
-  ): Transform {
-    try {
-      // VALIDATION: Check for valid inputs
-      validate(typeof condition === "function", "Condition must be a function");
-      validate(transform !== null && typeof transform === 'object', "Transform must be a valid object");
-      validate(Array.isArray(transform.targets), "Transform must have a targets array");
-      validate(typeof transform.transform === "function", "Transform must have a transform method");
-      
-      logger.debug('Creating conditional transform', { 
-        transformTargets: transform.targets 
-      });
-      
-      return {
-        targets: transform.targets,
-        transform: (value, context) => {
-          try {
-            if (condition(value, context)) {
-              return transform.transform(value, context);
-            }
-            return { value, remove: false };
-          } catch (err) {
-            return handleError(err, "apply conditional transform", {
-              data: {
-                context,
-                valueType: typeof value
-              },
-              errorType: ErrorType.TRANSFORM,
-              fallback: { value, remove: false } // Return original as fallback
-            });
-          }
-        }
-      };
-    } catch (err) {
-      return handleError(err, "create conditional transform", {
-        data: {
-          transformTargets: transform?.targets
-        },
-        errorType: ErrorType.TRANSFORM,
-        fallback: {
-          targets: transform?.targets || [TransformTarget.Value],
-          transform: (value: any) => ({ value, remove: false })
-        }
-      });
-    }
-  }
-  
-  /**
-   * Create a named transform for better debugging
-   * @param name Name for the transform
-   * @param transform Transform to name
-   * @returns Named transform
-   */
-  static namedTransform(name: string, transform: Transform): Transform & { name: string } {
-    try {
-      // VALIDATION: Check for valid inputs
-      validate(typeof name === "string", "Name must be a string");
-      validate(transform !== null && typeof transform === 'object', "Transform must be a valid object");
-      validate(Array.isArray(transform.targets), "Transform must have a targets array");
-      validate(typeof transform.transform === "function", "Transform must have a transform method");
-      
-      logger.debug('Creating named transform', { 
-        name, 
-        transformTargets: transform.targets 
-      });
-      
-      return {
-        ...transform,
-        name,
-        transform: transform.transform
-      };
-    } catch (err) {
-      return handleError(err, "create named transform", {
-        data: {
-          name,
-          transformTargets: transform?.targets
-        },
-        errorType: ErrorType.TRANSFORM,
-        fallback: {
-          ...transform,
-          name,
-          transform: transform?.transform || ((value: any) => ({ value, remove: false })),
-          targets: transform?.targets || [TransformTarget.Value]
-        }
-      });
-    }
-  }
-
-  /**
    * Get the appropriate transform target type based on context
    * @param context Transform context
    * @returns Target type
-   * @private
    */
-  private static getContextTargetType(context: TransformContext): TransformTarget {
+  static getContextTargetType(context: TransformContext): TransformTarget {
     try {
       if (context.isAttribute) {
         return TransformTarget.Attribute;

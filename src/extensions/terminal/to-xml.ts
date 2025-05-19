@@ -6,7 +6,7 @@ import { DefaultXNodeToXmlConverter } from "../../converters/xnode-to-xml-conver
 import { DefaultXNodeTransformer } from "../../converters/xnode-transformer";
 import { FORMATS } from "../../core/transform";
 import { XNode } from "../../core/xnode";
-import { XmlSerializer } from "../../core/xml";
+import { XmlSerializer } from "../../core/xml-utils";
 import { logger, validate, handleError, ErrorType } from "../../core/error";
 
 // Type augmentation - add methods to XJX interface

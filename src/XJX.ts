@@ -56,27 +56,7 @@ export class XJX {
       });
     }
   }
-  
-  // /**
-  //  * Utility method to validate XML string
-  //  * @param xmlString XML string to validate
-  //  * @returns Validation result with isValid flag and optional error message
-  //  */
-  // public static validateXml(xmlString: string): {
-  //   isValid: boolean;
-  //   message?: string;
-  // } {
-  //   try {
-  //     validate(typeof xmlString === "string", "XML string must be a string");
-  //     logger.debug("Validating XML string", { length: xmlString.length });
-  //     return XmlParser.validate(xmlString);
-  //   } catch (err) {
-  //     return handleError(err, "validate XML", {
-  //       data: { xmlLength: xmlString?.length },
-  //       fallback: { isValid: false, message: String(err) },
-  //     });
-  //   }
-  // }
+
 
   /**
    * Register a terminal extension method (returns a value)

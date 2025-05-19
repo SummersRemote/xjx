@@ -12,7 +12,7 @@ export * from './index';
 export * from './core/common';
 export * from './core/dom';
 export * from './core/json';
-export * from './core/xml';
+export * from './core/xml-utils';
 
 // Export all converters
 export * from './converters';

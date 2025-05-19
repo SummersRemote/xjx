@@ -27,7 +27,7 @@
   export * from './extension';
   
   // XML processing
-  export * from './xml';
+  export * from './xml-utils';
   
   // JSON processing
   export * from './json';

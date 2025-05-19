@@ -5,12 +5,12 @@
  */
 import { XNodeToXmlConverter } from './converter-interfaces';
 import { Configuration } from '../core/config';
-import { XmlSerializer } from '../core/xml';
+import { XmlSerializer } from '../core/xml-utils';
 import { DOM } from '../core/dom';
 import { NodeType } from '../core/dom';
 import { logger, handleError, ErrorType } from '../core/error';
 // import { XmlNamespace } from '../core/xml';
-import { XmlEntity } from '../core/xml';
+import { XmlEntity } from '../core/xml-utils';
 import { XNode } from '../core/xnode';
 import { BaseConverter } from '../core/converter';
 

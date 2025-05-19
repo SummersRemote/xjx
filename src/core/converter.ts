@@ -4,8 +4,6 @@
 import { Configuration, Config } from './config';
 import { validate, handleError, ErrorType } from './error';
 
-
-
 /**
  * Base converter interface
  */

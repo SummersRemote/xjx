@@ -8,7 +8,7 @@ import {
   TransformResult, 
   TransformTarget,
   BaseTransform,
-  FORMATS
+  FORMAT
 } from '../core/transform';
 // import { Common } from '../core/common';
 import { handleError, ErrorType } from '../core/error';
@@ -87,10 +87,10 @@ export class BooleanTransform extends BaseTransform {
       this.validateContext(context);
       
       // Check if we're transforming to JSON or XML
-      if (context.targetFormat === FORMATS.JSON) {
+      if (context.targetFormat === FORMAT.JSON) {
         // To JSON: Convert strings to booleans
         return this.stringToBoolean(value, context);
-      } else if (context.targetFormat === FORMATS.XML) {
+      } else if (context.targetFormat === FORMAT.XML) {
         // To XML: Convert booleans to strings
         return this.booleanToString(value, context);
       }

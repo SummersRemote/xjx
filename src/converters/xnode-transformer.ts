@@ -3,7 +3,6 @@
  * 
  * Applies transformations to XNode with a functional core.
  */
-import { XNodeTransformer } from "./converter-interfaces";
 import { BaseConverter } from "../core/converter";
 import { XNode } from "../core/xnode";
 import {
@@ -11,7 +10,7 @@ import {
   TransformContext,
   TransformResult,
   TransformTarget,
-  FormatId,
+  FORMAT,
   createTransformResult,
 } from "../core/transform";
 import { NodeType } from "../core/dom";
@@ -21,7 +20,7 @@ import { Common } from "../core/common";
 /**
  * Applies transformations to XNode
  */
-export class DefaultXNodeTransformer extends BaseConverter<XNode, XNode> implements XNodeTransformer {
+export class DefaultXNodeTransformer extends BaseConverter<XNode, XNode> {
   /**
    * Convert XNode to XNode (implementation of abstract method from BaseConverter)
    * @param node XNode to convert
@@ -42,7 +41,7 @@ export class DefaultXNodeTransformer extends BaseConverter<XNode, XNode> impleme
   public transform(
     node: XNode,
     transforms: Transform[],
-    targetFormat: FormatId
+    targetFormat: FORMAT
   ): XNode {
     try {
       // Validate inputs
@@ -104,7 +103,7 @@ export class DefaultXNodeTransformer extends BaseConverter<XNode, XNode> impleme
    */
   public createRootContext(
     node: XNode,
-    targetFormat: FormatId
+    targetFormat: FORMAT
   ): TransformContext {
     try {
       this.validateInput(node, "Node must be an XNode instance", 

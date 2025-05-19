@@ -4,7 +4,7 @@
 import { XJX } from "../../XJX";
 import { DefaultXNodeToXmlConverter } from "../../converters/xnode-to-xml-converter";
 import { DefaultXNodeTransformer } from "../../converters/xnode-transformer";
-import { FORMATS } from "../../core/transform";
+import { FORMAT } from "../../core/transform";
 import { XNode } from "../../core/xnode";
 import { XmlSerializer } from "../../core/xml-utils";
 import { logger, validate, handleError, ErrorType } from "../../core/error";
@@ -57,12 +57,12 @@ function toXml(this: XJX): Document {
       nodeToConvert = transformer.transform(
         nodeToConvert, 
         this.transforms, 
-        FORMATS.XML
+        FORMAT.XML
       );
       
       logger.debug('Applied transforms to XNode', {
         transformCount: this.transforms.length,
-        targetFormat: FORMATS.XML
+        targetFormat: FORMAT.XML
       });
     }
     

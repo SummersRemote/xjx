@@ -4,7 +4,7 @@
 import { XJX } from "../../XJX";
 import { DefaultXNodeToJsonConverter } from "../../converters/xnode-to-xjx-json-converter";
 import { DefaultXNodeTransformer } from "../../converters/xnode-transformer";
-import { FORMATS } from "../../core/transform";
+import { FORMAT } from "../../core/transform";
 import { XNode } from "../../core/xnode";
 import { logger, validate, handleError, ErrorType } from "../../core/error";
 
@@ -51,12 +51,12 @@ function toXjxJson(this: XJX): Record<string, any> {
       nodeToConvert = transformer.transform(
         nodeToConvert, 
         this.transforms, 
-        FORMATS.JSON
+        FORMAT.JSON
       );
       
       logger.debug('Applied transforms to XNode', {
         transformCount: this.transforms.length,
-        targetFormat: FORMATS.JSON
+        targetFormat: FORMAT.JSON
       });
     }
     

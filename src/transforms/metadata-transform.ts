@@ -8,7 +8,7 @@ import {
   TransformResult, 
   TransformTarget, 
   BaseTransform,
-  FormatId
+  FORMAT
 } from '../core/transform';
 import { XNode } from '../core/xnode';
 import { Common } from '../core/common';
@@ -26,7 +26,7 @@ export interface FormatMetadata {
   /**
    * Format identifier this metadata applies to
    */
-  format: FormatId;
+  format: FORMAT;
   
   /**
    * Metadata to apply for this format
@@ -117,7 +117,7 @@ export class MetadataTransform extends BaseTransform {
   private applyToRoot: boolean;
   private applyToAll: boolean;
   private metadata?: Record<string, any>;
-  private formatMetadata: Map<FormatId, Record<string, any>>;
+  private formatMetadata: Map<FORMAT, Record<string, any>>;
   private replace: boolean;
   private removeKeys: string[];
   private maxDepth?: number;
@@ -147,7 +147,7 @@ export class MetadataTransform extends BaseTransform {
       this.maxDepth = options.maxDepth;
       
       // Initialize format metadata map
-      this.formatMetadata = new Map<FormatId, Record<string, any>>();
+      this.formatMetadata = new Map<FORMAT, Record<string, any>>();
       
       // Process format-specific metadata
       if (options.formatMetadata && options.formatMetadata.length > 0) {

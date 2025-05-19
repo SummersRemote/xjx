@@ -3,17 +3,16 @@
  * 
  * Converts XNode to XJX JSON object without redundant preservation checks.
  */
-import { XNodeToJsonConverter } from './converter-interfaces';
 import { BaseConverter } from '../core/converter';
 import { NodeType } from '../core/dom';
 import { logger, handleError, ErrorType } from '../core/error';
-import { JSON } from '../core/json';
+import { JSON } from '../core/json-utils';
 import { XNode } from '../core/xnode';
 
 /**
  * Converts XNode to XJX JSON object
  */
-export class DefaultXNodeToJsonConverter extends BaseConverter<XNode, Record<string, any>> implements XNodeToJsonConverter {
+export class DefaultXNodeToJsonConverter extends BaseConverter<XNode, Record<string, any>> {
   /**
    * Convert XNode to XJX JSON object
    * @param node XNode to convert

@@ -3,7 +3,6 @@
  * 
  * Converts XML strings to XNode representation with a hybrid OO-functional architecture.
  */
-import { XmlToXNodeConverter } from './converter-interfaces';
 import { Configuration } from '../core/config';
 import { NodeType } from '../core/dom';
 import { logger, handleError, ErrorType } from '../core/error';
@@ -22,7 +21,7 @@ type XmlToXNodeContext = {
 /**
  * Converts XML strings to XNode representation
  */
-export class DefaultXmlToXNodeConverter extends BaseConverter<string, XNode> implements XmlToXNodeConverter {
+export class DefaultXmlToXNodeConverter extends BaseConverter<string, XNode> {
   /**
    * Convert XML string to XNode
    * @param xml XML string

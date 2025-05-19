@@ -6,16 +6,11 @@ import { XNode } from './xnode';
 import { logger, validate, handleError, ErrorType } from './error';
 
 /**
- * Format identifier type
- */
-export type FormatId = string;
-
-/**
  * Standard formats
  */
-export const FORMATS = {
-  XML: 'xml' as FormatId,
-  JSON: 'json' as FormatId
+export enum FORMAT  {
+  XML = 'xml',
+  JSON = 'json'
 };
 
 /**
@@ -60,7 +55,7 @@ export interface TransformContext {
   config: Configuration;
   
   // Target format
-  targetFormat: FormatId;
+  targetFormat: FORMAT;
 }
 
 /**
@@ -227,7 +222,7 @@ export class TransformUtils {
    * @returns Root transformation context
    */
   static createRootContext(
-    targetFormat: FormatId,
+    targetFormat: FORMAT,
     rootName: string,
     config: Configuration
   ): TransformContext {
@@ -323,7 +318,7 @@ export class TransformUtils {
           nodeType: childNode?.type || 1,
           path: `${parentContext?.path || 'root'}.${childNode?.name || 'child'}[${index}]`,
           config: parentContext?.config,
-          targetFormat: parentContext?.targetFormat || FORMATS.XML,
+          targetFormat: parentContext?.targetFormat || FORMAT.XML,
           parent: parentContext
         }
       });
@@ -377,7 +372,7 @@ export class TransformUtils {
           nodeType: parentContext?.nodeType || 1,
           path: `${parentContext?.path || 'root'}.@${attributeName}`,
           config: parentContext?.config,
-          targetFormat: parentContext?.targetFormat || FORMATS.XML,
+          targetFormat: parentContext?.targetFormat || FORMAT.XML,
           parent: parentContext,
           isAttribute: true,
           attributeName

@@ -8,7 +8,7 @@ import {
   TransformResult,
   TransformTarget,
   BaseTransform,
-  FormatId
+  FORMAT
 } from "../core/transform";
 import { logger, validate, ValidationError, handleError, ErrorType } from "../core/error";
 
@@ -33,7 +33,7 @@ export interface RegexOptions {
    * If provided, the transform will only be applied for this format
    * If not provided, the transform will be applied for all formats
    */
-  format?: FormatId;
+  format?: FORMAT;
 }
 
 /**
@@ -70,7 +70,7 @@ export interface RegexOptions {
 export class RegexTransform extends BaseTransform {
   private regex!: RegExp;
   private replacement: string;
-  private format?: FormatId;
+  private format?: FORMAT;
 
   /**
    * Create a new regex transformer

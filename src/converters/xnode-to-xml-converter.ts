@@ -3,13 +3,11 @@
  * 
  * Converts XNode to XML string or DOM document with consistent application of preservation settings.
  */
-import { XNodeToXmlConverter } from './converter-interfaces';
 import { Configuration } from '../core/config';
 import { XmlSerializer } from '../core/xml-utils';
 import { DOM } from '../core/dom';
 import { NodeType } from '../core/dom';
 import { logger, handleError, ErrorType } from '../core/error';
-// import { XmlNamespace } from '../core/xml';
 import { XmlEntity } from '../core/xml-utils';
 import { XNode } from '../core/xnode';
 import { BaseConverter } from '../core/converter';
@@ -24,7 +22,7 @@ type XNodeToXmlContext = {
 /**
  * Converts XNode to XML string or DOM document
  */
-export class DefaultXNodeToXmlConverter extends BaseConverter<XNode, string> implements XNodeToXmlConverter {
+export class DefaultXNodeToXmlConverter extends BaseConverter<XNode, string> {
   /**
    * Convert XNode to XML string
    * @param node XNode representation

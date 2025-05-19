@@ -11,7 +11,7 @@
 import { XJX } from "../../XJX";
 import { DefaultXjxJsonToXNodeConverter } from "../../converters/xjx-json-to-xnode-converter";
 import { DefaultStandardJsonToXNodeConverter } from "../../converters/std-json-to-xnode-converter";
-import { FORMATS } from "../../core/transform";
+import { FORMAT } from "../../core/transform";
 import { logger, validate, ParseError, handleError, ErrorType } from "../../core/error";
 
 // Type augmentation - add methods to XJX interface
@@ -107,7 +107,7 @@ function fromObjJson(this: XJX, source: Record<string, any> | any[]): void {
       throw new ParseError("Failed to parse standard JSON source", source);
     }
     
-    this.sourceFormat = FORMATS.JSON;
+    this.sourceFormat = FORMAT.JSON;
     
     logger.debug('Successfully set standard JSON source', {
       rootNodeName: this.xnode?.name,
@@ -159,7 +159,7 @@ function fromXjxJson(this: XJX, source: Record<string, any>): void {
       throw new ParseError("Failed to parse XJX JSON source", source);
     }
     
-    this.sourceFormat = FORMATS.JSON;
+    this.sourceFormat = FORMAT.JSON;
     
     logger.debug('Successfully set XJX JSON source', {
       rootNodeName: this.xnode?.name,

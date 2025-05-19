@@ -9,17 +9,6 @@
 export {   Converter,
   BaseConverter } from '../core/converter';
   
-// Converter interfaces
-export {
-  XmlToXNodeConverter,
-  XjxJsonToXNodeConverter as JsonToXNodeConverter,
-  XNodeToXmlConverter,
-  XNodeToJsonConverter,
-  XNodeTransformer,
-  StandardJsonToXNodeConverter,
-  XNodeToStandardJsonConverter
-} from './converter-interfaces';
-  
 // Default converter implementations
 export { DefaultXmlToXNodeConverter } from './xml-to-xnode-converter';
 export { DefaultXjxJsonToXNodeConverter } from './xjx-json-to-xnode-converter';

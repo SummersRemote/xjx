@@ -3,7 +3,7 @@
  */
 import { XJX } from "../../XJX";
 import { DefaultXmlToXNodeConverter } from "../../converters/xml-to-xnode-converter";
-import { FORMATS } from "../../core/transform";
+import { FORMAT } from "../../core/transform";
 import { logger, validate, ParseError, handleError, ErrorType } from "../../core/error";
 
 // Type augmentation - add method to XJX interface
@@ -41,7 +41,7 @@ function fromXml(this: XJX, xml: string): void {
       throw new ParseError("Failed to parse XML source", xml);
     }
     
-    this.sourceFormat = FORMATS.XML;
+    this.sourceFormat = FORMAT.XML;
     
     logger.debug('Successfully set XML source', {
       rootNodeName: this.xnode?.name,

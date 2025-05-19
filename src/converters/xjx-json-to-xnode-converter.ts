@@ -3,17 +3,16 @@
  * 
  * Converts XJX-formatted JSON objects to XNode representation.
  */
-import { XjxJsonToXNodeConverter } from './converter-interfaces';
 import { BaseConverter } from '../core/converter';
 import { NodeType } from '../core/dom';
 import { logger, ParseError, handleError, ErrorType } from '../core/error';
-import { JSON } from '../core/json';
+import { JSON } from '../core/json-utils';
 import { XNode } from '../core/xnode';
 
 /**
  * Converts XJX-formatted JSON objects to XNode representation
  */
-export class DefaultXjxJsonToXNodeConverter extends BaseConverter<Record<string, any>, XNode> implements XjxJsonToXNodeConverter {
+export class DefaultXjxJsonToXNodeConverter extends BaseConverter<Record<string, any>, XNode> {
   /**
    * Convert XJX-formatted JSON object to XNode
    * @param json JSON object

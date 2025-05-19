@@ -4,7 +4,7 @@
  * Core implementation that allows extensions through prototype methods.
  */
 import { Configuration, Config } from "./core/config";
-import { Transform, FormatId } from "./core/transform";
+import { FORMAT, Transform } from "./core/transform";
 import { XNode } from "./core/xnode";
 import {
   logger,
@@ -27,7 +27,7 @@ export class XJX {
   public xnode: XNode | null = null;
   public transforms: Transform[] = [];
   public config: Configuration;
-  public sourceFormat: FormatId | null = null;
+  public sourceFormat: FORMAT | null = null;
   
   // Static registry properties for tracking extensions
   private static terminalExtensions: Map<string, Function> = new Map();

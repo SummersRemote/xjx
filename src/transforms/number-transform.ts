@@ -8,7 +8,7 @@ import {
   TransformResult, 
   TransformTarget,
   BaseTransform,
-  FORMATS
+  FORMAT
 } from '../core/transform';
 import { handleError, ErrorType } from '../core/error';
   
@@ -109,10 +109,10 @@ export class NumberTransform extends BaseTransform {
       }
       
       // Check if we're transforming to JSON or XML
-      if (context.targetFormat === FORMATS.JSON) {
+      if (context.targetFormat === FORMAT.JSON) {
         // To JSON: Convert strings to numbers
         return this.stringToNumber(value, context);
-      } else if (context.targetFormat === FORMATS.XML) {
+      } else if (context.targetFormat === FORMAT.XML) {
         // To XML: Convert numbers to strings
         return this.numberToString(value, context);
       }

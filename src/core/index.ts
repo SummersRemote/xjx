@@ -30,7 +30,7 @@
   export * from './xml-utils';
   
   // JSON processing
-  export * from './json';
+  export * from './json-utils';
   
   // XNode model
   export * from './xnode';

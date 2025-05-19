@@ -3,7 +3,6 @@
  * 
  * Converts XNode to standard JavaScript objects and arrays without redundant preservation checks.
  */
-import { XNodeToStandardJsonConverter } from './converter-interfaces';
 import { BaseConverter } from '../core/converter';
 import { NodeType } from '../core/dom';
 import { logger, handleError, ErrorType } from '../core/error';
@@ -12,7 +11,7 @@ import { XNode } from '../core/xnode';
 /**
  * Converts XNode to standard JavaScript objects and arrays
  */
-export class DefaultXNodeToStandardJsonConverter extends BaseConverter<XNode, any> implements XNodeToStandardJsonConverter {
+export class DefaultXNodeToStandardJsonConverter extends BaseConverter<XNode, any> {
   /**
    * Convert XNode to standard JavaScript object/array
    * @param node XNode to convert

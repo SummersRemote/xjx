@@ -12,8 +12,7 @@ export {
   TransformContext,
   TransformResult,
   TransformTarget,
-  FormatId,
-  FORMATS,
+  FORMAT,
   createTransformResult,
 } from "../core/transform";
 

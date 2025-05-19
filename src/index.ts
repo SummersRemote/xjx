@@ -19,8 +19,7 @@ export {
   TransformTarget,
   TransformContext,
   TransformResult,
-  FormatId,
-  FORMATS,
+  FORMAT,
   createTransformResult,
 } from './core/transform.js';
 

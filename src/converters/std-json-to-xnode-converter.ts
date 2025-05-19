@@ -3,7 +3,6 @@
  * 
  * Converts standard JSON objects to XNode representation with proper application of preservation settings.
  */
-import { StandardJsonToXNodeConverter } from './converter-interfaces';
 import { BaseConverter } from '../core/converter';
 import { NodeType } from '../core/dom';
 import { logger, handleError, ErrorType } from '../core/error';
@@ -12,7 +11,7 @@ import { XNode } from '../core/xnode';
 /**
  * Converts standard JSON objects to XNode representation
  */
-export class DefaultStandardJsonToXNodeConverter extends BaseConverter<Record<string, any> | any[], XNode> implements StandardJsonToXNodeConverter {
+export class DefaultStandardJsonToXNodeConverter extends BaseConverter<Record<string, any> | any[], XNode> {
   /**
    * Convert standard JSON object to XNode
    * @param source Standard JSON object or array

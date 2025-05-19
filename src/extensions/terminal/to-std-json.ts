@@ -4,7 +4,7 @@
 import { XJX } from "../../XJX";
 import { DefaultXNodeToStandardJsonConverter } from "../../converters/xnode-to-std-json-converter";
 import { DefaultXNodeTransformer } from "../../converters/xnode-transformer";
-import { FORMATS } from "../../core/transform";
+import { FORMAT } from "../../core/transform";
 import { XNode } from "../../core/xnode";
 import { logger, validate, handleError, ErrorType } from "../../core/error";
 
@@ -50,12 +50,12 @@ function toStandardJson(this: XJX): any {
       nodeToConvert = transformer.transform(
         nodeToConvert, 
         this.transforms, 
-        FORMATS.JSON // Use JSON as target format for transformations
+        FORMAT.JSON // Use JSON as target format for transformations
       );
       
       logger.debug('Applied transforms to XNode', {
         transformCount: this.transforms.length,
-        targetFormat: FORMATS.JSON
+        targetFormat: FORMAT.JSON
       });
     }
     

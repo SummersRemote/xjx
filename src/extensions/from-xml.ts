@@ -1,10 +1,10 @@
 /**
  * Extension implementation for fromXml method
  */
-import { XJX } from "../../XJX";
-import { createXmlToXNodeConverter } from "../../converters/xml-to-xnode-converter";
-import { Format } from "../../core/transform";
-import { logger, ProcessingError, validate } from "../../core/error";
+import { XJX } from "../XJX";
+import { createXmlToXNodeConverter } from "../converters/xml-to-xnode-converter";
+import { FORMAT } from "../core/transform";
+import { logger, ProcessingError, validate } from "../core/error";
 
 /**
  * Implementation for setting XML source
@@ -31,7 +31,7 @@ export function implementFromXml(xjx: XJX, xml: string): void {
     }
     
     // Set the source format
-    xjx.sourceFormat = Format.XML;
+    xjx.sourceFormat = FORMAT.XML;
     
     logger.debug('Successfully set XML source', {
       rootNodeName: xjx.xnode?.name,

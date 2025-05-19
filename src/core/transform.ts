@@ -7,7 +7,7 @@ import { logger } from './error';
 /**
  * Standard formats
  */
-export enum Format {
+export enum FORMAT {
   XML = 'xml',
   JSON = 'json'
 }
@@ -54,7 +54,7 @@ export interface TransformContext {
   config: any;
   
   // Target format
-  targetFormat: Format;
+  targetFormat: FORMAT;
 }
 
 /**
@@ -97,7 +97,7 @@ export function createTransformResult<T>(value: T, remove: boolean = false): Tra
  * @returns Root transformation context
  */
 export function createRootContext(
-  targetFormat: Format,
+  targetFormat: FORMAT,
   rootNode: XNode,
   config: any
 ): TransformContext {

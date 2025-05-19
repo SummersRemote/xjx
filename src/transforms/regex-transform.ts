@@ -6,7 +6,7 @@ import {
   TransformResult,
   TransformTarget,
   createTransformResult,
-  Format
+  FORMAT
 } from "../core/transform";
 import { logger, validate } from "../core/error";
 
@@ -30,7 +30,7 @@ export interface RegexOptions {
    * Optional format this regex applies to
    * If provided, the transform will only be applied for this format
    */
-  format?: Format;
+  format?: FORMAT;
 }
 
 /**

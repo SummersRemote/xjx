@@ -1,12 +1,12 @@
 /**
  * Extension implementation for XML output methods
  */
-import { XJX } from "../../XJX";
-import { createXNodeToXmlConverter, createXNodeToXmlStringConverter } from "../../converters/xnode-to-xml-converter";
-import { createXNodeTransformer } from "../../converters/xnode-transformer";
-import { Format } from "../../core/transform";
-import { logger, validate } from "../../core/error";
-import { XNode } from "../../core/xnode";
+import { XJX } from "../XJX";
+import { createXNodeToXmlConverter, createXNodeToXmlStringConverter } from "../converters/xnode-to-xml-converter";
+import { createXNodeTransformer } from "../converters/xnode-transformer";
+import { FORMAT } from "../core/transform";
+import { logger, validate } from "../core/error";
+import { XNode } from "../core/xnode";
 
 /**
  * Implementation for converting to XML DOM
@@ -25,11 +25,11 @@ export function implementToXml(xjx: XJX): Document {
     
     if (xjx.transforms && xjx.transforms.length > 0) {
       const transformer = createXNodeTransformer(xjx.config);
-      nodeToConvert = transformer.transform(nodeToConvert, xjx.transforms, Format.XML);
+      nodeToConvert = transformer.transform(nodeToConvert, xjx.transforms, FORMAT.XML);
       
       logger.debug('Applied transforms to XNode', {
         transformCount: xjx.transforms.length,
-        targetFormat: Format.XML
+        targetFormat: FORMAT.XML
       });
     }
     
@@ -71,11 +71,11 @@ export function implementToXmlString(
     
     if (xjx.transforms && xjx.transforms.length > 0) {
       const transformer = createXNodeTransformer(xjx.config);
-      nodeToConvert = transformer.transform(nodeToConvert, xjx.transforms, Format.XML);
+      nodeToConvert = transformer.transform(nodeToConvert, xjx.transforms, FORMAT.XML);
       
       logger.debug('Applied transforms to XNode', {
         transformCount: xjx.transforms.length,
-        targetFormat: Format.XML
+        targetFormat: FORMAT.XML
       });
     }
     
@@ -100,20 +100,20 @@ export function implementToXmlString(
  * Implementation for XNode transformer creation
  */
 export function createXNodeTransformer(config: any): {
-  transform: (node: XNode, transforms: any[], format: Format) => XNode;
+  transform: (node: XNode, transforms: any[], format: FORMAT) => XNode;
 } {
   return {
-    transform(node: XNode, transforms: any[], format: Format): XNode {
+    transform(node: XNode, transforms: any[], format: FORMAT): XNode {
       // Validate inputs
       validate(node !== null && typeof node === 'object', "Node must be an XNode instance");
       validate(Array.isArray(transforms), "Transforms must be an array");
       validate(typeof format === "string", "Format must be a string");
       
       // Process node based on format
-      if (format === Format.XML) {
+      if (format === FORMAT.XML) {
         // Process for XML output
         return processXNodeForXml(node, transforms);
-      } else if (format === Format.JSON) {
+      } else if (format === FORMAT.JSON) {
         // Process for JSON output
         return processXNodeForJson(node, transforms);
       }

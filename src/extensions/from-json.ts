@@ -1,12 +1,12 @@
 /**
  * Extension implementation for JSON-related source methods
  */
-import { XJX } from "../../XJX";
-import { createXjxJsonToXNodeConverter } from "../../converters/xjx-json-to-xnode-converter";
-import { createStandardJsonToXNodeConverter } from "../../converters/std-json-to-xnode-converter";
-import { Format } from "../../core/transform";
-import { logger, ProcessingError, validate } from "../../core/error";
-import * as jsonUtils from "../../core/json-utils";
+import { XJX } from "../XJX";
+import { createXjxJsonToXNodeConverter } from "../converters/xjx-json-to-xnode-converter";
+import { createStandardJsonToXNodeConverter } from "../converters/std-json-to-xnode-converter";
+import { FORMAT } from "../core/transform";
+import { logger, ProcessingError, validate } from "../core/error";
+import * as jsonUtils from "../core/json-utils";
 
 /**
  * Implementation for setting JSON source with automatic format detection
@@ -91,7 +91,7 @@ export function implementFromXjxJson(xjx: XJX, source: Record<string, any>): voi
     }
     
     // Set the source format
-    xjx.sourceFormat = Format.JSON;
+    xjx.sourceFormat = FORMAT.JSON;
     
     logger.debug('Successfully set XJX JSON source', {
       rootNodeName: xjx.xnode?.name,
@@ -130,7 +130,7 @@ export function implementFromObjJson(xjx: XJX, source: Record<string, any> | any
     }
     
     // Set the source format
-    xjx.sourceFormat = Format.JSON;
+    xjx.sourceFormat = FORMAT.JSON;
     
     logger.debug('Successfully set standard JSON source', {
       rootNodeName: xjx.xnode?.name,

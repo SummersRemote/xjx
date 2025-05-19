@@ -4,18 +4,25 @@
 
 // Register all extensions to the XJX class
 import './extensions/from-xml';
-// Additional extension imports would be here
+import './extensions/from-json';
+import './extensions/to-xml';
+import './extensions/to-json';
+import './extensions/config-extensions';
+import './extensions/with-transforms';
 
 // Export the main class (for instantiation)
 export { XJX } from './XJX';
 export { default } from './XJX';
 
-// Export configuration types
-export { Configuration } from './core/config';
-
 // Export core interfaces and types
 export {
-  Format,
+  // Configuration
+  Configuration,
+} from './core/config';
+
+export {
+  // Transform system
+  FORMAT as Format,
   Transform,
   TransformTarget,
   TransformContext,
@@ -37,5 +44,13 @@ export {
 export { XNode } from './core/xnode';
 
 // Export transform creators
-export { createBooleanTransform, BooleanTransformOptions } from './transforms/boolean-transform';
-// Additional transform exports would be here
+export {
+  createBooleanTransform,
+  createNumberTransform,
+  createRegexTransform,
+  createMetadataTransform,
+  BooleanTransformOptions,
+  NumberTransformOptions,
+  RegexOptions,
+  MetadataTransformOptions,
+} from './transforms';

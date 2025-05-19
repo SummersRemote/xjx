@@ -42,10 +42,11 @@
   "license": "MIT",
   "sideEffects": [
     "**/index.js",
-    "**/extensions/**/*.js",
-    "**/*.extensions.js",
-    "dist/esm/extensions/index.js",
-    "dist/cjs/extensions/index.js"
+    "**/extensions/*.js",
+    "dist/esm/extensions/*.js",
+    "dist/cjs/extensions/*.js",
+    "dist/esm/XJX.js",
+    "dist/cjs/XJX.js"
   ],
   "devDependencies": {
     "@babel/core": "^7.27.1",

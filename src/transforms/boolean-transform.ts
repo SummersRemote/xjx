@@ -6,7 +6,7 @@ import {
   TransformResult, 
   TransformTarget,
   createTransformResult,
-  Format
+  FORMAT
 } from '../core/transform';
 import { logger } from '../core/error';
 
@@ -64,10 +64,10 @@ export function createBooleanTransform(options: BooleanTransformOptions = {}) {
     transform(value: any, context: TransformContext): TransformResult<any> {
       try {
         // Check if we're transforming to JSON or XML
-        if (context.targetFormat === Format.JSON) {
+        if (context.targetFormat === FORMAT.JSON) {
           // To JSON: Convert strings to booleans
           return stringToBoolean(value, trueValues, falseValues, ignoreCase);
-        } else if (context.targetFormat === Format.XML) {
+        } else if (context.targetFormat === FORMAT.XML) {
           // To XML: Convert booleans to strings
           return booleanToString(value);
         }

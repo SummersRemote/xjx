@@ -9,7 +9,7 @@ export {
   TransformContext,
   TransformResult,
   TransformTarget,
-  Format,
+  FORMAT as Format,
   createTransformResult,
 } from "../core/transform";
 

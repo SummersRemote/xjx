@@ -6,7 +6,7 @@ import {
   TransformResult, 
   TransformTarget,
   createTransformResult,
-  Format
+  FORMAT
 } from '../core/transform';
 import { logger } from '../core/error';
 
@@ -63,10 +63,10 @@ export function createNumberTransform(options: NumberTransformOptions = {}) {
     transform(value: any, context: TransformContext): TransformResult<any> {
       try {
         // Check if we're transforming to JSON or XML
-        if (context.targetFormat === Format.JSON) {
+        if (context.targetFormat === FORMAT.JSON) {
           // To JSON: Convert strings to numbers
           return stringToNumber(value, integers, decimals, scientific, decimalSeparator, thousandsSeparator);
-        } else if (context.targetFormat === Format.XML) {
+        } else if (context.targetFormat === FORMAT.XML) {
           // To XML: Convert numbers to strings
           return numberToString(value);
         }

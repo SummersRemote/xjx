@@ -1,9 +1,9 @@
 /**
  * Extension implementation for configuration methods
  */
-import { XJX } from "../../XJX";
-import { Configuration, createConfig } from "../../core/config";
-import { logger, LogLevel, validate } from "../../core/error";
+import { XJX } from "../XJX";
+import { Configuration, createConfig } from "../core/config";
+import { logger, LogLevel, validate } from "../core/error";
 
 /**
  * Implementation for setting configuration options

@@ -2,7 +2,7 @@
  * XJX - Main class with fluent API
  */
 import { Configuration, createConfig, getDefaultConfig } from "./core/config";
-import { Format, Transform } from "./core/transform";
+import { FORMAT, Transform } from "./core/transform";
 import { XNode, cloneNode } from "./core/xnode";
 import { validate, ValidationError, logger, LogLevel } from "./core/error";
 
@@ -14,7 +14,7 @@ export class XJX {
   public xnode: XNode | null = null;
   public transforms: Transform[] = [];
   public config: Configuration;
-  public sourceFormat: Format | null = null;
+  public sourceFormat: FORMAT | null = null;
   
   /**
    * Create a new XJX instance

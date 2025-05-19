@@ -10,11 +10,11 @@ import {
   TransformContext,
   TransformResult,
   TransformTarget,
-  Format,
+  FORMAT,
   createTransformResult,
   createRootContext,
   getContextTargetType,
-  applyTransformsToValue
+  applyTransforms
 } from '../core/transform';
 import { NodeType } from '../core/dom';
 import { logger } from '../core/error';
@@ -30,7 +30,7 @@ import { logger } from '../core/error';
 export function transformXNode(
   node: XNode,
   transforms: Transform[],
-  targetFormat: Format,
+  targetFormat: FORMAT,
   config: Configuration
 ): XNode {
   // Skip if no transforms to apply
@@ -81,7 +81,7 @@ function processNode(
   try {
     // 1. Apply element transforms first
     const targetType = getContextTargetType(context);
-    const elementResult = applyTransformsToValue(node, context, transforms, targetType);
+    const elementResult = applyTransforms(node, context, transforms, targetType);
 
     if (elementResult.remove) {
       return null;
@@ -96,7 +96,7 @@ function processNode(
         isText: true,
       };
 
-      const valueResult = applyTransformsToValue(
+      const valueResult = applyTransforms(
         transformedNode.value,
         valueContext,
         transforms,
@@ -166,7 +166,7 @@ function transformAttributes(
     };
 
     // Transform attribute value
-    const valueResult = applyTransformsToValue(
+    const valueResult = applyTransforms(
       value,
       attrContext,
       transforms,

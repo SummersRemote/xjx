@@ -1,13 +1,13 @@
 /**
  * Extension implementation for JSON output methods
  */
-import { XJX } from "../../XJX";
-import { createXNodeToXjxJsonConverter } from "../../converters/xnode-to-xjx-json-converter";
-import { createXNodeToStandardJsonConverter } from "../../converters/xnode-to-std-json-converter";
-import { createXNodeTransformer } from "../../converters/xnode-transformer";
-import { Format } from "../../core/transform";
-import { logger } from "../../core/error";
-import { XNode } from "../../core/xnode";
+import { XJX } from "../XJX";
+import { createXNodeToXjxJsonConverter } from "../converters/xnode-to-xjx-json-converter";
+import { createXNodeToStandardJsonConverter } from "../converters/xnode-to-std-json-converter";
+import { createXNodeTransformer } from "../converters/xnode-transformer";
+import { FORMAT } from "../core/transform";
+import { logger } from "../core/error";
+import { XNode } from "../core/xnode";
 
 /**
  * Implementation for converting to XJX JSON format
@@ -26,11 +26,11 @@ export function implementToXjxJson(xjx: XJX): Record<string, any> {
     
     if (xjx.transforms && xjx.transforms.length > 0) {
       const transformer = createXNodeTransformer(xjx.config);
-      nodeToConvert = transformer.transform(nodeToConvert, xjx.transforms, Format.JSON);
+      nodeToConvert = transformer.transform(nodeToConvert, xjx.transforms, FORMAT.JSON);
       
       logger.debug('Applied transforms to XNode', {
         transformCount: xjx.transforms.length,
-        targetFormat: Format.JSON
+        targetFormat: FORMAT.JSON
       });
     }
     
@@ -95,11 +95,11 @@ export function implementToStandardJson(xjx: XJX): any {
     
     if (xjx.transforms && xjx.transforms.length > 0) {
       const transformer = createXNodeTransformer(xjx.config);
-      nodeToConvert = transformer.transform(nodeToConvert, xjx.transforms, Format.JSON);
+      nodeToConvert = transformer.transform(nodeToConvert, xjx.transforms, FORMAT.JSON);
       
       logger.debug('Applied transforms to XNode', {
         transformCount: xjx.transforms.length,
-        targetFormat: Format.JSON
+        targetFormat: FORMAT.JSON
       });
     }
     

@@ -6,7 +6,7 @@ import {
   TransformResult, 
   TransformTarget,
   createTransformResult,
-  Format
+  FORMAT
 } from '../core/transform';
 import { XNode } from '../core/xnode';
 import { logger, validate } from '../core/error';
@@ -24,7 +24,7 @@ export interface FormatMetadata {
   /**
    * Format identifier this metadata applies to
    */
-  format: Format;
+  format: FORMAT;
   
   /**
    * Metadata to apply for this format
@@ -106,7 +106,7 @@ export function createMetadataTransform(options: MetadataTransformOptions = {}) 
   const maxDepth = options.maxDepth;
   
   // Process format-specific metadata
-  const formatMetadata = new Map<Format, Record<string, any>>();
+  const formatMetadata = new Map<FORMAT, Record<string, any>>();
   if (options.formatMetadata && options.formatMetadata.length > 0) {
     for (const formatMeta of options.formatMetadata) {
       formatMetadata.set(formatMeta.format, formatMeta.metadata);
@@ -172,7 +172,7 @@ export function createMetadataTransform(options: MetadataTransformOptions = {}) 
 function applyMetadataToNode(
   node: XNode,
   context: TransformContext,
-  formatMetadata: Map<Format, Record<string, any>>,
+  formatMetadata: Map<FORMAT, Record<string, any>>,
   generalMetadata?: Record<string, any>,
   replace: boolean = false,
   removeKeys: string[] = []

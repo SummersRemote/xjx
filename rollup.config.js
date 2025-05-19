@@ -52,7 +52,7 @@ export default [
         rootDir: "src",
       }),
     ],
-    // Critical: preserving side effects for extension registration
+    // Preserve side effects for extension registration
     treeshake: {
       moduleSideEffects: "no-external",
       preset: "recommended"
@@ -80,7 +80,7 @@ export default [
         rootDir: "src",
       }),
     ],
-    // Critical: preserving side effects for extension registration
+    // Preserve side effects for extension registration
     treeshake: {
       moduleSideEffects: "no-external",
       preset: "recommended"
@@ -143,6 +143,26 @@ export default [
     ],
     // UMD build should preserve everything
     treeshake: false,
+  },
+  
+  // Full bundle (all dependencies)
+  {
+    input: "src/xjx.full.ts",
+    output: {
+      file: "dist/umd/xjx.full.js",
+      format: "umd",
+      name: "XJX",
+      sourcemap: !isProd,
+      exports: "named", // Fix for mixed exports warning
+    },
+    plugins: [
+      ...commonPlugins,
+      typescript({
+        tsconfig: "./tsconfig.json",
+        declaration: false, // Skip declarations in this build
+      }),
+      ...prodPlugins,
+    ],
   },
   
   // Declaration files build (separate)

@@ -10,7 +10,7 @@ import {
   BaseTransform,
   FORMATS
 } from '../core/transform';
-import { Common } from '../core/common';
+// import { Common } from '../core/common';
 import { handleError, ErrorType } from '../core/error';
   
 /**
@@ -127,19 +127,19 @@ export class BooleanTransform extends BaseTransform {
         return this.success(value);
       }
       
-      // Try to use Common for simple cases
-      if (this.trueValues === DEFAULT_TRUE_VALUES && 
-          this.falseValues === DEFAULT_FALSE_VALUES && 
-          this.ignoreCase === true) {
-        // Use the common utility function with default settings
-        const boolValue = Common.toBoolean(value);
+      // // Try to use Common for simple cases
+      // if (this.trueValues === DEFAULT_TRUE_VALUES && 
+      //     this.falseValues === DEFAULT_FALSE_VALUES && 
+      //     this.ignoreCase === true) {
+      //   // Use the common utility function with default settings
+      //   const boolValue = Common.toBoolean(value);
         
-        // Only transform if it was actually converted to a boolean
-        if (typeof boolValue === 'boolean' && 
-            (boolValue === true || boolValue === false)) {
-          return this.success(boolValue);
-        }
-      }
+      //   // Only transform if it was actually converted to a boolean
+      //   if (typeof boolValue === 'boolean' && 
+      //       (boolValue === true || boolValue === false)) {
+      //     return this.success(boolValue);
+      //   }
+      // }
       
       // Convert to string for comparison
       const strValue = String(value);

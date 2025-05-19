@@ -5,11 +5,9 @@
  */
 import { XmlToXNodeConverter } from './converter-interfaces';
 import { Configuration } from '../core/config';
-import { XmlParser } from '../core/xml';
 import { NodeType } from '../core/dom';
 import { logger, handleError, ErrorType } from '../core/error';
-import { XmlNamespace } from '../core/xml';
-import { XmlEntity } from '../core/xml';
+import { XmlParser, XmlEntity, XmlNamespace } from '../core/xml';
 import { XNode } from '../core/xnode';
 import { BaseConverter } from './base-converter';
 

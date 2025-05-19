@@ -1,40 +1,36 @@
 /**
- * XNode to XJX JSON converter implementation with hybrid OO-functional approach
- * 
- * Converts XNode to XJX JSON object without redundant preservation checks.
+ * XNode to XJX JSON converter implementation
  */
-import { BaseConverter } from '../core/converter';
+import { Configuration } from '../core/config';
 import { NodeType } from '../core/dom';
-import { logger, handleError, ErrorType } from '../core/error';
-import { JSON } from '../core/json-utils';
+import { logger, ProcessingError } from '../core/error';
+import * as jsonUtils from '../core/json-utils';
 import { XNode } from '../core/xnode';
+import { validateInput, Converter, createConverter } from '../core/converter';
 
 /**
- * Converts XNode to XJX JSON object
+ * Create an XNode to XJX JSON converter
+ * @param config Configuration for the converter
+ * @returns Converter implementation
  */
-export class DefaultXNodeToJsonConverter extends BaseConverter<XNode, Record<string, any>> {
-  /**
-   * Convert XNode to XJX JSON object
-   * @param node XNode to convert
-   * @returns XJX JSON object
-   */
-  public convert(node: XNode): Record<string, any> {
+export function createXNodeToXjxJsonConverter(config: Configuration): Converter<XNode, Record<string, any>> {
+  return createConverter(config, (node: XNode, config: Configuration) => {
+    // Validate input
+    validateInput(node, "Node must be an XNode instance", 
+                  input => input !== null && typeof input === 'object');
+    
     try {
-      // Validate input
-      this.validateInput(node, "Node must be an XNode instance", 
-                         input => input instanceof XNode);
-      
       logger.debug('Starting XNode to XJX JSON conversion', { 
         nodeName: node.name, 
         nodeType: node.type 
       });
       
-      // Use pure functional core
-      let jsonResult = convertXNodeToJson(node, this.config);
+      // Convert XNode to XJX JSON
+      let jsonResult = convertXNodeToJson(node, config);
       
       // Apply compact mode if configured
-      if (this.config.converters.xjxJson.options.compact) {
-        const compactedJson = JSON.compact(jsonResult);
+      if (config.converters.xjxJson.options.compact) {
+        const compactedJson = jsonUtils.compact(jsonResult);
         
         // If compaction returns undefined (completely empty), return an empty object
         if (compactedJson === undefined) {
@@ -50,27 +46,18 @@ export class DefaultXNodeToJsonConverter extends BaseConverter<XNode, Record<str
       
       return jsonResult;
     } catch (err) {
-      return handleError(err, 'convert XNode to XJX JSON', {
-        data: { 
-          nodeName: node?.name,
-          nodeType: node?.type
-        },
-        errorType: ErrorType.SERIALIZE,
-        fallback: {} // Return empty object as fallback
-      });
+      throw new ProcessingError(`Failed to convert XNode to XJX JSON: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }
+  });
 }
 
-// ===== PURE FUNCTIONAL CORE =====
-
 /**
- * Convert XNode to XJX JSON object - pure function
+ * Convert XNode to XJX JSON object
  * @param node XNode to convert
  * @param config Configuration
  * @returns XJX JSON object
  */
-export function convertXNodeToJson(node: XNode, config: any): Record<string, any> {
+function convertXNodeToJson(node: XNode, config: Configuration): Record<string, any> {
   const result: Record<string, any> = {};
   const nodeObj: Record<string, any> = {};
   
@@ -113,7 +100,7 @@ export function convertXNodeToJson(node: XNode, config: any): Record<string, any
 }
 
 /**
- * Process attributes and namespace declarations - pure function
+ * Process attributes and namespace declarations
  * @param node XNode with attributes
  * @param namingConfig Naming configuration
  * @returns Array of attribute objects
@@ -126,6 +113,9 @@ function processAttributes(
 
   // Add regular attributes
   for (const [name, value] of Object.entries(node.attributes || {})) {
+    // Skip xmlns attributes, they'll be handled separately
+    if (name === "xmlns" || name.startsWith("xmlns:")) continue;
+    
     const attrObj: Record<string, any> = {
       [name]: { [namingConfig.value]: value },
     };
@@ -149,7 +139,7 @@ function processAttributes(
 }
 
 /**
- * Process child nodes - pure function
+ * Process child nodes
  * @param children XNode children array
  * @param namingConfig Naming configuration
  * @param config Main configuration
@@ -158,7 +148,7 @@ function processAttributes(
 function processChildren(
   children: XNode[],
   namingConfig: any,
-  config: any
+  config: Configuration
 ): Array<Record<string, any>> {
   const result: Array<Record<string, any>> = [];
 

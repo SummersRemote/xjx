@@ -1,29 +1,17 @@
 /**
- * Core extension that implements the fromXml method
+ * Extension implementation for fromXml method
  */
 import { XJX } from "../../XJX";
-import { DefaultXmlToXNodeConverter } from "../../converters/xml-to-xnode-converter";
-import { FORMAT } from "../../core/transform";
-import { logger, validate, ParseError, handleError, ErrorType } from "../../core/error";
-
-// Type augmentation - add method to XJX interface
-declare module '../../XJX' {
-  interface XJX {
-    /**
-     * Set XML source for transformation
-     * @param xml XML string
-     * @returns This instance for chaining
-     */
-    fromXml(xml: string): XJX;
-  }
-}
+import { createXmlToXNodeConverter } from "../../converters/xml-to-xnode-converter";
+import { Format } from "../../core/transform";
+import { logger, ProcessingError, validate } from "../../core/error";
 
 /**
- * Implementation that sets XML source
+ * Implementation for setting XML source
  */
-function fromXml(this: XJX, xml: string): void {
+export function implementFromXml(xjx: XJX, xml: string): void {
   try {
-    // API boundary validation - validate parameters
+    // API boundary validation
     validate(typeof xml === "string", "XML source must be a string");
     validate(xml.trim().length > 0, "XML source cannot be empty");
     
@@ -31,33 +19,34 @@ function fromXml(this: XJX, xml: string): void {
       sourceLength: xml.length
     });
     
-    // Convert XML to XNode using the appropriate converter
-    const converter = new DefaultXmlToXNodeConverter(this.config);
+    // Create converter with the current configuration
+    const converter = createXmlToXNodeConverter(xjx.config);
     
     try {
-      this.xnode = converter.convert(xml);
-    } catch (conversionError) {
+      // Convert XML to XNode
+      xjx.xnode = converter.convert(xml);
+    } catch (err) {
       // Specific error handling for XML conversion failures
-      throw new ParseError("Failed to parse XML source", xml);
+      throw new ProcessingError("Failed to parse XML source", xml);
     }
     
-    this.sourceFormat = FORMAT.XML;
+    // Set the source format
+    xjx.sourceFormat = Format.XML;
     
     logger.debug('Successfully set XML source', {
-      rootNodeName: this.xnode?.name,
-      rootNodeType: this.xnode?.type
+      rootNodeName: xjx.xnode?.name,
+      rootNodeType: xjx.xnode?.type
     });
   } catch (err) {
-    // At API boundary, use handleError to ensure consistent error handling
-    handleError(err, "parse XML source", {
-      data: { 
-        sourceLength: xml?.length,
-        trimmedLength: xml?.trim().length
-      },
-      errorType: ErrorType.PARSE
-    });
+    if (err instanceof Error) {
+      throw err;
+    }
+    throw new Error(`Failed to parse XML source: ${String(err)}`);
   }
 }
 
-// Register the extension
-XJX.registerNonTerminalExtension("fromXml", fromXml);
+// Register the implementation with XJX
+XJX.prototype.fromXml = function(xml: string): XJX {
+  implementFromXml(this, xml);
+  return this;
+};

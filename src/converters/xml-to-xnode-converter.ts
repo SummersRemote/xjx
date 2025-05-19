@@ -1,40 +1,33 @@
 /**
  * XML to XNode converter implementation
- * 
- * Converts XML strings to XNode representation with a hybrid OO-functional architecture.
  */
 import { Configuration } from '../core/config';
 import { NodeType } from '../core/dom';
-import { logger, handleError, ErrorType } from '../core/error';
-import { XmlParser, XmlEntity, XmlNamespace } from '../core/xml-utils';
-import { XNode } from '../core/xnode';
-import { BaseConverter } from '../core/converter';
+import { logger, ProcessingError } from '../core/error';
+import * as xml from '../core/xml-utils';
+import { XNode, createElement, createTextNode, createCDATANode, createCommentNode, createProcessingInstructionNode, addChild } from '../core/xnode';
+import { validateInput, Converter, createConverter } from '../core/converter';
 
-/**
- * Context type for XML to XNode conversion
- */
-type XmlToXNodeContext = {
+// Context type for XML to XNode conversion
+interface XmlToXNodeContext {
   namespaceMap: Record<string, string>;
   parentNode?: XNode;
-};
+}
 
 /**
- * Converts XML strings to XNode representation
+ * Create an XML to XNode converter
+ * @param config Configuration for the converter
+ * @returns Converter implementation
  */
-export class DefaultXmlToXNodeConverter extends BaseConverter<string, XNode> {
-  /**
-   * Convert XML string to XNode
-   * @param xml XML string
-   * @returns XNode representation
-   */
-  public convert(xml: string): XNode {
+export function createXmlToXNodeConverter(config: Configuration): Converter<string, XNode> {
+  return createConverter(config, (xml: string, config: Configuration) => {
+    // Validate input
+    validateInput(xml, "XML source must be a string", 
+                 input => typeof input === "string" && input.length > 0);
+    
     try {
-      // Validate input
-      this.validateInput(xml, "XML source must be a string", 
-                      input => typeof input === "string" && input.length > 0);
-      
       // Parse XML string to DOM
-      const doc = XmlParser.parse(xml);
+      const doc = xml.parseXml(xml);
       
       logger.debug('Successfully parsed XML to DOM', {
         rootElement: doc.documentElement?.nodeName
@@ -43,48 +36,13 @@ export class DefaultXmlToXNodeConverter extends BaseConverter<string, XNode> {
       // Create context with empty namespace map
       const context: XmlToXNodeContext = { namespaceMap: {} };
       
-      // Convert DOM element to XNode using pure function
-      return convertElementToXNode(doc.documentElement, this.config, context);
+      // Convert DOM element to XNode
+      return convertElementToXNode(doc.documentElement, config, context);
     } catch (err) {
-      return handleError(err, 'convert XML to XNode', {
-        data: { xmlLength: xml?.length },
-        errorType: ErrorType.PARSE
-      });
+      throw new ProcessingError(`Failed to convert XML to XNode: ${err instanceof Error ? err.message : String(err)}`, xml);
     }
-  }
-
-  /**
-   * Convert DOM element to XNode
-   * @param element DOM element
-   * @param parentNode Optional parent node
-   * @returns XNode representation
-   */
-  public elementToXNode(element: Element, parentNode?: XNode): XNode {
-    try {
-      // Validate input
-      this.validateInput(element, "Element must be provided");
-      
-      // Create context with empty namespace map
-      const context: XmlToXNodeContext = { 
-        namespaceMap: {},
-        parentNode
-      };
-      
-      // Use pure function for conversion
-      return convertElementToXNode(element, this.config, context);
-    } catch (err) {
-      return handleError(err, 'convert DOM element to XNode', {
-        data: { 
-          elementName: element?.nodeName,
-          elementNodeType: element?.nodeType
-        },
-        errorType: ErrorType.PARSE
-      });
-    }
-  }
+  });
 }
-
-// Pure functions (functional core)
 
 /**
  * Convert DOM element to XNode
@@ -93,17 +51,16 @@ export class DefaultXmlToXNodeConverter extends BaseConverter<string, XNode> {
  * @param context Conversion context
  * @returns XNode representation
  */
-export function convertElementToXNode(
+function convertElementToXNode(
   element: Element, 
   config: Configuration, 
   context: XmlToXNodeContext
 ): XNode {
   // Create base node
-  const xnode = new XNode(
+  const xnode = createElement(
     element.localName ||
     element.nodeName.split(":").pop() ||
-    element.nodeName,
-    NodeType.ELEMENT_NODE
+    element.nodeName
   );
   
   // Set parent reference
@@ -129,7 +86,7 @@ export function convertElementToXNode(
       
       if (Object.keys(namespaceResult.declarations).length > 0) {
         xnode.namespaceDeclarations = namespaceResult.declarations;
-        xnode.isDefaultNamespace = XmlNamespace.hasDefaultNamespace(element);
+        xnode.isDefaultNamespace = element.hasAttribute("xmlns");
 
         // Update namespace map in context
         context.namespaceMap = namespaceResult.namespaceMap;
@@ -154,18 +111,14 @@ export function convertElementToXNode(
       !hasMixed
     ) {
       const text = element.childNodes[0].nodeValue || "";
-      const normalizedText = XmlEntity.normalizeWhitespace(text, config.preserveWhitespace);
+      const normalizedText = xml.normalizeWhitespace(text, config.preserveWhitespace);
 
       if (normalizedText && config.preserveTextNodes) {
         xnode.value = normalizedText;
       }
     } else {
       // Process multiple children
-      const children = processChildren(element, xnode, config, context, hasMixed);
-      
-      if (children.length > 0) {
-        xnode.children = children;
-      }
+      processChildren(element, xnode, config, context, hasMixed);
     }
   }
 
@@ -287,7 +240,6 @@ function hasTextContent(text: string): boolean {
  * @param config Configuration
  * @param context Conversion context
  * @param hasMixed Whether parent has mixed content
- * @returns Array of child XNodes
  */
 function processChildren(
   element: Element,
@@ -295,29 +247,26 @@ function processChildren(
   config: Configuration,
   context: XmlToXNodeContext,
   hasMixed: boolean
-): XNode[] {
-  const children: XNode[] = [];
-
+): void {
   for (let i = 0; i < element.childNodes.length; i++) {
     const child = element.childNodes[i];
 
     switch (child.nodeType) {
       case NodeType.TEXT_NODE:
-        processTextNode(child, children, parentNode, config, hasMixed);
+        processTextNode(child, parentNode, config, hasMixed);
         break;
 
       case NodeType.CDATA_SECTION_NODE:
-        processCDATANode(child, children, parentNode, config);
+        processCDATANode(child, parentNode, config);
         break;
 
       case NodeType.COMMENT_NODE:
-        processCommentNode(child, children, parentNode, config);
+        processCommentNode(child, parentNode, config);
         break;
 
       case NodeType.PROCESSING_INSTRUCTION_NODE:
         processProcessingInstructionNode(
           child as ProcessingInstruction,
-          children,
           parentNode,
           config
         );
@@ -330,25 +279,21 @@ function processChildren(
           config, 
           { ...context, parentNode }
         );
-        children.push(childXNode);
+        addChild(parentNode, childXNode);
         break;
     }
   }
-
-  return children;
 }
 
 /**
  * Process a text node
  * @param node Text node
- * @param children Children array to add to
  * @param parentNode Parent XNode
  * @param config Configuration
  * @param hasMixed Whether parent has mixed content
  */
 function processTextNode(
   node: Node,
-  children: XNode[],
   parentNode: XNode,
   config: Configuration,
   hasMixed: boolean
@@ -356,12 +301,11 @@ function processTextNode(
   const text = node.nodeValue || "";
 
   if (config.preserveWhitespace || hasMixed || hasTextContent(text)) {
-    const normalizedText = XmlEntity.normalizeWhitespace(text, config.preserveWhitespace);
+    const normalizedText = xml.normalizeWhitespace(text, config.preserveWhitespace);
 
     if (normalizedText && config.preserveTextNodes) {
-      const textNode = XNode.createTextNode(normalizedText);
-      textNode.parent = parentNode;
-      children.push(textNode);
+      const textNode = createTextNode(normalizedText);
+      addChild(parentNode, textNode);
     }
   }
 }
@@ -369,59 +313,50 @@ function processTextNode(
 /**
  * Process a CDATA node
  * @param node CDATA node
- * @param children Children array to add to
  * @param parentNode Parent XNode
  * @param config Configuration
  */
 function processCDATANode(
   node: Node,
-  children: XNode[],
   parentNode: XNode,
   config: Configuration
 ): void {
   if (config.preserveCDATA) {
-    const cdataNode = XNode.createCDATANode(node.nodeValue || "");
-    cdataNode.parent = parentNode;
-    children.push(cdataNode);
+    const cdataNode = createCDATANode(node.nodeValue || "");
+    addChild(parentNode, cdataNode);
   }
 }
 
 /**
  * Process a comment node
  * @param node Comment node
- * @param children Children array to add to
  * @param parentNode Parent XNode
  * @param config Configuration
  */
 function processCommentNode(
   node: Node,
-  children: XNode[],
   parentNode: XNode,
   config: Configuration
 ): void {
   if (config.preserveComments) {
-    const commentNode = XNode.createCommentNode(node.nodeValue || "");
-    commentNode.parent = parentNode;
-    children.push(commentNode);
+    const commentNode = createCommentNode(node.nodeValue || "");
+    addChild(parentNode, commentNode);
   }
 }
 
 /**
  * Process a processing instruction node
  * @param pi Processing instruction
- * @param children Children array to add to
  * @param parentNode Parent XNode
  * @param config Configuration
  */
 function processProcessingInstructionNode(
   pi: ProcessingInstruction,
-  children: XNode[],
   parentNode: XNode,
   config: Configuration
 ): void {
   if (config.preserveProcessingInstr) {
-    const piNode = XNode.createProcessingInstructionNode(pi.target, pi.data || "");
-    piNode.parent = parentNode;
-    children.push(piNode);
+    const piNode = createProcessingInstructionNode(pi.target, pi.data || "");
+    addChild(parentNode, piNode);
   }
 }

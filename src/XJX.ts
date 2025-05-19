@@ -1,214 +1,246 @@
 /**
- * XJX - Main class with extensible fluent API
- *
- * Core implementation that allows extensions through prototype methods.
+ * XJX - Main class with fluent API
  */
-import { Configuration, Config } from "./core/config";
-import { FORMAT, Transform } from "./core/transform";
-import { XNode } from "./core/xnode";
-import {
-  logger,
-  validate,
-  ValidationError,
-  ConfigurationError,
-  handleError,
-  ErrorType,
-} from "./core/error";
-import { Common } from "./core/common";
+import { Configuration, createConfig, getDefaultConfig } from "./core/config";
+import { Format, Transform } from "./core/transform";
+import { XNode, cloneNode } from "./core/xnode";
+import { validate, ValidationError, logger, LogLevel } from "./core/error";
 
 /**
- * Main XJX class - provides the fluent API and manages extensions
+ * Main XJX class - provides the fluent API for XML/JSON transformation
  */
 export class XJX {
-  // Allow dynamic property access for extensions
-  [key: string]: any;
-  
   // Instance properties
   public xnode: XNode | null = null;
   public transforms: Transform[] = [];
   public config: Configuration;
-  public sourceFormat: FORMAT | null = null;
-  
-  // Static registry properties for tracking extensions
-  private static terminalExtensions: Map<string, Function> = new Map();
-  private static nonTerminalExtensions: Map<string, Function> = new Map();
+  public sourceFormat: Format | null = null;
   
   /**
    * Create a new XJX instance
    * @param config Optional configuration
    */
   constructor(config?: Partial<Configuration>) {
-    try {
-      this.config = Config.createOrUpdate(config);
-      logger.debug('Created new XJX instance with configuration', {
-        preserveNamespaces: this.config.preserveNamespaces,
-        preserveComments: this.config.preserveComments,
-        preserveProcessingInstr: this.config.preserveProcessingInstr,
-        preserveCDATA: this.config.preserveCDATA,
-        preserveTextNodes: this.config.preserveTextNodes,
-        preserveWhitespace: this.config.preserveWhitespace,
-        preserveAttributes: this.config.preserveAttributes
-      });
-    } catch (err) {
-      this.config = Config.getDefault();
-      handleError(err, "initialize XJX instance", {
-        errorType: ErrorType.CONFIGURATION
-      });
-    }
+    this.config = createConfig(config);
+    logger.debug('Created new XJX instance with configuration', {
+      preserveNamespaces: this.config.preserveNamespaces,
+      preserveComments: this.config.preserveComments,
+      preserveTextNodes: this.config.preserveTextNodes
+    });
   }
-
-
+  
+  // --- Source Methods ---
+  
   /**
-   * Register a terminal extension method (returns a value)
-   * @param name Extension name
-   * @param method Implementation function
+   * Set XML source for transformation
+   * @param xml XML string
+   * @returns This instance for chaining
    */
-  public static registerTerminalExtension(name: string, method: Function): void {
-    try {
-      // Validate inputs
-      validate(typeof name === "string" && name.length > 0, "Extension name must be a non-empty string");
-      validate(typeof method === "function", "Extension method must be a function");
-      
-      // Check for conflicts
-      if ((XJX.prototype as any)[name]) {
-        const err = new ConfigurationError(`Extension '${name}' conflicts with an existing method`);
-        handleError(err, "register terminal extension", {
-          data: { name },
-          errorType: ErrorType.CONFIGURATION
-        });
-        return;
-      }
-      
-      // Register the extension
-      this.terminalExtensions.set(name, method);
-      
-      // Add to prototype - directly assign the method
-      (XJX.prototype as any)[name] = method;
-      
-      logger.debug('Terminal extension registered', { name });
-    } catch (err) {
-      handleError(err, "register terminal extension", {
-        data: { name },
-        errorType: ErrorType.CONFIGURATION
-      });
-    }
-  }
-
-  /**
-   * Register a non-terminal extension method (returns this for chaining)
-   * @param name Extension name
-   * @param method Implementation function
-   */
-  public static registerNonTerminalExtension(name: string, method: Function): void {
-    try {
-      // Validate inputs
-      validate(typeof name === "string" && name.length > 0, "Extension name must be a non-empty string");
-      validate(typeof method === "function", "Extension method must be a function");
-      
-      // Check for conflicts
-      if ((XJX.prototype as any)[name]) {
-        const err = new ConfigurationError(`Extension '${name}' conflicts with an existing method`);
-        handleError(err, "register non-terminal extension", {
-          data: { name },
-          errorType: ErrorType.CONFIGURATION
-        });
-        return;
-      }
-      
-      // Register the extension
-      this.nonTerminalExtensions.set(name, method);
-      
-      // Add to prototype - use a wrapper to ensure it returns 'this'
-      (XJX.prototype as any)[name] = function(...args: any[]) {
-        method.apply(this, args);
-        return this;
-      };
-      
-      logger.debug('Non-terminal extension registered', { name });
-    } catch (err) {
-      handleError(err, "register non-terminal extension", {
-        data: { name },
-        errorType: ErrorType.CONFIGURATION
-      });
-    }
+  public fromXml(xml: string): XJX {
+    // API boundary validation
+    validate(typeof xml === "string", "XML source must be a string");
+    validate(xml.trim().length > 0, "XML source cannot be empty");
+    
+    // Implementation will be done in the extensions
+    return this;
   }
   
   /**
-   * Get all registered terminal extensions
-   * @returns Array of extension names
+   * Set JSON source for transformation with automatic format detection
+   * @param source JSON object (XJX-formatted or standard)
+   * @returns This instance for chaining
    */
-  public static getTerminalExtensions(): string[] {
-    return Array.from(this.terminalExtensions.keys());
+  public fromJson(source: Record<string, any>): XJX {
+    // API boundary validation
+    validate(source !== null && typeof source === 'object', "JSON source must be an object");
+    
+    // Implementation will be done in the extensions
+    return this;
   }
   
   /**
-   * Get all registered non-terminal extensions
-   * @returns Array of extension names
+   * Set XJX-formatted JSON source for transformation
+   * @param source XJX-formatted JSON object
+   * @returns This instance for chaining
    */
-  public static getNonTerminalExtensions(): string[] {
-    return Array.from(this.nonTerminalExtensions.keys());
+  public fromXjxJson(source: Record<string, any>): XJX {
+    // API boundary validation
+    validate(source !== null && typeof source === 'object', "XJX JSON source must be an object");
+    validate(!Array.isArray(source), "XJX JSON source cannot be an array");
+    validate(Object.keys(source).length > 0, "XJX JSON source cannot be empty");
+    
+    // Implementation will be done in the extensions
+    return this;
   }
   
   /**
-   * Deep clone an object (utility method)
-   * @param obj Object to clone
-   * @returns Deep clone of the object
+   * Set standard JSON object as source for transformation
+   * @param source Standard JavaScript object or array
+   * @returns This instance for chaining
    */
-  public deepClone<T>(obj: T): T {
-    try {
-      return Common.deepClone(obj);
-    } catch (err) {
-      return handleError(err, "deep clone object", {
-        data: { objectType: typeof obj },
-        fallback: obj
-      });
+  public fromObjJson(source: Record<string, any> | any[]): XJX {
+    // API boundary validation
+    validate(source !== null && typeof source === 'object', "Object source must be an object or array");
+    
+    // Implementation will be done in the extensions
+    return this;
+  }
+  
+  // --- Configuration Methods ---
+  
+  /**
+   * Set configuration options
+   * @param config Partial configuration to merge with defaults
+   * @returns This instance for chaining
+   */
+  public withConfig(config: Partial<Configuration>): XJX {
+    // API boundary validation
+    validate(config !== null && typeof config === 'object', "Configuration must be an object");
+    
+    // Skip if empty config object
+    if (Object.keys(config).length === 0) {
+      logger.debug('Empty configuration provided, skipping merge');
+      return this;
     }
+    
+    // Implementation will be done in the extensions
+    return this;
   }
   
   /**
-   * Deep merge two objects (utility method)
-   * @param target Target object
-   * @param source Source object to merge into target
-   * @returns New object with merged properties
+   * Set the log level for the XJX library
+   * @param level Log level (debug, info, warn, error, none)
+   * @returns This instance for chaining
    */
-  public deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
-    try {
-      return Common.deepMerge(target, source);
-    } catch (err) {
-      return handleError(err, "deep merge objects", {
-        data: { 
-          targetType: typeof target,
-          sourceType: typeof source
-        },
-        fallback: target
-      });
-    }
+  public setLogLevel(level: LogLevel | string): XJX {
+    // API boundary validation
+    validate(level !== undefined && level !== null, "Log level must be provided");
+    
+    // Implementation will be done in the extensions
+    return this;
   }
+  
+  // --- Transform Methods ---
+  
+  /**
+   * Add transformers to the pipeline
+   * @param transforms One or more transformers
+   * @returns This instance for chaining
+   */
+  public withTransforms(...transforms: Transform[]): XJX {
+    // API boundary validation
+    validate(Array.isArray(transforms), "Transforms must be an array");
+    
+    // Skip if no transforms provided
+    if (transforms.length === 0) {
+      logger.debug('No transforms provided, skipping');
+      return this;
+    }
+    
+    // Implementation will be done in the extensions
+    return this;
+  }
+  
+  // --- Output Methods ---
+  
+  /**
+   * Convert to XML DOM
+   * @returns DOM Document
+   */
+  public toXml(): Document {
+    // API boundary validation
+    this.validateSource();
+    
+    // Implementation will be done in the extensions
+    throw new Error("Method not implemented");
+  }
+  
+  /**
+   * Convert to XML string
+   * @param options Optional serialization options
+   * @returns XML string representation
+   */
+  public toXmlString(options?: {
+    prettyPrint?: boolean;
+    indent?: number;
+    declaration?: boolean;
+  }): string {
+    // API boundary validation
+    this.validateSource();
+    
+    // Implementation will be done in the extensions
+    throw new Error("Method not implemented");
+  }
+  
+  /**
+   * Convert to XJX formatted JSON
+   * @returns XJX JSON object
+   */
+  public toXjxJson(): Record<string, any> {
+    // API boundary validation
+    this.validateSource();
+    
+    // Implementation will be done in the extensions
+    throw new Error("Method not implemented");
+  }
+  
+  /**
+   * Convert to XJX JSON string
+   * @returns Stringified XJX JSON
+   */
+  public toXjxJsonString(): string {
+    // API boundary validation
+    this.validateSource();
+    
+    // Implementation will be done in the extensions
+    throw new Error("Method not implemented");
+  }
+  
+  /**
+   * Convert to standard JavaScript object
+   * @returns Standard JSON object
+   */
+  public toStandardJson(): any {
+    // API boundary validation
+    this.validateSource();
+    
+    // Implementation will be done in the extensions
+    throw new Error("Method not implemented");
+  }
+  
+  /**
+   * Convert to standard JSON string
+   * @returns Stringified standard JSON
+   */
+  public toStandardJsonString(): string {
+    // API boundary validation
+    this.validateSource();
+    
+    // Implementation will be done in the extensions
+    throw new Error("Method not implemented");
+  }
+  
+  // --- Utility Methods ---
   
   /**
    * Validate that a source has been set before transformation
    * @throws Error if no source has been set
    */
   public validateSource(): void {
-    try {
-      if (!this.xnode || !this.sourceFormat) {
-        throw new ValidationError('No source set: call a source-setting extension before transformation');
-      }
-      logger.debug('Source validation passed', {
-        sourceFormat: this.sourceFormat,
-        rootNodeName: this.xnode.name
-      });
-    } catch (err) {
-      handleError(err, "validate source", {
-        data: { 
-          hasNode: this.xnode !== null,
-          sourceFormat: this.sourceFormat
-        },
-        errorType: ErrorType.VALIDATION
-      });
+    if (!this.xnode || !this.sourceFormat) {
+      throw new ValidationError('No source set: call fromXml() or fromJson() before transformation');
     }
+  }
+  
+  /**
+   * Clone an XNode
+   * @param node Node to clone
+   * @param deep Whether to clone deeply
+   * @returns Cloned node
+   */
+  public cloneNode(node: XNode, deep: boolean = false): XNode {
+    return cloneNode(node, deep);
   }
 }
 
-// Export default for easier importing
 export default XJX;

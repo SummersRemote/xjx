@@ -1,89 +1,30 @@
 /**
- * XNode to XML converter implementation with a hybrid OO-functional architecture
- * 
- * Converts XNode to XML string or DOM document with consistent application of preservation settings.
+ * XNode to XML converter implementation
  */
 import { Configuration } from '../core/config';
-import { XmlSerializer } from '../core/xml-utils';
-import { DOM } from '../core/dom';
-import { NodeType } from '../core/dom';
-import { logger, handleError, ErrorType } from '../core/error';
-import { XmlEntity } from '../core/xml-utils';
+import * as xml from '../core/xml-utils';
+import { DOM, NodeType } from '../core/dom';
+import { logger, ProcessingError } from '../core/error';
 import { XNode } from '../core/xnode';
-import { BaseConverter } from '../core/converter';
+import { validateInput, Converter, createConverter } from '../core/converter';
 
-/**
- * Context type for XNode to XML conversion
- */
-type XNodeToXmlContext = {
+// Context type for XNode to XML conversion
+interface XNodeToXmlContext {
   namespaceMap: Record<string, string>;
-};
+}
 
 /**
- * Converts XNode to XML string or DOM document
+ * Create an XNode to XML Document converter
+ * @param config Configuration for the converter
+ * @returns Converter implementation
  */
-export class DefaultXNodeToXmlConverter extends BaseConverter<XNode, string> {
-  /**
-   * Convert XNode to XML string
-   * @param node XNode representation
-   * @returns XML string
-   */
-  public convert(node: XNode): string {
+export function createXNodeToXmlConverter(config: Configuration): Converter<XNode, Document> {
+  return createConverter(config, (node: XNode, config: Configuration) => {
+    // Validate input
+    validateInput(node, "Node must be an XNode instance", 
+                  input => input !== null && typeof input === 'object');
+    
     try {
-      // Validate input
-      this.validateInput(node, "Node must be an XNode instance",
-                      input => input instanceof XNode);
-      
-      logger.debug('Starting XNode to XML conversion', { 
-        nodeName: node.name, 
-        nodeType: node.type 
-      });
-      
-      // First create a DOM document from the XNode
-      const doc = this.createDomDocument(node);
-      
-      // Get serialization options
-      const options = this.config.converters.xml.options;
-      
-      // Serialize according to configuration using pure functions
-      let xmlString = serializeDomToString(doc);
-      
-      // Apply pretty printing if enabled
-      if (options.prettyPrint) {
-        xmlString = formatXml(xmlString, options.indent);
-      }
-      
-      // Add XML declaration if configured
-      if (options.declaration) {
-        xmlString = addXmlDeclaration(xmlString);
-      }
-      
-      logger.debug('Successfully converted XNode to XML', { xmlLength: xmlString.length });
-      
-      return xmlString;
-    } catch (err) {
-      return handleError(err, 'convert XNode to XML', {
-        data: { 
-          nodeName: node?.name,
-          nodeType: node?.type
-        },
-        errorType: ErrorType.SERIALIZE,
-        fallback: "<root/>" // Return minimal XML as fallback
-      });
-    }
-  }
-
-  /**
-   * Create a DOM Document from an XNode
-   * @param node XNode to convert
-   * @returns DOM Document
-   */
-  public createDomDocument(node: XNode): Document {
-    try {
-      // Validate input
-      this.validateInput(node, "Node must be an XNode instance",
-                      input => input instanceof XNode);
-      
       logger.debug('Creating DOM document from XNode', { 
         nodeName: node.name, 
         nodeType: node.type 
@@ -95,8 +36,8 @@ export class DefaultXNodeToXmlConverter extends BaseConverter<XNode, string> {
       // Create DOM document
       const doc = DOM.createDocument();
       
-      // Convert XNode to DOM using pure function
-      const element = this.xnodeToDom(node, doc);
+      // Convert XNode to DOM
+      const element = convertXNodeToDom(node, doc, config, context);
       
       // Handle the root element
       if (doc.documentElement && doc.documentElement.nodeName === "temp") {
@@ -111,49 +52,62 @@ export class DefaultXNodeToXmlConverter extends BaseConverter<XNode, string> {
       
       return doc;
     } catch (err) {
-      return handleError(err, 'create DOM document from XNode', {
-        data: { 
-          nodeName: node?.name,
-          nodeType: node?.type
-        },
-        errorType: ErrorType.SERIALIZE,
-        fallback: DOM.createDocument() // Return empty document as fallback
-      });
+      throw new ProcessingError(`Failed to convert XNode to XML: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }
-
-  /**
-   * Convert XNode to DOM element
-   * @param node XNode to convert
-   * @param doc DOM document
-   * @returns DOM element
-   */
-  public xnodeToDom(node: XNode, doc: Document): Element {
-    try {
-      // Validate inputs
-      this.validateInput(node, "Node must be an XNode instance",
-                      input => input instanceof XNode);
-      this.validateInput(doc, "Document must be a Document instance",
-                      input => input instanceof Document);
-      
-      // Create context with empty namespace map
-      const context: XNodeToXmlContext = { namespaceMap: {} };
-      
-      // Use pure function to convert XNode to DOM element
-      return convertXNodeToDom(node, doc, this.config, context);
-    } catch (err) {
-      return handleError(err, 'convert XNode to DOM element', {
-        data: {
-          nodeName: node?.name,
-          nodeType: node?.type
-        },
-        errorType: ErrorType.SERIALIZE
-      });
-    }
-  }
+  });
 }
 
-// Pure functions (functional core)
+/**
+ * Create an XNode to XML string converter
+ * @param config Configuration for the converter
+ * @returns Converter implementation
+ */
+export function createXNodeToXmlStringConverter(
+  config: Configuration, 
+  options?: { prettyPrint?: boolean; indent?: number; declaration?: boolean; }
+): Converter<XNode, string> {
+  return createConverter(config, (node: XNode, config: Configuration) => {
+    try {
+      // First convert XNode to DOM document
+      const docConverter = createXNodeToXmlConverter(config);
+      const doc = docConverter.convert(node);
+      
+      // Get options, allowing overrides from the parameters
+      const prettyPrint = options?.prettyPrint !== undefined ? 
+        options.prettyPrint : config.converters.xml.options.prettyPrint;
+      
+      const indent = options?.indent !== undefined ? 
+        options.indent : config.converters.xml.options.indent;
+      
+      const declaration = options?.declaration !== undefined ? 
+        options.declaration : config.converters.xml.options.declaration;
+      
+      // Serialize to string
+      let xmlString = xml.serializeXml(doc);
+      
+      // Apply pretty printing if enabled
+      if (prettyPrint) {
+        xmlString = xml.formatXml(xmlString, indent);
+      }
+      
+      // Add XML declaration if configured
+      if (declaration) {
+        xmlString = xml.ensureXmlDeclaration(xmlString);
+      }
+      
+      logger.debug('Successfully converted XNode to XML string', {
+        xmlLength: xmlString.length,
+        prettyPrint,
+        indent,
+        declaration
+      });
+      
+      return xmlString;
+    } catch (err) {
+      throw new ProcessingError(`Failed to convert XNode to XML string: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  });
+}
 
 /**
  * Convert XNode to DOM element
@@ -163,7 +117,7 @@ export class DefaultXNodeToXmlConverter extends BaseConverter<XNode, string> {
  * @param context Conversion context
  * @returns DOM element
  */
-export function convertXNodeToDom(
+function convertXNodeToDom(
   node: XNode,
   doc: Document,
   config: Configuration,
@@ -173,15 +127,15 @@ export function convertXNodeToDom(
   
   // Create element with namespace if provided in the XNode
   if (node.namespace) {
-    const qualifiedName = createQualifiedName(node.prefix, node.name);
-    element = doc.createElementNS(node.namespace, qualifiedName);
+    const qualifiedName = xml.createQualifiedName(node.prefix, node.name);
+    element = DOM.createElementNS(doc, node.namespace, qualifiedName);
   } else {
-    element = doc.createElement(node.name);
+    element = DOM.createElement(doc, node.name);
   }
   
   // Add namespace declarations if present in XNode
   if (node.namespaceDeclarations) {
-    addNamespaceDeclarations(element, node.namespaceDeclarations);
+    xml.addNamespaceDeclarations(element, node.namespaceDeclarations);
     
     // Update namespace map
     Object.entries(node.namespaceDeclarations).forEach(([prefix, uri]) => {
@@ -197,7 +151,7 @@ export function convertXNodeToDom(
   // Add content
   // Simple node with only text content
   if (node.value !== undefined && (!node.children || node.children.length === 0)) {
-    element.textContent = XmlEntity.safeText(String(node.value));
+    element.textContent = xml.safeXmlText(String(node.value));
   }
   // Node with children
   else if (node.children && node.children.length > 0) {
@@ -211,40 +165,6 @@ export function convertXNodeToDom(
   });
   
   return element;
-}
-
-/**
- * Create a qualified name from namespace prefix and local name
- * @param prefix Namespace prefix (can be null/undefined)
- * @param localName Local name
- * @returns Qualified name
- */
-function createQualifiedName(prefix: string | null | undefined, localName: string): string {
-  return prefix ? `${prefix}:${localName}` : localName;
-}
-
-/**
- * Add namespace declarations to a DOM element
- * @param element Target DOM element
- * @param declarations Namespace declarations to add
- */
-function addNamespaceDeclarations(
-  element: Element,
-  declarations: Record<string, string>
-): void {
-  for (const [prefix, uri] of Object.entries(declarations)) {
-    if (prefix === "") {
-      // Default namespace
-      element.setAttribute("xmlns", uri);
-    } else {
-      // Prefixed namespace
-      element.setAttributeNS(
-        "http://www.w3.org/2000/xmlns/",
-        `xmlns:${prefix}`,
-        uri
-      );
-    }
-  }
 }
 
 /**
@@ -268,13 +188,13 @@ function addAttributes(
       const nsUri = findNamespaceURI(prefix, node, namespaceMap);
       
       if (nsUri) {
-        element.setAttributeNS(nsUri, name, XmlEntity.safeText(String(value)));
+        element.setAttributeNS(nsUri, name, xml.safeXmlText(String(value)));
         continue;
       }
     }
     
     // Regular attribute
-    element.setAttribute(name, XmlEntity.safeText(String(value)));
+    element.setAttribute(name, xml.safeXmlText(String(value)));
   }
 }
 
@@ -318,26 +238,27 @@ function addChildNodes(
     switch (child.type) {
       case NodeType.TEXT_NODE:
         element.appendChild(
-          doc.createTextNode(XmlEntity.safeText(String(child.value)))
+          DOM.createTextNode(doc, xml.safeXmlText(String(child.value)))
         );
         break;
         
       case NodeType.CDATA_SECTION_NODE:
         element.appendChild(
-          doc.createCDATASection(String(child.value))
+          DOM.createCDATASection(doc, String(child.value))
         );
         break;
         
       case NodeType.COMMENT_NODE:
         element.appendChild(
-          doc.createComment(String(child.value))
+          DOM.createComment(doc, String(child.value))
         );
         break;
         
       case NodeType.PROCESSING_INSTRUCTION_NODE:
         if (child.attributes?.target) {
           element.appendChild(
-            doc.createProcessingInstruction(
+            DOM.createProcessingInstruction(
+              doc,
               child.attributes.target,
               String(child.value || "")
             )
@@ -353,32 +274,4 @@ function addChildNodes(
         break;
     }
   }
-}
-
-/**
- * Serialize DOM node to XML string
- * @param node DOM node to serialize
- * @returns Serialized XML string
- */
-function serializeDomToString(node: Node): string {
-  return XmlSerializer.serialize(node);
-}
-
-/**
- * Format XML string with indentation
- * @param xmlString XML string to format
- * @param indent Number of spaces for indentation
- * @returns Formatted XML string
- */
-function formatXml(xmlString: string, indent: number = 2): string {
-  return XmlSerializer.prettyPrint(xmlString, indent);
-}
-
-/**
- * Add XML declaration to a string if missing
- * @param xmlString XML string
- * @returns XML string with declaration
- */
-function addXmlDeclaration(xmlString: string): string {
-  return XmlSerializer.ensureXMLDeclaration(xmlString);
 }

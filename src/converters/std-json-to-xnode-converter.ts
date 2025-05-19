@@ -1,43 +1,39 @@
 /**
- * Standard JSON to XNode converter implementation with hybrid OO-functional approach
- * 
- * Converts standard JSON objects to XNode representation with proper application of preservation settings.
+ * Standard JSON to XNode converter implementation
  */
-import { BaseConverter } from '../core/converter';
+import { Configuration } from '../core/config';
 import { NodeType } from '../core/dom';
-import { logger, handleError, ErrorType } from '../core/error';
-import { XNode } from '../core/xnode';
+import { logger, ProcessingError } from '../core/error';
+import { XNode, createElement, addChild } from '../core/xnode';
+import { validateInput, Converter, createConverter } from '../core/converter';
 
 /**
- * Converts standard JSON objects to XNode representation
+ * Create a Standard JSON to XNode converter
+ * @param config Configuration for the converter
+ * @returns Converter implementation
  */
-export class DefaultStandardJsonToXNodeConverter extends BaseConverter<Record<string, any> | any[], XNode> {
-  /**
-   * Convert standard JSON object to XNode
-   * @param source Standard JSON object or array
-   * @returns XNode representation
-   */
-  public convert(source: Record<string, any> | any[]): XNode {
+export function createStandardJsonToXNodeConverter(config: Configuration): Converter<Record<string, any> | any[], XNode> {
+  return createConverter(config, (source: Record<string, any> | any[], config: Configuration) => {
+    // Validate input
+    validateInput(source, "Source must be a valid object or array", 
+                  input => input !== null && typeof input === 'object');
+    
     try {
-      // Validate input
-      this.validateInput(source, "Source must be a valid object or array", 
-                         input => input !== null && typeof input === 'object');
-      
       logger.debug('Starting standard JSON to XNode conversion', {
         sourceType: Array.isArray(source) ? 'array' : 'object'
       });
       
       // Create root node based on source type
       const rootName = Array.isArray(source) ? "array" : "root";
-      const rootNode = new XNode(rootName, NodeType.ELEMENT_NODE);
+      const rootNode = createElement(rootName);
       
-      // Use pure functional core to process the source
+      // Process the source based on its type
       if (Array.isArray(source)) {
         // Process array
-        processArray(source, rootNode, this.config);
+        processArray(source, rootNode, config);
       } else {
         // Process object
-        processObject(source, rootNode, this.config);
+        processObject(source, rootNode, config);
       }
       
       logger.debug('Successfully converted standard JSON to XNode', {
@@ -47,26 +43,21 @@ export class DefaultStandardJsonToXNodeConverter extends BaseConverter<Record<st
       
       return rootNode;
     } catch (err) {
-      return handleError(err, 'convert standard JSON to XNode', {
-        data: { sourceType: Array.isArray(source) ? 'array' : 'object' },
-        errorType: ErrorType.PARSE
-      });
+      throw new ProcessingError(`Failed to convert standard JSON to XNode: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }
+  });
 }
 
-// ===== PURE FUNCTIONAL CORE =====
-
 /**
- * Process a JSON array - pure function
+ * Process a JSON array
  * @param array JSON array to process
  * @param parentNode Parent XNode to add children to
  * @param config Configuration
  */
-export function processArray(
+function processArray(
   array: any[],
   parentNode: XNode,
-  config: any
+  config: Configuration
 ): void {
   // Process array items using the configured array item name
   const arrayItemName = config.converters.stdJson.naming.arrayItem;
@@ -74,41 +65,33 @@ export function processArray(
   array.forEach(item => {
     const childNode = convertValue(arrayItemName, item, config);
     if (childNode) {
-      childNode.parent = parentNode;
-      if (!parentNode.children) {
-        parentNode.children = [];
-      }
-      parentNode.children.push(childNode);
+      addChild(parentNode, childNode);
     }
   });
 }
 
 /**
- * Process a JSON object - pure function
+ * Process a JSON object
  * @param obj JSON object to process
  * @param parentNode Parent XNode to add children to
  * @param config Configuration
  */
-export function processObject(
+function processObject(
   obj: Record<string, any>,
   parentNode: XNode,
-  config: any
+  config: Configuration
 ): void {
   // Process object properties
   Object.entries(obj).forEach(([key, value]) => {
     const childNode = convertValue(sanitizeNodeName(key), value, config);
     if (childNode) {
-      childNode.parent = parentNode;
-      if (!parentNode.children) {
-        parentNode.children = [];
-      }
-      parentNode.children.push(childNode);
+      addChild(parentNode, childNode);
     }
   });
 }
 
 /**
- * Convert a JSON value to an XNode - pure function
+ * Convert a JSON value to an XNode
  * @param name Node name
  * @param value JSON value
  * @param config Configuration
@@ -117,10 +100,10 @@ export function processObject(
 function convertValue(
   name: string,
   value: any,
-  config: any
+  config: Configuration
 ): XNode | null {
   // Create node with sanitized name
-  const node = new XNode(sanitizeNodeName(name), NodeType.ELEMENT_NODE);
+  const node = createElement(sanitizeNodeName(name));
   
   // Handle null/undefined
   if (value === null || value === undefined) {
@@ -158,7 +141,7 @@ function convertValue(
 }
 
 /**
- * Process object attributes based on configuration - pure function
+ * Process object attributes based on configuration
  * @param node XNode to add attributes to
  * @param obj Object containing potential attributes
  * @param options Standard JSON options
@@ -216,7 +199,7 @@ function processObjectAttributes(
 }
 
 /**
- * Process object properties as child nodes - pure function
+ * Process object properties as child nodes
  * @param node XNode to add children to
  * @param obj Object with properties to process
  * @param options Standard JSON options
@@ -226,7 +209,7 @@ function processObjectChildren(
   node: XNode,
   obj: Record<string, any>,
   options: any,
-  config: any
+  config: Configuration
 ): void {
   // Process text content property if it exists
   if (obj[options.textPropertyName] !== undefined && 
@@ -264,17 +247,13 @@ function processObjectChildren(
     // Process regular properties as child nodes
     const childNode = convertValue(sanitizeNodeName(key), value, config);
     if (childNode) {
-      if (!node.children) {
-        node.children = [];
-      }
-      childNode.parent = node;
-      node.children.push(childNode);
+      addChild(node, childNode);
     }
   });
 }
 
 /**
- * Check if a property is an attribute based on the configuration - pure function
+ * Check if a property is an attribute based on the configuration
  * @param key Property key
  * @param options Standard JSON options
  * @returns True if it's an attribute property
@@ -299,7 +278,7 @@ function isAttributeProperty(key: string, options: any): boolean {
 }
 
 /**
- * Sanitize a string to be a valid XML node name - pure function
+ * Sanitize a string to be a valid XML node name
  * @param name Name to sanitize
  * @returns Sanitized name
  */

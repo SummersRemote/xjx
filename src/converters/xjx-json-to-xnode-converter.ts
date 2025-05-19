@@ -1,102 +1,90 @@
 /**
- * XJX JSON to XNode converter implementation with hybrid OO-functional approach
- * 
- * Converts XJX-formatted JSON objects to XNode representation.
+ * XJX JSON to XNode converter implementation
  */
-import { BaseConverter } from '../core/converter';
+import { Configuration } from '../core/config';
 import { NodeType } from '../core/dom';
-import { logger, ParseError, handleError, ErrorType } from '../core/error';
-import { JSON } from '../core/json-utils';
-import { XNode } from '../core/xnode';
+import { logger, ProcessingError } from '../core/error';
+import { XNode, createElement, createTextNode, createCDATANode, createCommentNode, createProcessingInstructionNode, addChild } from '../core/xnode';
+import { validateInput, Converter, createConverter } from '../core/converter';
 
-/**
- * Converts XJX-formatted JSON objects to XNode representation
- */
-export class DefaultXjxJsonToXNodeConverter extends BaseConverter<Record<string, any>, XNode> {
-  /**
-   * Convert XJX-formatted JSON object to XNode
-   * @param json JSON object
-   * @returns XNode representation
-   */
-  public convert(json: Record<string, any>): XNode {
-    try {
-      // Validate input
-      this.validateInput(json, "JSON source must be a valid object", 
-                         input => JSON.isValidObject(input));
-      
-      logger.debug('Starting XJX JSON to XNode conversion', {
-        jsonKeys: Object.keys(json)
-      });
-      
-      // Validate JSON structure
-      validateJsonObject(json);
-      
-      // Create context with required fields for the functional core
-      const conversionContext: JsonToXNodeContext = {
-        namespaceMap: {},
-        parentNode: undefined
-      };
-      
-      // Use pure functional core
-      return convertJsonToXNode(json, this.config, conversionContext);
-    } catch (err) {
-      return handleError(err, 'convert XJX JSON to XNode', {
-        data: { jsonKeys: Object.keys(json || {}) },
-        errorType: ErrorType.PARSE
-      });
-    }
-  }
-}
-
-// ===== PURE FUNCTIONAL CORE =====
-
-/**
- * Context interface for JSON to XNode conversion
- */
+// Context for JSON to XNode conversion
 interface JsonToXNodeContext {
   namespaceMap: Record<string, string>;
   parentNode?: XNode;
 }
 
 /**
- * Validate JSON object structure - pure function
+ * Create an XJX JSON to XNode converter
+ * @param config Configuration for the converter
+ * @returns Converter implementation
+ */
+export function createXjxJsonToXNodeConverter(config: Configuration): Converter<Record<string, any>, XNode> {
+  return createConverter(config, (json: Record<string, any>, config: Configuration) => {
+    // Validate input
+    validateInput(json, "JSON source must be a valid object", 
+                 input => input !== null && typeof input === 'object' && !Array.isArray(input));
+    
+    // Validate JSON structure
+    validateJsonObject(json);
+    
+    try {
+      logger.debug('Starting XJX JSON to XNode conversion', {
+        jsonKeys: Object.keys(json)
+      });
+      
+      // Create context with empty namespace map
+      const context: JsonToXNodeContext = {
+        namespaceMap: {},
+        parentNode: undefined
+      };
+      
+      // Convert JSON to XNode
+      return convertJsonToXNode(json, config, context);
+    } catch (err) {
+      throw new ProcessingError(`Failed to convert XJX JSON to XNode: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  });
+}
+
+/**
+ * Validate JSON object structure
  * @param jsonObj JSON object to validate
  * @throws Error if validation fails
  */
-export function validateJsonObject(jsonObj: Record<string, any>): void {
+function validateJsonObject(jsonObj: Record<string, any>): void {
   // Check for valid JSON object structure
-  if (!JSON.isValidObject(jsonObj)) {
-    throw new ParseError('Invalid JSON object: must be a non-array object', jsonObj);
+  if (!jsonObj || typeof jsonObj !== 'object' || Array.isArray(jsonObj)) {
+    throw new ProcessingError('Invalid JSON object: must be a non-array object', jsonObj);
   }
   
   if (Object.keys(jsonObj).length !== 1) {
-    throw new ParseError('Invalid JSON object: must have exactly one root element', jsonObj);
+    throw new ProcessingError('Invalid JSON object: must have exactly one root element', jsonObj);
   }
 }
 
 /**
- * Convert JSON object to XNode - pure function
+ * Convert JSON object to XNode
  * @param jsonObj JSON object
  * @param config Configuration
  * @param context Conversion context
  * @returns XNode representation
  */
-export function convertJsonToXNode(
+function convertJsonToXNode(
   jsonObj: Record<string, any>,
-  config: any,
+  config: Configuration,
   context: JsonToXNodeContext
 ): XNode {
   // Get the node name (first key in the object)
   const nodeName = Object.keys(jsonObj)[0];
   if (!nodeName) {
-    throw new ParseError("Empty JSON object", jsonObj);
+    throw new ProcessingError("Empty JSON object", jsonObj);
   }
 
   const nodeData = jsonObj[nodeName];
   const namingConfig = config.converters.xjxJson.naming;
 
   // Create base XNode
-  const xnode = new XNode(nodeName, NodeType.ELEMENT_NODE);
+  const xnode = createElement(nodeName);
   xnode.parent = context.parentNode;
 
   // Process namespace and prefix - only if preserving namespaces
@@ -131,24 +119,20 @@ export function convertJsonToXNode(
 
   // Process children
   if (nodeData[namingConfig.children] && Array.isArray(nodeData[namingConfig.children])) {
-    const children = processChildren(
+    processChildren(
       nodeData[namingConfig.children], 
       namingConfig,
       config, 
       xnode,
       context
     );
-    
-    if (children.length > 0) {
-      xnode.children = children;
-    }
   }
 
   return xnode;
 }
 
 /**
- * Process attributes and namespace declarations - pure function
+ * Process attributes and namespace declarations
  * @param xnode Target XNode
  * @param attributes Attributes array from JSON 
  * @param namingConfig Naming configuration
@@ -159,7 +143,7 @@ function processAttributes(
   xnode: XNode,
   attributes: any[],
   namingConfig: any,
-  config: any,
+  config: Configuration,
   context: JsonToXNodeContext
 ): void {
   const hasAttributes = config.preserveAttributes;
@@ -210,7 +194,7 @@ function processAttributes(
 }
 
 /**
- * Check if attribute array contains namespace declarations - pure function
+ * Check if attribute array contains namespace declarations
  * @param attributes Array of attributes
  * @returns True if namespace declarations exist
  */
@@ -230,7 +214,7 @@ function hasNamespaceDeclarations(attributes: any[]): boolean {
 }
 
 /**
- * Process namespace declaration - pure function
+ * Process namespace declaration
  * @param attrName Attribute name
  * @param attrValue Attribute value
  * @param namespaceDecls Namespace declarations map
@@ -265,81 +249,74 @@ function processNamespaceDeclaration(
 }
 
 /**
- * Process child nodes from JSON - pure function
+ * Process child nodes from JSON
  * @param children Children array from JSON
  * @param namingConfig Naming configuration
  * @param config Main configuration
  * @param parentNode Parent XNode
  * @param context Conversion context
- * @returns Array of XNode children
  */
 function processChildren(
   children: any[],
   namingConfig: any,
-  config: any,
+  config: Configuration,
   parentNode: XNode,
   context: JsonToXNodeContext
-): XNode[] {
-  const result: XNode[] = [];
-  
+): void {
   for (const child of children) {
     // Process special node types
-    if (processSpecialChild(child, namingConfig, config, parentNode, result)) {
+    if (processSpecialChild(child, namingConfig, config, parentNode, context)) {
       continue;
     }
     
     // Element node (recursively process)
-    if (JSON.isValidObject(child) && !Array.isArray(child)) {
+    if (typeof child === 'object' && !Array.isArray(child)) {
       // Create child context with parent reference
       const childContext: JsonToXNodeContext = {
         namespaceMap: { ...context.namespaceMap },
         parentNode
       };
       
-      result.push(convertJsonToXNode(child, config, childContext));
+      const childNode = convertJsonToXNode(child, config, childContext);
+      addChild(parentNode, childNode);
     }
   }
-  
-  return result;
 }
 
 /**
- * Process special child node types (text, CDATA, comment, PI) - pure function
+ * Process special child node types (text, CDATA, comment, PI)
  * @param child Child data from JSON
  * @param namingConfig Naming configuration
- * @param config Main configuration
+ * @param config Configuration
  * @param parentNode Parent XNode
- * @param result Output children array
+ * @param context Conversion context
  * @returns True if processed as special node
  */
 function processSpecialChild(
   child: any, 
   namingConfig: any,
-  config: any,
+  config: Configuration,
   parentNode: XNode,
-  result: XNode[]
+  context: JsonToXNodeContext
 ): boolean {
   // Text node - only if preserving text nodes
   if (child[namingConfig.value] !== undefined && config.preserveTextNodes) {
-    const textNode = XNode.createTextNode(child[namingConfig.value]);
-    textNode.parent = parentNode;
-    result.push(textNode);
+    const textNode = createTextNode(child[namingConfig.value]);
+    addChild(parentNode, textNode);
     return true;
   }
   
   // CDATA section - only if preserving CDATA
   if (child[namingConfig.cdata] !== undefined && config.preserveCDATA) {
-    const cdataNode = XNode.createCDATANode(child[namingConfig.cdata]);
-    cdataNode.parent = parentNode;
-    result.push(cdataNode);
+    const cdataNode = createCDATANode(child[namingConfig.cdata]);
+    addChild(parentNode, cdataNode);
     return true;
   }
   
   // Comment - only if preserving comments
   if (child[namingConfig.comment] !== undefined && config.preserveComments) {
-    const commentNode = XNode.createCommentNode(child[namingConfig.comment]);
-    commentNode.parent = parentNode;
-    result.push(commentNode);
+    const commentNode = createCommentNode(child[namingConfig.comment]);
+    addChild(parentNode, commentNode);
     return true;
   }
   
@@ -350,9 +327,8 @@ function processSpecialChild(
     const value = piData[namingConfig.value] || "";
     
     if (target) {
-      const piNode = XNode.createProcessingInstructionNode(target, value);
-      piNode.parent = parentNode;
-      result.push(piNode);
+      const piNode = createProcessingInstructionNode(target, value);
+      addChild(parentNode, piNode);
     }
     return true;
   }

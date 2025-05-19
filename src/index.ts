@@ -1,58 +1,41 @@
 /**
  * XJX Library - XML/JSON transformation with fluent API
- * Self-registering extensions for webpack compatibility
  */
 
-// Pre-register all extensions to prevent tree-shaking issues
-// IMPORTANT: This import has side effects!
-import './extensions';
+// Register all extensions to the XJX class
+import './extensions/from-xml';
+// Additional extension imports would be here
 
 // Export the main class (for instantiation)
-export { XJX } from './XJX.js';
+export { XJX } from './XJX';
+export { default } from './XJX';
 
 // Export configuration types
-export { Configuration } from './core/config.js';
+export { Configuration } from './core/config';
 
 // Export core interfaces and types
 export {
+  Format,
   Transform,
   TransformTarget,
   TransformContext,
   TransformResult,
-  FORMAT,
   createTransformResult,
-} from './core/transform.js';
+} from './core/transform';
 
 // Export error handling
 export {
   ValidationError,
-  ParseError,
-  SerializeError,
-  ConfigurationError,
-  TransformError,
-  EnvironmentError,
+  ProcessingError,
+  XJXError,
   validate,
   logger,
   LogLevel,
-} from './core/error.js';
+} from './core/error';
 
-// Export model classes
-export { XNode } from './core/xnode.js';
+// Export model interfaces
+export { XNode } from './core/xnode';
 
-// Export core transformers
-export {
-  BooleanTransform,
-  BooleanTransformOptions,
-} from './transforms/boolean-transform.js';
-export {
-  NumberTransform,
-  NumberTransformOptions,
-} from './transforms/number-transform.js';
-export { 
-  RegexTransform, 
-  RegexOptions 
-} from './transforms/regex-transform.js';
-export {
-  MetadataTransform,
-  MetadataTransformOptions,
-} from './transforms/metadata-transform.js';
+// Export transform creators
+export { createBooleanTransform, BooleanTransformOptions } from './transforms/boolean-transform';
+// Additional transform exports would be here

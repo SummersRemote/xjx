@@ -1,35 +1,31 @@
 /**
- * XNode to Standard JSON converter implementation with hybrid OO-functional approach
- * 
- * Converts XNode to standard JavaScript objects and arrays without redundant preservation checks.
+ * XNode to Standard JSON converter implementation
  */
-import { BaseConverter } from '../core/converter';
+import { Configuration } from '../core/config';
 import { NodeType } from '../core/dom';
-import { logger, handleError, ErrorType } from '../core/error';
+import { logger, ProcessingError } from '../core/error';
 import { XNode } from '../core/xnode';
+import { validateInput, Converter, createConverter } from '../core/converter';
 
 /**
- * Converts XNode to standard JavaScript objects and arrays
+ * Create an XNode to Standard JSON converter
+ * @param config Configuration for the converter
+ * @returns Converter implementation
  */
-export class DefaultXNodeToStandardJsonConverter extends BaseConverter<XNode, any> {
-  /**
-   * Convert XNode to standard JavaScript object/array
-   * @param node XNode to convert
-   * @returns Standard JavaScript object or primitive
-   */
-  public convert(node: XNode): any {
+export function createXNodeToStandardJsonConverter(config: Configuration): Converter<XNode, any> {
+  return createConverter(config, (node: XNode, config: Configuration) => {
+    // Validate input
+    validateInput(node, "Node must be an XNode instance", 
+                  input => input !== null && typeof input === 'object');
+    
     try {
-      // Validate input
-      this.validateInput(node, "Node must be an XNode instance", 
-                         input => input instanceof XNode);
-      
       logger.debug('Starting XNode to standard JSON conversion', {
         nodeName: node.name,
         nodeType: node.type
       });
       
-      // Use pure functional core
-      const result = processNode(node, this.config);
+      // Process node based on its type
+      const result = processNode(node, config);
       
       logger.debug('Successfully converted XNode to standard JSON', {
         resultType: typeof result,
@@ -38,23 +34,18 @@ export class DefaultXNodeToStandardJsonConverter extends BaseConverter<XNode, an
       
       return result;
     } catch (err) {
-      return handleError(err, 'convert XNode to standard JSON', {
-        data: { nodeName: node?.name, nodeType: node?.type },
-        errorType: ErrorType.SERIALIZE
-      });
+      throw new ProcessingError(`Failed to convert XNode to standard JSON: ${err instanceof Error ? err.message : String(err)}`);
     }
-  }
+  });
 }
 
-// ===== PURE FUNCTIONAL CORE =====
-
 /**
- * Process a node based on its type - pure function
+ * Process a node based on its type
  * @param node XNode to process
  * @param config Configuration
  * @returns Standard JavaScript value
  */
-export function processNode(node: XNode, config: any): any {
+function processNode(node: XNode, config: any): any {
   switch (node.type) {
     case NodeType.ELEMENT_NODE:
       return processElementNode(node, config);
@@ -83,7 +74,7 @@ export function processNode(node: XNode, config: any): any {
 }
 
 /**
- * Process an element node - pure function
+ * Process an element node
  * @param node Element node to process
  * @param config Configuration
  * @returns JavaScript object, array, or primitive
@@ -126,7 +117,7 @@ function processElementNode(node: XNode, config: any): any {
 }
 
 /**
- * Process an element with only a value - pure function
+ * Process an element with only a value
  * @param node Element node
  * @param options Standard JSON options
  * @param textValue Optional explicit text value
@@ -176,7 +167,7 @@ function processElementWithValue(
 }
 
 /**
- * Process element with child elements - pure function
+ * Process element with child elements
  * @param node Element node with children
  * @param options Standard JSON options
  * @param config Main configuration
@@ -259,7 +250,7 @@ function processElementWithChildren(
 }
 
 /**
- * Process element attributes based on configuration - pure function
+ * Process element attributes based on configuration
  * @param node Element node with attributes
  * @param options Standard JSON options
  * @returns Object with processed attributes
@@ -274,6 +265,9 @@ function processAttributes(node: XNode, options: any): Record<string, any> {
   const attrPrefix = options.attributePrefix;
   
   Object.entries(node.attributes).forEach(([name, value]) => {
+    // Skip xmlns attributes (handled separately)
+    if (name === "xmlns" || name.startsWith("xmlns:")) return;
+    
     // Apply attribute handling based on configuration
     switch (options.attributeHandling) {
       case 'prefix':

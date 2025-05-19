@@ -1,29 +1,16 @@
 /**
- * Core extension that implements the withTransforms method
+ * Extension implementation for transform methods
  */
 import { XJX } from "../../XJX";
 import { Transform } from "../../core/transform";
-import { logger, validate, handleError, ErrorType } from "../../core/error";
-
-// Type augmentation - add method to XJX interface
-declare module '../../XJX' {
-  interface XJX {
-    /**
-     * Add transformers to the pipeline
-     * @param transforms One or more transformers
-     * @returns This instance for chaining
-     */
-    withTransforms(...transforms: Transform[]): XJX;
-  }
-}
+import { logger, validate } from "../../core/error";
 
 /**
- * Add transformers to the pipeline
- * @param transforms One or more transformers
+ * Implementation for adding transformers to the pipeline
  */
-function withTransforms(this: XJX, ...transforms: Transform[]): void {
+export function implementWithTransforms(xjx: XJX, ...transforms: Transform[]): void {
   try {
-    // API boundary validation - validate parameters
+    // API boundary validation
     validate(Array.isArray(transforms), "Transforms must be an array");
     
     // Skip if no transforms provided
@@ -63,26 +50,26 @@ function withTransforms(this: XJX, ...transforms: Transform[]): void {
     }
     
     // Initialize transforms array if it doesn't exist
-    if (!this.transforms) {
-      this.transforms = [];
+    if (!xjx.transforms) {
+      xjx.transforms = [];
     }
     
     // Add transforms to the pipeline
-    this.transforms.push(...transforms);
+    xjx.transforms.push(...transforms);
     
     logger.debug('Successfully added transforms', {
-      totalTransforms: this.transforms.length
+      totalTransforms: xjx.transforms.length
     });
   } catch (err) {
-    // At API boundary, use handleError to ensure consistent error handling
-    handleError(err, "add transforms", {
-      data: { 
-        transformCount: transforms?.length || 0
-      },
-      errorType: ErrorType.TRANSFORM
-    });
+    if (err instanceof Error) {
+      throw err;
+    }
+    throw new Error(`Failed to add transforms: ${String(err)}`);
   }
 }
 
-// Register the extension
-XJX.registerNonTerminalExtension("withTransforms", withTransforms);
+// Register the implementation with XJX
+XJX.prototype.withTransforms = function(...transforms: Transform[]): XJX {
+  implementWithTransforms(this, ...transforms);
+  return this;
+};

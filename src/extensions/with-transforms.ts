@@ -1,14 +1,16 @@
 /**
  * Extension implementation for transform methods
  */
-import { XJX } from "../../XJX";
-import { Transform } from "../../core/transform";
-import { logger, validate } from "../../core/error";
+import { XJX } from "../XJX";
+import { Transform } from "../core/transform";
+import { logger, validate } from "../core/error";
 
 /**
  * Implementation for adding transformers to the pipeline
+ * @param xjx XJX instance
+ * @param transforms Transforms to add
  */
-export function implementWithTransforms(xjx: XJX, ...transforms: Transform[]): void {
+export function withTransforms(xjx: XJX, ...transforms: Transform[]): void {
   try {
     // API boundary validation
     validate(Array.isArray(transforms), "Transforms must be an array");
@@ -23,30 +25,17 @@ export function implementWithTransforms(xjx: XJX, ...transforms: Transform[]): v
       transformCount: transforms.length
     });
     
-    // Validate each transform
-    for (let i = 0; i < transforms.length; i++) {
-      const transform = transforms[i];
-      
-      // Validate transform interface requirements
+    // Basic validation of each transform
+    for (const transform of transforms) {
       validate(
-        transform !== null && typeof transform === 'object',
-        `Transform at index ${i} must be an object`
-      );
-      
-      validate(
-        Array.isArray(transform.targets) && transform.targets.length > 0,
-        `Transform at index ${i} must have a targets array`
+        transform && Array.isArray(transform.targets) && transform.targets.length > 0,
+        "Each transform must have a targets array"
       );
       
       validate(
         typeof transform.transform === 'function',
-        `Transform at index ${i} must have a transform method`
+        "Each transform must have a transform method"
       );
-      
-      logger.debug('Validated transform', {
-        index: i,
-        targets: transform.targets
-      });
     }
     
     // Initialize transforms array if it doesn't exist
@@ -61,15 +50,12 @@ export function implementWithTransforms(xjx: XJX, ...transforms: Transform[]): v
       totalTransforms: xjx.transforms.length
     });
   } catch (err) {
-    if (err instanceof Error) {
-      throw err;
-    }
-    throw new Error(`Failed to add transforms: ${String(err)}`);
+    throw new Error(`Failed to add transforms: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
 // Register the implementation with XJX
 XJX.prototype.withTransforms = function(...transforms: Transform[]): XJX {
-  implementWithTransforms(this, ...transforms);
+  withTransforms(this, ...transforms);
   return this;
 };

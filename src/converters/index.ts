@@ -1,19 +1,16 @@
 /**
  * Converters module
  * 
- * This module provides the converter interfaces and implementations
- * for transforming between XML, JSON, and XNode.
+ * This module provides converter functions for transforming between XML, JSON, and XNode.
  */
+// Base converter interface
+export * from '../core/converter';
 
-// Base converter
-export {   Converter,
-  BaseConverter } from '../core/converter';
-  
-// Default converter implementations
-export { DefaultXmlToXNodeConverter } from './xml-to-xnode-converter';
-export { DefaultXjxJsonToXNodeConverter } from './xjx-json-to-xnode-converter';
-export { DefaultXNodeToXmlConverter } from './xnode-to-xml-converter';
-export { DefaultXNodeToJsonConverter } from './xnode-to-xjx-json-converter';
-export { DefaultXNodeTransformer } from './xnode-transformer';
-export { DefaultStandardJsonToXNodeConverter } from './std-json-to-xnode-converter';
-export { DefaultXNodeToStandardJsonConverter } from './xnode-to-std-json-converter';
+// Converters
+export * from './xml-to-xnode-converter';
+export * from './xjx-json-to-xnode-converter';
+export * from './std-json-to-xnode-converter';
+export * from './xnode-to-xml-converter';
+export * from './xnode-to-xjx-json-converter';
+export * from './xnode-to-std-json-converter';
+export { transformXNode } from './xnode-transformer';

@@ -1,36 +1,31 @@
 /**
  * XJX Core Module
  * 
- * This module exports all core functionality for the XJX library,
- * providing a consolidated entry point for importing all components.
- * The reorganized structure groups related functionality for better maintainability.
+ * This module exports all core functionality for the XJX library.
  */
-  // Common utilities
-  export * from './common';
-  
-  // Error handling
-  export * from './error';
-  
-  // DOM operations
-  export * from './dom';
-  
-  // Configuration
-  export * from './config';
-  
-  // Converter system
-  export * from './converter';
+// Common utilities
+export * from './common';
 
-  // Transform system
-  export * from './transform';
-  
-  // Extension system
-  export * from './extension';
-  
-  // XML processing
-  export * from './xml-utils';
-  
-  // JSON processing
-  export * from './json-utils';
-  
-  // XNode model
-  export * from './xnode';
+// Error handling
+export * from './error';
+
+// DOM operations
+export * from './dom';
+
+// Configuration
+export * from './config';
+
+// Converter system
+export * from './converter';
+
+// Transform system
+export * from './transform';
+
+// XML processing
+export * from './xml-utils';
+
+// JSON processing
+export * from './json-utils';
+
+// XNode model
+export * from './xnode';

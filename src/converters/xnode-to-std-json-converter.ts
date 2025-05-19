@@ -1,53 +1,18 @@
 /**
- * standard-json-converter.ts
+ * XNode to Standard JSON converter implementation with hybrid OO-functional approach
  * 
- * Implements conversion from XNode to standard JavaScript objects and arrays
- * without redundant preservation checks.
+ * Converts XNode to standard JavaScript objects and arrays without redundant preservation checks.
  */
-import { Converter } from './converter-interfaces';
-import { Config, Configuration } from '../core/config';
+import { XNodeToStandardJsonConverter } from './converter-interfaces';
+import { BaseConverter } from './base-converter';
 import { NodeType } from '../core/dom';
-import { logger, validate, handleError, ErrorType } from '../core/error';
+import { logger, handleError, ErrorType } from '../core/error';
 import { XNode } from '../core/xnode';
-
-/**
- * XNode to Standard JSON converter interface
- */
-export interface XNodeToStandardJsonConverter extends Converter<XNode, any> {}
 
 /**
  * Converts XNode to standard JavaScript objects and arrays
  */
-export class DefaultXNodeToStandardJsonConverter implements XNodeToStandardJsonConverter {
-  private config: Configuration;
-
-  /**
-   * Create a new converter
-   * @param config Configuration with standardJsonDefaults
-   */
-  constructor(config: Configuration) {
-    // Initialize properties first to satisfy TypeScript
-    this.config = config;
-    
-    try {
-      // Then validate and potentially update
-      if (!Config.isValid(config)) {
-        this.config = Config.createOrUpdate({}, config);
-      }
-      
-      // Access config properties to avoid unused variable warning
-      logger.debug('StandardJsonToXNodeConverter initialized', { 
-        hasStdJsonConfig: !!this.config.converters.stdJson 
-      });
-    } catch (err) {
-      // If validation/update fails, use default config
-      this.config = Config.getDefault();
-      handleError(err, "initialize XNode to Standard JSON converter", {
-        errorType: ErrorType.CONFIGURATION
-      });
-    }
-  }
-
+export class DefaultXNodeToStandardJsonConverter extends BaseConverter<XNode, any> implements XNodeToStandardJsonConverter {
   /**
    * Convert XNode to standard JavaScript object/array
    * @param node XNode to convert
@@ -55,14 +20,17 @@ export class DefaultXNodeToStandardJsonConverter implements XNodeToStandardJsonC
    */
   public convert(node: XNode): any {
     try {
-      validate(node instanceof XNode, "Node must be an XNode instance");
+      // Validate input
+      this.validateInput(node, "Node must be an XNode instance", 
+                         input => input instanceof XNode);
       
       logger.debug('Starting XNode to standard JSON conversion', {
         nodeName: node.name,
         nodeType: node.type
       });
       
-      const result = this.processNode(node);
+      // Use pure functional core
+      const result = processNode(node, this.config);
       
       logger.debug('Successfully converted XNode to standard JSON', {
         resultType: typeof result,
@@ -77,276 +45,249 @@ export class DefaultXNodeToStandardJsonConverter implements XNodeToStandardJsonC
       });
     }
   }
-  
-  /**
-   * Process a node based on its type
-   * @param node XNode to process
-   * @returns Standard JavaScript value
-   * @private
-   */
-  private processNode(node: XNode): any {
-    try {
-      switch (node.type) {
-        case NodeType.ELEMENT_NODE:
-          return this.processElementNode(node);
-          
-        case NodeType.TEXT_NODE:
-          return node.value;
-          
-        case NodeType.CDATA_SECTION_NODE:
-          return node.value;
-          
-        case NodeType.COMMENT_NODE:
-          // Comments are already filtered out during XML parsing if not preserved
-          return undefined;
-          
-        case NodeType.PROCESSING_INSTRUCTION_NODE:
-          // PIs are already filtered out during XML parsing if not preserved
-          return undefined;
-          
-        default:
-          logger.warn('Unknown node type during conversion', {
-            nodeName: node.name,
-            nodeType: node.type
-          });
-          return undefined;
-      }
-    } catch (err) {
-      return handleError(err, 'process node', {
-        data: { nodeName: node?.name, nodeType: node?.type },
-        fallback: null
+}
+
+// ===== PURE FUNCTIONAL CORE =====
+
+/**
+ * Process a node based on its type - pure function
+ * @param node XNode to process
+ * @param config Configuration
+ * @returns Standard JavaScript value
+ */
+export function processNode(node: XNode, config: any): any {
+  switch (node.type) {
+    case NodeType.ELEMENT_NODE:
+      return processElementNode(node, config);
+      
+    case NodeType.TEXT_NODE:
+      return node.value;
+      
+    case NodeType.CDATA_SECTION_NODE:
+      return node.value;
+      
+    case NodeType.COMMENT_NODE:
+      // Comments are already filtered out during XML parsing if not preserved
+      return undefined;
+      
+    case NodeType.PROCESSING_INSTRUCTION_NODE:
+      // PIs are already filtered out during XML parsing if not preserved
+      return undefined;
+      
+    default:
+      logger.warn('Unknown node type during conversion', {
+        nodeName: node.name,
+        nodeType: node.type
       });
+      return undefined;
+  }
+}
+
+/**
+ * Process an element node - pure function
+ * @param node Element node to process
+ * @param config Configuration
+ * @returns JavaScript object, array, or primitive
+ */
+function processElementNode(node: XNode, config: any): any {
+  // Get standard JSON options
+  const options = config.converters.stdJson.options;
+  
+  // Handle special cases
+  if (!node.children || node.children.length === 0) {
+    // Element with no children but with a value
+    if (node.value !== undefined) {
+      return processElementWithValue(node, options);
     }
+    
+    // Empty element
+    return options.emptyElementsAsNull ? null : {};
   }
   
-  /**
-   * Process an element node
-   * @param node Element node to process
-   * @returns JavaScript object, array, or primitive
-   * @private
-   */
-  private processElementNode(node: XNode): any {
-    try {
-      // Get standard JSON options
-      const options = this.config.converters.stdJson.options;
+  // Check if this is a text-only node
+  const textOnlyChildren = node.children.filter(
+    child => child.type === NodeType.TEXT_NODE || child.type === NodeType.CDATA_SECTION_NODE
+  );
+  
+  if (textOnlyChildren.length === node.children.length) {
+    // All children are text/CDATA nodes, combine them
+    const combinedText = textOnlyChildren
+      .map(child => child.value || '')
+      .join('');
       
-      // Handle special cases
-      if (!node.children || node.children.length === 0) {
-        // Element with no children but with a value
-        if (node.value !== undefined) {
-          return this.processElementWithValue(node, options);
-        }
-        
-        // Empty element
-        return options.emptyElementsAsNull ? null : {};
-      }
-      
-      // Check if this is a text-only node
-      const textOnlyChildren = node.children.filter(
-        child => child.type === NodeType.TEXT_NODE || child.type === NodeType.CDATA_SECTION_NODE
-      );
-      
-      if (textOnlyChildren.length === node.children.length) {
-        // All children are text/CDATA nodes, combine them
-        const combinedText = textOnlyChildren
-          .map(child => child.value || '')
-          .join('');
-          
-        if (combinedText.trim() === '' && options.emptyElementsAsNull) {
-          return null;
-        }
-        
-        return this.processElementWithValue(node, options, combinedText);
-      }
-      
-      // Element with element children
-      return this.processElementWithChildren(node, options);
-    } catch (err) {
-      return handleError(err, 'process element node', {
-        data: { nodeName: node?.name, nodeType: node?.type },
-        fallback: {}
-      });
+    if (combinedText.trim() === '' && options.emptyElementsAsNull) {
+      return null;
     }
+    
+    return processElementWithValue(node, options, combinedText);
   }
   
-  /**
-   * Process an element with only a value
-   * @param node Element node
-   * @param options Standard JSON options
-   * @param textValue Optional explicit text value
-   * @returns JavaScript value
-   * @private
-   */
-  private processElementWithValue(node: XNode, options: any, textValue?: string): any {
-    try {
-      const value = textValue !== undefined ? textValue : node.value;
-      const hasAttributes = node.attributes && Object.keys(node.attributes).length > 0;
-      
-      // Simple case - no attributes
-      if (!hasAttributes || options.attributeHandling === 'ignore') {
-        return value;
-      }
-      
-      // Complex case - has attributes
-      const textProperty = options.textPropertyName;
-      
-      switch (options.attributeHandling) {
-        case 'merge':
-          // Create object with attributes and value
-          const result: Record<string, any> = { ...this.processAttributes(node, options) };
-          result[textProperty] = value;
-          return result;
-          
-        case 'prefix':
-          // Create object with prefixed attributes and direct value
-          return { 
-            ...this.processAttributes(node, options), 
-            [textProperty]: value 
-          };
-          
-        case 'property':
-          // Create object with attributes property and direct value
-          const attrProperty = options.attributePropertyName;
-          return {
-            [attrProperty]: this.processAttributes(node, options),
-            [textProperty]: value
-          };
-          
-        default:
-          return value;
-      }
-    } catch (err) {
-      return handleError(err, 'process element with value', {
-        data: { nodeName: node?.name, value: node?.value },
-        fallback: node.value
-      });
-    }
+  // Element with element children
+  return processElementWithChildren(node, options, config);
+}
+
+/**
+ * Process an element with only a value - pure function
+ * @param node Element node
+ * @param options Standard JSON options
+ * @param textValue Optional explicit text value
+ * @returns JavaScript value
+ */
+function processElementWithValue(
+  node: XNode,
+  options: any,
+  textValue?: string
+): any {
+  const value = textValue !== undefined ? textValue : node.value;
+  const hasAttributes = node.attributes && Object.keys(node.attributes).length > 0;
+  
+  // Simple case - no attributes
+  if (!hasAttributes || options.attributeHandling === 'ignore') {
+    return value;
   }
   
-  /**
-   * Process element with child elements
-   * @param node Element node with children
-   * @param options Standard JSON options
-   * @returns JavaScript object
-   * @private
-   */
-  private processElementWithChildren(node: XNode, options: any): any {
-    try {
-      const result: Record<string, any> = {};
-      
-      // Add attributes if needed
-      if (node.attributes && Object.keys(node.attributes).length > 0) {
-        const attrProperty = options.attributePropertyName;
-        
-        switch (options.attributeHandling) {
-          case 'merge':
-            Object.assign(result, this.processAttributes(node, options));
-            break;
-            
-          case 'prefix':
-            Object.assign(result, this.processAttributes(node, options));
-            break;
-            
-          case 'property':
-            result[attrProperty] = this.processAttributes(node, options);
-            break;
-        }
-      }
-      
-      // Track text content for mixed content handling
-      let textContent = '';
-      let hasMixedContent = false;
-      
-      // Group children by name for array detection
-      const childrenByName: Record<string, XNode[]> = {};
-      
-      // Process each child
-      if (node.children) {
-        node.children.forEach(child => {
-          if (child.type === NodeType.TEXT_NODE || child.type === NodeType.CDATA_SECTION_NODE) {
-            // Collect text content
-            const text = child.value || '';
-            if (text.trim() !== '') {
-              textContent += text;
-              hasMixedContent = true;
-            }
-          } else if (child.type === NodeType.ELEMENT_NODE) {
-            // Group element children by name
-            if (!childrenByName[child.name]) {
-              childrenByName[child.name] = [];
-            }
-            childrenByName[child.name].push(child);
-          }
-          // Comments and processing instructions were already filtered if not preserved
-        });
-      }
-      
-      // Add mixed content if present and configured to preserve
-      if (hasMixedContent && options.preserveMixedContent) {
-        const textProperty = options.textPropertyName;
-        result[textProperty] = textContent;
-      }
-      
-      // Process grouped children
-      Object.entries(childrenByName).forEach(([name, children]) => {
-        const shouldBeArray = options.alwaysCreateArrays || children.length > 1;
-        
-        if (shouldBeArray) {
-          // Process as array
-          result[name] = children.map(child => this.processNode(child));
-        } else {
-          // Process as single value
-          result[name] = this.processNode(children[0]);
-        }
-      });
-      
+  // Complex case - has attributes
+  const textProperty = options.textPropertyName;
+  
+  switch (options.attributeHandling) {
+    case 'merge':
+      // Create object with attributes and value
+      const result: Record<string, any> = { ...processAttributes(node, options) };
+      result[textProperty] = value;
       return result;
-    } catch (err) {
-      return handleError(err, 'process element with children', {
-        data: { nodeName: node?.name, childCount: node?.children?.length },
-        fallback: {}
-      });
+      
+    case 'prefix':
+      // Create object with prefixed attributes and direct value
+      return { 
+        ...processAttributes(node, options), 
+        [textProperty]: value 
+      };
+      
+    case 'property':
+      // Create object with attributes property and direct value
+      const attrProperty = options.attributePropertyName;
+      return {
+        [attrProperty]: processAttributes(node, options),
+        [textProperty]: value
+      };
+      
+    default:
+      return value;
+  }
+}
+
+/**
+ * Process element with child elements - pure function
+ * @param node Element node with children
+ * @param options Standard JSON options
+ * @param config Main configuration
+ * @returns JavaScript object
+ */
+function processElementWithChildren(
+  node: XNode,
+  options: any,
+  config: any
+): any {
+  const result: Record<string, any> = {};
+  
+  // Add attributes if needed
+  if (node.attributes && Object.keys(node.attributes).length > 0) {
+    const attrProperty = options.attributePropertyName;
+    
+    switch (options.attributeHandling) {
+      case 'merge':
+        Object.assign(result, processAttributes(node, options));
+        break;
+        
+      case 'prefix':
+        Object.assign(result, processAttributes(node, options));
+        break;
+        
+      case 'property':
+        result[attrProperty] = processAttributes(node, options);
+        break;
     }
   }
   
-  /**
-   * Process element attributes based on configuration
-   * @param node Element node with attributes
-   * @param options Standard JSON options
-   * @returns Object with processed attributes
-   * @private
-   */
-  private processAttributes(node: XNode, options: any): Record<string, any> {
-    try {
-      const result: Record<string, any> = {};
-      
-      if (!node.attributes) {
-        return result;
-      }
-      
-      const attrPrefix = options.attributePrefix;
-      
-      Object.entries(node.attributes).forEach(([name, value]) => {
-        // Apply attribute handling based on configuration
-        switch (options.attributeHandling) {
-          case 'prefix':
-            // Add prefix to attribute names
-            result[attrPrefix + name] = value;
-            break;
-            
-          default:
-            // Default to direct property
-            result[name] = value;
-            break;
+  // Track text content for mixed content handling
+  let textContent = '';
+  let hasMixedContent = false;
+  
+  // Group children by name for array detection
+  const childrenByName: Record<string, XNode[]> = {};
+  
+  // Process each child
+  if (node.children) {
+    node.children.forEach(child => {
+      if (child.type === NodeType.TEXT_NODE || child.type === NodeType.CDATA_SECTION_NODE) {
+        // Collect text content
+        const text = child.value || '';
+        if (text.trim() !== '') {
+          textContent += text;
+          hasMixedContent = true;
         }
-      });
-      
-      return result;
-    } catch (err) {
-      return handleError(err, 'process attributes', {
-        data: { nodeName: node?.name, attributeCount: Object.keys(node?.attributes || {}).length },
-        fallback: {}
-      });
-    }
+      } else if (child.type === NodeType.ELEMENT_NODE) {
+        // Group element children by name
+        if (!childrenByName[child.name]) {
+          childrenByName[child.name] = [];
+        }
+        childrenByName[child.name].push(child);
+      }
+      // Comments and processing instructions were already filtered if not preserved
+    });
   }
+  
+  // Add mixed content if present and configured to preserve
+  if (hasMixedContent && options.preserveMixedContent) {
+    const textProperty = options.textPropertyName;
+    result[textProperty] = textContent;
+  }
+  
+  // Process grouped children
+  Object.entries(childrenByName).forEach(([name, children]) => {
+    const shouldBeArray = options.alwaysCreateArrays || children.length > 1;
+    
+    if (shouldBeArray) {
+      // Process as array
+      result[name] = children.map(child => processNode(child, config));
+    } else {
+      // Process as single value
+      result[name] = processNode(children[0], config);
+    }
+  });
+  
+  return result;
+}
+
+/**
+ * Process element attributes based on configuration - pure function
+ * @param node Element node with attributes
+ * @param options Standard JSON options
+ * @returns Object with processed attributes
+ */
+function processAttributes(node: XNode, options: any): Record<string, any> {
+  const result: Record<string, any> = {};
+  
+  if (!node.attributes) {
+    return result;
+  }
+  
+  const attrPrefix = options.attributePrefix;
+  
+  Object.entries(node.attributes).forEach(([name, value]) => {
+    // Apply attribute handling based on configuration
+    switch (options.attributeHandling) {
+      case 'prefix':
+        // Add prefix to attribute names
+        result[attrPrefix + name] = value;
+        break;
+        
+      default:
+        // Default to direct property
+        result[name] = value;
+        break;
+    }
+  });
+  
+  return result;
 }

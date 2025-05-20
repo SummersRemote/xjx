@@ -29,6 +29,7 @@ export {
   TransformContext,
   TransformResult,
   createTransformResult,
+  StrategyInfo,
 } from './core/transform';
 
 // Export error handling
@@ -43,6 +44,15 @@ export {
 
 // Export model interfaces
 export { XNode } from './core/xnode';
+
+// Export JSON conversion types
+export {
+  JsonOptions,
+  JsonValue,
+  JsonObject,
+  JsonArray,
+  FormatDetectionResult,
+} from './core/converter';
 
 // Export transform classes and creators
 export {

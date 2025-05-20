@@ -3,59 +3,86 @@
  */
 import { getPath, setPath } from './common';
 import { logger } from './error';
+import { Configuration } from './config';
+import { FormatDetectionResult, JsonValue, JsonObject, JsonArray } from './converter';
 
 /**
- * Basic JSON primitive types
+ * Detect JSON format (high-fidelity vs standard)
+ * @param json JSON value to analyze
+ * @param config Configuration with property names
+ * @returns Format detection result
  */
-export type JSONPrimitive = string | number | boolean | null;
-
-/**
- * JSON array type (recursive definition)
- */
-export type JSONArray = JSONValue[];
-
-/**
- * JSON object type (recursive definition)
- */
-export interface JSONObject {
-  [key: string]: JSONValue;
+export function detectJsonFormat(json: JsonValue, config: Configuration): FormatDetectionResult {
+  // Default result
+  const result: FormatDetectionResult = {
+    isHighFidelity: false,
+    isArray: Array.isArray(json)
+  };
+  
+  // Handle array
+  if (result.isArray) {
+    const arr = json as JsonArray;
+    // Check if any items look like high-fidelity
+    if (arr.length > 0 && typeof arr[0] === 'object' && arr[0] !== null) {
+      // Check first item if it has high-fidelity markers
+      const firstItemKeys = Object.keys(arr[0] as JsonObject);
+      // If first key is an object, check its properties
+      if (firstItemKeys.length === 1) {
+        const firstKey = firstItemKeys[0];
+        const firstObj = (arr[0] as JsonObject)[firstKey];
+        if (typeof firstObj === 'object' && firstObj !== null) {
+          result.isHighFidelity = hasHighFidelityMarkers(firstObj as JsonObject, config);
+        }
+      }
+    }
+    return result;
+  }
+  
+  // Handle object
+  if (json && typeof json === 'object' && !Array.isArray(json)) {
+    const obj = json as JsonObject;
+    const keys = Object.keys(obj);
+    
+    // Empty object is not high-fidelity
+    if (keys.length === 0) {
+      return result;
+    }
+    
+    // Store root name for the first key
+    result.rootName = keys[0];
+    
+    // Get first property's value
+    const firstProp = obj[keys[0]];
+    
+    // If first property is an object, check its properties
+    if (typeof firstProp === 'object' && firstProp !== null) {
+      result.isHighFidelity = hasHighFidelityMarkers(firstProp as JsonObject, config);
+    }
+  }
+  
+  return result;
 }
 
 /**
- * Combined JSON value type that can be any valid JSON structure
+ * Check if an object has high-fidelity markers
+ * @param obj Object to check
+ * @param config Configuration with property names
+ * @returns True if the object has high-fidelity markers
  */
-export type JSONValue = JSONPrimitive | JSONArray | JSONObject;
-
-/**
- * Detect if an object is in XJX JSON format
- * @param obj JSON object to check
- * @param namingConfig Configuration for XJX JSON property names
- * @returns true if the object is in XJX format
- */
-export function isXjxFormat(obj: Record<string, any>, namingConfig: Record<string, string>): boolean {
-  // Empty object is not in XJX format
-  if (!obj || typeof obj !== 'object' || Object.keys(obj).length === 0) {
-    return false;
-  }
+function hasHighFidelityMarkers(obj: JsonObject, config: Configuration): boolean {
+  const { properties } = config;
   
-  // Get the first root element
-  const rootKey = Object.keys(obj)[0];
-  const rootObj = obj[rootKey];
-  
-  // Not an object, not XJX format
-  if (!rootObj || typeof rootObj !== 'object') {
-    return false;
-  }
-  
-  // Check for XJX-specific properties
-  return rootObj[namingConfig.value] !== undefined ||
-         rootObj[namingConfig.children] !== undefined ||
-         rootObj[namingConfig.attribute] !== undefined ||
-         rootObj[namingConfig.namespace] !== undefined ||
-         rootObj[namingConfig.prefix] !== undefined ||
-         rootObj[namingConfig.cdata] !== undefined ||
-         rootObj[namingConfig.comment] !== undefined ||
-         rootObj[namingConfig.processingInstr] !== undefined;
+  // Check for high-fidelity specific properties
+  return (
+    obj[properties.attribute] !== undefined ||
+    obj[properties.children] !== undefined ||
+    obj[properties.namespace] !== undefined ||
+    obj[properties.prefix] !== undefined ||
+    obj[properties.cdata] !== undefined ||
+    obj[properties.comment] !== undefined ||
+    obj[properties.processingInstr] !== undefined ||
+    obj[properties.value] !== undefined
+  );
 }
 
 /**
@@ -66,7 +93,7 @@ export function isXjxFormat(obj: Record<string, any>, namingConfig: Record<strin
  * @param value JSON value to compact
  * @returns Compacted JSON value or undefined if the value is completely empty
  */
-export function compact(value: JSONValue): JSONValue | undefined {
+export function compact(value: JsonValue): JsonValue | undefined {
   // Handle null/undefined
   if (value === null || value === undefined) {
     return undefined;
@@ -79,7 +106,7 @@ export function compact(value: JSONValue): JSONValue | undefined {
 
   // Handle arrays
   if (Array.isArray(value)) {
-    const compactedArray: JSONValue[] = [];
+    const compactedArray: JsonValue[] = [];
 
     for (const item of value) {
       const compactedItem = compact(item);
@@ -92,10 +119,10 @@ export function compact(value: JSONValue): JSONValue | undefined {
   }
 
   // Handle objects
-  const compactedObj: JSONObject = {};
+  const compactedObj: JsonObject = {};
   let hasProperties = false;
 
-  for (const [key, propValue] of Object.entries(value as JSONObject)) {
+  for (const [key, propValue] of Object.entries(value as JsonObject)) {
     const compactedValue = compact(propValue);
     if (compactedValue !== undefined) {
       compactedObj[key] = compactedValue;
@@ -112,7 +139,7 @@ export function compact(value: JSONValue): JSONValue | undefined {
  * @param indent Optional indentation level
  * @returns JSON string representation
  */
-export function safeStringify(obj: JSONValue, indent: number = 2): string {
+export function safeStringify(obj: JsonValue, indent: number = 2): string {
   try {
     return JSON.stringify(obj, null, indent);
   } catch (err) {
@@ -126,7 +153,7 @@ export function safeStringify(obj: JSONValue, indent: number = 2): string {
  * @param text JSON string to parse
  * @returns Parsed object or null if parsing fails
  */
-export function safeParse(text: string): JSONValue | null {
+export function safeParse(text: string): JsonValue | null {
   try {
     return JSON.parse(text);
   } catch (err) {
@@ -142,7 +169,7 @@ export function safeParse(text: string): JSONValue | null {
  * @param defaultValue Default value if path not found
  * @returns Value at path or default value
  */
-export function getValueByPath<T>(obj: JSONValue, path: string, defaultValue?: T): T | undefined {
+export function getValueByPath<T>(obj: JsonValue, path: string, defaultValue?: T): T | undefined {
   return getPath(obj, path, defaultValue);
 }
 
@@ -153,6 +180,92 @@ export function getValueByPath<T>(obj: JSONValue, path: string, defaultValue?: T
  * @param value Value to set
  * @returns New object with value set (original object is not modified)
  */
-export function setValueByPath<T extends JSONValue>(obj: T, path: string, value: JSONValue): T {
+export function setValueByPath<T extends JsonValue>(obj: T, path: string, value: JsonValue): T {
   return setPath(obj, path, value);
+}
+
+/**
+ * Create an array for a value if it's not already an array
+ * @param value Value to ensureArray
+ * @param strategy Array strategy
+ * @returns Array containing the value, or the original array, or empty array
+ */
+export function ensureArray<T>(value: T | T[] | undefined | null, strategy: 'multiple' | 'always' | 'never'): T[] {
+  // Handle undefined/null
+  if (value === undefined || value === null) {
+    return [];
+  }
+  
+  // Already an array
+  if (Array.isArray(value)) {
+    return value;
+  }
+  
+  // Based on strategy
+  switch (strategy) {
+    case 'always':
+      // Always create an array even for single value
+      return [value];
+    case 'never':
+      // Never create arrays (use last value)
+      return [value];
+    case 'multiple':
+    default:
+      // Create array only for multiple values (single value isn't wrapped)
+      return [value];
+  }
+}
+
+/**
+ * Add a value to an array based on array strategy
+ * @param array Target array 
+ * @param value Value to add
+ * @param strategy Array strategy
+ * @returns Updated array
+ */
+export function addToArray<T>(array: T[], value: T, strategy: 'multiple' | 'always' | 'never'): T[] {
+  if (strategy === 'never') {
+    // Replace last value instead of adding
+    return [value];
+  }
+  
+  // For 'multiple' and 'always', just append
+  array.push(value);
+  return array;
+}
+
+/**
+ * Check if property name is in the forceArrays list
+ * @param propName Property name to check
+ * @param forceArrays List of properties to force as arrays
+ * @returns True if the property should be forced as array
+ */
+export function shouldForceArray(propName: string, forceArrays: string[]): boolean {
+  return forceArrays.includes(propName);
+}
+
+/**
+ * Determine if a value should be an array based on configuration
+ * @param propName Property name
+ * @param value Current value
+ * @param config Configuration
+ * @returns True if the value should be an array
+ */
+export function shouldBeArray(propName: string, value: any, config: Configuration): boolean {
+  // Check force arrays list
+  if (shouldForceArray(propName, config.arrays.forceArrays)) {
+    return true;
+  }
+  
+  // Check strategy
+  switch (config.arrayStrategy) {
+    case 'always':
+      return true;
+    case 'never':
+      return false;
+    case 'multiple':
+    default:
+      // Only arrays if multiple items
+      return Array.isArray(value) && value.length > 1;
+  }
 }

@@ -6,11 +6,14 @@
 // Base converter interface
 export * from '../core/converter';
 
-// Converters
+// XML converters
 export * from './xml-to-xnode-converter';
-export * from './xjx-json-to-xnode-converter';
-export * from './std-json-to-xnode-converter';
 export * from './xnode-to-xml-converter';
-export * from './xnode-to-xjx-json-converter';
-export * from './xnode-to-std-json-converter';
+
+// JSON converters - unified implementation
+export * from './json-to-xnode-converter';
+export * from './xnode-to-json-converter';
+export * from './json-xnode-common';
+
+// Node transformer
 export { transformXNode } from './xnode-transformer';

@@ -1,36 +1,19 @@
 /**
- * Core converter interfaces and types
+ * Types and interfaces for converters
  */
+import { XNode } from './xnode';
 import { Configuration } from './config';
 
 /**
  * Basic converter interface
  */
-export interface Converter<TInput, TOutput, TOptions = any> {
+export interface Converter<TInput, TOutput> {
   /**
    * Convert from input to output format
    * @param input Input to convert
-   * @param options Optional conversion options
    * @returns Converted output
    */
-  convert(input: TInput, options?: TOptions): TOutput;
-}
-
-/**
- * Create a converter with configuration
- * @param config Configuration for the converter
- * @param convertFn Implementation function
- * @returns Converter implementation
- */
-export function createConverter<TInput, TOutput, TOptions = any>(
-  config: Configuration,
-  convertFn: (input: TInput, config: Configuration, options?: TOptions) => TOutput
-): Converter<TInput, TOutput, TOptions> {
-  return {
-    convert(input: TInput, options?: TOptions): TOutput {
-      return convertFn(input, config, options);
-    }
-  };
+  convert(input: TInput): TOutput;
 }
 
 /**
@@ -112,7 +95,7 @@ export interface JsonProcessingContext {
   /**
    * Parent node (for fromJson direction)
    */
-  parentNode?: any;
+  parentNode?: XNode;
   
   /**
    * Current path in the document
@@ -150,4 +133,65 @@ export interface FormatDetectionResult {
    * Root element name (if object)
    */
   rootName?: string;
+}
+
+/**
+ * Interface for JSON to XNode converter
+ */
+export interface JsonToXNodeConverter {
+  /**
+   * Convert JSON to XNode
+   * @param json JSON value to convert
+   * @param options Conversion options
+   * @returns XNode representation
+   */
+  convert(json: JsonValue, options?: JsonOptions): XNode;
+  
+  /**
+   * Detect format of JSON input
+   * @param json JSON value to analyze
+   * @returns Format detection result
+   */
+  detectFormat(json: JsonValue): FormatDetectionResult;
+}
+
+/**
+ * Interface for XNode to JSON converter
+ */
+export interface XNodeToJsonConverter {
+  /**
+   * Convert XNode to JSON
+   * @param node XNode to convert
+   * @param options Conversion options
+   * @returns JSON representation
+   */
+  convert(node: XNode, options?: JsonOptions): JsonValue;
+}
+
+/**
+ * Unified interface for JSON converters
+ */
+export interface JsonConverter {
+  /**
+   * Convert to JSON
+   * @param node XNode to convert
+   * @param options Conversion options
+   * @returns JSON representation
+   */
+  toJson(node: XNode, options?: JsonOptions): JsonValue;
+  
+  /**
+   * Convert from JSON
+   * @param json JSON value to convert
+   * @param options Conversion options
+   * @returns XNode representation
+   */
+  fromJson(json: JsonValue, options?: JsonOptions): XNode;
+  
+  /**
+   * Detect if JSON is in high-fidelity format
+   * @param json JSON value to analyze
+   * @returns Format detection result
+   */
+  detectFormat(json: JsonValue): FormatDetectionResult;
 }

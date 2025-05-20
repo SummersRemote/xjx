@@ -3,6 +3,7 @@
  */
 import { XNode } from './xnode';
 import { logger } from './error';
+import { Configuration } from './config';
 
 /**
  * Standard formats
@@ -24,6 +25,19 @@ export enum TransformTarget {
   Comment = 'comment',
   ProcessingInstruction = 'processingInstruction',
   Namespace = 'namespace'
+}
+
+/**
+ * JSON Strategies for transform context
+ */
+export interface StrategyInfo {
+  highFidelity: boolean;
+  attributeStrategy: 'merge' | 'prefix' | 'property';
+  textStrategy: 'direct' | 'property';
+  namespaceStrategy: 'prefix' | 'property';
+  arrayStrategy: 'multiple' | 'always' | 'never';
+  emptyElementStrategy: 'object' | 'null' | 'string';
+  mixedContentStrategy: 'preserve' | 'prioritize-text' | 'prioritize-elements';
 }
 
 /**
@@ -51,10 +65,13 @@ export interface TransformContext {
   parent?: TransformContext;
   
   // Configuration
-  config: any;
+  config: Configuration;
   
   // Target format
   targetFormat: FORMAT;
+  
+  // Strategy information - available when transforming JSON
+  strategies?: StrategyInfo;
 }
 
 /**
@@ -99,7 +116,7 @@ export function createTransformResult<T>(value: T, remove: boolean = false): Tra
 export function createRootContext(
   targetFormat: FORMAT,
   rootNode: XNode,
-  config: any
+  config: Configuration
 ): TransformContext {
   return {
     nodeName: rootNode.name,
@@ -109,6 +126,16 @@ export function createRootContext(
     prefix: rootNode.prefix,
     config: config,
     targetFormat,
+    // Add strategy information when converting to/from JSON
+    strategies: targetFormat === FORMAT.JSON ? {
+      highFidelity: config.highFidelity,
+      attributeStrategy: config.attributeStrategy,
+      textStrategy: config.textStrategy,
+      namespaceStrategy: config.namespaceStrategy,
+      arrayStrategy: config.arrayStrategy,
+      emptyElementStrategy: config.emptyElementStrategy,
+      mixedContentStrategy: config.mixedContentStrategy
+    } : undefined
   };
 }
 
@@ -136,7 +163,8 @@ export function createChildContext(
     isText: childNode.type === 3, // Text node
     isCDATA: childNode.type === 4, // CDATA
     isComment: childNode.type === 8, // Comment
-    isProcessingInstruction: childNode.type === 7 // Processing instruction
+    isProcessingInstruction: childNode.type === 7, // Processing instruction
+    strategies: parentContext.strategies
   };
 }
 
@@ -160,7 +188,8 @@ export function createAttributeContext(
     targetFormat: parentContext.targetFormat,
     parent: parentContext,
     isAttribute: true,
-    attributeName
+    attributeName,
+    strategies: parentContext.strategies
   };
 }
 

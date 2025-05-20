@@ -17,50 +17,51 @@ export interface Configuration {
   preserveWhitespace: boolean;
   preserveAttributes: boolean;
 
-  // Converters section with format-specific settings
-  converters: {
-    // Standard JSON converter settings
-    stdJson: {
-      options: {
-        attributeHandling: 'ignore' | 'merge' | 'prefix' | 'property';
-        attributePrefix: string;
-        attributePropertyName: string;
-        textPropertyName: string;
-        alwaysCreateArrays: boolean;
-        preserveMixedContent: boolean;
-        emptyElementsAsNull: boolean;
-      };
-      naming: {
-        arrayItem: string;
-      };
-    };
-    
-    // XJX JSON converter settings
-    xjxJson: {
-      options: {
-        compact: boolean;
-      };
-      naming: {
-        namespace: string;
-        prefix: string;
-        attribute: string;
-        value: string;
-        cdata: string;
-        comment: string;
-        processingInstr: string;
-        target: string;
-        children: string;
-      };
-    };
-    
-    // XML converter settings
-    xml: {
-      options: {
-        declaration: boolean;
-        prettyPrint: boolean;
-        indent: number;
-      };
-    };
+  // High-level transformation strategies
+  highFidelity: boolean;  // Master toggle for high-fidelity mode
+  attributeStrategy: 'merge' | 'prefix' | 'property';
+  textStrategy: 'direct' | 'property';
+  namespaceStrategy: 'prefix' | 'property';
+  arrayStrategy: 'multiple' | 'always' | 'never';
+  emptyElementStrategy: 'object' | 'null' | 'string';
+  mixedContentStrategy: 'preserve' | 'prioritize-text' | 'prioritize-elements';
+
+  // Property names and special markers
+  properties: {
+    attribute: string;
+    value: string;
+    text: string;
+    namespace: string;
+    prefix: string;
+    cdata: string;
+    comment: string;
+    processingInstr: string;
+    target: string;
+    children: string;
+    compact: boolean;
+  };
+
+  // Prefix configurations
+  prefixes: {
+    attribute: string;
+    namespace: string;
+    comment: string;
+    cdata: string;
+    pi: string;
+  };
+
+  // Array configurations
+  arrays: {
+    forceArrays: string[];
+    defaultItemName: string;
+    itemNames: Record<string, string>;
+  };
+
+  // Output formatting
+  formatting: {
+    indent: number;
+    declaration: boolean;
+    pretty: boolean;
   };
 }
 
@@ -68,6 +69,7 @@ export interface Configuration {
  * Default configuration for the XJX library
  */
 export const DEFAULT_CONFIG: Configuration = {
+  // Preservation settings
   preserveNamespaces: true,
   preserveComments: true,
   preserveProcessingInstr: true,
@@ -76,44 +78,51 @@ export const DEFAULT_CONFIG: Configuration = {
   preserveWhitespace: false,
   preserveAttributes: true,
 
-  converters: {
-    stdJson: {
-      options: {
-        attributeHandling: 'ignore',
-        attributePrefix: '@',
-        attributePropertyName: '_attrs',
-        textPropertyName: '_text',
-        alwaysCreateArrays: false,
-        preserveMixedContent: true,
-        emptyElementsAsNull: false
-      },
-      naming: {
-        arrayItem: "item"
-      }
-    },
-    xjxJson: {
-      options: {
-        compact: true
-      },
-      naming: {
-        namespace: "$ns",
-        prefix: "$pre",
-        attribute: "$attr",
-        value: "$val",
-        cdata: "$cdata",
-        comment: "$cmnt",
-        processingInstr: "$pi",
-        target: "$trgt",
-        children: "$children"
-      }
-    },
-    xml: {
-      options: {
-        declaration: true,
-        prettyPrint: true,
-        indent: 2
-      }
-    }
+  // High-level strategies
+  highFidelity: false,
+  attributeStrategy: 'merge',
+  textStrategy: 'direct',
+  namespaceStrategy: 'prefix',
+  arrayStrategy: 'multiple',
+  emptyElementStrategy: 'object',
+  mixedContentStrategy: 'preserve',
+
+  // Property names
+  properties: {
+    attribute: "$attr",
+    value: "$val",
+    text: "_text",
+    namespace: "$ns",
+    prefix: "$pre",
+    cdata: "$cdata",
+    comment: "$cmnt",
+    processingInstr: "$pi",
+    target: "$trgt",
+    children: "$children",
+    compact: true
+  },
+
+  // Prefix configurations
+  prefixes: {
+    attribute: '@',
+    namespace: 'xmlns:',
+    comment: '#',
+    cdata: '!',
+    pi: '?'
+  },
+
+  // Array configurations
+  arrays: {
+    forceArrays: [],
+    defaultItemName: "item",
+    itemNames: {}
+  },
+
+  // Output formatting
+  formatting: {
+    indent: 2,
+    declaration: true,
+    pretty: true
   }
 };
 
@@ -162,8 +171,68 @@ export function createConfig(
 
   logger.debug("Successfully created/updated configuration", {
     preserveNamespaces: result.preserveNamespaces,
-    prettyPrint: result.converters.xml.options.prettyPrint,
+    highFidelity: result.highFidelity,
+    attributeStrategy: result.attributeStrategy
   });
 
   return result;
+}
+
+/**
+ * Create a configuration with specified high-fidelity mode
+ * @param config Base configuration
+ * @param highFidelity High-fidelity mode toggle
+ * @returns Updated configuration
+ */
+export function withHighFidelity(
+  config: Configuration,
+  highFidelity: boolean
+): Configuration {
+  return mergeConfig(config, { highFidelity });
+}
+
+/**
+ * Create effective configuration for JSON conversion by merging options
+ * @param baseConfig Base configuration
+ * @param options JSON conversion options
+ * @returns Effective configuration
+ */
+export function createJsonConfig(
+  baseConfig: Configuration,
+  options?: {
+    highFidelity?: boolean;
+    attributeStrategy?: 'merge' | 'prefix' | 'property';
+    textStrategy?: 'direct' | 'property';
+    namespaceStrategy?: 'prefix' | 'property';
+    arrayStrategy?: 'multiple' | 'always' | 'never';
+    emptyElementStrategy?: 'object' | 'null' | 'string';
+    mixedContentStrategy?: 'preserve' | 'prioritize-text' | 'prioritize-elements';
+    formatting?: Partial<Configuration['formatting']>;
+  }
+): Configuration {
+  if (!options || Object.keys(options).length === 0) {
+    return baseConfig;
+  }
+  
+  // Create override configuration from options
+  const overrides: Partial<Configuration> = {};
+  
+  // Apply direct strategy options
+  if (options.highFidelity !== undefined) overrides.highFidelity = options.highFidelity;
+  if (options.attributeStrategy !== undefined) overrides.attributeStrategy = options.attributeStrategy;
+  if (options.textStrategy !== undefined) overrides.textStrategy = options.textStrategy;
+  if (options.namespaceStrategy !== undefined) overrides.namespaceStrategy = options.namespaceStrategy;
+  if (options.arrayStrategy !== undefined) overrides.arrayStrategy = options.arrayStrategy;
+  if (options.emptyElementStrategy !== undefined) overrides.emptyElementStrategy = options.emptyElementStrategy;
+  if (options.mixedContentStrategy !== undefined) overrides.mixedContentStrategy = options.mixedContentStrategy;
+  
+  // Apply formatting options if provided
+  if (options.formatting) {
+    overrides.formatting = {
+      ...baseConfig.formatting,
+      ...options.formatting
+    };
+  }
+  
+  return mergeConfig(baseConfig, overrides);
 }

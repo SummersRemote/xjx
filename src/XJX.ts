@@ -1,10 +1,11 @@
-/**
+import { XmlSerializationOptions } from "./converters/xnode-to-xml-converter";/**
  * XJX - Main class with fluent API
  */
 import { Configuration, createConfig, getDefaultConfig } from "./core/config";
 import { FORMAT, Transform } from "./core/transform";
 import { XNode, cloneNode } from "./core/xnode";
 import { validate, ValidationError, logger, LogLevel } from "./core/error";
+import { JsonOptions, JsonValue } from "./core/converter";
 
 /**
  * Main XJX class - provides the fluent API for XML/JSON transformation
@@ -25,7 +26,8 @@ export class XJX {
     logger.debug('Created new XJX instance with configuration', {
       preserveNamespaces: this.config.preserveNamespaces,
       preserveComments: this.config.preserveComments,
-      preserveTextNodes: this.config.preserveTextNodes
+      preserveTextNodes: this.config.preserveTextNodes,
+      highFidelity: this.config.highFidelity
     });
   }
   
@@ -46,41 +48,29 @@ export class XJX {
   }
   
   /**
-   * Set JSON source for transformation with automatic format detection
-   * @param source JSON object (XJX-formatted or standard)
+   * Set JSON source for transformation
+   * @param source JSON object or array
+   * @param options JSON options
    * @returns This instance for chaining
    */
-  public fromJson(source: Record<string, any>): XJX {
+  public fromJson(source: JsonValue, options?: JsonOptions): XJX {
     // API boundary validation
-    validate(source !== null && typeof source === 'object', "JSON source must be an object");
+    validate(source !== null && typeof source === 'object', "JSON source must be an object or array");
     
     // Implementation will be done in the extensions
     return this;
   }
   
   /**
-   * Set XJX-formatted JSON source for transformation
-   * @param source XJX-formatted JSON object
+   * Set JSON string source for transformation
+   * @param source JSON string
+   * @param options JSON options
    * @returns This instance for chaining
    */
-  public fromXjxJson(source: Record<string, any>): XJX {
+  public fromJsonString(source: string, options?: JsonOptions): XJX {
     // API boundary validation
-    validate(source !== null && typeof source === 'object', "XJX JSON source must be an object");
-    validate(!Array.isArray(source), "XJX JSON source cannot be an array");
-    validate(Object.keys(source).length > 0, "XJX JSON source cannot be empty");
-    
-    // Implementation will be done in the extensions
-    return this;
-  }
-  
-  /**
-   * Set standard JSON object as source for transformation
-   * @param source Standard JavaScript object or array
-   * @returns This instance for chaining
-   */
-  public fromObjJson(source: Record<string, any> | any[]): XJX {
-    // API boundary validation
-    validate(source !== null && typeof source === 'object', "Object source must be an object or array");
+    validate(typeof source === "string", "JSON string source must be a string");
+    validate(source.trim().length > 0, "JSON string source cannot be empty");
     
     // Implementation will be done in the extensions
     return this;
@@ -160,11 +150,7 @@ export class XJX {
    * @param options Optional serialization options
    * @returns XML string representation
    */
-  public toXmlString(options?: {
-    prettyPrint?: boolean;
-    indent?: number;
-    declaration?: boolean;
-  }): string {
+  public toXmlString(options?: XmlSerializationOptions): string {
     // API boundary validation
     this.validateSource();
     
@@ -173,51 +159,67 @@ export class XJX {
   }
   
   /**
+   * Convert to JSON
+   * @param options Optional JSON options
+   * @returns JSON representation
+   */
+  public toJson(options?: JsonOptions): JsonValue {
+    // API boundary validation
+    this.validateSource();
+    
+    // Implementation will be done in the extensions
+    throw new Error("Method not implemented");
+  }
+  
+  /**
+   * Convert to JSON string
+   * @param options Optional JSON options with indent
+   * @returns JSON string representation
+   */
+  public toJsonString(options?: JsonOptions & { indent?: number }): string {
+    // API boundary validation
+    this.validateSource();
+    
+    // Implementation will be done in the extensions
+    throw new Error("Method not implemented");
+  }
+  
+  // --- Legacy Output Methods (Deprecated) ---
+  
+  /**
+   * @deprecated Use toJson({ highFidelity: true }) instead
    * Convert to XJX formatted JSON
-   * @returns XJX JSON object
    */
   public toXjxJson(): Record<string, any> {
-    // API boundary validation
-    this.validateSource();
-    
-    // Implementation will be done in the extensions
-    throw new Error("Method not implemented");
+    logger.warn('toXjxJson() is deprecated, use toJson({ highFidelity: true }) instead');
+    return this.toJson({ highFidelity: true }) as Record<string, any>;
   }
   
   /**
+   * @deprecated Use toJsonString({ highFidelity: true }) instead
    * Convert to XJX JSON string
-   * @returns Stringified XJX JSON
    */
   public toXjxJsonString(): string {
-    // API boundary validation
-    this.validateSource();
-    
-    // Implementation will be done in the extensions
-    throw new Error("Method not implemented");
+    logger.warn('toXjxJsonString() is deprecated, use toJsonString({ highFidelity: true }) instead');
+    return this.toJsonString({ highFidelity: true });
   }
   
   /**
+   * @deprecated Use toJson() instead
    * Convert to standard JavaScript object
-   * @returns Standard JSON object
    */
   public toStandardJson(): any {
-    // API boundary validation
-    this.validateSource();
-    
-    // Implementation will be done in the extensions
-    throw new Error("Method not implemented");
+    logger.warn('toStandardJson() is deprecated, use toJson() instead');
+    return this.toJson();
   }
   
   /**
+   * @deprecated Use toJsonString() instead
    * Convert to standard JSON string
-   * @returns Stringified standard JSON
    */
   public toStandardJsonString(): string {
-    // API boundary validation
-    this.validateSource();
-    
-    // Implementation will be done in the extensions
-    throw new Error("Method not implemented");
+    logger.warn('toStandardJsonString() is deprecated, use toJsonString() instead');
+    return this.toJsonString();
   }
   
   // --- Utility Methods ---

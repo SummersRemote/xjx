@@ -2,23 +2,25 @@
  * Extension implementation for JSON output methods
  */
 import { XJX } from "../XJX";
-import { createXNodeToXjxJsonConverter } from "../converters/xnode-to-xjx-json-converter";
-import { createXNodeToStandardJsonConverter } from "../converters/xnode-to-std-json-converter";
+import { createXNodeToJsonConverter } from "../converters/xnode-to-json-converter";
 import { transformXNode } from "../converters/xnode-transformer";
 import { FORMAT } from "../core/transform";
 import { logger } from "../core/error";
 import { XNode } from "../core/xnode";
+import { JsonOptions, JsonValue } from "../core/converter";
+import { safeStringify } from "../core/json-utils";
 
 /**
- * Implementation for converting to XJX JSON format
+ * Implementation for converting to JSON
  */
-export function implementToXjxJson(xjx: XJX): Record<string, any> {
+export function implementToJson(xjx: XJX, options?: JsonOptions): JsonValue {
   try {
     // API boundary validation is handled by the XJX class
     
-    logger.debug('Starting toXjxJson conversion', {
+    logger.debug('Starting toJson conversion', {
       sourceFormat: xjx.sourceFormat,
-      hasTransforms: xjx.transforms.length > 0
+      hasTransforms: xjx.transforms.length > 0,
+      highFidelity: options?.highFidelity
     });
     
     // Apply transformations if any are registered
@@ -33,79 +35,11 @@ export function implementToXjxJson(xjx: XJX): Record<string, any> {
       });
     }
     
-    // Convert XNode to XJX JSON
-    const converter = createXNodeToXjxJsonConverter(xjx.config);
-    const result = converter.convert(nodeToConvert);
+    // Convert XNode to JSON
+    const converter = createXNodeToJsonConverter(xjx.config);
+    const result = converter.convert(nodeToConvert, options);
     
-    logger.debug('Successfully converted XNode to XJX JSON', {
-      resultKeys: Object.keys(result).length
-    });
-    
-    return result;
-  } catch (err) {
-    if (err instanceof Error) {
-      throw err;
-    }
-    throw new Error(`Failed to convert to XJX JSON: ${String(err)}`);
-  }
-}
-
-/**
- * Implementation for converting to XJX JSON string
- */
-export function implementToXjxJsonString(xjx: XJX): string {
-  try {
-    // API boundary validation is handled by the XJX class
-    
-    logger.debug('Starting toXjxJsonString conversion');
-    
-    // First get the JSON object using the toXjxJson method
-    const jsonObject = implementToXjxJson(xjx);
-    
-    // Use the indent value from config
-    const indent = xjx.config.converters.xml.options.indent;
-    const result = JSON.stringify(jsonObject, null, indent);
-    
-    logger.debug('Successfully converted to XJX JSON string', {
-      resultLength: result.length,
-      indent
-    });
-    
-    return result;
-  } catch (err) {
-    if (err instanceof Error) {
-      throw err;
-    }
-    throw new Error(`Failed to convert to XJX JSON string: ${String(err)}`);
-  }
-}
-
-/**
- * Implementation for converting to standard JSON
- */
-export function implementToStandardJson(xjx: XJX): any {
-  try {
-    // API boundary validation is handled by the XJX class
-    
-    logger.debug('Starting toStandardJson conversion');
-    
-    // Apply transformations if any are registered
-    let nodeToConvert = xjx.xnode as XNode;
-    
-    if (xjx.transforms && xjx.transforms.length > 0) {
-      nodeToConvert = transformXNode(nodeToConvert, xjx.transforms, FORMAT.JSON, xjx.config);
-      
-      logger.debug('Applied transforms to XNode', {
-        transformCount: xjx.transforms.length,
-        targetFormat: FORMAT.JSON
-      });
-    }
-    
-    // Convert XNode to standard JSON
-    const converter = createXNodeToStandardJsonConverter(xjx.config);
-    const result = converter.convert(nodeToConvert);
-    
-    logger.debug('Successfully converted XNode to standard JSON', {
+    logger.debug('Successfully converted XNode to JSON', {
       resultType: typeof result,
       isArray: Array.isArray(result)
     });
@@ -115,27 +49,31 @@ export function implementToStandardJson(xjx: XJX): any {
     if (err instanceof Error) {
       throw err;
     }
-    throw new Error(`Failed to convert to standard JSON: ${String(err)}`);
+    throw new Error(`Failed to convert to JSON: ${String(err)}`);
   }
 }
 
 /**
- * Implementation for converting to standard JSON string
+ * Implementation for converting to JSON string
  */
-export function implementToStandardJsonString(xjx: XJX): string {
+export function implementToJsonString(xjx: XJX, options?: JsonOptions & { indent?: number }): string {
   try {
     // API boundary validation is handled by the XJX class
     
-    logger.debug('Starting toStandardJsonString conversion');
+    logger.debug('Starting toJsonString conversion');
     
-    // First get the standard JSON object
-    const jsonObject = implementToStandardJson(xjx);
+    // First get the JSON using the toJson method
+    const jsonValue = implementToJson(xjx, options);
     
-    // Use the indent value from config
-    const indent = xjx.config.converters.xml.options.indent;
-    const result = JSON.stringify(jsonObject, null, indent);
+    // Use the indent value from options or config
+    const indent = options?.indent !== undefined ? 
+      options.indent : 
+      xjx.config.formatting.indent;
     
-    logger.debug('Successfully converted to standard JSON string', {
+    // Stringify the JSON
+    const result = safeStringify(jsonValue, indent);
+    
+    logger.debug('Successfully converted to JSON string', {
       resultLength: result.length,
       indent
     });
@@ -145,23 +83,15 @@ export function implementToStandardJsonString(xjx: XJX): string {
     if (err instanceof Error) {
       throw err;
     }
-    throw new Error(`Failed to convert to standard JSON string: ${String(err)}`);
+    throw new Error(`Failed to convert to JSON string: ${String(err)}`);
   }
 }
 
 // Register the implementations with XJX
-XJX.prototype.toXjxJson = function(): Record<string, any> {
-  return implementToXjxJson(this);
+XJX.prototype.toJson = function(options?: JsonOptions): JsonValue {
+  return implementToJson(this, options);
 };
 
-XJX.prototype.toXjxJsonString = function(): string {
-  return implementToXjxJsonString(this);
-};
-
-XJX.prototype.toStandardJson = function(): any {
-  return implementToStandardJson(this);
-};
-
-XJX.prototype.toStandardJsonString = function(): string {
-  return implementToStandardJsonString(this);
+XJX.prototype.toJsonString = function(options?: JsonOptions & { indent?: number }): string {
+  return implementToJsonString(this, options);
 };

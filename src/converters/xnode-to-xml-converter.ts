@@ -14,6 +14,15 @@ interface XNodeToXmlContext {
 }
 
 /**
+ * Options for XML serialization
+ */
+export interface XmlSerializationOptions {
+  prettyPrint?: boolean;
+  indent?: number;
+  declaration?: boolean;
+}
+
+/**
  * Create an XNode to XML Document converter
  * @param config Configuration for the converter
  * @returns Converter implementation
@@ -64,23 +73,29 @@ export function createXNodeToXmlConverter(config: Configuration): Converter<XNod
  */
 export function createXNodeToXmlStringConverter(
   config: Configuration, 
-  options?: { prettyPrint?: boolean; indent?: number; declaration?: boolean; }
-): Converter<XNode, string> {
-  return createConverter(config, (node: XNode, config: Configuration) => {
+  serializationOptions?: XmlSerializationOptions
+): Converter<XNode, string, XmlSerializationOptions> {
+  return createConverter(config, (node: XNode, config: Configuration, options?: XmlSerializationOptions) => {
     try {
+      // Merge options with any pre-configured options
+      const mergedOptions = {
+        ...serializationOptions,
+        ...options
+      };
+      
       // First convert XNode to DOM document
       const docConverter = createXNodeToXmlConverter(config);
       const doc = docConverter.convert(node);
       
       // Get options, allowing overrides from the parameters
-      const prettyPrint = options?.prettyPrint !== undefined ? 
-        options.prettyPrint : config.converters.xml.options.prettyPrint;
+      const prettyPrint = mergedOptions?.prettyPrint !== undefined ? 
+        mergedOptions.prettyPrint : config.formatting.pretty;
       
-      const indent = options?.indent !== undefined ? 
-        options.indent : config.converters.xml.options.indent;
+      const indent = mergedOptions?.indent !== undefined ? 
+        mergedOptions.indent : config.formatting.indent;
       
-      const declaration = options?.declaration !== undefined ? 
-        options.declaration : config.converters.xml.options.declaration;
+      const declaration = mergedOptions?.declaration !== undefined ? 
+        mergedOptions.declaration : config.formatting.declaration;
       
       // Serialize to string
       let xmlString = xml.serializeXml(doc);

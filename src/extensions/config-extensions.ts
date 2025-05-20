@@ -50,7 +50,7 @@ export function implementWithConfig(xjx: XJX, config: Partial<Configuration>): v
     
     logger.debug('Successfully applied configuration', {
       preserveNamespaces: xjx.config.preserveNamespaces,
-      prettyPrint: xjx.config.converters.xml.options.prettyPrint
+      prettyPrint: xjx.config.formatting.pretty
     });
   } catch (err) {
     if (err instanceof Error) {

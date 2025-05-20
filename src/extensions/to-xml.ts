@@ -2,7 +2,7 @@
  * Extension implementation for XML output methods
  */
 import { XJX } from "../XJX";
-import { createXNodeToXmlConverter, createXNodeToXmlStringConverter } from "../converters/xnode-to-xml-converter";
+import { createXNodeToXmlConverter, createXNodeToXmlStringConverter, XmlSerializationOptions } from "../converters/xnode-to-xml-converter";
 import { transformXNode } from "../converters/xnode-transformer";
 import { FORMAT } from "../core/transform";
 import { logger } from "../core/error";
@@ -54,11 +54,7 @@ export function implementToXml(xjx: XJX): Document {
  */
 export function implementToXmlString(
   xjx: XJX, 
-  options?: {
-    prettyPrint?: boolean;
-    indent?: number;
-    declaration?: boolean;
-  }
+  options?: XmlSerializationOptions
 ): string {
   try {
     // API boundary validation is handled by the XJX class
@@ -78,8 +74,8 @@ export function implementToXmlString(
     }
     
     // Convert XNode to XML string
-    const converter = createXNodeToXmlStringConverter(xjx.config, options);
-    const xmlString = converter.convert(nodeToConvert);
+    const converter = createXNodeToXmlStringConverter(xjx.config);
+    const xmlString = converter.convert(nodeToConvert, options);
     
     logger.debug('Successfully converted to XML string', {
       xmlLength: xmlString.length
@@ -99,10 +95,6 @@ XJX.prototype.toXml = function(): Document {
   return implementToXml(this);
 };
 
-XJX.prototype.toXmlString = function(options?: {
-  prettyPrint?: boolean;
-  indent?: number;
-  declaration?: boolean;
-}): string {
+XJX.prototype.toXmlString = function(options?: XmlSerializationOptions): string {
   return implementToXmlString(this, options);
 };

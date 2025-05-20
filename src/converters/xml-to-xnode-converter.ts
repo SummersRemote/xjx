@@ -4,7 +4,7 @@
 import { Configuration } from '../core/config';
 import { NodeType } from '../core/dom';
 import { logger, ProcessingError } from '../core/error';
-import * as xml from '../core/xml-utils';
+import * as xmlUtils from '../core/xml-utils';
 import { XNode, createElement, createTextNode, createCDATANode, createCommentNode, createProcessingInstructionNode, addChild } from '../core/xnode';
 import { validateInput, Converter, createConverter } from '../core/converter';
 
@@ -27,7 +27,7 @@ export function createXmlToXNodeConverter(config: Configuration): Converter<stri
     
     try {
       // Parse XML string to DOM
-      const doc = xml.parseXml(xml);
+      const doc = xmlUtils.parseXml(xml);
       
       logger.debug('Successfully parsed XML to DOM', {
         rootElement: doc.documentElement?.nodeName
@@ -111,7 +111,7 @@ function convertElementToXNode(
       !hasMixed
     ) {
       const text = element.childNodes[0].nodeValue || "";
-      const normalizedText = xml.normalizeWhitespace(text, config.preserveWhitespace);
+      const normalizedText = xmlUtils.normalizeWhitespace(text, config.preserveWhitespace);
 
       if (normalizedText && config.preserveTextNodes) {
         xnode.value = normalizedText;
@@ -301,7 +301,7 @@ function processTextNode(
   const text = node.nodeValue || "";
 
   if (config.preserveWhitespace || hasMixed || hasTextContent(text)) {
-    const normalizedText = xml.normalizeWhitespace(text, config.preserveWhitespace);
+    const normalizedText = xmlUtils.normalizeWhitespace(text, config.preserveWhitespace);
 
     if (normalizedText && config.preserveTextNodes) {
       const textNode = createTextNode(normalizedText);

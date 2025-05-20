@@ -52,11 +52,35 @@ export default [
         rootDir: "src",
       }),
     ],
-    // Preserve side effects for extension registration
+    // Preserve side effects for extension registration and class exports
     treeshake: {
-      moduleSideEffects: "no-external",
+      moduleSideEffects: true,
       preset: "recommended"
     },
+  },
+  
+  // Additional export point for transforms folder
+  {
+    input: "src/transforms/index.ts",
+    output: {
+      dir: "dist/esm",
+      format: "es", 
+      sourcemap: !isProd,
+      preserveModules: true,
+      preserveModulesRoot: "src",
+      exports: "named"
+    },
+    external,
+    plugins: [
+      ...commonPlugins,
+      typescript({
+        tsconfig: "./tsconfig.json",
+        declaration: false,
+        outDir: "dist/esm",
+        rootDir: "src",
+      }),
+    ],
+    treeshake: false, // Don't treeshake transforms to ensure all classes are included
   },
   
   // CommonJS build
@@ -82,7 +106,7 @@ export default [
     ],
     // Preserve side effects for extension registration
     treeshake: {
-      moduleSideEffects: "no-external",
+      moduleSideEffects: true,
       preset: "recommended"
     },
   },

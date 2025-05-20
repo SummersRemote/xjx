@@ -9,12 +9,33 @@ export {
   TransformContext,
   TransformResult,
   TransformTarget,
-  FORMAT as Format,
+  FORMAT,
   createTransformResult,
 } from "../core/transform";
 
-// Export transform functions
-export { createBooleanTransform, BooleanTransformOptions } from "./boolean-transform";
-export { createNumberTransform, NumberTransformOptions } from "./number-transform";
-export { createRegexTransform, RegexOptions } from "./regex-transform";
-export { createMetadataTransform, MetadataTransformOptions } from "./metadata-transform";
+// Export transform classes and factory functions
+export { 
+  BooleanTransform,
+  createBooleanTransform,
+  BooleanTransformOptions 
+} from "./boolean-transform";
+
+export { 
+  NumberTransform,
+  createNumberTransform,
+  NumberTransformOptions 
+} from "./number-transform";
+
+export { 
+  RegexTransform,
+  createRegexTransform,
+  RegexOptions 
+} from "./regex-transform";
+
+export { 
+  MetadataTransform,
+  createMetadataTransform,
+  MetadataTransformOptions,
+  NodeSelector,
+  FormatMetadata
+} from "./metadata-transform";

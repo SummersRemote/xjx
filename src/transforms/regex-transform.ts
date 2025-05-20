@@ -34,66 +34,88 @@ export interface RegexOptions {
 }
 
 /**
- * Create a regex transform
- * @param options Regex transform options
- * @returns Transform implementation
+ * RegexTransform class for performing regex replacements on values
+ * 
+ * Example usage:
+ * ```
+ * XJX.fromXml(xml)
+ *    .withTransforms(new RegexTransform({
+ *      pattern: /(\d{4})-(\d{2})-(\d{2})/,
+ *      replacement: '$2/$3/$1'
+ *    }))
+ *    .toJson();
+ * ```
  */
-export function createRegexTransform(options: RegexOptions) {
-  // Validate required options
-  validate(!!options.pattern, "RegexTransform requires a pattern option");
-  validate(options.replacement !== undefined, "RegexTransform requires a replacement option");
+export class RegexTransform {
+  private regex: RegExp;
+  private replacement: string;
+  private format?: FORMAT;
   
-  // Process the pattern to create a RegExp
-  const regex = processPattern(options.pattern);
-  const replacement = options.replacement;
-  const format = options.format;
+  /**
+   * Array of transform targets - this transform targets text values, CDATA, and comments
+   */
+  public readonly targets = [
+    TransformTarget.Value,
+    TransformTarget.Text,
+    TransformTarget.CDATA,
+    TransformTarget.Comment,
+  ];
   
-  logger.debug('Created RegexTransform', {
-    pattern: regex.source,
-    replacement: replacement,
-    format: format
-  });
-  
-  // Create the transform
-  return {
-    // Target text values, CDATA, and comments
-    targets: [
-      TransformTarget.Value,
-      TransformTarget.Text,
-      TransformTarget.CDATA,
-      TransformTarget.Comment,
-    ],
+  /**
+   * Create a new RegexTransform
+   * @param options Options for customizing the transform behavior
+   */
+  constructor(options: RegexOptions) {
+    // Validate required options
+    validate(!!options.pattern, "RegexTransform requires a pattern option");
+    validate(options.replacement !== undefined, "RegexTransform requires a replacement option");
     
-    // Transform implementation
-    transform(value: any, context: TransformContext): TransformResult<any> {
-      try {
-        // If format-specific and doesn't match current format, skip
-        if (format !== undefined && format !== context.targetFormat) {
-          return createTransformResult(value);
-        }
+    // Process the pattern to create a RegExp
+    this.regex = processPattern(options.pattern);
+    this.replacement = options.replacement;
+    this.format = options.format;
+    
+    logger.debug('Created RegexTransform', {
+      pattern: this.regex.source,
+      replacement: this.replacement,
+      format: this.format
+    });
+  }
   
-        // Skip non-string values
-        if (typeof value !== "string") {
-          return createTransformResult(value);
-        }
-  
-        // Perform the replacement
-        const result = value.replace(regex, replacement);
-  
-        // Only return the new value if something changed
-        return createTransformResult(result !== value ? result : value);
-      } catch (err) {
-        logger.error(`Regex transform error: ${err instanceof Error ? err.message : String(err)}`, {
-          value,
-          valueType: typeof value,
-          path: context.path
-        });
-        
-        // Return original value on error
+  /**
+   * Transform implementation
+   * @param value Value to transform
+   * @param context Transform context
+   * @returns Transform result
+   */
+  transform(value: any, context: TransformContext): TransformResult<any> {
+    try {
+      // If format-specific and doesn't match current format, skip
+      if (this.format !== undefined && this.format !== context.targetFormat) {
         return createTransformResult(value);
       }
+
+      // Skip non-string values
+      if (typeof value !== "string") {
+        return createTransformResult(value);
+      }
+
+      // Perform the replacement
+      const result = value.replace(this.regex, this.replacement);
+
+      // Only return the new value if something changed
+      return createTransformResult(result !== value ? result : value);
+    } catch (err) {
+      logger.error(`Regex transform error: ${err instanceof Error ? err.message : String(err)}`, {
+        value,
+        valueType: typeof value,
+        path: context.path
+      });
+      
+      // Return original value on error
+      return createTransformResult(value);
     }
-  };
+  }
 }
 
 /**
@@ -154,4 +176,13 @@ function parseRegExpString(
 
   // If no closing / found
   return null;
+}
+
+/**
+ * Create a RegexTransform instance
+ * @param options Options for customizing the transform behavior
+ * @returns A new RegexTransform instance
+ */
+export function createRegexTransform(options: RegexOptions): RegexTransform {
+  return new RegexTransform(options);
 }

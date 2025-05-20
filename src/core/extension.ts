@@ -4,7 +4,7 @@
 import { Configuration } from './config';
 import { Transform, FORMAT } from './transform';
 import { XNode } from './xnode';
-import { logger, validate, handleError, ErrorType } from './error';
+import { logger, validate, handleError } from './error';
 
 /**
  * Base context interface for extension functions
@@ -70,8 +70,7 @@ export class Extension {
       logger.debug('Terminal extension registered', { name });
     } catch (err) {
       handleError(err, "register terminal extension", {
-        data: { name },
-        errorType: ErrorType.CONFIGURATION
+        data: { name }
       });
     }
   }
@@ -95,8 +94,7 @@ export class Extension {
       logger.debug('Non-terminal extension registered', { name });
     } catch (err) {
       handleError(err, "register non-terminal extension", {
-        data: { name },
-        errorType: ErrorType.CONFIGURATION
+        data: { name }
       });
     }
   }

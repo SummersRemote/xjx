@@ -4,7 +4,7 @@
 import { XJX } from "../XJX";
 import { createXNodeToXjxJsonConverter } from "../converters/xnode-to-xjx-json-converter";
 import { createXNodeToStandardJsonConverter } from "../converters/xnode-to-std-json-converter";
-import { createXNodeTransformer } from "../converters/xnode-transformer";
+import { transformXNode } from "../converters/xnode-transformer";
 import { FORMAT } from "../core/transform";
 import { logger } from "../core/error";
 import { XNode } from "../core/xnode";
@@ -25,8 +25,7 @@ export function implementToXjxJson(xjx: XJX): Record<string, any> {
     let nodeToConvert = xjx.xnode as XNode;
     
     if (xjx.transforms && xjx.transforms.length > 0) {
-      const transformer = createXNodeTransformer(xjx.config);
-      nodeToConvert = transformer.transform(nodeToConvert, xjx.transforms, FORMAT.JSON);
+      nodeToConvert = transformXNode(nodeToConvert, xjx.transforms, FORMAT.JSON, xjx.config);
       
       logger.debug('Applied transforms to XNode', {
         transformCount: xjx.transforms.length,
@@ -94,8 +93,7 @@ export function implementToStandardJson(xjx: XJX): any {
     let nodeToConvert = xjx.xnode as XNode;
     
     if (xjx.transforms && xjx.transforms.length > 0) {
-      const transformer = createXNodeTransformer(xjx.config);
-      nodeToConvert = transformer.transform(nodeToConvert, xjx.transforms, FORMAT.JSON);
+      nodeToConvert = transformXNode(nodeToConvert, xjx.transforms, FORMAT.JSON, xjx.config);
       
       logger.debug('Applied transforms to XNode', {
         transformCount: xjx.transforms.length,

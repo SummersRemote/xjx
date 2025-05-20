@@ -22,7 +22,7 @@ export {
 
 export {
   // Transform system
-  FORMAT as Format,
+  FORMAT,
   Transform,
   TransformTarget,
   TransformContext,

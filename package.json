@@ -12,6 +12,11 @@
       "require": "./dist/cjs/index.js",
       "types": "./dist/types/index.d.ts"
     },
+    "./transforms": {
+      "import": "./dist/esm/transforms/index.js",
+      "require": "./dist/cjs/transforms/index.js",
+      "types": "./dist/types/transforms/index.d.ts"
+    },
     "./full": {
       "import": "./dist/esm/xjx.full.js",
       "require": "./dist/cjs/xjx.full.js",
@@ -21,7 +26,8 @@
   "files": [
     "dist",
     "package.json",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "clean": "rimraf dist",
@@ -37,16 +43,17 @@
     "xml",
     "json",
     "convert",
-    "transform"
+    "transform",
+    "xml-parser",
+    "json-parser"
   ],
   "license": "MIT",
   "sideEffects": [
     "**/index.js",
-    "**/extensions/*.js",
-    "dist/esm/extensions/*.js",
-    "dist/cjs/extensions/*.js",
-    "dist/esm/XJX.js",
-    "dist/cjs/XJX.js"
+    "dist/esm/index.js",
+    "dist/cjs/index.js",
+    "dist/esm/transforms/index.js",
+    "dist/cjs/transforms/index.js"
   ],
   "devDependencies": {
     "@babel/core": "^7.27.1",

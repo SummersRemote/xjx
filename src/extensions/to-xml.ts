@@ -3,9 +3,9 @@
  */
 import { XJX } from "../XJX";
 import { createXNodeToXmlConverter, createXNodeToXmlStringConverter } from "../converters/xnode-to-xml-converter";
-import { createXNodeTransformer } from "../converters/xnode-transformer";
+import { transformXNode } from "../converters/xnode-transformer";
 import { FORMAT } from "../core/transform";
-import { logger, validate } from "../core/error";
+import { logger } from "../core/error";
 import { XNode } from "../core/xnode";
 
 /**
@@ -24,8 +24,7 @@ export function implementToXml(xjx: XJX): Document {
     let nodeToConvert = xjx.xnode as XNode;
     
     if (xjx.transforms && xjx.transforms.length > 0) {
-      const transformer = createXNodeTransformer(xjx.config);
-      nodeToConvert = transformer.transform(nodeToConvert, xjx.transforms, FORMAT.XML);
+      nodeToConvert = transformXNode(nodeToConvert, xjx.transforms, FORMAT.XML, xjx.config);
       
       logger.debug('Applied transforms to XNode', {
         transformCount: xjx.transforms.length,
@@ -70,8 +69,7 @@ export function implementToXmlString(
     let nodeToConvert = xjx.xnode as XNode;
     
     if (xjx.transforms && xjx.transforms.length > 0) {
-      const transformer = createXNodeTransformer(xjx.config);
-      nodeToConvert = transformer.transform(nodeToConvert, xjx.transforms, FORMAT.XML);
+      nodeToConvert = transformXNode(nodeToConvert, xjx.transforms, FORMAT.XML, xjx.config);
       
       logger.debug('Applied transforms to XNode', {
         transformCount: xjx.transforms.length,
@@ -94,52 +92,6 @@ export function implementToXmlString(
     }
     throw new Error(`Failed to convert to XML string: ${String(err)}`);
   }
-}
-
-/**
- * Implementation for XNode transformer creation
- */
-export function createXNodeTransformer(config: any): {
-  transform: (node: XNode, transforms: any[], format: FORMAT) => XNode;
-} {
-  return {
-    transform(node: XNode, transforms: any[], format: FORMAT): XNode {
-      // Validate inputs
-      validate(node !== null && typeof node === 'object', "Node must be an XNode instance");
-      validate(Array.isArray(transforms), "Transforms must be an array");
-      validate(typeof format === "string", "Format must be a string");
-      
-      // Process node based on format
-      if (format === FORMAT.XML) {
-        // Process for XML output
-        return processXNodeForXml(node, transforms);
-      } else if (format === FORMAT.JSON) {
-        // Process for JSON output
-        return processXNodeForJson(node, transforms);
-      }
-      
-      // If format is not recognized, return node unchanged
-      return node;
-    }
-  };
-}
-
-/**
- * Process XNode for XML output
- */
-function processXNodeForXml(node: XNode, transforms: any[]): XNode {
-  // For a complete implementation, this would apply transforms to the XNode
-  // This is a simplified placeholder
-  return node;
-}
-
-/**
- * Process XNode for JSON output
- */
-function processXNodeForJson(node: XNode, transforms: any[]): XNode {
-  // For a complete implementation, this would apply transforms to the XNode
-  // This is a simplified placeholder
-  return node;
 }
 
 // Register the implementations with XJX

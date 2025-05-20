@@ -32,9 +32,19 @@
         <v-icon class="me-2">mdi-code-tags</v-icon>
         API
       </v-btn>
-      
+
       <v-btn
+        color="white"
+        variant="text"
         href="https://github.com/yourusername/xjx-demo"
+        target="_blank"
+      >
+        <v-icon class="me-2">mdi-file-document-multiple-outline</v-icon>
+        Docs
+      </v-btn>
+
+      <v-btn
+        href="https://github.com/summersremote/xjx"
         target="_blank"
         icon
       >

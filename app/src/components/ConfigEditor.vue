@@ -111,15 +111,15 @@
             </v-expansion-panel-text>
           </v-expansion-panel>
           
-          <!-- XML Output Options -->
+          <!-- Transformation Strategies -->
           <v-expansion-panel>
-            <v-expansion-panel-title>XML Options</v-expansion-panel-title>
+            <v-expansion-panel-title>Transformation Strategies</v-expansion-panel-title>
             <v-expansion-panel-text>
               <v-row dense>
-                <v-col cols="12" sm="6">
+                <v-col cols="12">
                   <v-switch
-                    v-model="localConfig.converters.xml.options.prettyPrint"
-                    label="Pretty Print"
+                    v-model="localConfig.highFidelity"
+                    label="High-Fidelity Mode (Preserve all XML information for perfect round-trip)"
                     color="primary"
                     hide-details
                     density="compact"
@@ -127,158 +127,12 @@
                   ></v-switch>
                 </v-col>
                 
-                <v-col cols="12" sm="6">
-                  <v-switch
-                    v-model="localConfig.converters.xml.options.declaration"
-                    label="Include XML Declaration"
-                    color="primary"
-                    hide-details
-                    density="compact"
-                    @update:model-value="updateConfig"
-                  ></v-switch>
-                </v-col>
-                
-                <v-col cols="12" sm="6">
-                  <v-text-field
-                    v-model.number="localConfig.converters.xml.options.indent"
-                    label="Indent Size"
-                    type="number"
-                    min="0"
-                    max="8"
-                    hide-details
-                    density="compact"
-                    @update:model-value="updateConfig"
-                  ></v-text-field>
-                </v-col>
-              </v-row>
-            </v-expansion-panel-text>
-          </v-expansion-panel>
-          
-          <!-- XJX JSON Options -->
-          <v-expansion-panel>
-            <v-expansion-panel-title>XJX JSON Options</v-expansion-panel-title>
-            <v-expansion-panel-text>
-              <v-row dense>
-                <v-col cols="12" sm="6">
-                  <v-switch
-                    v-model="localConfig.converters.xjxJson.options.compact"
-                    label="Compact Output"
-                    color="primary"
-                    hide-details
-                    density="compact"
-                    @update:model-value="updateConfig"
-                  ></v-switch>
-                </v-col>
-              </v-row>
-              
-              <v-divider class="my-3"></v-divider>
-              <div class="text-subtitle-2 mb-2">Property Names</div>
-              
-              <v-row dense>
-                <v-col cols="12" sm="6">
-                  <v-text-field
-                    v-model="localConfig.converters.xjxJson.naming.namespace"
-                    label="Namespace"
-                    hide-details
-                    density="compact"
-                    @update:model-value="updateConfig"
-                  ></v-text-field>
-                </v-col>
-                
-                <v-col cols="12" sm="6">
-                  <v-text-field
-                    v-model="localConfig.converters.xjxJson.naming.prefix"
-                    label="Prefix"
-                    hide-details
-                    density="compact"
-                    @update:model-value="updateConfig"
-                  ></v-text-field>
-                </v-col>
-                
-                <v-col cols="12" sm="6">
-                  <v-text-field
-                    v-model="localConfig.converters.xjxJson.naming.attribute"
-                    label="Attributes"
-                    hide-details
-                    density="compact"
-                    @update:model-value="updateConfig"
-                  ></v-text-field>
-                </v-col>
-                
-                <v-col cols="12" sm="6">
-                  <v-text-field
-                    v-model="localConfig.converters.xjxJson.naming.value"
-                    label="Value"
-                    hide-details
-                    density="compact"
-                    @update:model-value="updateConfig"
-                  ></v-text-field>
-                </v-col>
-                
-                <v-col cols="12" sm="6">
-                  <v-text-field
-                    v-model="localConfig.converters.xjxJson.naming.cdata"
-                    label="CDATA"
-                    hide-details
-                    density="compact"
-                    @update:model-value="updateConfig"
-                  ></v-text-field>
-                </v-col>
-                
-                <v-col cols="12" sm="6">
-                  <v-text-field
-                    v-model="localConfig.converters.xjxJson.naming.comment"
-                    label="Comments"
-                    hide-details
-                    density="compact"
-                    @update:model-value="updateConfig"
-                  ></v-text-field>
-                </v-col>
-                
-                <v-col cols="12" sm="6">
-                  <v-text-field
-                    v-model="localConfig.converters.xjxJson.naming.processingInstr"
-                    label="Processing Instruction"
-                    hide-details
-                    density="compact"
-                    @update:model-value="updateConfig"
-                  ></v-text-field>
-                </v-col>
-                
-                <v-col cols="12" sm="6">
-                  <v-text-field
-                    v-model="localConfig.converters.xjxJson.naming.target"
-                    label="Target"
-                    hide-details
-                    density="compact"
-                    @update:model-value="updateConfig"
-                  ></v-text-field>
-                </v-col>
-                
-                <v-col cols="12" sm="6">
-                  <v-text-field
-                    v-model="localConfig.converters.xjxJson.naming.children"
-                    label="Children"
-                    hide-details
-                    density="compact"
-                    @update:model-value="updateConfig"
-                  ></v-text-field>
-                </v-col>
-              </v-row>
-            </v-expansion-panel-text>
-          </v-expansion-panel>
-          
-          <!-- Standard JSON Options -->
-          <v-expansion-panel>
-            <v-expansion-panel-title>Standard JSON Options</v-expansion-panel-title>
-            <v-expansion-panel-text>
-              <v-row dense>
                 <v-col cols="12" sm="6">
                   <v-select
-                    v-model="localConfig.converters.stdJson.options.attributeHandling"
-                    :items="attributeHandlingOptions"
-                    label="Attribute Handling"
-                    hint="How to handle XML attributes in standard JSON"
+                    v-model="localConfig.attributeStrategy"
+                    :items="attributeStrategyOptions"
+                    label="Attribute Strategy"
+                    hint="How to represent XML attributes in JSON"
                     persistent-hint
                     density="compact"
                     @update:model-value="updateConfig"
@@ -286,10 +140,78 @@
                 </v-col>
                 
                 <v-col cols="12" sm="6">
+                  <v-select
+                    v-model="localConfig.textStrategy"
+                    :items="textStrategyOptions"
+                    label="Text Strategy"
+                    hint="How to represent text content in JSON"
+                    persistent-hint
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-select>
+                </v-col>
+                
+                <v-col cols="12" sm="6">
+                  <v-select
+                    v-model="localConfig.namespaceStrategy"
+                    :items="namespaceStrategyOptions"
+                    label="Namespace Strategy"
+                    hint="How to represent namespaces in JSON"
+                    persistent-hint
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-select>
+                </v-col>
+                
+                <v-col cols="12" sm="6">
+                  <v-select
+                    v-model="localConfig.arrayStrategy"
+                    :items="arrayStrategyOptions"
+                    label="Array Strategy"
+                    hint="How to handle multiple elements with the same name"
+                    persistent-hint
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-select>
+                </v-col>
+                
+                <v-col cols="12" sm="6">
+                  <v-select
+                    v-model="localConfig.emptyElementStrategy"
+                    :items="emptyElementStrategyOptions"
+                    label="Empty Element Strategy"
+                    hint="How to represent empty elements in JSON"
+                    persistent-hint
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-select>
+                </v-col>
+                
+                <v-col cols="12" sm="6">
+                  <v-select
+                    v-model="localConfig.mixedContentStrategy"
+                    :items="mixedContentStrategyOptions"
+                    label="Mixed Content Strategy"
+                    hint="How to handle elements with both text and child elements"
+                    persistent-hint
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-select>
+                </v-col>
+              </v-row>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+          
+          <!-- Property Names -->
+          <v-expansion-panel>
+            <v-expansion-panel-title>Property Names</v-expansion-panel-title>
+            <v-expansion-panel-text>
+              <v-row dense>
+                <v-col cols="12" sm="6">
                   <v-text-field
-                    v-model="localConfig.converters.stdJson.options.attributePrefix"
-                    label="Attribute Prefix"
-                    hint="Prefix to use for attributes if handling is 'prefix'"
+                    v-model="localConfig.properties.attribute"
+                    label="Attribute Property"
+                    hint="Property name for attributes"
                     persistent-hint
                     density="compact"
                     @update:model-value="updateConfig"
@@ -298,9 +220,9 @@
                 
                 <v-col cols="12" sm="6">
                   <v-text-field
-                    v-model="localConfig.converters.stdJson.options.attributePropertyName"
-                    label="Attribute Property Name"
-                    hint="Property name to use for attributes if handling is 'property'"
+                    v-model="localConfig.properties.value"
+                    label="Value Property"
+                    hint="Property name for values"
                     persistent-hint
                     density="compact"
                     @update:model-value="updateConfig"
@@ -309,9 +231,86 @@
                 
                 <v-col cols="12" sm="6">
                   <v-text-field
-                    v-model="localConfig.converters.stdJson.options.textPropertyName"
-                    label="Text Property Name"
-                    hint="Property to use for element text content when there are attributes or children"
+                    v-model="localConfig.properties.text"
+                    label="Text Property"
+                    hint="Property name for text content"
+                    persistent-hint
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-text-field>
+                </v-col>
+                
+                <v-col cols="12" sm="6">
+                  <v-text-field
+                    v-model="localConfig.properties.namespace"
+                    label="Namespace Property"
+                    hint="Property name for namespaces"
+                    persistent-hint
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-text-field>
+                </v-col>
+                
+                <v-col cols="12" sm="6">
+                  <v-text-field
+                    v-model="localConfig.properties.prefix"
+                    label="Prefix Property"
+                    hint="Property name for namespace prefixes"
+                    persistent-hint
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-text-field>
+                </v-col>
+                
+                <v-col cols="12" sm="6">
+                  <v-text-field
+                    v-model="localConfig.properties.cdata"
+                    label="CDATA Property"
+                    hint="Property name for CDATA sections"
+                    persistent-hint
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-text-field>
+                </v-col>
+                
+                <v-col cols="12" sm="6">
+                  <v-text-field
+                    v-model="localConfig.properties.comment"
+                    label="Comment Property"
+                    hint="Property name for comments"
+                    persistent-hint
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-text-field>
+                </v-col>
+                
+                <v-col cols="12" sm="6">
+                  <v-text-field
+                    v-model="localConfig.properties.processingInstr"
+                    label="Processing Instruction Property"
+                    hint="Property name for processing instructions"
+                    persistent-hint
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-text-field>
+                </v-col>
+                
+                <v-col cols="12" sm="6">
+                  <v-text-field
+                    v-model="localConfig.properties.target"
+                    label="Target Property"
+                    hint="Property name for processing instruction targets"
+                    persistent-hint
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-text-field>
+                </v-col>
+                
+                <v-col cols="12" sm="6">
+                  <v-text-field
+                    v-model="localConfig.properties.children"
+                    label="Children Property"
+                    hint="Property name for child elements"
                     persistent-hint
                     density="compact"
                     @update:model-value="updateConfig"
@@ -320,50 +319,194 @@
                 
                 <v-col cols="12" sm="6">
                   <v-switch
-                    v-model="localConfig.converters.stdJson.options.alwaysCreateArrays"
-                    label="Always Create Arrays"
-                    hint="Always group elements with the same name into arrays"
+                    v-model="localConfig.properties.compact"
+                    label="Compact Output"
+                    hint="Remove empty objects/arrays in output"
                     persistent-hint
-                    hide-details="auto"
-                    density="compact"
-                    @update:model-value="updateConfig"
-                  ></v-switch>
-                </v-col>
-                
-                <v-col cols="12" sm="6">
-                  <v-switch
-                    v-model="localConfig.converters.stdJson.options.preserveMixedContent"
-                    label="Preserve Mixed Content"
-                    hint="Preserve text nodes in elements with both text and child elements"
-                    persistent-hint
-                    hide-details="auto"
-                    density="compact"
-                    @update:model-value="updateConfig"
-                  ></v-switch>
-                </v-col>
-                
-                <v-col cols="12" sm="6">
-                  <v-switch
-                    v-model="localConfig.converters.stdJson.options.emptyElementsAsNull"
-                    label="Empty Elements As Null"
-                    hint="Convert empty elements to null instead of empty objects"
-                    persistent-hint
-                    hide-details="auto"
                     density="compact"
                     @update:model-value="updateConfig"
                   ></v-switch>
                 </v-col>
               </v-row>
-              
-              <v-divider class="my-3"></v-divider>
-              <div class="text-subtitle-2 mb-2">Naming Options</div>
-              
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+          
+          <!-- Prefix Configurations -->
+          <v-expansion-panel>
+            <v-expansion-panel-title>Prefix Configurations</v-expansion-panel-title>
+            <v-expansion-panel-text>
               <v-row dense>
                 <v-col cols="12" sm="6">
                   <v-text-field
-                    v-model="localConfig.converters.stdJson.naming.arrayItem"
-                    label="Array Item Name"
-                    hint="Default name for array items when converting from standard JSON to XML"
+                    v-model="localConfig.prefixes.attribute"
+                    label="Attribute Prefix"
+                    hint="Prefix for attributes when using prefix strategy"
+                    persistent-hint
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-text-field>
+                </v-col>
+                
+                <v-col cols="12" sm="6">
+                  <v-text-field
+                    v-model="localConfig.prefixes.namespace"
+                    label="Namespace Prefix"
+                    hint="Prefix for namespaces"
+                    persistent-hint
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-text-field>
+                </v-col>
+                
+                <v-col cols="12" sm="6">
+                  <v-text-field
+                    v-model="localConfig.prefixes.comment"
+                    label="Comment Prefix"
+                    hint="Prefix for comments"
+                    persistent-hint
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-text-field>
+                </v-col>
+                
+                <v-col cols="12" sm="6">
+                  <v-text-field
+                    v-model="localConfig.prefixes.cdata"
+                    label="CDATA Prefix"
+                    hint="Prefix for CDATA sections"
+                    persistent-hint
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-text-field>
+                </v-col>
+                
+                <v-col cols="12" sm="6">
+                  <v-text-field
+                    v-model="localConfig.prefixes.pi"
+                    label="Processing Instruction Prefix"
+                    hint="Prefix for processing instructions"
+                    persistent-hint
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-text-field>
+                </v-col>
+              </v-row>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+          
+          <!-- Array Configurations -->
+          <v-expansion-panel>
+            <v-expansion-panel-title>Array Configurations</v-expansion-panel-title>
+            <v-expansion-panel-text>
+              <v-row dense>
+                <v-col cols="12">
+                  <v-combobox
+                    v-model="localConfig.arrays.forceArrays"
+                    label="Force Arrays"
+                    hint="Element names that should always be treated as arrays"
+                    persistent-hint
+                    multiple
+                    chips
+                    closable-chips
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-combobox>
+                </v-col>
+                
+                <v-col cols="12" sm="6">
+                  <v-text-field
+                    v-model="localConfig.arrays.defaultItemName"
+                    label="Default Item Name"
+                    hint="Default name for items when converting JSON arrays to XML"
+                    persistent-hint
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-text-field>
+                </v-col>
+                
+                <v-divider class="my-3"></v-divider>
+                
+                <v-col cols="12">
+                  <div class="text-subtitle-2 mb-2">Custom Item Names</div>
+                  <p class="text-caption mb-2">Define custom item names for specific parent elements</p>
+                  
+                  <v-row v-for="(itemName, parentName) in localItemNames" :key="parentName" dense>
+                    <v-col cols="12" sm="5">
+                      <v-text-field
+                        v-model="localItemNames[parentName].parent"
+                        label="Parent Element"
+                        density="compact"
+                        @update:model-value="updateItemNames"
+                      ></v-text-field>
+                    </v-col>
+                    
+                    <v-col cols="12" sm="5">
+                      <v-text-field
+                        v-model="localItemNames[parentName].item"
+                        label="Item Name"
+                        density="compact"
+                        @update:model-value="updateItemNames"
+                      ></v-text-field>
+                    </v-col>
+                    
+                    <v-col cols="12" sm="2">
+                      <v-btn
+                        icon="mdi-delete"
+                        color="error"
+                        variant="text"
+                        density="compact"
+                        @click="removeItemName(parentName)"
+                      ></v-btn>
+                    </v-col>
+                  </v-row>
+                  
+                  <v-btn
+                    prepend-icon="mdi-plus"
+                    class="mt-2"
+                    @click="addItemName"
+                  >
+                    Add Item Name
+                  </v-btn>
+                </v-col>
+              </v-row>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+          
+          <!-- Output Formatting -->
+          <v-expansion-panel>
+            <v-expansion-panel-title>Output Formatting</v-expansion-panel-title>
+            <v-expansion-panel-text>
+              <v-row dense>
+                <v-col cols="12" sm="6">
+                  <v-switch
+                    v-model="localConfig.formatting.pretty"
+                    label="Pretty Print"
+                    hint="Format output with indentation"
+                    persistent-hint
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-switch>
+                </v-col>
+                
+                <v-col cols="12" sm="6">
+                  <v-switch
+                    v-model="localConfig.formatting.declaration"
+                    label="Include XML Declaration"
+                    hint="Add XML declaration to the beginning of XML output"
+                    persistent-hint
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-switch>
+                </v-col>
+                
+                <v-col cols="12" sm="6">
+                  <v-text-field
+                    v-model.number="localConfig.formatting.indent"
+                    label="Indent Size"
+                    type="number"
+                    min="0"
+                    max="8"
+                    hint="Number of spaces for each indentation level"
                     persistent-hint
                     density="compact"
                     @update:model-value="updateConfig"
@@ -415,58 +558,141 @@ const copySuccess = ref(false);
 const configStore = useConfigStore();
 const { config } = storeToRefs(configStore);
 
-// Attribute handling options
-const attributeHandlingOptions = [
-  { title: 'Ignore', value: 'ignore' },
+// Options for selects
+const attributeStrategyOptions = [
   { title: 'Merge', value: 'merge' },
   { title: 'Prefix', value: 'prefix' },
   { title: 'Property', value: 'property' }
 ];
 
-// Create a deep copy of the config for local editing
-const localConfig = reactive(JSON.parse(JSON.stringify(config.value)));
+const textStrategyOptions = [
+  { title: 'Direct', value: 'direct' },
+  { title: 'Property', value: 'property' }
+];
 
-// Ensure the nested config structure exists
-if (!localConfig.converters) {
-  localConfig.converters = {
-    stdJson: {
-      options: {
-        attributeHandling: 'ignore',
-        attributePrefix: '@',
-        attributePropertyName: '_attrs',
-        textPropertyName: '_text',
-        alwaysCreateArrays: false,
-        preserveMixedContent: true,
-        emptyElementsAsNull: false
-      },
-      naming: {
-        arrayItem: "item"
-      }
-    },
-    xjxJson: {
-      options: {
-        compact: true
-      },
-      naming: {
-        namespace: "$ns",
-        prefix: "$pre",
-        attribute: "$attr",
-        value: "$val",
-        cdata: "$cdata",
-        comment: "$cmnt",
-        processingInstr: "$pi",
-        target: "$trgt",
-        children: "$children"
-      }
-    },
-    xml: {
-      options: {
-        declaration: true,
-        prettyPrint: true,
-        indent: 2
-      }
+const namespaceStrategyOptions = [
+  { title: 'Prefix', value: 'prefix' },
+  { title: 'Property', value: 'property' }
+];
+
+const arrayStrategyOptions = [
+  { title: 'Multiple (Arrays only when needed)', value: 'multiple' },
+  { title: 'Always (Always create arrays)', value: 'always' },
+  { title: 'Never (Last element wins)', value: 'never' }
+];
+
+const emptyElementStrategyOptions = [
+  { title: 'Object (Empty object)', value: 'object' },
+  { title: 'Null (null value)', value: 'null' },
+  { title: 'String (Empty string)', value: 'string' }
+];
+
+const mixedContentStrategyOptions = [
+  { title: 'Preserve (Keep both text and elements)', value: 'preserve' },
+  { title: 'Prioritize Text', value: 'prioritize-text' },
+  { title: 'Prioritize Elements', value: 'prioritize-elements' }
+];
+
+// Create a deep copy of the config for local editing
+const localConfig = reactive({
+  // Preservation settings
+  preserveNamespaces: true,
+  preserveComments: true,
+  preserveProcessingInstr: true,
+  preserveCDATA: true,
+  preserveTextNodes: true,
+  preserveWhitespace: false,
+  preserveAttributes: true,
+
+  // High-level strategies
+  highFidelity: false,
+  attributeStrategy: 'merge',
+  textStrategy: 'direct',
+  namespaceStrategy: 'prefix',
+  arrayStrategy: 'multiple',
+  emptyElementStrategy: 'object',
+  mixedContentStrategy: 'preserve',
+
+  // Property names
+  properties: {
+    attribute: "$attr",
+    value: "$val",
+    text: "_text",
+    namespace: "$ns",
+    prefix: "$pre",
+    cdata: "$cdata",
+    comment: "$cmnt",
+    processingInstr: "$pi",
+    target: "$trgt",
+    children: "$children",
+    compact: true
+  },
+
+  // Prefix configurations
+  prefixes: {
+    attribute: '@',
+    namespace: 'xmlns:',
+    comment: '#',
+    cdata: '!',
+    pi: '?'
+  },
+
+  // Array configurations
+  arrays: {
+    forceArrays: [],
+    defaultItemName: "item",
+    itemNames: {}
+  },
+
+  // Output formatting
+  formatting: {
+    indent: 2,
+    declaration: true,
+    pretty: true
+  }
+});
+
+// Helper for item names management
+const localItemNames = reactive({});
+
+// Initialize localItemNames from config
+function initItemNames() {
+  Object.keys(localItemNames).forEach(key => delete localItemNames[key]);
+  
+  Object.entries(localConfig.arrays.itemNames).forEach(([parent, item]) => {
+    localItemNames[parent] = { parent, item };
+  });
+  
+  // Add an empty one if none exist
+  if (Object.keys(localItemNames).length === 0) {
+    addItemName();
+  }
+}
+
+// Add a new item name pair
+function addItemName() {
+  const key = Date.now().toString();
+  localItemNames[key] = { parent: '', item: '' };
+}
+
+// Remove an item name pair
+function removeItemName(key) {
+  delete localItemNames[key];
+  updateItemNames();
+}
+
+// Update item names in the config
+function updateItemNames() {
+  const itemNames = {};
+  
+  Object.values(localItemNames).forEach(({ parent, item }) => {
+    if (parent && item) {
+      itemNames[parent] = item;
     }
-  };
+  });
+  
+  localConfig.arrays.itemNames = itemNames;
+  updateConfig();
 }
 
 // Update the store when the local config changes
@@ -478,6 +704,7 @@ const updateConfig = () => {
 const resetConfig = () => {
   configStore.resetToDefault();
   Object.assign(localConfig, JSON.parse(JSON.stringify(config.value)));
+  initItemNames();
 };
 
 // Copy configuration to clipboard
@@ -490,6 +717,7 @@ const copyConfig = () => {
 watch(config, (newConfig) => {
   // Deep copy to avoid reference issues
   Object.assign(localConfig, JSON.parse(JSON.stringify(newConfig)));
+  initItemNames();
 }, { deep: true });
 
 // Open dialog
@@ -504,9 +732,8 @@ defineExpose({
 
 onMounted(() => {
   // Make sure we have the full config structure when mounting
-  if (!localConfig.converters) {
-    Object.assign(localConfig, JSON.parse(JSON.stringify(config.value)));
-  }
+  Object.assign(localConfig, JSON.parse(JSON.stringify(config.value)));
+  initItemNames();
 });
 </script>
 

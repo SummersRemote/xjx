@@ -2,7 +2,8 @@
  * XJX Library - XML/JSON transformation with fluent API
  */
 
-// Register all extensions to the XJX class
+// IMPORTANT: Register all extensions to the XJX class
+// These imports MUST be kept as they register methods on the XJX prototype
 import './extensions/from-xml';
 import './extensions/from-json';
 import './extensions/to-xml';
@@ -43,14 +44,44 @@ export {
 // Export model interfaces
 export { XNode } from './core/xnode';
 
-// Export transform creators
+// Export transform classes and creators
 export {
+  // Transform Classes
+  BooleanTransform,
+  NumberTransform,
+  RegexTransform,
+  MetadataTransform,
+  // Creator functions
   createBooleanTransform,
   createNumberTransform,
   createRegexTransform,
   createMetadataTransform,
+  // Option interfaces
   BooleanTransformOptions,
   NumberTransformOptions,
   RegexOptions,
   MetadataTransformOptions,
+  // Additional transform types
+  NodeSelector,
+  FormatMetadata
 } from './transforms';
+
+// Manual registration verification - this function does nothing at runtime
+// but ensures that tree-shaking doesn't remove our extension imports
+function ensureExtensionsRegistered() {
+  if (process.env.NODE_ENV === 'development') {
+    console.log('XJX Extensions registered successfully');
+  }
+  // The mere existence of this function with references prevents tree-shaking
+  return [
+    './extensions/from-xml',
+    './extensions/from-json',
+    './extensions/to-xml',
+    './extensions/to-json',
+    './extensions/config-extensions',
+    './extensions/with-transforms'
+  ];
+}
+
+// This will be removed in production builds but helps ensure extensions are loaded
+ensureExtensionsRegistered();

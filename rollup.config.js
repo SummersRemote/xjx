@@ -52,9 +52,9 @@ export default [
         rootDir: "src",
       }),
     ],
-    // Preserve side effects for extension registration and class exports
+    // IMPORTANT: Preserve all side effects to ensure extension registration works
     treeshake: {
-      moduleSideEffects: true,
+      moduleSideEffects: "no-external", // Preserve all side effects in internal modules
       preset: "recommended"
     },
   },
@@ -104,9 +104,9 @@ export default [
         rootDir: "src",
       }),
     ],
-    // Preserve side effects for extension registration
+    // IMPORTANT: Preserve all side effects to ensure extension registration works
     treeshake: {
-      moduleSideEffects: true,
+      moduleSideEffects: "no-external", // Preserve all side effects in internal modules
       preset: "recommended"
     },
   },
@@ -204,7 +204,6 @@ export default [
         tsconfig: "./tsconfig.json",
         declaration: true, // Generate declarations
         declarationMap: true, // Generate declaration maps
-        declarationDir: "dist/types", // Output to types directory
         emitDeclarationOnly: true, // Only output declarations
         rootDir: "src",
       }),

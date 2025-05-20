@@ -7,33 +7,34 @@ import { transformXNode } from "../converters/xnode-transformer";
 import { FORMAT } from "../core/transform";
 import { logger } from "../core/error";
 import { XNode } from "../core/xnode";
+import { TerminalExtensionContext } from "../core/extension";
 
 /**
  * Implementation for converting to XML DOM
  */
-export function implementToXml(xjx: XJX): Document {
+export function toXml(this: TerminalExtensionContext): Document {
   try {
-    // API boundary validation is handled by the XJX class
+    // Source validation is handled by the registration mechanism
     
     logger.debug('Starting toXml conversion', {
-      sourceFormat: xjx.sourceFormat,
-      hasTransforms: xjx.transforms.length > 0
+      sourceFormat: this.sourceFormat,
+      hasTransforms: this.transforms.length > 0
     });
     
     // Apply transformations if any are registered
-    let nodeToConvert = xjx.xnode as XNode;
+    let nodeToConvert = this.xnode as XNode;
     
-    if (xjx.transforms && xjx.transforms.length > 0) {
-      nodeToConvert = transformXNode(nodeToConvert, xjx.transforms, FORMAT.XML, xjx.config);
+    if (this.transforms && this.transforms.length > 0) {
+      nodeToConvert = transformXNode(nodeToConvert, this.transforms, FORMAT.XML, this.config);
       
       logger.debug('Applied transforms to XNode', {
-        transformCount: xjx.transforms.length,
+        transformCount: this.transforms.length,
         targetFormat: FORMAT.XML
       });
     }
     
     // Convert XNode to DOM
-    const converter = createXNodeToXmlConverter(xjx.config);
+    const converter = createXNodeToXmlConverter(this.config);
     const doc = converter.convert(nodeToConvert);
     
     logger.debug('Successfully converted XNode to DOM', {
@@ -52,29 +53,29 @@ export function implementToXml(xjx: XJX): Document {
 /**
  * Implementation for converting to XML string
  */
-export function implementToXmlString(
-  xjx: XJX, 
+export function toXmlString(
+  this: TerminalExtensionContext, 
   options?: XmlSerializationOptions
 ): string {
   try {
-    // API boundary validation is handled by the XJX class
+    // Source validation is handled by the registration mechanism
     
     logger.debug('Starting toXmlString conversion');
     
     // Apply transformations if any are registered
-    let nodeToConvert = xjx.xnode as XNode;
+    let nodeToConvert = this.xnode as XNode;
     
-    if (xjx.transforms && xjx.transforms.length > 0) {
-      nodeToConvert = transformXNode(nodeToConvert, xjx.transforms, FORMAT.XML, xjx.config);
+    if (this.transforms && this.transforms.length > 0) {
+      nodeToConvert = transformXNode(nodeToConvert, this.transforms, FORMAT.XML, this.config);
       
       logger.debug('Applied transforms to XNode', {
-        transformCount: xjx.transforms.length,
+        transformCount: this.transforms.length,
         targetFormat: FORMAT.XML
       });
     }
     
     // Convert XNode to XML string
-    const converter = createXNodeToXmlStringConverter(xjx.config);
+    const converter = createXNodeToXmlStringConverter(this.config);
     const xmlString = converter.convert(nodeToConvert, options);
     
     logger.debug('Successfully converted to XML string', {
@@ -90,11 +91,6 @@ export function implementToXmlString(
   }
 }
 
-// Register the implementations with XJX
-XJX.prototype.toXml = function(): Document {
-  return implementToXml(this);
-};
-
-XJX.prototype.toXmlString = function(options?: XmlSerializationOptions): string {
-  return implementToXmlString(this, options);
-};
+// Register the extensions with XJX
+XJX.registerTerminalExtension("toXml", toXml);
+XJX.registerTerminalExtension("toXmlString", toXmlString);

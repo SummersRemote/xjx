@@ -1,4 +1,4 @@
-import { XmlSerializationOptions } from "./converters/xnode-to-xml-converter";/**
+/**
  * XJX - Main class with fluent API
  */
 import { Configuration, createConfig, getDefaultConfig } from "./core/config";
@@ -6,11 +6,13 @@ import { FORMAT, Transform } from "./core/transform";
 import { XNode, cloneNode } from "./core/xnode";
 import { validate, ValidationError, logger, LogLevel } from "./core/error";
 import { JsonOptions, JsonValue } from "./core/converter";
+import { XmlSerializationOptions } from "./converters/xnode-to-xml-converter";
+import { Extension, TerminalExtensionContext, NonTerminalExtensionContext } from "./core/extension";
 
 /**
  * Main XJX class - provides the fluent API for XML/JSON transformation
  */
-export class XJX {
+export class XJX implements TerminalExtensionContext, NonTerminalExtensionContext {
   // Instance properties
   public xnode: XNode | null = null;
   public transforms: Transform[] = [];
@@ -31,195 +33,62 @@ export class XJX {
     });
   }
   
-  // --- Source Methods ---
-  
   /**
-   * Set XML source for transformation
-   * @param xml XML string
-   * @returns This instance for chaining
+   * Register a terminal extension method (returns a value)
+   * @param name Extension name (e.g., 'toXml')
+   * @param method Implementation function
    */
-  public fromXml(xml: string): XJX {
-    // API boundary validation
-    validate(typeof xml === "string", "XML source must be a string");
-    validate(xml.trim().length > 0, "XML source cannot be empty");
-    
-    // Implementation will be done in the extensions
-    return this;
-  }
-  
-  /**
-   * Set JSON source for transformation
-   * @param source JSON object or array
-   * @param options JSON options
-   * @returns This instance for chaining
-   */
-  public fromJson(source: JsonValue, options?: JsonOptions): XJX {
-    // API boundary validation
-    validate(source !== null && typeof source === 'object', "JSON source must be an object or array");
-    
-    // Implementation will be done in the extensions
-    return this;
-  }
-  
-  /**
-   * Set JSON string source for transformation
-   * @param source JSON string
-   * @param options JSON options
-   * @returns This instance for chaining
-   */
-  public fromJsonString(source: string, options?: JsonOptions): XJX {
-    // API boundary validation
-    validate(typeof source === "string", "JSON string source must be a string");
-    validate(source.trim().length > 0, "JSON string source cannot be empty");
-    
-    // Implementation will be done in the extensions
-    return this;
-  }
-  
-  // --- Configuration Methods ---
-  
-  /**
-   * Set configuration options
-   * @param config Partial configuration to merge with defaults
-   * @returns This instance for chaining
-   */
-  public withConfig(config: Partial<Configuration>): XJX {
-    // API boundary validation
-    validate(config !== null && typeof config === 'object', "Configuration must be an object");
-    
-    // Skip if empty config object
-    if (Object.keys(config).length === 0) {
-      logger.debug('Empty configuration provided, skipping merge');
-      return this;
+  public static registerTerminalExtension(name: string, method: (this: TerminalExtensionContext, ...args: any[]) => any): void {
+    try {
+      // Validate inputs
+      validate(typeof name === "string" && name.length > 0, "Extension name must be a non-empty string");
+      validate(typeof method === "function", "Extension method must be a function");
+      
+      logger.debug('Registering terminal extension', { name });
+      
+      // Add method to XJX prototype
+      (XJX.prototype as any)[name] = function(...args: any[]): any {
+        // Validate source first for terminal extensions
+        this.validateSource();
+        
+        // Call the implementation method with this context
+        return method.apply(this, args);
+      };
+      
+      logger.debug('Terminal extension registered', { name });
+    } catch (err) {
+      logger.error(`Failed to register terminal extension ${name}`, { error: err });
+      throw err;
     }
-    
-    // Implementation will be done in the extensions
-    return this;
   }
-  
+
   /**
-   * Set the log level for the XJX library
-   * @param level Log level (debug, info, warn, error, none)
-   * @returns This instance for chaining
+   * Register a non-terminal extension method (returns this for chaining)
+   * @param name Extension name (e.g., 'fromXml')
+   * @param method Implementation function
    */
-  public setLogLevel(level: LogLevel | string): XJX {
-    // API boundary validation
-    validate(level !== undefined && level !== null, "Log level must be provided");
-    
-    // Implementation will be done in the extensions
-    return this;
-  }
-  
-  // --- Transform Methods ---
-  
-  /**
-   * Add transformers to the pipeline
-   * @param transforms One or more transformers
-   * @returns This instance for chaining
-   */
-  public withTransforms(...transforms: Transform[]): XJX {
-    // API boundary validation
-    validate(Array.isArray(transforms), "Transforms must be an array");
-    
-    // Skip if no transforms provided
-    if (transforms.length === 0) {
-      logger.debug('No transforms provided, skipping');
-      return this;
+  public static registerNonTerminalExtension(name: string, method: (this: NonTerminalExtensionContext, ...args: any[]) => void): void {
+    try {
+      // Validate inputs
+      validate(typeof name === "string" && name.length > 0, "Extension name must be a non-empty string");
+      validate(typeof method === "function", "Extension method must be a function");
+      
+      logger.debug('Registering non-terminal extension', { name });
+      
+      // Add method to XJX prototype that returns this
+      (XJX.prototype as any)[name] = function(...args: any[]): XJX {
+        // Call the implementation method with this context
+        method.apply(this, args);
+        
+        // Return this for chaining
+        return this;
+      };
+      
+      logger.debug('Non-terminal extension registered', { name });
+    } catch (err) {
+      logger.error(`Failed to register non-terminal extension ${name}`, { error: err });
+      throw err;
     }
-    
-    // Implementation will be done in the extensions
-    return this;
-  }
-  
-  // --- Output Methods ---
-  
-  /**
-   * Convert to XML DOM
-   * @returns DOM Document
-   */
-  public toXml(): Document {
-    // API boundary validation
-    this.validateSource();
-    
-    // Implementation will be done in the extensions
-    throw new Error("Method not implemented");
-  }
-  
-  /**
-   * Convert to XML string
-   * @param options Optional serialization options
-   * @returns XML string representation
-   */
-  public toXmlString(options?: XmlSerializationOptions): string {
-    // API boundary validation
-    this.validateSource();
-    
-    // Implementation will be done in the extensions
-    throw new Error("Method not implemented");
-  }
-  
-  /**
-   * Convert to JSON
-   * @param options Optional JSON options
-   * @returns JSON representation
-   */
-  public toJson(options?: JsonOptions): JsonValue {
-    // API boundary validation
-    this.validateSource();
-    
-    // Implementation will be done in the extensions
-    throw new Error("Method not implemented");
-  }
-  
-  /**
-   * Convert to JSON string
-   * @param options Optional JSON options with indent
-   * @returns JSON string representation
-   */
-  public toJsonString(options?: JsonOptions & { indent?: number }): string {
-    // API boundary validation
-    this.validateSource();
-    
-    // Implementation will be done in the extensions
-    throw new Error("Method not implemented");
-  }
-  
-  // --- Legacy Output Methods (Deprecated) ---
-  
-  /**
-   * @deprecated Use toJson({ highFidelity: true }) instead
-   * Convert to XJX formatted JSON
-   */
-  public toXjxJson(): Record<string, any> {
-    logger.warn('toXjxJson() is deprecated, use toJson({ highFidelity: true }) instead');
-    return this.toJson({ highFidelity: true }) as Record<string, any>;
-  }
-  
-  /**
-   * @deprecated Use toJsonString({ highFidelity: true }) instead
-   * Convert to XJX JSON string
-   */
-  public toXjxJsonString(): string {
-    logger.warn('toXjxJsonString() is deprecated, use toJsonString({ highFidelity: true }) instead');
-    return this.toJsonString({ highFidelity: true });
-  }
-  
-  /**
-   * @deprecated Use toJson() instead
-   * Convert to standard JavaScript object
-   */
-  public toStandardJson(): any {
-    logger.warn('toStandardJson() is deprecated, use toJson() instead');
-    return this.toJson();
-  }
-  
-  /**
-   * @deprecated Use toJsonString() instead
-   * Convert to standard JSON string
-   */
-  public toStandardJsonString(): string {
-    logger.warn('toStandardJsonString() is deprecated, use toJsonString() instead');
-    return this.toJsonString();
   }
   
   // --- Utility Methods ---
@@ -242,6 +111,54 @@ export class XJX {
    */
   public cloneNode(node: XNode, deep: boolean = false): XNode {
     return cloneNode(node, deep);
+  }
+  
+  /**
+   * Deep clone a value
+   */
+  public deepClone<T>(obj: T): T {
+    if (obj === undefined || obj === null) {
+      return obj;
+    }
+    return JSON.parse(JSON.stringify(obj));
+  }
+  
+  /**
+   * Deep merge two objects
+   */
+  public deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
+    if (!source || typeof source !== 'object' || source === null) {
+      return this.deepClone(target);
+    }
+
+    if (!target || typeof target !== 'object' || target === null) {
+      return this.deepClone(source) as T;
+    }
+
+    const result = this.deepClone(target);
+
+    Object.keys(source).forEach((key) => {
+      const sourceValue = source[key as keyof Partial<T>];
+      const targetValue = result[key as keyof T];
+
+      if (
+        sourceValue !== null &&
+        targetValue !== null &&
+        typeof sourceValue === 'object' &&
+        typeof targetValue === 'object' &&
+        !Array.isArray(sourceValue) &&
+        !Array.isArray(targetValue)
+      ) {
+        (result[key as keyof T] as any) = this.deepMerge(
+          targetValue as Record<string, any>,
+          sourceValue as Record<string, any>
+        );
+      } else {
+        (result[key as keyof T] as any) = this.deepClone(sourceValue);
+      }
+    });
+
+    return result;
   }
 }
 

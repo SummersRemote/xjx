@@ -2,7 +2,7 @@
  * XJX Library - XML/JSON transformation with fluent API
  */
 
-// IMPORTANT: Register all extensions to the XJX class
+// IMPORTANT: Register all extensions by importing their files
 // These imports MUST be kept as they register methods on the XJX prototype
 import './extensions/from-xml';
 import './extensions/from-json';
@@ -44,6 +44,12 @@ export {
 
 // Export model interfaces
 export { XNode } from './core/xnode';
+
+// Export extension context interfaces
+export {
+  TerminalExtensionContext,
+  NonTerminalExtensionContext
+} from './core/extension';
 
 // Export JSON conversion types
 export {

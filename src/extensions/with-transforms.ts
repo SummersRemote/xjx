@@ -4,13 +4,12 @@
 import { XJX } from "../XJX";
 import { Transform } from "../core/transform";
 import { logger, validate } from "../core/error";
+import { NonTerminalExtensionContext } from "../core/extension";
 
 /**
  * Implementation for adding transformers to the pipeline
- * @param xjx XJX instance
- * @param transforms Transforms to add
  */
-export function withTransforms(xjx: XJX, ...transforms: Transform[]): void {
+export function withTransforms(this: NonTerminalExtensionContext, ...transforms: Transform[]): void {
   try {
     // API boundary validation
     validate(Array.isArray(transforms), "Transforms must be an array");
@@ -39,23 +38,20 @@ export function withTransforms(xjx: XJX, ...transforms: Transform[]): void {
     }
     
     // Initialize transforms array if it doesn't exist
-    if (!xjx.transforms) {
-      xjx.transforms = [];
+    if (!this.transforms) {
+      this.transforms = [];
     }
     
     // Add transforms to the pipeline
-    xjx.transforms.push(...transforms);
+    this.transforms.push(...transforms);
     
     logger.debug('Successfully added transforms', {
-      totalTransforms: xjx.transforms.length
+      totalTransforms: this.transforms.length
     });
   } catch (err) {
     throw new Error(`Failed to add transforms: ${err instanceof Error ? err.message : String(err)}`);
   }
 }
 
-// Register the implementation with XJX
-XJX.prototype.withTransforms = function(...transforms: Transform[]): XJX {
-  withTransforms(this, ...transforms);
-  return this;
-};
+// Register the extension with XJX
+XJX.registerNonTerminalExtension("withTransforms", withTransforms);

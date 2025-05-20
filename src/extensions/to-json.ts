@@ -9,34 +9,35 @@ import { logger } from "../core/error";
 import { XNode } from "../core/xnode";
 import { JsonOptions, JsonValue } from "../core/converter";
 import { safeStringify } from "../core/json-utils";
+import { TerminalExtensionContext } from "../core/extension";
 
 /**
  * Implementation for converting to JSON
  */
-export function implementToJson(xjx: XJX, options?: JsonOptions): JsonValue {
+export function toJson(this: TerminalExtensionContext, options?: JsonOptions): JsonValue {
   try {
-    // API boundary validation is handled by the XJX class
+    // Source validation is handled by the registration mechanism
     
     logger.debug('Starting toJson conversion', {
-      sourceFormat: xjx.sourceFormat,
-      hasTransforms: xjx.transforms.length > 0,
+      sourceFormat: this.sourceFormat,
+      hasTransforms: this.transforms.length > 0,
       highFidelity: options?.highFidelity
     });
     
     // Apply transformations if any are registered
-    let nodeToConvert = xjx.xnode as XNode;
+    let nodeToConvert = this.xnode as XNode;
     
-    if (xjx.transforms && xjx.transforms.length > 0) {
-      nodeToConvert = transformXNode(nodeToConvert, xjx.transforms, FORMAT.JSON, xjx.config);
+    if (this.transforms && this.transforms.length > 0) {
+      nodeToConvert = transformXNode(nodeToConvert, this.transforms, FORMAT.JSON, this.config);
       
       logger.debug('Applied transforms to XNode', {
-        transformCount: xjx.transforms.length,
+        transformCount: this.transforms.length,
         targetFormat: FORMAT.JSON
       });
     }
     
     // Convert XNode to JSON
-    const converter = createXNodeToJsonConverter(xjx.config);
+    const converter = createXNodeToJsonConverter(this.config);
     const result = converter.convert(nodeToConvert, options);
     
     logger.debug('Successfully converted XNode to JSON', {
@@ -56,19 +57,19 @@ export function implementToJson(xjx: XJX, options?: JsonOptions): JsonValue {
 /**
  * Implementation for converting to JSON string
  */
-export function implementToJsonString(xjx: XJX, options?: JsonOptions & { indent?: number }): string {
+export function toJsonString(this: TerminalExtensionContext, options?: JsonOptions & { indent?: number }): string {
   try {
-    // API boundary validation is handled by the XJX class
+    // Source validation is handled by the registration mechanism
     
     logger.debug('Starting toJsonString conversion');
     
     // First get the JSON using the toJson method
-    const jsonValue = implementToJson(xjx, options);
+    const jsonValue = toJson.call(this, options);
     
     // Use the indent value from options or config
     const indent = options?.indent !== undefined ? 
       options.indent : 
-      xjx.config.formatting.indent;
+      this.config.formatting.indent;
     
     // Stringify the JSON
     const result = safeStringify(jsonValue, indent);
@@ -87,11 +88,31 @@ export function implementToJsonString(xjx: XJX, options?: JsonOptions & { indent
   }
 }
 
-// Register the implementations with XJX
-XJX.prototype.toJson = function(options?: JsonOptions): JsonValue {
-  return implementToJson(this, options);
-};
+// Register legacy JSON extensions for high-fidelity and standard JSON formats
+export function toXjxJson(this: TerminalExtensionContext): Record<string, any> {
+  logger.warn('toXjxJson() is deprecated, use toJson({ highFidelity: true }) instead');
+  return toJson.call(this, { highFidelity: true }) as Record<string, any>;
+}
 
-XJX.prototype.toJsonString = function(options?: JsonOptions & { indent?: number }): string {
-  return implementToJsonString(this, options);
-};
+export function toXjxJsonString(this: TerminalExtensionContext): string {
+  logger.warn('toXjxJsonString() is deprecated, use toJsonString({ highFidelity: true }) instead');
+  return toJsonString.call(this, { highFidelity: true });
+}
+
+export function toStandardJson(this: TerminalExtensionContext): any {
+  logger.warn('toStandardJson() is deprecated, use toJson() instead');
+  return toJson.call(this);
+}
+
+export function toStandardJsonString(this: TerminalExtensionContext): string {
+  logger.warn('toStandardJsonString() is deprecated, use toJsonString() instead');
+  return toJsonString.call(this);
+}
+
+// Register the extensions with XJX
+XJX.registerTerminalExtension("toJson", toJson);
+XJX.registerTerminalExtension("toJsonString", toJsonString);
+XJX.registerTerminalExtension("toXjxJson", toXjxJson);
+XJX.registerTerminalExtension("toXjxJsonString", toXjxJsonString);
+XJX.registerTerminalExtension("toStandardJson", toStandardJson);
+XJX.registerTerminalExtension("toStandardJsonString", toStandardJsonString);

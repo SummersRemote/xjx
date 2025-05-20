@@ -7,11 +7,12 @@ import { FORMAT } from "../core/transform";
 import { logger, ProcessingError, validate } from "../core/error";
 import { JsonOptions, JsonValue } from "../core/converter";
 import { safeParse } from "../core/json-utils";
+import { NonTerminalExtensionContext } from "../core/extension";
 
 /**
  * Implementation for setting JSON source
  */
-export function implementFromJson(xjx: XJX, source: JsonValue, options?: JsonOptions): void {
+export function fromJson(this: NonTerminalExtensionContext, source: JsonValue, options?: JsonOptions): void {
   try {
     // Basic validation for logging
     validate(source !== null && typeof source === 'object', "JSON source must be an object or array");
@@ -22,22 +23,22 @@ export function implementFromJson(xjx: XJX, source: JsonValue, options?: JsonOpt
     });
     
     // Create converter with the current configuration
-    const converter = createJsonToXNodeConverter(xjx.config);
+    const converter = createJsonToXNodeConverter(this.config);
     
     try {
       // Convert JSON to XNode
-      xjx.xnode = converter.convert(source, options);
+      this.xnode = converter.convert(source, options);
     } catch (err) {
       // Specific error handling for JSON conversion failures
       throw new ProcessingError("Failed to parse JSON source", source);
     }
     
     // Set the source format
-    xjx.sourceFormat = FORMAT.JSON;
+    this.sourceFormat = FORMAT.JSON;
     
     logger.debug('Successfully set JSON source', {
-      rootNodeName: xjx.xnode?.name,
-      rootNodeType: xjx.xnode?.type
+      rootNodeName: this.xnode?.name,
+      rootNodeType: this.xnode?.type
     });
   } catch (err) {
     if (err instanceof Error) {
@@ -50,7 +51,7 @@ export function implementFromJson(xjx: XJX, source: JsonValue, options?: JsonOpt
 /**
  * Implementation for setting JSON string source
  */
-export function implementFromJsonString(xjx: XJX, source: string, options?: JsonOptions): void {
+export function fromJsonString(this: NonTerminalExtensionContext, source: string, options?: JsonOptions): void {
   try {
     // Validate source
     validate(typeof source === 'string', "JSON string source must be a string");
@@ -68,7 +69,7 @@ export function implementFromJsonString(xjx: XJX, source: string, options?: Json
     }
     
     // Delegate to regular fromJson implementation
-    implementFromJson(xjx, jsonValue, options);
+    fromJson.call(this, jsonValue, options);
   } catch (err) {
     if (err instanceof Error) {
       throw err;
@@ -77,13 +78,6 @@ export function implementFromJsonString(xjx: XJX, source: string, options?: Json
   }
 }
 
-// Register the implementations with XJX
-XJX.prototype.fromJson = function(source: JsonValue, options?: JsonOptions): XJX {
-  implementFromJson(this, source, options);
-  return this;
-};
-
-XJX.prototype.fromJsonString = function(source: string, options?: JsonOptions): XJX {
-  implementFromJsonString(this, source, options);
-  return this;
-};
+// Register the extensions with XJX
+XJX.registerNonTerminalExtension("fromJson", fromJson);
+XJX.registerNonTerminalExtension("fromJsonString", fromJsonString);

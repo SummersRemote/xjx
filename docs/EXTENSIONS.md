@@ -46,7 +46,7 @@ Non-terminal extensions are methods that return the XJX instance, allowing for m
 // Non-terminal extension
 XJX.registerNonTerminalExtension("withConfig", function(config) {
   // Implementation...
-  return this; // Automatically handled by the extension system
+  // Return is handled automatically by the extension system
 });
 ```
 
@@ -76,8 +76,7 @@ These extensions return the XJX instance for further chaining:
 
 - `fromXml(xml)` - Set XML string as the source
 - `fromJson(json)` - Set JSON object as source (auto-detects format)
-- `fromXjxJson(json)` - Set XJX-formatted JSON as source
-- `fromObjJson(json)` - Set standard JavaScript object as source
+- `fromJsonString(jsonStr)` - Set JSON string as source
 - `withConfig(config)` - Set configuration options
 - `withTransforms(...transforms)` - Add transforms to the pipeline
 - `setLogLevel(level)` - Set logger level
@@ -89,15 +88,15 @@ You can create and register your own extensions to extend the XJX API:
 ### Creating a Terminal Extension
 
 ```typescript
-import { XJX } from 'xjx';
+import { XJX, TerminalExtensionContext } from 'xjx';
 
 // Create a terminal extension that converts to a different format
-function toYamlString(this: XJX): string {
+function toYamlString(this: TerminalExtensionContext): string {
   // First, validate source
   this.validateSource();
   
   // Get JSON representation
-  const json = this.toStandardJson();
+  const json = toJson.call(this);
   
   // Convert to YAML (example implementation)
   const yaml = convertJsonToYaml(json);
@@ -124,10 +123,10 @@ const yaml = new XJX()
 ### Creating a Non-Terminal Extension
 
 ```typescript
-import { XJX, Transform } from 'xjx';
+import { XJX, NonTerminalExtensionContext, Transform } from 'xjx';
 
 // Create a non-terminal extension that adds multiple transforms
-function withTypeConversion(this: XJX): void {
+function withTypeConversion(this: NonTerminalExtensionContext): void {
   // Add commonly used data type conversions
   const transforms: Transform[] = [
     new BooleanTransform(),
@@ -135,9 +134,7 @@ function withTypeConversion(this: XJX): void {
   ];
   
   // Use existing withTransforms extension
-  this.withTransforms(...transforms);
-  
-  // No return needed - handled by the extension system
+  withTransforms.call(this, ...transforms);
 }
 
 // Register the extension
@@ -164,18 +161,18 @@ const json = new XJX()
 You can create composite extensions that combine multiple operations:
 
 ```typescript
-import { XJX } from 'xjx';
+import { XJX, TerminalExtensionContext } from 'xjx';
 
 // Create a terminal extension that performs validation before conversion
-function toValidatedXmlString(this: XJX, schema: string): string {
+function toValidatedXmlString(this: TerminalExtensionContext, schema: string): string {
   // First, validate source
   this.validateSource();
   
   // Apply schema validation transform
-  this.withTransforms(new SchemaValidationTransform(schema));
+  withTransforms.call(this, new SchemaValidationTransform(schema));
   
   // Convert to XML string
-  return this.toXmlString();
+  return toXmlString.call(this);
 }
 
 // Register the extension
@@ -197,38 +194,56 @@ try {
 Extensions can maintain state using object properties:
 
 ```typescript
-import { XJX } from 'xjx';
+import { XJX, NonTerminalExtensionContext, TerminalExtensionContext } from 'xjx';
+
+// Declare the metrics property for TypeScript
+declare module 'xjx' {
+  interface XJX {
+    _metrics?: {
+      startTime: number;
+      operations: Array<{
+        type: string;
+        count: number;
+        duration: number;
+      }>;
+    };
+    withMetrics(): XJX;
+    getMetrics(): any;
+  }
+}
 
 // Create a non-terminal extension that captures metrics
-function withMetrics(this: XJX): void {
-  // Initialize metrics object if needed
-  if (!this._metrics) {
-    this._metrics = {
-      startTime: Date.now(),
-      operations: []
-    };
-  }
+function withMetrics(this: NonTerminalExtensionContext): void {
+  // Initialize metrics object
+  (this as any)._metrics = {
+    startTime: Date.now(),
+    operations: []
+  };
   
-  // Wrap transformations to measure performance
+  // Wrap existing transforms method
   const originalWithTransforms = this.withTransforms;
-  this.withTransforms = function(...transforms) {
+  
+  // Replace withTransforms to track metrics
+  // Note: This is for demonstration only, in practice you'd need to 
+  // handle this more carefully to avoid breaking other extensions
+  (this as any).withTransforms = function(...transforms: any[]) {
     const start = performance.now();
-    const result = originalWithTransforms.apply(this, transforms);
+    withTransforms.apply(this, transforms);
     const end = performance.now();
     
-    this._metrics.operations.push({
+    (this as any)._metrics.operations.push({
       type: 'transforms',
       count: transforms.length,
       duration: end - start
     });
     
-    return result;
+    return this;
   };
 }
 
 // Create a terminal extension to retrieve metrics
-function getMetrics(this: XJX): any {
-  return this._metrics || { operations: [] };
+function getMetrics(this: TerminalExtensionContext): any {
+  return (this as any)._metrics || { operations: [] };
 }
 
 // Register the extensions
@@ -242,9 +257,9 @@ const xjx = new XJX()
   .withTransforms(
     new BooleanTransform(),
     new NumberTransform()
-  )
-  .toStandardJson();
+  );
 
+const json = xjx.toStandardJson();
 const metrics = xjx.getMetrics();
 console.log("Performance metrics:", metrics);
 ```
@@ -281,7 +296,7 @@ Extensions should follow XJX's implementation patterns:
 
 ```javascript
 // Good: Validates input and uses XJX's error handling
-function myExtension(this: XJX, param: string): void {
+function myExtension(this: NonTerminalExtensionContext, param: string): void {
   try {
     // Validate parameter
     validate(typeof param === "string", "Parameter must be a string");
@@ -296,7 +311,7 @@ function myExtension(this: XJX, param: string): void {
 }
 
 // Bad: No validation or error handling
-function myExtension(this: XJX, param: string): void {
+function myExtension(this: NonTerminalExtensionContext, param: string): void {
   // Implementation without validation...
 }
 ```
@@ -338,7 +353,7 @@ Document your extensions thoroughly:
  *   .toHtmlString({ theme: 'dark', lineNumbers: true });
  * ```
  */
-function toHtmlString(this: XJX, options?: HighlightOptions): string {
+function toHtmlString(this: TerminalExtensionContext, options?: HighlightOptions): string {
   // Implementation...
 }
 ```
@@ -349,10 +364,10 @@ Be mindful of dependencies between extensions:
 
 ```javascript
 // Good: Uses existing methods and handles errors
-function toFormattedXmlString(this: XJX): string {
+function toFormattedXmlString(this: TerminalExtensionContext): string {
   try {
     // Use existing toXmlString method
-    return this.toXmlString({
+    return toXmlString.call(this, {
       prettyPrint: true,
       indent: 4,
       declaration: true
@@ -365,7 +380,7 @@ function toFormattedXmlString(this: XJX): string {
 }
 
 // Bad: Reimplements existing functionality
-function toFormattedXmlString(this: XJX): string {
+function toFormattedXmlString(this: TerminalExtensionContext): string {
   // Duplicates toXmlString implementation...
 }
 ```
@@ -388,6 +403,6 @@ XJX.registerNonTerminalExtension("toXjxJson", toXjxJson); // Should be terminal
 
 The extension system in XJX provides a powerful way to enhance the library's capabilities. By creating custom extensions, you can add support for new formats, implement specialized transformations, or integrate with other libraries and tools.
 
-With the consistent naming pattern across all output methods (`toXml()`, `toXmlString()`, `toXjxJson()`, `toXjxJsonString()`, `toStandardJson()`, `toStandardJsonString()`), users can easily understand and use the API intuitively.
+With the consistent naming pattern across all output methods (`toXml()`, `toXmlString()`, `toJson()`, `toJsonString()`), users can easily understand and use the API intuitively.
 
 For more information on the transform system, which complements the extension system, see the [Transforms Guide](./TRANSFORMS.md).

@@ -4,7 +4,6 @@
 import { Configuration } from './config';
 import { Transform, FORMAT } from './transform';
 import { XNode } from './xnode';
-import { logger, validate, handleError } from './error';
 
 /**
  * Base context interface for extension functions
@@ -27,6 +26,7 @@ export interface TerminalExtensionContext extends XJXContext {
   validateSource: () => void;
   deepClone: <T>(obj: T) => T;
   deepMerge: <T extends Record<string, any>>(target: T, source: Partial<T>) => T;
+  cloneNode: (node: XNode, deep?: boolean) => XNode;
 }
 
 /**
@@ -42,60 +42,47 @@ export interface NonTerminalExtensionContext extends XJXContext {
   validateSource: () => void;
   deepClone: <T>(obj: T) => T;
   deepMerge: <T extends Record<string, any>>(target: T, source: Partial<T>) => T;
+  cloneNode: (node: XNode, deep?: boolean) => XNode;
 }
 
 /**
  * Extension registration utilities
- * 
- * Note: The actual registration logic is implemented in the XJX class.
- * This interface is provided for documentation purposes.
  */
 export class Extension {
   /**
    * Register a terminal extension method (returns a value)
    * @param name Extension name (e.g., 'toXml')
    * @param method Implementation function
+   * 
+   * @example
+   * ```
+   * Extension.registerTerminal('toYaml', function(this: TerminalExtensionContext): string {
+   *   // Implementation...
+   *   return yamlString;
+   * });
+   * ```
    */
   static registerTerminal(name: string, method: (this: TerminalExtensionContext, ...args: any[]) => any): void {
-    try {
-      // VALIDATION: Check for valid inputs
-      validate(typeof name === "string" && name.length > 0, "Extension name must be a non-empty string");
-      validate(typeof method === "function", "Extension method must be a function");
-      
-      logger.debug('Terminal extension registration requested', { name });
-      
-      // Note: Actual implementation is in XJX class
-      // This method would typically call the actual implementation
-      
-      logger.debug('Terminal extension registered', { name });
-    } catch (err) {
-      handleError(err, "register terminal extension", {
-        data: { name }
-      });
-    }
+    // This method is for documentation purposes
+    // The actual implementation is in the XJX class
+    throw new Error('Use XJX.registerTerminalExtension instead');
   }
 
   /**
    * Register a non-terminal extension method (returns this for chaining)
    * @param name Extension name (e.g., 'withConfig')
    * @param method Implementation function
+   * 
+   * @example
+   * ```
+   * Extension.registerNonTerminal('withFormat', function(this: NonTerminalExtensionContext, format: string): void {
+   *   // Implementation...
+   * });
+   * ```
    */
-  static registerNonTerminal(name: string, method: (this: NonTerminalExtensionContext, ...args: any[]) => any): void {
-    try {
-      // VALIDATION: Check for valid inputs
-      validate(typeof name === "string" && name.length > 0, "Extension name must be a non-empty string");
-      validate(typeof method === "function", "Extension method must be a function");
-      
-      logger.debug('Non-terminal extension registration requested', { name });
-      
-      // Note: Actual implementation is in XJX class
-      // This method would typically call the actual implementation
-      
-      logger.debug('Non-terminal extension registered', { name });
-    } catch (err) {
-      handleError(err, "register non-terminal extension", {
-        data: { name }
-      });
-    }
+  static registerNonTerminal(name: string, method: (this: NonTerminalExtensionContext, ...args: any[]) => void): void {
+    // This method is for documentation purposes
+    // The actual implementation is in the XJX class
+    throw new Error('Use XJX.registerNonTerminalExtension instead');
   }
 }

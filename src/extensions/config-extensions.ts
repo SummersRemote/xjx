@@ -4,11 +4,12 @@
 import { XJX } from "../XJX";
 import { Configuration, createConfig } from "../core/config";
 import { logger, LogLevel, validate } from "../core/error";
+import { NonTerminalExtensionContext } from "../core/extension";
 
 /**
  * Implementation for setting configuration options
  */
-export function implementWithConfig(xjx: XJX, config: Partial<Configuration>): void {
+export function withConfig(this: NonTerminalExtensionContext, config: Partial<Configuration>): void {
   try {
     // API boundary validation
     validate(config !== null && typeof config === 'object', "Configuration must be an object");
@@ -30,11 +31,11 @@ export function implementWithConfig(xjx: XJX, config: Partial<Configuration>): v
       "preserveAttributes"
     ];
     
-    if (xjx.xnode !== null) {
+    if (this.xnode !== null) {
       // Source has already been set, check for preservation setting changes
       const changedSettings = PRESERVATION_SETTINGS.filter(
         setting => config[setting as keyof Configuration] !== undefined && 
-                   config[setting as keyof Configuration] !== xjx.config[setting as keyof Configuration]
+                   config[setting as keyof Configuration] !== this.config[setting as keyof Configuration]
       );
       
       if (changedSettings.length > 0) {
@@ -46,11 +47,11 @@ export function implementWithConfig(xjx: XJX, config: Partial<Configuration>): v
     }
     
     // Apply configuration using the config utility
-    xjx.config = createConfig(config, xjx.config);
+    this.config = createConfig(config, this.config);
     
     logger.debug('Successfully applied configuration', {
-      preserveNamespaces: xjx.config.preserveNamespaces,
-      prettyPrint: xjx.config.formatting.pretty
+      preserveNamespaces: this.config.preserveNamespaces,
+      prettyPrint: this.config.formatting.pretty
     });
   } catch (err) {
     if (err instanceof Error) {
@@ -63,7 +64,7 @@ export function implementWithConfig(xjx: XJX, config: Partial<Configuration>): v
 /**
  * Implementation for setting the log level
  */
-export function implementSetLogLevel(xjx: XJX, level: LogLevel | string): void {
+export function setLogLevel(this: NonTerminalExtensionContext, level: LogLevel | string): void {
   try {
     // API boundary validation
     validate(level !== undefined && level !== null, "Log level must be provided");
@@ -111,13 +112,6 @@ export function implementSetLogLevel(xjx: XJX, level: LogLevel | string): void {
   }
 }
 
-// Register the implementations with XJX
-XJX.prototype.withConfig = function(config: Partial<Configuration>): XJX {
-  implementWithConfig(this, config);
-  return this;
-};
-
-XJX.prototype.setLogLevel = function(level: LogLevel | string): XJX {
-  implementSetLogLevel(this, level);
-  return this;
-};
+// Register the extensions with XJX
+XJX.registerNonTerminalExtension("withConfig", withConfig);
+XJX.registerNonTerminalExtension("setLogLevel", setLogLevel);

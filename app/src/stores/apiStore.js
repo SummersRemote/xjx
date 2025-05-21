@@ -24,12 +24,20 @@ export const useAPIStore = defineStore('api', {
       const fromType = this.lastDirection;
       const content = fromType === 'xml' ? editorStore.xml : editorStore.json;
       
+      // Make a copy of the config to manipulate for API generation
+      const configForApi = JSON.parse(JSON.stringify(configStore.config));
+      
+      // If this is XML to JSON, set the highFidelity property based on jsonFormat
+      if (fromType === 'xml' && this.jsonFormat) {
+        configForApi.strategies.highFidelity = (this.jsonFormat === 'xjx');
+      }
+      
       this.fluent = XJXService.generateFluentAPI(
         fromType,
         content,
-        configStore.config,
+        configForApi,
         transformStore.transforms,
-        editorStore.jsonFormat // Pass the JSON format from the editor store
+        this.jsonFormat
       );
     },
     

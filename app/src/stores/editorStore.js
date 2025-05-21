@@ -25,9 +25,12 @@ export const useEditorStore = defineStore('editor', {
       this.error = null;
       
       try {
+        // Make a copy of the config and set highFidelity to false for standard JSON
+        const config = JSON.parse(JSON.stringify(configStore.config));
+        
         const result = XJXService.convertXmlToJson(
           this.xml, 
-          configStore.config, 
+          config, 
           transformStore.transforms
         );
         
@@ -53,9 +56,13 @@ export const useEditorStore = defineStore('editor', {
       this.error = null;
       
       try {
-        const result = XJXService.convertXmlToStandardJson(
+        // Make a copy of the config and set highFidelity to false for standard JSON
+        const config = JSON.parse(JSON.stringify(configStore.config));
+        config.strategies.highFidelity = false;
+        
+        const result = XJXService.convertXmlToJson(
           this.xml, 
-          configStore.config, 
+          config,
           transformStore.transforms
         );
         

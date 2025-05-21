@@ -31,15 +31,18 @@ class XJXService {
       preserveTextNodes: true,
       preserveWhitespace: false,
       preserveAttributes: true,
+      preservePrefixedNames: false,
 
-      // High-level strategies
-      highFidelity: false,
-      attributeStrategy: "merge",
-      textStrategy: "direct",
-      namespaceStrategy: "prefix",
-      arrayStrategy: "multiple",
-      emptyElementStrategy: "object",
-      mixedContentStrategy: "preserve",
+      // High-level strategies - now grouped under strategies property
+      strategies: {
+        highFidelity: false,
+        attributeStrategy: "merge",
+        textStrategy: "direct",
+        namespaceStrategy: "prefix",
+        arrayStrategy: "multiple",
+        emptyElementStrategy: "object",
+        mixedContentStrategy: "preserve"
+      },
 
       // Property names
       properties: {
@@ -123,7 +126,7 @@ class XJXService {
       }
     }
 
-    // Use the new unified method with highFidelity: true
+    // Convert to JSON with the high-fidelity setting from config.strategies
     return builder.toJson();
   }
 
@@ -199,22 +202,22 @@ class XJXService {
     let terminalMethod;
     let options = "";
     if (fromType === "xml") {
-      // Using the unified JSON method with appropriate highFidelity setting
       terminalMethod = "toJson";
-      if (jsonFormat === "standard") {
-        // Standard format is the default (highFidelity: false)
-        options = "";
-      } else {
-        // XJX format requires highFidelity: true
+      // For xjx format, we'd need to set highFidelity in the options object
+      if (jsonFormat === "xjx") {
         options = "({ highFidelity: true })";
+      } else {
+        // Standard format is the default when highFidelity is false
+        options = "()";
       }
     } else {
       // For XML output, use toXmlString
       terminalMethod = "toXmlString";
+      options = "()";
     }
 
     // Add the terminal method
-    code += `\n  .${terminalMethod}${options ? options : "()"}`;
+    code += `\n  .${terminalMethod}${options}`;
     code += ";";
 
     return code;

@@ -107,6 +107,17 @@
                     @update:model-value="updateConfig"
                   ></v-switch>
                 </v-col>
+
+                <v-col cols="12" sm="6">
+                  <v-switch
+                    v-model="localConfig.preservePrefixedNames"
+                    label="Preserve Prefixed Names"
+                    color="primary"
+                    hide-details
+                    density="compact"
+                    @update:model-value="updateConfig"
+                  ></v-switch>
+                </v-col>
               </v-row>
             </v-expansion-panel-text>
           </v-expansion-panel>
@@ -118,7 +129,7 @@
               <v-row dense>
                 <v-col cols="12">
                   <v-switch
-                    v-model="localConfig.highFidelity"
+                    v-model="localConfig.strategies.highFidelity"
                     label="High-Fidelity Mode (Preserve all XML information for perfect round-trip)"
                     color="primary"
                     hide-details
@@ -129,7 +140,7 @@
                 
                 <v-col cols="12" sm="6">
                   <v-select
-                    v-model="localConfig.attributeStrategy"
+                    v-model="localConfig.strategies.attributeStrategy"
                     :items="attributeStrategyOptions"
                     label="Attribute Strategy"
                     hint="How to represent XML attributes in JSON"
@@ -141,7 +152,7 @@
                 
                 <v-col cols="12" sm="6">
                   <v-select
-                    v-model="localConfig.textStrategy"
+                    v-model="localConfig.strategies.textStrategy"
                     :items="textStrategyOptions"
                     label="Text Strategy"
                     hint="How to represent text content in JSON"
@@ -153,7 +164,7 @@
                 
                 <v-col cols="12" sm="6">
                   <v-select
-                    v-model="localConfig.namespaceStrategy"
+                    v-model="localConfig.strategies.namespaceStrategy"
                     :items="namespaceStrategyOptions"
                     label="Namespace Strategy"
                     hint="How to represent namespaces in JSON"
@@ -165,7 +176,7 @@
                 
                 <v-col cols="12" sm="6">
                   <v-select
-                    v-model="localConfig.arrayStrategy"
+                    v-model="localConfig.strategies.arrayStrategy"
                     :items="arrayStrategyOptions"
                     label="Array Strategy"
                     hint="How to handle multiple elements with the same name"
@@ -177,7 +188,7 @@
                 
                 <v-col cols="12" sm="6">
                   <v-select
-                    v-model="localConfig.emptyElementStrategy"
+                    v-model="localConfig.strategies.emptyElementStrategy"
                     :items="emptyElementStrategyOptions"
                     label="Empty Element Strategy"
                     hint="How to represent empty elements in JSON"
@@ -189,7 +200,7 @@
                 
                 <v-col cols="12" sm="6">
                   <v-select
-                    v-model="localConfig.mixedContentStrategy"
+                    v-model="localConfig.strategies.mixedContentStrategy"
                     :items="mixedContentStrategyOptions"
                     label="Mixed Content Strategy"
                     hint="How to handle elements with both text and child elements"
@@ -603,15 +614,18 @@ const localConfig = reactive({
   preserveTextNodes: true,
   preserveWhitespace: false,
   preserveAttributes: true,
+  preservePrefixedNames: false,
 
-  // High-level strategies
-  highFidelity: false,
-  attributeStrategy: 'merge',
-  textStrategy: 'direct',
-  namespaceStrategy: 'prefix',
-  arrayStrategy: 'multiple',
-  emptyElementStrategy: 'object',
-  mixedContentStrategy: 'preserve',
+  // High-level strategies - now in strategies object
+  strategies: {
+    highFidelity: false,
+    attributeStrategy: 'merge',
+    textStrategy: 'direct',
+    namespaceStrategy: 'prefix',
+    arrayStrategy: 'multiple',
+    emptyElementStrategy: 'object',
+    mixedContentStrategy: 'preserve',
+  },
 
   // Property names
   properties: {

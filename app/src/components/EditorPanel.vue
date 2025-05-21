@@ -2,7 +2,7 @@
 <template>
   <v-card>
     <v-card-title class="d-flex align-center">
-<v-spacer></v-spacer>
+      <v-spacer></v-spacer>
       <v-btn-group variant="outlined">
         <v-btn
           color="primary"
@@ -27,19 +27,6 @@
           Reset
         </v-btn>
       </v-btn-group>
-
-      <!-- Log Level Selector -->
-      <v-select
-        v-model="logLevel"
-        :items="logLevelOptions"
-        label="Log Level"
-        density="compact"
-        variant="outlined"
-        class="log-level-select me-2"
-        hide-details
-        @update:model-value="setLogLevel"
-      ></v-select>
-
     </v-card-title>
 
     <v-card-text>
@@ -122,26 +109,14 @@
 import { ref, computed, watch } from "vue";
 import { useEditorStore } from "../stores/editorStore";
 import { useAPIStore } from "../stores/apiStore";
-import { useConfigStore } from "../stores/configStore";
 import { storeToRefs } from "pinia";
 
 const editorStore = useEditorStore();
 const apiStore = useAPIStore();
-const configStore = useConfigStore();
 const { xml, json, isProcessing, error, jsonFormat } = storeToRefs(editorStore);
-const { logLevel } = storeToRefs(configStore);
 
 // Track active JSON format
 const activeJsonFormat = ref(null);
-
-// Log level options
-const logLevelOptions = [
-  { title: "Debug", value: "debug" },
-  { title: "Info", value: "info" },
-  { title: "Warning", value: "warn" },
-  { title: "Error", value: "error" },
-  { title: "None", value: "none" },
-];
 
 // Create a computed JSON text representation
 const jsonText = computed({
@@ -195,12 +170,6 @@ const reset = () => {
   apiStore.updateFluentAPI();
 };
 
-// Set log level
-const setLogLevel = (level) => {
-  configStore.updateLogLevel(level);
-  apiStore.updateFluentAPI();
-};
-
 // Watch for external changes
 watch(json, () => {
   apiStore.updateFluentAPI();
@@ -237,9 +206,5 @@ watch(jsonFormat, (newFormat) => {
 
 .no-wrap {
   white-space: nowrap;
-}
-
-.log-level-select {
-  max-width: 150px;
 }
 </style>

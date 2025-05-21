@@ -2,14 +2,14 @@
 <!-- Root element with root namespace and common prefixes -->
 <test:root xmlns:test="http://example.org/test" 
            xmlns:meta="http://example.org/metadata"
-           xmlns:alt="http://example.org/metadata" <!-- Alias for meta namespace (same URI) -->
+           xmlns:alt="http://example.org/metadata" 
            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
            xmlns:xs="http://www.w3.org/2001/XMLSchema"
            xmlns="http://example.org/default"
            xsi:schemaLocation="http://example.org/test test.xsd"
            test:id="root-123"
            meta:created="2025-04-25T14:30:00Z"
-           alt:version="1.0" <!-- Using alias prefix -->
+           alt:version="1.0"
            status="active">
            
   <!-- Section 1: Basic elements with mixed namespaces -->

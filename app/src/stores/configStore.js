@@ -1,6 +1,6 @@
 // stores/configStore.js
 import { defineStore } from 'pinia';
-import XJXService from '../services/XJXService';
+import XJXService from '../services/xjxService';
 import { useAPIStore } from './apiStore';
 
 export const useConfigStore = defineStore('config', {

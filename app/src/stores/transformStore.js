@@ -1,6 +1,6 @@
 // stores/transformStore.js
 import { defineStore } from 'pinia';
-import XJXService from '../services/XJXService';
+import XJXService from '../services/xjxService';
 
 export const useTransformStore = defineStore('transform', {
   state: () => ({

@@ -1,6 +1,6 @@
 // stores/editorStore.js
 import { defineStore } from 'pinia';
-import XJXService from '../services/XJXService';
+import XJXService from '../services/xjxService';
 import { useConfigStore } from './configStore';
 import { useTransformStore } from './transformStore';
 

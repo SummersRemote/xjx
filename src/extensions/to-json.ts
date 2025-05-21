@@ -18,14 +18,8 @@ export function toJsonWithConverter(this: TerminalExtensionContext, options?: Js
 
 logger.debug("Config", options)
 
-    // Determine whether to use high-fidelity mode
-    console.debug("options.highFidelity (value):", options?.highFidelity);
-    console.debug("typeof options.highFidelity:", typeof options?.highFidelity);
-    console.debug("comparison result:", options?.highFidelity === true);
-    const useHighFidelity = options?.highFidelity === true || this.config.strategies.highFidelity === true;
-  
-  console.debug("Who enabled highFidelity?", useHighFidelity);
 
+    const useHighFidelity = options?.highFidelity === true || this.config.strategies.highFidelity === true;
   
     logger.debug('Starting toJsonWithConverter conversion', {
       sourceFormat: this.sourceFormat,

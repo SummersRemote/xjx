@@ -15,6 +15,9 @@ const transformerMap = {
   RegexTransform: RegexTransform,
 };
 
+// Create a singleton XJX instance for log level management
+const globalXJX = new XJX();
+
 class XJXService {
   /**
    * Get default configuration
@@ -41,7 +44,7 @@ class XJXService {
         namespaceStrategy: "prefix",
         arrayStrategy: "multiple",
         emptyElementStrategy: "object",
-        mixedContentStrategy: "preserve"
+        mixedContentStrategy: "preserve",
       },
 
       // Property names
@@ -97,6 +100,26 @@ class XJXService {
   }
 
   /**
+   * Set the log level for the XJX library
+   * @param {string} level - Log level ('debug', 'info', 'warn', 'error', 'none')
+   */
+  setLogLevel(level) {
+    // Map string levels to LogLevel enum values
+    const logLevelMap = {
+      debug: LogLevel.DEBUG,
+      info: LogLevel.INFO,
+      warn: LogLevel.WARN,
+      error: LogLevel.ERROR,
+      none: LogLevel.NONE,
+    };
+
+    // Set log level in the global instance
+    globalXJX.setLogLevel(logLevelMap[level] || LogLevel.ERROR);
+
+    console.log(`XJX log level set to: ${level}`);
+  }
+
+  /**
    * Convert XML to JSON (using unified JSON converter)
    * @param {string} xml - XML string
    * @param {Object} config - Configuration object
@@ -107,7 +130,7 @@ class XJXService {
     // Create a new instance for each conversion
     const xjx = new XJX();
 
-    let builder = xjx.setLogLevel(LogLevel.DEBUG);
+    let builder = xjx;
 
     // Apply config if provided
     if (config) {
@@ -142,7 +165,7 @@ class XJXService {
     // Create a new instance for each conversion
     const xjx = new XJX();
 
-    let builder = xjx.setLogLevel(LogLevel.DEBUG);
+    let builder = xjx;
 
     // Apply config if provided
     if (config) {
@@ -176,8 +199,16 @@ class XJXService {
    */
   generateFluentAPI(fromType, content, config, transforms, jsonFormat = "xjx") {
     // Use the fluent API in the examples
-    let code = `import { XJX } from 'xjx';\n\n`;
+    let code = `import { XJX, LogLevel } from 'xjx';\n\n`;
     code += `const xjx = new XJX();\n`;
+
+    // Add log level if not default
+    if (globalXJX.logLevel && globalXJX.logLevel !== "error") {
+      code += `xjx.setLogLevel(LogLevel.${(
+        globalXJX.logLevel || "ERROR"
+      ).toUpperCase()});\n`;
+    }
+
     code += `const builder = xjx.from${fromType === "xml" ? "Xml" : "Json"}(${
       fromType === "xml" ? "xml" : "json"
     })`;
@@ -203,13 +234,7 @@ class XJXService {
     let options = "";
     if (fromType === "xml") {
       terminalMethod = "toJson";
-      // For xjx format, we'd need to set highFidelity in the options object
-      if (jsonFormat === "xjx") {
-        options = "({ highFidelity: true })";
-      } else {
-        // Standard format is the default when highFidelity is false
-        options = "()";
-      }
+      options = "()";
     } else {
       // For XML output, use toXmlString
       terminalMethod = "toXmlString";

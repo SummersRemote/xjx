@@ -4,6 +4,19 @@
     <v-card-title class="d-flex align-center">
       XML - JSON Converter
       <v-spacer></v-spacer>
+      
+      <!-- Log Level Selector -->
+      <v-select
+        v-model="logLevel"
+        :items="logLevelOptions"
+        label="Log Level"
+        density="compact"
+        variant="outlined"
+        class="log-level-select me-2"
+        hide-details
+        @update:model-value="setLogLevel"
+      ></v-select>
+      
       <v-btn-group variant="outlined">
         <v-btn
           color="primary"
@@ -14,16 +27,6 @@
         >
           XML → JSON
         </v-btn>
-        
-        <!-- <v-btn
-          color="info"
-          @click="convertXmlToStandardJson"
-          :loading="isProcessing"
-          :disabled="isProcessing"
-          class="no-wrap"
-        >
-          XML → JSON (Standard)
-        </v-btn> -->
         
         <v-btn
           color="secondary"
@@ -79,13 +82,6 @@
           <v-card variant="outlined" class="editor-card">
             <v-card-title class="py-2 px-4 bg-blue-grey-lighten-5 d-flex align-center">
               <div>JSON</div>
-              <!-- <v-badge
-                v-if="activeJsonFormat && json"
-                color="primary"
-                :content="activeJsonFormat === 'standard' ? 'Standard' : 'XJX'"
-                inline
-                class="ml-2"
-              ></v-badge> -->
               <v-spacer></v-spacer>
               <v-btn 
                 icon="mdi-content-copy" 
@@ -137,14 +133,26 @@
 import { ref, computed, watch } from 'vue';
 import { useEditorStore } from '../stores/editorStore';
 import { useAPIStore } from '../stores/apiStore';
+import { useConfigStore } from '../stores/configStore';
 import { storeToRefs } from 'pinia';
 
 const editorStore = useEditorStore();
 const apiStore = useAPIStore();
+const configStore = useConfigStore();
 const { xml, json, isProcessing, error, jsonFormat } = storeToRefs(editorStore);
+const { logLevel } = storeToRefs(configStore);
 
 // Track active JSON format
 const activeJsonFormat = ref(null);
+
+// Log level options
+const logLevelOptions = [
+  { title: 'Debug', value: 'debug' },
+  { title: 'Info', value: 'info' },
+  { title: 'Warning', value: 'warn' },
+  { title: 'Error', value: 'error' },
+  { title: 'None', value: 'none' }
+];
 
 // Create a computed JSON text representation
 const jsonText = computed({
@@ -179,22 +187,10 @@ const copyToClipboard = (content) => {
 // Convert XML to XJX JSON
 const convertXmlToJson = async () => {
   await editorStore.convertXmlToJson();
-  // activeJsonFormat.value = 'xjx';
   apiStore.updateLastDirection('xml');
-  // Update API Store with the JSON format
   apiStore.updateJsonFormat('xjx');
   apiStore.updateFluentAPI();
 };
-
-// // Convert XML to Standard JSON
-// const convertXmlToStandardJson = async () => {
-//   await editorStore.convertXmlToStandardJson();
-//   activeJsonFormat.value = 'standard';
-//   apiStore.updateLastDirection('xml');
-//   // Update API Store with the JSON format
-//   apiStore.updateJsonFormat('standard');
-//   apiStore.updateFluentAPI();
-// };
 
 // Convert JSON to XML
 const convertJsonToXml = async () => {
@@ -207,6 +203,12 @@ const convertJsonToXml = async () => {
 const reset = () => {
   editorStore.reset();
   activeJsonFormat.value = null;
+  apiStore.updateFluentAPI();
+};
+
+// Set log level
+const setLogLevel = (level) => {
+  configStore.updateLogLevel(level);
   apiStore.updateFluentAPI();
 };
 
@@ -246,5 +248,9 @@ watch(jsonFormat, (newFormat) => {
 
 .no-wrap {
   white-space: nowrap;
+}
+
+.log-level-select {
+  max-width: 150px;
 }
 </style>

@@ -55,7 +55,6 @@
     <v-main>
       <v-container fluid>
         <v-row>
-
           <v-col cols="12">
             <EditorPanel />
           </v-col>
@@ -112,5 +111,10 @@ const showApiDialog = () => {
 .v-expansion-panel-text__wrapper {
   max-height: 400px;
   overflow-y: auto;
+}
+
+/* Style select components consistently */
+.v-select.compact-select .v-field__input {
+  min-height: 32px !important;
 }
 </style>

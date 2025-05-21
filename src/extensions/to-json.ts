@@ -6,7 +6,6 @@ import { FORMAT } from '../core/transform';
 import { logger } from '../core/error';
 import { XNode } from '../core/xnode';
 import { JsonOptions, JsonValue } from '../core/converter';
-import { safeStringify } from '../core/json-utils';
 import { TerminalExtensionContext } from '../core/extension';
 
 /**
@@ -93,13 +92,11 @@ export function toJsonStringWithConverter(
     // First get the JSON using the custom converter method
     const jsonValue = toJsonWithConverter.call(this, options);
     
-    // Use the indent value from options or config
-    const indent = options?.indent !== undefined ? 
-      options.indent : 
-      this.config.formatting.indent;
+    // Use the indent value from options or config or default
+    const indent = options?.indent ?? this.config.formatting.indent ?? 2;
     
     // Stringify the JSON
-    const result = safeStringify(jsonValue, indent);
+    const result = JSON.stringify(jsonValue, null, indent);
     
     logger.debug('Successfully converted to JSON string using custom converter', {
       resultLength: result.length,

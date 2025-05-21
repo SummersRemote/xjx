@@ -187,7 +187,7 @@ class JsonToXNodeConverterImpl implements Converter<JsonValue, XNode, { config: 
    */
   private processNullValue(element: XNode, config: Configuration): void {
     // Handle null values based on emptyElementStrategy
-    switch (config.emptyElementStrategy) {
+    switch (config.strategies.emptyElementStrategy) {
       case 'null':
         element.value = null;
         break;
@@ -210,8 +210,9 @@ class JsonToXNodeConverterImpl implements Converter<JsonValue, XNode, { config: 
    * @param config Configuration
    */
   private processObjectValue(element: XNode, obj: JsonObject, config: Configuration): void {
-    const { attributeStrategy, textStrategy, properties, prefixes } = config;
-    
+    const { properties, prefixes } = config;
+    const { attributeStrategy, textStrategy } = config.strategies;
+        
     // Check if this is an element with attributes and/or text content
     let hasAttributes = false;
     let textContent: any = undefined;
@@ -354,7 +355,7 @@ class JsonToXNodeConverterImpl implements Converter<JsonValue, XNode, { config: 
   private processArrayItem(parent: XNode, item: JsonValue, itemName: string, config: Configuration): void {
     if (item === null) {
       // Null item based on strategy
-      if (config.emptyElementStrategy !== 'object') {
+      if (config.strategies.emptyElementStrategy !== 'object') {
         const childElement = createElement(itemName);
         this.processNullValue(childElement, config);
         addChild(parent, childElement);

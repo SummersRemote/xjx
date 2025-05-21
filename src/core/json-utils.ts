@@ -9,7 +9,7 @@ import { FormatDetectionResult, JsonValue, JsonObject, JsonArray } from './conve
 /**
  * Detect JSON format (high-fidelity vs standard)
  * @param json JSON value to analyze
- * @param config Configuration with property names
+ * @param config Configuration with property names to check for
  * @returns Format detection result
  */
 export function detectJsonFormat(json: JsonValue, config: Configuration): FormatDetectionResult {
@@ -258,7 +258,7 @@ export function shouldBeArray(propName: string, value: any, config: Configuratio
   }
   
   // Check strategy
-  switch (config.arrayStrategy) {
+  switch (config.strategies.arrayStrategy) {
     case 'always':
       return true;
     case 'never':

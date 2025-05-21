@@ -128,13 +128,13 @@ export function createRootContext(
     targetFormat,
     // Add strategy information when converting to/from JSON
     strategies: targetFormat === FORMAT.JSON ? {
-      highFidelity: config.highFidelity,
-      attributeStrategy: config.attributeStrategy,
-      textStrategy: config.textStrategy,
-      namespaceStrategy: config.namespaceStrategy,
-      arrayStrategy: config.arrayStrategy,
-      emptyElementStrategy: config.emptyElementStrategy,
-      mixedContentStrategy: config.mixedContentStrategy
+      highFidelity: config.strategies.highFidelity,
+      attributeStrategy: config.strategies.attributeStrategy,
+      textStrategy: config.strategies.textStrategy,
+      namespaceStrategy: config.strategies.namespaceStrategy,
+      arrayStrategy: config.strategies.arrayStrategy,
+      emptyElementStrategy: config.strategies.emptyElementStrategy,
+      mixedContentStrategy: config.strategies.mixedContentStrategy
     } : undefined
   };
 }

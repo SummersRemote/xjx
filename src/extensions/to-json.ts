@@ -22,7 +22,7 @@ logger.debug("Config", options)
     console.debug("options.highFidelity (value):", options?.highFidelity);
     console.debug("typeof options.highFidelity:", typeof options?.highFidelity);
     console.debug("comparison result:", options?.highFidelity === true);
-    const useHighFidelity = options?.highFidelity === true || this.config.highFidelity === true;
+    const useHighFidelity = options?.highFidelity === true || this.config.strategies.highFidelity === true;
   
   console.debug("Who enabled highFidelity?", useHighFidelity);
 

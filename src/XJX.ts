@@ -29,7 +29,7 @@ export class XJX implements TerminalExtensionContext, NonTerminalExtensionContex
       preserveNamespaces: this.config.preserveNamespaces,
       preserveComments: this.config.preserveComments,
       preserveTextNodes: this.config.preserveTextNodes,
-      highFidelity: this.config.highFidelity
+      highFidelity: this.config.strategies.highFidelity
     });
   }
   

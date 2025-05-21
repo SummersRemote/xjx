@@ -3,6 +3,7 @@
  */
 import { deepClone, deepMerge } from "./common";
 import { logger } from "./error";
+
 export interface Configuration {
   // Features to preserve during transformation
   preserveNamespaces: boolean;
@@ -12,16 +13,18 @@ export interface Configuration {
   preserveTextNodes: boolean;
   preserveWhitespace: boolean;
   preserveAttributes: boolean;
-  preservePrefixedNames: boolean;  // NEW: Preserve prefixed names in JSON properties
+  preservePrefixedNames: boolean;  // Preserve prefixed names in JSON properties
 
   // High-level transformation strategies
-  highFidelity: boolean;  // Master toggle for high-fidelity mode
-  attributeStrategy: 'merge' | 'prefix' | 'property';
-  textStrategy: 'direct' | 'property';
-  namespaceStrategy: 'prefix' | 'property';
-  arrayStrategy: 'multiple' | 'always' | 'never';
-  emptyElementStrategy: 'object' | 'null' | 'string';
-  mixedContentStrategy: 'preserve' | 'prioritize-text' | 'prioritize-elements';
+  strategies: {
+    highFidelity: boolean;  // Master toggle for high-fidelity mode
+    attributeStrategy: 'merge' | 'prefix' | 'property';
+    textStrategy: 'direct' | 'property';
+    namespaceStrategy: 'prefix' | 'property';
+    arrayStrategy: 'multiple' | 'always' | 'never';
+    emptyElementStrategy: 'object' | 'null' | 'string';
+    mixedContentStrategy: 'preserve' | 'prioritize-text' | 'prioritize-elements';
+  };
 
   // Property names and special markers
   properties: {
@@ -77,13 +80,15 @@ export const DEFAULT_CONFIG: Configuration = {
   preservePrefixedNames: false,  // Default to false for backward compatibility
 
   // High-level strategies
-  highFidelity: false,
-  attributeStrategy: 'merge',
-  textStrategy: 'direct',
-  namespaceStrategy: 'prefix',
-  arrayStrategy: 'multiple',
-  emptyElementStrategy: 'object',
-  mixedContentStrategy: 'preserve',
+  strategies: {
+    highFidelity: false,
+    attributeStrategy: 'merge',
+    textStrategy: 'direct',
+    namespaceStrategy: 'prefix',
+    arrayStrategy: 'multiple',
+    emptyElementStrategy: 'object',
+    mixedContentStrategy: 'preserve',
+  },
 
   // Property names
   properties: {
@@ -123,7 +128,6 @@ export const DEFAULT_CONFIG: Configuration = {
     pretty: true
   }
 };
-
 
 /**
  * Get a fresh copy of the default configuration
@@ -170,68 +174,66 @@ export function createConfig(
 
   logger.debug("Successfully created/updated configuration", {
     preserveNamespaces: result.preserveNamespaces,
-    highFidelity: result.highFidelity,
-    attributeStrategy: result.attributeStrategy
+    highFidelity: result.strategies.highFidelity,
+    attributeStrategy: result.strategies.attributeStrategy
   });
 
   return result;
 }
 
-/**
- * Create a configuration with specified high-fidelity mode
- * @param config Base configuration
- * @param highFidelity High-fidelity mode toggle
- * @returns Updated configuration
- */
-export function withHighFidelity(
-  config: Configuration,
-  highFidelity: boolean
-): Configuration {
-  return mergeConfig(config, { highFidelity });
-}
-
-/**
- * Create effective configuration for JSON conversion by merging options
- * @param baseConfig Base configuration
- * @param options JSON conversion options
- * @returns Effective configuration
- */
-export function createJsonConfig(
-  baseConfig: Configuration,
-  options?: {
-    highFidelity?: boolean;
-    attributeStrategy?: 'merge' | 'prefix' | 'property';
-    textStrategy?: 'direct' | 'property';
-    namespaceStrategy?: 'prefix' | 'property';
-    arrayStrategy?: 'multiple' | 'always' | 'never';
-    emptyElementStrategy?: 'object' | 'null' | 'string';
-    mixedContentStrategy?: 'preserve' | 'prioritize-text' | 'prioritize-elements';
-    formatting?: Partial<Configuration['formatting']>;
-  }
-): Configuration {
-  if (!options || Object.keys(options).length === 0) {
-    return baseConfig;
-  }
+// /**
+//  * Create effective configuration for JSON conversion by merging options
+//  * @param baseConfig Base configuration
+//  * @param options JSON conversion options
+//  * @returns Effective configuration
+//  */
+// export function createJsonConfig(
+//   baseConfig: Configuration,
+//   options?: {
+//     highFidelity?: boolean;
+//     attributeStrategy?: 'merge' | 'prefix' | 'property';
+//     textStrategy?: 'direct' | 'property';
+//     namespaceStrategy?: 'prefix' | 'property';
+//     arrayStrategy?: 'multiple' | 'always' | 'never';
+//     emptyElementStrategy?: 'object' | 'null' | 'string';
+//     mixedContentStrategy?: 'preserve' | 'prioritize-text' | 'prioritize-elements';
+//     formatting?: Partial<Configuration['formatting']>;
+//   }
+// ): Configuration {
+//   if (!options || Object.keys(options).length === 0) {
+//     return baseConfig;
+//   }
   
-  // Create override configuration from options
-  const overrides: Partial<Configuration> = {};
+//   // Create override configuration from options
+//   const overrides: Partial<Configuration> = {};
   
-  // Apply direct strategy options
-  if (options.highFidelity !== undefined) overrides.highFidelity = options.highFidelity;
-  if (options.attributeStrategy !== undefined) overrides.attributeStrategy = options.attributeStrategy;
-  if (options.textStrategy !== undefined) overrides.textStrategy = options.textStrategy;
-  if (options.namespaceStrategy !== undefined) overrides.namespaceStrategy = options.namespaceStrategy;
-  if (options.arrayStrategy !== undefined) overrides.arrayStrategy = options.arrayStrategy;
-  if (options.emptyElementStrategy !== undefined) overrides.emptyElementStrategy = options.emptyElementStrategy;
-  if (options.mixedContentStrategy !== undefined) overrides.mixedContentStrategy = options.mixedContentStrategy;
+//   // Apply direct strategy options
+//   if (options.highFidelity !== undefined || 
+//       options.attributeStrategy !== undefined ||
+//       options.textStrategy !== undefined ||
+//       options.namespaceStrategy !== undefined ||
+//       options.arrayStrategy !== undefined ||
+//       options.emptyElementStrategy !== undefined ||
+//       options.mixedContentStrategy !== undefined) {
+    
+//     overrides.strategies = { ...baseConfig.strategies };
+    
+//     if (options.highFidelity !== undefined) overrides.strategies.highFidelity = options.highFidelity;
+//     if (options.attributeStrategy !== undefined) overrides.strategies.attributeStrategy = options.attributeStrategy;
+//     if (options.textStrategy !== undefined) overrides.strategies.textStrategy = options.textStrategy;
+//     if (options.namespaceStrategy !== undefined) overrides.strategies.namespaceStrategy = options.namespaceStrategy;
+//     if (options.arrayStrategy !== undefined) overrides.strategies.arrayStrategy = options.arrayStrategy;
+//     if (options.emptyElementStrategy !== undefined) overrides.strategies.emptyElementStrategy = options.emptyElementStrategy;
+//     if (options.mixedContentStrategy !== undefined) overrides.strategies.mixedContentStrategy = options.mixedContentStrategy;
+//   }
   
-  // Apply formatting options if provided
-  if (options.formatting) {
-    overrides.formatting = {
-      ...baseConfig.formatting,
-      ...options.formatting
-    };
-  }
+//   // Apply formatting options if provided
+//   if (options.formatting) {
+//     overrides.formatting = {
+//       ...baseConfig.formatting,
+//       ...options.formatting
+//     };
+//   }
   
-  return mergeConfig(baseConfig, overrides);
-}
+//   return mergeConfig(baseConfig, overrides);
+// }

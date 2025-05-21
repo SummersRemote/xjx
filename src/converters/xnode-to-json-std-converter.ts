@@ -157,7 +157,7 @@ class XNodeToJsonConverterImpl implements Converter<XNode, JsonValue, { config: 
     const hasAttributes = node.attributes && Object.keys(node.attributes).length > 0 && config.preserveAttributes;
     
     // If no attributes and direct text strategy, return the text directly
-    if (!hasAttributes && config.textStrategy === 'direct') {
+    if (!hasAttributes && config.strategies.textStrategy === 'direct') {
       return text;
     }
     
@@ -170,7 +170,7 @@ class XNodeToJsonConverterImpl implements Converter<XNode, JsonValue, { config: 
     }
     
     // Add text content based on strategy
-    if (config.textStrategy === 'direct') {
+    if (config.strategies.textStrategy === 'direct') {
       // Add as special property
       result[config.properties.text] = text;
     } else {
@@ -206,7 +206,7 @@ class XNodeToJsonConverterImpl implements Converter<XNode, JsonValue, { config: 
     
     // Process mixed content according to strategy
     if (hasMixedContent) {
-      switch (config.mixedContentStrategy) {
+      switch (config.strategies.mixedContentStrategy) {
         case 'preserve':
           // Add text nodes as a property
           if (textNodes.length > 0 && config.preserveTextNodes) {
@@ -270,7 +270,7 @@ class XNodeToJsonConverterImpl implements Converter<XNode, JsonValue, { config: 
     }
     
     // No attributes, handle based on strategy
-    switch (config.emptyElementStrategy) {
+    switch (config.strategies.emptyElementStrategy) {
       case 'null':
         return null;
         
@@ -292,8 +292,9 @@ class XNodeToJsonConverterImpl implements Converter<XNode, JsonValue, { config: 
   private addAttributes(result: JsonObject, node: XNode, config: Configuration): void {
     if (!node.attributes) return;
     
-    const { attributeStrategy, prefixes, properties } = config;
-    
+    const { properties, prefixes } = config;
+    const { attributeStrategy } = config.strategies;
+
     switch (attributeStrategy) {
       case 'merge':
         // Add attributes directly to the element object
@@ -347,8 +348,8 @@ class XNodeToJsonConverterImpl implements Converter<XNode, JsonValue, { config: 
       // Determine if this should be an array
       const forcedArray = config.arrays.forceArrays.includes(name);
       const multipleNodes = nodes.length > 1;
-      const alwaysArray = config.arrayStrategy === 'always';
-      const neverArray = config.arrayStrategy === 'never';
+      const alwaysArray = config.strategies.arrayStrategy === 'always';
+      const neverArray = config.strategies.arrayStrategy === 'never';
       
       const shouldBeArray = forcedArray || (multipleNodes && !neverArray) || alwaysArray;
       

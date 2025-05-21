@@ -95,7 +95,7 @@ function convertElementToXNode(
 
     // Process regular attributes if preserving attributes
     if (config.preserveAttributes && xnode.attributes) {
-      processAttributes(element, xnode.attributes);
+      processAttributes(element, xnode.attributes, config);
     }
   }
 
@@ -181,10 +181,12 @@ function processNamespaceDeclarations(
  * Process regular attributes from an element
  * @param element DOM element
  * @param attributes Attributes object to populate
+ * @param config Configuration
  */
 function processAttributes(
   element: Element,
-  attributes: Record<string, any>
+  attributes: Record<string, any>,
+  config: Configuration
 ): void {
   for (let i = 0; i < element.attributes.length; i++) {
     const attr = element.attributes[i];
@@ -192,8 +194,11 @@ function processAttributes(
     // Skip namespace declarations
     if (attr.name === "xmlns" || attr.name.startsWith("xmlns:")) continue;
 
-    // Add regular attribute
-    const attrName = attr.localName || attr.name.split(":").pop() || attr.name;
+    // Use the full attribute name (with prefix) when preserving namespaces
+    const attrName = config.preserveNamespaces 
+      ? attr.name 
+      : (attr.localName || attr.name.split(":").pop() || attr.name);
+    
     attributes[attrName] = attr.value;
   }
 }

@@ -1,12 +1,18 @@
 // services/XJXService.js
 // Wrapper service for the XJX library with webpack-compatibility
-import { XJX, BooleanTransform, NumberTransform, RegexTransform } from '../../../dist/esm/index.js';
+import {
+  XJX,
+  LogLevel,
+  BooleanTransform,
+  NumberTransform,
+  RegexTransform,
+} from "../../../dist/esm/index.js";
 
 // Create a map of transformer types to their constructors
 const transformerMap = {
-  'BooleanTransform': BooleanTransform,
-  'NumberTransform': NumberTransform,
-  'RegexTransform': RegexTransform
+  BooleanTransform: BooleanTransform,
+  NumberTransform: NumberTransform,
+  RegexTransform: RegexTransform,
 };
 
 class XJXService {
@@ -28,12 +34,12 @@ class XJXService {
 
       // High-level strategies
       highFidelity: false,
-      attributeStrategy: 'merge',
-      textStrategy: 'direct',
-      namespaceStrategy: 'prefix',
-      arrayStrategy: 'multiple',
-      emptyElementStrategy: 'object',
-      mixedContentStrategy: 'preserve',
+      attributeStrategy: "merge",
+      textStrategy: "direct",
+      namespaceStrategy: "prefix",
+      arrayStrategy: "multiple",
+      emptyElementStrategy: "object",
+      mixedContentStrategy: "preserve",
 
       // Property names
       properties: {
@@ -47,46 +53,46 @@ class XJXService {
         processingInstr: "$pi",
         target: "$trgt",
         children: "$children",
-        compact: true
+        compact: true,
       },
 
       // Prefix configurations
       prefixes: {
-        attribute: '@',
-        namespace: 'xmlns:',
-        comment: '#',
-        cdata: '!',
-        pi: '?'
+        attribute: "@",
+        namespace: "xmlns:",
+        comment: "#",
+        cdata: "!",
+        pi: "?",
       },
 
       // Array configurations
       arrays: {
         forceArrays: [],
         defaultItemName: "item",
-        itemNames: {}
+        itemNames: {},
       },
 
       // Output formatting
       formatting: {
         indent: 2,
         declaration: true,
-        pretty: true
-      }
+        pretty: true,
+      },
     };
   }
-  
+
   /**
    * Get available transformers from the XJX library
    * @returns {Object} Available transformers
    */
   getAvailableTransformers() {
     return {
-      BooleanTransform: 'BooleanTransform',
-      NumberTransform: 'NumberTransform',
-      RegexTransform: 'RegexTransform'
+      BooleanTransform: "BooleanTransform",
+      NumberTransform: "NumberTransform",
+      RegexTransform: "RegexTransform",
     };
   }
-  
+
   /**
    * Convert XML to JSON (using unified JSON converter)
    * @param {string} xml - XML string
@@ -97,60 +103,30 @@ class XJXService {
   convertXmlToJson(xml, config, transforms) {
     // Create a new instance for each conversion
     const xjx = new XJX();
-    
-    // Start the conversion chain with fluent API
-    let builder = xjx.fromXml(xml);
-    
+
+    let builder = xjx.setLogLevel(LogLevel.DEBUG);
+
     // Apply config if provided
     if (config) {
       builder = builder.withConfig(config);
     }
-    
+
+    // Start the conversion chain with fluent API
+    builder = builder.fromXml(xml);
+
     // Apply transforms if provided
     if (transforms && transforms.length > 0) {
       const transformInstances = this._createTransformers(transforms);
-      
+
       if (transformInstances.length > 0) {
         builder = builder.withTransforms(...transformInstances);
       }
     }
-    
+
     // Use the new unified method with highFidelity: true
-    return builder.toJson({ highFidelity: true });
-  }
-  
-  /**
-   * Convert XML to standard JSON
-   * @param {string} xml - XML string
-   * @param {Object} config - Configuration object
-   * @param {Array} transforms - Array of transform objects
-   * @returns {Object} Resulting standard JSON
-   */
-  convertXmlToStandardJson(xml, config, transforms) {
-    // Create a new instance for each conversion
-    const xjx = new XJX();
-    
-    // Start the conversion chain with fluent API
-    let builder = xjx.fromXml(xml);
-    
-    // Apply config if provided
-    if (config) {
-      builder = builder.withConfig(config);
-    }
-    
-    // Apply transforms if provided
-    if (transforms && transforms.length > 0) {
-      const transformInstances = this._createTransformers(transforms);
-      
-      if (transformInstances.length > 0) {
-        builder = builder.withTransforms(...transformInstances);
-      }
-    }
-    
-    // Use unified method with highFidelity: false (default)
     return builder.toJson();
   }
-  
+
   /**
    * Convert JSON to XML
    * Auto-detects whether input is XJX JSON or standard JSON
@@ -162,28 +138,30 @@ class XJXService {
   convertJsonToXml(json, config, transforms) {
     // Create a new instance for each conversion
     const xjx = new XJX();
-    
-    // Start the conversion chain with the unified JSON method
-    let builder = xjx.fromJson(json);
-    
+
+    let builder = xjx.setLogLevel(LogLevel.DEBUG);
+
     // Apply config if provided
     if (config) {
       builder = builder.withConfig(config);
     }
-    
+
+    // Start the conversion chain with the unified JSON method
+    builder = builder.fromJson(json);
+
     // Apply transforms if provided
     if (transforms && transforms.length > 0) {
       const transformInstances = this._createTransformers(transforms);
-      
+
       if (transformInstances.length > 0) {
         builder = builder.withTransforms(...transformInstances);
       }
     }
-    
+
     // Convert to XML string
     return builder.toXmlString();
   }
-  
+
   /**
    * Generate fluent API code string
    * @param {string} fromType - 'xml' or 'json'
@@ -193,33 +171,37 @@ class XJXService {
    * @param {string} jsonFormat - JSON format ('xjx' or 'standard')
    * @returns {string} Fluent API code
    */
-  generateFluentAPI(fromType, content, config, transforms, jsonFormat = 'xjx') {
+  generateFluentAPI(fromType, content, config, transforms, jsonFormat = "xjx") {
     // Use the fluent API in the examples
     let code = `import { XJX } from 'xjx';\n\n`;
     code += `const xjx = new XJX();\n`;
-    code += `const builder = xjx.from${fromType === 'xml' ? 'Xml' : 'Json'}(${fromType === 'xml' ? 'xml' : 'json'})`;
-    
+    code += `const builder = xjx.from${fromType === "xml" ? "Xml" : "Json"}(${
+      fromType === "xml" ? "xml" : "json"
+    })`;
+
     if (config) {
       code += `\n  .withConfig(${JSON.stringify(config, null, 2)})`;
     }
-    
+
     if (transforms && transforms.length > 0) {
-      const transformsStr = transforms.map(t => {
-        const type = t.type;
-        const options = JSON.stringify(t.options);
-        return `new ${type}(${options})`;
-      }).join(',\n    ');
-      
+      const transformsStr = transforms
+        .map((t) => {
+          const type = t.type;
+          const options = JSON.stringify(t.options);
+          return `new ${type}(${options})`;
+        })
+        .join(",\n    ");
+
       code += `\n  .withTransforms(\n    ${transformsStr}\n  )`;
     }
-    
+
     // Determine the appropriate terminal method based on direction and format
     let terminalMethod;
     let options = "";
-    if (fromType === 'xml') {
+    if (fromType === "xml") {
       // Using the unified JSON method with appropriate highFidelity setting
-      terminalMethod = 'toJson';
-      if (jsonFormat === 'standard') {
+      terminalMethod = "toJson";
+      if (jsonFormat === "standard") {
         // Standard format is the default (highFidelity: false)
         options = "";
       } else {
@@ -228,16 +210,16 @@ class XJXService {
       }
     } else {
       // For XML output, use toXmlString
-      terminalMethod = 'toXmlString';
+      terminalMethod = "toXmlString";
     }
-    
+
     // Add the terminal method
     code += `\n  .${terminalMethod}${options ? options : "()"}`;
-    code += ';';
-    
+    code += ";";
+
     return code;
   }
-  
+
   /**
    * Create transformer instances from transformer configurations
    * @param {Array} transforms - Array of transform objects
@@ -245,14 +227,16 @@ class XJXService {
    * @private
    */
   _createTransformers(transforms) {
-    return transforms.map(t => {
-      const TransformerClass = transformerMap[t.type];
-      if (!TransformerClass) {
-        console.error(`Transformer class not found for type: ${t.type}`);
-        return null;
-      }
-      return new TransformerClass(t.options);
-    }).filter(Boolean); // Remove any null entries
+    return transforms
+      .map((t) => {
+        const TransformerClass = transformerMap[t.type];
+        if (!TransformerClass) {
+          console.error(`Transformer class not found for type: ${t.type}`);
+          return null;
+        }
+        return new TransformerClass(t.options);
+      })
+      .filter(Boolean); // Remove any null entries
   }
 }
 

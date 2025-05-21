@@ -3,10 +3,6 @@
  */
 import { deepClone, deepMerge } from "./common";
 import { logger } from "./error";
-
-/**
- * Configuration interface for the library
- */
 export interface Configuration {
   // Features to preserve during transformation
   preserveNamespaces: boolean;
@@ -16,6 +12,7 @@ export interface Configuration {
   preserveTextNodes: boolean;
   preserveWhitespace: boolean;
   preserveAttributes: boolean;
+  preservePrefixedNames: boolean;  // NEW: Preserve prefixed names in JSON properties
 
   // High-level transformation strategies
   highFidelity: boolean;  // Master toggle for high-fidelity mode
@@ -77,6 +74,7 @@ export const DEFAULT_CONFIG: Configuration = {
   preserveTextNodes: true,
   preserveWhitespace: false,
   preserveAttributes: true,
+  preservePrefixedNames: false,  // Default to false for backward compatibility
 
   // High-level strategies
   highFidelity: false,
@@ -125,6 +123,7 @@ export const DEFAULT_CONFIG: Configuration = {
     pretty: true
   }
 };
+
 
 /**
  * Get a fresh copy of the default configuration

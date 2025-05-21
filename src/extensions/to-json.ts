@@ -1,27 +1,37 @@
-/**
- * Extension implementation for JSON output methods
- */
-import { XJX } from "../XJX";
-import { createXNodeToJsonConverter } from "../converters/xnode-to-json-converter";
-import { transformXNode } from "../converters/xnode-transformer";
-import { FORMAT } from "../core/transform";
-import { logger } from "../core/error";
-import { XNode } from "../core/xnode";
-import { JsonOptions, JsonValue } from "../core/converter";
-import { safeStringify } from "../core/json-utils";
-import { TerminalExtensionContext } from "../core/extension";
+import { XJX } from '../XJX';
+import { createXNodeToJsonHiFiConverter } from '../converters/xnode-to-json-hifi-converter';
+import { createXNodeToJsonConverter } from '../converters/xnode-to-json-std-converter';
+import { transformXNode } from '../converters/xnode-transformer';
+import { FORMAT } from '../core/transform';
+import { logger } from '../core/error';
+import { XNode } from '../core/xnode';
+import { JsonOptions, JsonValue } from '../core/converter';
+import { safeStringify } from '../core/json-utils';
+import { TerminalExtensionContext } from '../core/extension';
 
 /**
- * Implementation for converting to JSON
+ * Implementation for converting to JSON using custom converters
  */
-export function toJson(this: TerminalExtensionContext, options?: JsonOptions): JsonValue {
+export function toJsonWithConverter(this: TerminalExtensionContext, options?: JsonOptions): JsonValue {
   try {
     // Source validation is handled by the registration mechanism
     
-    logger.debug('Starting toJson conversion', {
+
+logger.debug("Config", options)
+
+    // Determine whether to use high-fidelity mode
+    console.debug("options.highFidelity (value):", options?.highFidelity);
+    console.debug("typeof options.highFidelity:", typeof options?.highFidelity);
+    console.debug("comparison result:", options?.highFidelity === true);
+    const useHighFidelity = options?.highFidelity === true || this.config.highFidelity === true;
+  
+  console.debug("Who enabled highFidelity?", useHighFidelity);
+
+  
+    logger.debug('Starting toJsonWithConverter conversion', {
       sourceFormat: this.sourceFormat,
       hasTransforms: this.transforms.length > 0,
-      highFidelity: options?.highFidelity
+      highFidelity: useHighFidelity
     });
     
     // Apply transformations if any are registered
@@ -36,35 +46,52 @@ export function toJson(this: TerminalExtensionContext, options?: JsonOptions): J
       });
     }
     
-    // Convert XNode to JSON
-    const converter = createXNodeToJsonConverter(this.config);
-    const result = converter.convert(nodeToConvert, options);
+    // Select and use the appropriate converter based on highFidelity option
+    let result: JsonValue;
     
-    logger.debug('Successfully converted XNode to JSON', {
-      resultType: typeof result,
-      isArray: Array.isArray(result)
-    });
+    if (useHighFidelity) {
+      // Use XNode to JSON HiFi converter for high-fidelity format
+      const converter = createXNodeToJsonHiFiConverter(this.config);
+      result = converter.convert(nodeToConvert, options);
+      
+      logger.debug('Used XNode to JSON HiFi converter for high-fidelity JSON', {
+        resultType: typeof result,
+        isArray: Array.isArray(result)
+      });
+    } else {
+      // Use standard XNode to JSON converter
+      const converter = createXNodeToJsonConverter(this.config);
+      result = converter.convert(nodeToConvert, options);
+      
+      logger.debug('Used XNode to standard JSON converter', {
+        resultType: typeof result,
+        isArray: Array.isArray(result)
+      });
+    }
     
     return result;
   } catch (err) {
     if (err instanceof Error) {
       throw err;
     }
-    throw new Error(`Failed to convert to JSON: ${String(err)}`);
+    throw new Error(`Failed to convert to JSON using custom converter: ${String(err)}`);
   }
 }
 
 /**
- * Implementation for converting to JSON string
+ * Implementation for converting to JSON string using custom converters
  */
-export function toJsonString(this: TerminalExtensionContext, options?: JsonOptions & { indent?: number }): string {
+export function toJsonStringWithConverter(
+  this: TerminalExtensionContext, 
+  options?: JsonOptions & { indent?: number }
+): string {
   try {
     // Source validation is handled by the registration mechanism
     
-    logger.debug('Starting toJsonString conversion');
+    logger.debug('Starting toJsonStringWithConverter conversion');
     
-    // First get the JSON using the toJson method
-    const jsonValue = toJson.call(this, options);
+    // First get the JSON using the custom converter method
+    const jsonValue = toJsonWithConverter.call(this, options);
     
     // Use the indent value from options or config
     const indent = options?.indent !== undefined ? 
@@ -74,7 +101,7 @@ export function toJsonString(this: TerminalExtensionContext, options?: JsonOptio
     // Stringify the JSON
     const result = safeStringify(jsonValue, indent);
     
-    logger.debug('Successfully converted to JSON string', {
+    logger.debug('Successfully converted to JSON string using custom converter', {
       resultLength: result.length,
       indent
     });
@@ -84,35 +111,10 @@ export function toJsonString(this: TerminalExtensionContext, options?: JsonOptio
     if (err instanceof Error) {
       throw err;
     }
-    throw new Error(`Failed to convert to JSON string: ${String(err)}`);
+    throw new Error(`Failed to convert to JSON string using custom converter: ${String(err)}`);
   }
 }
 
-// Register legacy JSON extensions for high-fidelity and standard JSON formats
-export function toXjxJson(this: TerminalExtensionContext): Record<string, any> {
-  logger.warn('toXjxJson() is deprecated, use toJson({ highFidelity: true }) instead');
-  return toJson.call(this, { highFidelity: true }) as Record<string, any>;
-}
-
-export function toXjxJsonString(this: TerminalExtensionContext): string {
-  logger.warn('toXjxJsonString() is deprecated, use toJsonString({ highFidelity: true }) instead');
-  return toJsonString.call(this, { highFidelity: true });
-}
-
-export function toStandardJson(this: TerminalExtensionContext): any {
-  logger.warn('toStandardJson() is deprecated, use toJson() instead');
-  return toJson.call(this);
-}
-
-export function toStandardJsonString(this: TerminalExtensionContext): string {
-  logger.warn('toStandardJsonString() is deprecated, use toJsonString() instead');
-  return toJsonString.call(this);
-}
-
 // Register the extensions with XJX
-XJX.registerTerminalExtension("toJson", toJson);
-XJX.registerTerminalExtension("toJsonString", toJsonString);
-XJX.registerTerminalExtension("toXjxJson", toXjxJson);
-XJX.registerTerminalExtension("toXjxJsonString", toXjxJsonString);
-XJX.registerTerminalExtension("toStandardJson", toStandardJson);
-XJX.registerTerminalExtension("toStandardJsonString", toStandardJsonString);
+XJX.registerTerminalExtension("toJson", toJsonWithConverter);
+XJX.registerTerminalExtension("toJsonString", toJsonStringWithConverter);

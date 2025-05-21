@@ -11,9 +11,11 @@ export * from './xml-to-xnode-converter';
 export * from './xnode-to-xml-converter';
 
 // JSON converters - unified implementation
-export * from './json-to-xnode-converter';
-export * from './xnode-to-json-converter';
-export * from './json-xnode-common';
+export * from './json-std-to-xnode-converter';
+export * from './xnode-to-json-std-converter';
+export * from './json-hifi-to-xnode-converter';
+export * from './xnode-to-json-hifi-converter';
+// export * from './json-xnode-common';
 
 // Node transformer
 export { transformXNode } from './xnode-transformer';

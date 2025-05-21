@@ -1,404 +1,362 @@
 /**
  * XML to XNode converter implementation
- * 
- * Converts XML strings to XNode representation with consistent application of preservation settings.
  */
-import { XmlToXNodeConverter } from './converter-interfaces';
-import { Config, Configuration } from '../core/config';
-import { XmlParser } from '../core/xml';
+import { Configuration } from '../core/config';
 import { NodeType } from '../core/dom';
-import { logger, validate, handleError, ErrorType } from '../core/error';
-import { XmlNamespace } from '../core/xml';
-import { XmlEntity } from '../core/xml';
-import { XNode } from '../core/xnode';
+import { logger, ProcessingError } from '../core/error';
+import * as xmlUtils from '../core/xml-utils';
+import { XNode, createElement, createTextNode, createCDATANode, createCommentNode, createProcessingInstructionNode, addChild } from '../core/xnode';
+import { validateInput, Converter, createConverter } from '../core/converter';
+
+// Context type for XML to XNode conversion
+interface XmlToXNodeContext {
+  namespaceMap: Record<string, string>;
+  parentNode?: XNode;
+}
 
 /**
- * Converts XML strings to XNode representation
+ * Create an XML to XNode converter
+ * @param config Configuration for the converter
+ * @returns Converter implementation
  */
-export class DefaultXmlToXNodeConverter implements XmlToXNodeConverter {
-  private config: Configuration;
-  private namespaceMap: Record<string, string> = {};
-
-  /**
-   * Create a new converter
-   * @param config Configuration
-   */
-  constructor(config: Configuration) {
-    // Initialize properties first to satisfy TypeScript
-    this.config = config;
-    this.namespaceMap = {};
+export function createXmlToXNodeConverter(config: Configuration): Converter<string, XNode> {
+  return createConverter(config, (xml: string, config: Configuration) => {
+    // Validate input
+    validateInput(xml, "XML source must be a string", 
+                 input => typeof input === "string" && input.length > 0);
     
     try {
-      // Then validate and potentially update
-      if (!Config.isValid(config)) {
-        this.config = Config.createOrUpdate({}, config);
-      }
-    } catch (err) {
-      // If validation/update fails, use default config
-      this.config = Config.getDefault();
-      handleError(err, "initialize XML to XNode converter", {
-        errorType: ErrorType.CONFIGURATION
-      });
-    }
-  }
-
-  /**
-   * Convert XML string to XNode
-   * @param xml XML string
-   * @returns XNode representation
-   */
-  public convert(xml: string): XNode {
-    try {
-      // VALIDATION: Check for valid input
-      validate(typeof xml === "string" && xml.length > 0, "XML source must be a non-empty string");
-      
-      // Reset namespace map
-      this.namespaceMap = {};
-      
       // Parse XML string to DOM
-      const doc = XmlParser.parse(xml);
+      const doc = xmlUtils.parseXml(xml);
       
       logger.debug('Successfully parsed XML to DOM', {
         rootElement: doc.documentElement?.nodeName
       });
       
+      // Create context with empty namespace map
+      const context: XmlToXNodeContext = { namespaceMap: {} };
+      
       // Convert DOM element to XNode
-      return this.elementToXNode(doc.documentElement);
+      return convertElementToXNode(doc.documentElement, config, context);
     } catch (err) {
-      return handleError(err, 'convert XML to XNode', {
-        data: { xmlLength: xml.length },
-        errorType: ErrorType.PARSE
-      });
+      throw new ProcessingError(`Failed to convert XML to XNode: ${err instanceof Error ? err.message : String(err)}`, xml);
     }
+  });
+}
+
+/**
+ * Convert DOM element to XNode
+ * @param element DOM element to convert
+ * @param config Configuration
+ * @param context Conversion context
+ * @returns XNode representation
+ */
+function convertElementToXNode(
+  element: Element, 
+  config: Configuration, 
+  context: XmlToXNodeContext
+): XNode {
+  // Create base node
+  const xnode = createElement(
+    element.localName ||
+    element.nodeName.split(":").pop() ||
+    element.nodeName
+  );
+  
+  // Set parent reference
+  xnode.parent = context.parentNode;
+
+  // Only store namespace information if we're preserving namespaces
+  if (config.preserveNamespaces) {
+    xnode.namespace = element.namespaceURI || undefined;
+    xnode.prefix = element.prefix || undefined;
   }
 
-  /**
-   * Convert DOM element to XNode
-   * @param element DOM element
-   * @param parentNode Optional parent node
-   * @returns XNode representation
-   */
-  public elementToXNode(element: Element, parentNode?: XNode): XNode {
-    try {
-      // VALIDATION: Check for valid input
-      validate(element !== null && element !== undefined, "Element must be provided");
+  // Process attributes and namespace declarations
+  if (element.attributes.length > 0) {
+    // Only create attributes object if preserving attributes or namespaces
+    if (config.preserveAttributes || 
+       (config.preserveNamespaces && hasNamespaceDeclarations(element))) {
+      xnode.attributes = {};
+    }
+
+    // Get namespace declarations if preserving namespaces
+    if (config.preserveNamespaces) {
+      const namespaceResult = processNamespaceDeclarations(element, context.namespaceMap);
       
-      // Create base node
-      const xnode = new XNode(
-        element.localName ||
-        element.nodeName.split(":").pop() ||
-        element.nodeName,
-        NodeType.ELEMENT_NODE
-      );
-      
-      // Only store namespace information if we're preserving namespaces
-      if (this.config.preserveNamespaces) {
-        xnode.namespace = element.namespaceURI || undefined;
-        xnode.prefix = element.prefix || undefined;
+      if (Object.keys(namespaceResult.declarations).length > 0) {
+        xnode.namespaceDeclarations = namespaceResult.declarations;
+        xnode.isDefaultNamespace = element.hasAttribute("xmlns");
+
+        // Update namespace map in context
+        context.namespaceMap = namespaceResult.namespaceMap;
       }
-      
-      xnode.parent = parentNode;
+    }
 
-      // Process attributes and namespace declarations
-      if (element.attributes.length > 0) {
-        // Only create attributes object if preserving attributes or namespaces
-        if (this.config.preserveAttributes || 
-           (this.config.preserveNamespaces && this.hasNamespaceDeclarations(element))) {
-          xnode.attributes = {};
-        }
-
-        // Get namespace declarations if preserving namespaces
-        if (this.config.preserveNamespaces) {
-          const namespaceDecls = XmlNamespace.getNamespaceDeclarations(element);
-          if (Object.keys(namespaceDecls).length > 0) {
-            xnode.namespaceDeclarations = namespaceDecls;
-            xnode.isDefaultNamespace = XmlNamespace.hasDefaultNamespace(element);
-
-            // Update global namespace map
-            Object.assign(this.namespaceMap, namespaceDecls);
-          }
-        }
-
-        // Process regular attributes if preserving attributes
-        if (this.config.preserveAttributes && xnode.attributes) {
-          for (let i = 0; i < element.attributes.length; i++) {
-            const attr = element.attributes[i];
-
-            // Skip namespace declarations
-            if (attr.name === "xmlns" || attr.name.startsWith("xmlns:")) continue;
-
-            // Add regular attribute
-            const attrName =
-              attr.localName || attr.name.split(":").pop() || attr.name;
-            xnode.attributes[attrName] = attr.value;
-          }
-        }
-      }
-
-      // Process child nodes
-      if (element.childNodes.length > 0) {
-        // Detect mixed content
-        const hasMixed = this.hasMixedContent(element);
-
-        // Optimize single text node case
-        if (
-          element.childNodes.length === 1 &&
-          element.childNodes[0].nodeType === NodeType.TEXT_NODE &&
-          !hasMixed
-        ) {
-          const text = element.childNodes[0].nodeValue || "";
-          const normalizedText = XmlEntity.normalizeWhitespace(text, this.config.preserveWhitespace);
-
-          if (normalizedText && this.config.preserveTextNodes) {
-            xnode.value = normalizedText;
-          }
-        } else {
-          // Process multiple children
-          const children: XNode[] = [];
-
-          for (let i = 0; i < element.childNodes.length; i++) {
-            const child = element.childNodes[i];
-
-            switch (child.nodeType) {
-              case NodeType.TEXT_NODE:
-                this.processTextNode(child, children, xnode, hasMixed);
-                break;
-
-              case NodeType.CDATA_SECTION_NODE:
-                this.processCDATANode(child, children, xnode);
-                break;
-
-              case NodeType.COMMENT_NODE:
-                this.processCommentNode(child, children, xnode);
-                break;
-
-              case NodeType.PROCESSING_INSTRUCTION_NODE:
-                this.processProcessingInstructionNode(
-                  child as ProcessingInstruction,
-                  children,
-                  xnode
-                );
-                break;
-
-              case NodeType.ELEMENT_NODE:
-                children.push(this.elementToXNode(child as Element, xnode));
-                break;
-            }
-          }
-
-          if (children.length > 0) {
-            xnode.children = children;
-          }
-        }
-      }
-
-      logger.debug('Converted DOM element to XNode', { 
-        elementName: element.nodeName, 
-        xnodeName: xnode.name,
-        childCount: xnode.children?.length || 0
-      });
-      
-      return xnode;
-    } catch (err) {
-      return handleError(err, 'convert DOM element to XNode', {
-        data: { 
-          elementName: element?.nodeName,
-          elementNodeType: element?.nodeType
-        },
-        errorType: ErrorType.PARSE
-      });
+    // Process regular attributes if preserving attributes
+    if (config.preserveAttributes && xnode.attributes) {
+      processAttributes(element, xnode.attributes);
     }
   }
 
-  /**
-   * Check if element has namespace declarations
-   * @param element DOM element
-   * @returns True if it has namespace declarations
-   * @private
-   */
-  private hasNamespaceDeclarations(element: Element): boolean {
-    try {
-      for (let i = 0; i < element.attributes.length; i++) {
-        const attr = element.attributes[i];
-        if (attr.name === "xmlns" || attr.name.startsWith("xmlns:")) {
-          return true;
-        }
+  // Process child nodes
+  if (element.childNodes.length > 0) {
+    // Detect mixed content
+    const hasMixed = hasMixedContent(element);
+
+    // Optimize single text node case
+    if (
+      element.childNodes.length === 1 &&
+      element.childNodes[0].nodeType === NodeType.TEXT_NODE &&
+      !hasMixed
+    ) {
+      const text = element.childNodes[0].nodeValue || "";
+      const normalizedText = xmlUtils.normalizeWhitespace(text, config.preserveWhitespace);
+
+      if (normalizedText && config.preserveTextNodes) {
+        xnode.value = normalizedText;
       }
-      return false;
-    } catch (err) {
-      return handleError(err, 'check for namespace declarations', {
-        data: { elementName: element?.nodeName },
-        fallback: false
-      });
+    } else {
+      // Process multiple children
+      processChildren(element, xnode, config, context, hasMixed);
     }
   }
 
-  /**
-   * Check if element has mixed content (text and elements)
-   * @param element DOM element
-   * @returns True if mixed content
-   * @private
-   */
-  private hasMixedContent(element: Element): boolean {
-    try {
-      let hasText = false;
-      let hasElement = false;
+  logger.debug('Converted DOM element to XNode', { 
+    elementName: element.nodeName, 
+    xnodeName: xnode.name,
+    childCount: xnode.children?.length || 0
+  });
+  
+  return xnode;
+}
 
-      for (let i = 0; i < element.childNodes.length; i++) {
-        const child = element.childNodes[i];
-
-        if (child.nodeType === NodeType.TEXT_NODE) {
-          if (this.hasContent(child.nodeValue || "")) {
-            hasText = true;
-          }
-        } else if (child.nodeType === NodeType.ELEMENT_NODE) {
-          hasElement = true;
-        }
-
-        if (hasText && hasElement) return true;
-      }
-
-      return false;
-    } catch (err) {
-      return handleError(err, 'check for mixed content', {
-        data: { elementName: element?.nodeName },
-        fallback: false
-      });
+/**
+ * Check if element has namespace declarations
+ * @param element DOM element
+ * @returns True if it has namespace declarations
+ */
+function hasNamespaceDeclarations(element: Element): boolean {
+  for (let i = 0; i < element.attributes.length; i++) {
+    const attr = element.attributes[i];
+    if (attr.name === "xmlns" || attr.name.startsWith("xmlns:")) {
+      return true;
     }
   }
+  return false;
+}
 
-  /**
-   * Check if text has non-whitespace content
-   * @param text Text to check
-   * @returns True if has content
-   * @private
-   */
-  private hasContent(text: string): boolean {
-    return text.trim().length > 0;
-  }
+/**
+ * Process namespace declarations from an element
+ * @param element DOM element
+ * @param currentMap Current namespace map
+ * @returns Updated namespace declarations and map
+ */
+function processNamespaceDeclarations(
+  element: Element,
+  currentMap: Record<string, string>
+): { declarations: Record<string, string>; namespaceMap: Record<string, string> } {
+  const declarations: Record<string, string> = {};
+  const namespaceMap = { ...currentMap };
+  
+  for (let i = 0; i < element.attributes.length; i++) {
+    const attr = element.attributes[i];
 
-  /**
-   * Process a text node
-   * @param node Text node
-   * @param children Children array to add to
-   * @param parentNode Parent XNode
-   * @param hasMixed True if parent has mixed content
-   * @private
-   */
-  private processTextNode(
-    node: Node,
-    children: XNode[],
-    parentNode: XNode,
-    hasMixed: boolean
-  ): void {
-    try {
-      const text = node.nodeValue || "";
-
-      if (this.config.preserveWhitespace || hasMixed || this.hasContent(text)) {
-        const normalizedText = XmlEntity.normalizeWhitespace(text, this.config.preserveWhitespace);
-
-        if (normalizedText && this.config.preserveTextNodes) {
-          const textNode = XNode.createTextNode(normalizedText);
-          textNode.parent = parentNode;
-          children.push(textNode);
-        }
-      }
-    } catch (err) {
-      handleError(err, 'process text node', {
-        data: { 
-          nodeValue: node.nodeValue,
-          parentNodeName: parentNode.name
-        }
-      });
-      // Continue processing even if this node fails
+    if (attr.name === "xmlns") {
+      // Default namespace
+      declarations[""] = attr.value;
+      namespaceMap[""] = attr.value;
+    } else if (attr.name.startsWith("xmlns:")) {
+      // Prefixed namespace
+      const prefix = attr.name.substring(6);
+      declarations[prefix] = attr.value;
+      namespaceMap[prefix] = attr.value;
     }
   }
+  
+  return { declarations, namespaceMap };
+}
 
-  /**
-   * Process a CDATA node
-   * @param node CDATA node
-   * @param children Children array to add to
-   * @param parentNode Parent XNode
-   * @private
-   */
-  private processCDATANode(
-    node: Node,
-    children: XNode[],
-    parentNode: XNode
-  ): void {
-    try {
-      if (this.config.preserveCDATA) {
-        const cdataNode = XNode.createCDATANode(node.nodeValue || "");
-        cdataNode.parent = parentNode;
-        children.push(cdataNode);
+/**
+ * Process regular attributes from an element
+ * @param element DOM element
+ * @param attributes Attributes object to populate
+ */
+function processAttributes(
+  element: Element,
+  attributes: Record<string, any>
+): void {
+  for (let i = 0; i < element.attributes.length; i++) {
+    const attr = element.attributes[i];
+
+    // Skip namespace declarations
+    if (attr.name === "xmlns" || attr.name.startsWith("xmlns:")) continue;
+
+    // Add regular attribute
+    const attrName = attr.localName || attr.name.split(":").pop() || attr.name;
+    attributes[attrName] = attr.value;
+  }
+}
+
+/**
+ * Check if element has mixed content (text and elements)
+ * @param element DOM element
+ * @returns True if it has mixed content
+ */
+function hasMixedContent(element: Element): boolean {
+  let hasText = false;
+  let hasElement = false;
+
+  for (let i = 0; i < element.childNodes.length; i++) {
+    const child = element.childNodes[i];
+
+    if (child.nodeType === NodeType.TEXT_NODE) {
+      if (hasTextContent(child.nodeValue || "")) {
+        hasText = true;
       }
-    } catch (err) {
-      handleError(err, 'process CDATA node', {
-        data: { 
-          nodeValue: node.nodeValue,
-          parentNodeName: parentNode.name
-        }
-      });
-      // Continue processing even if this node fails
+    } else if (child.nodeType === NodeType.ELEMENT_NODE) {
+      hasElement = true;
     }
+
+    if (hasText && hasElement) return true;
   }
 
-  /**
-   * Process a comment node
-   * @param node Comment node
-   * @param children Children array to add to
-   * @param parentNode Parent XNode
-   * @private
-   */
-  private processCommentNode(
-    node: Node,
-    children: XNode[],
-    parentNode: XNode
-  ): void {
-    try {
-      if (this.config.preserveComments) {
-        const commentNode = XNode.createCommentNode(node.nodeValue || "");
-        commentNode.parent = parentNode;
-        children.push(commentNode);
-      }
-    } catch (err) {
-      handleError(err, 'process comment node', {
-        data: { 
-          nodeValue: node.nodeValue,
-          parentNodeName: parentNode.name
-        }
-      });
-      // Continue processing even if this node fails
+  return false;
+}
+
+/**
+ * Check if text has non-whitespace content
+ * @param text Text to check
+ * @returns True if has content
+ */
+function hasTextContent(text: string): boolean {
+  return text.trim().length > 0;
+}
+
+/**
+ * Process child nodes
+ * @param element DOM element
+ * @param parentNode Parent XNode
+ * @param config Configuration
+ * @param context Conversion context
+ * @param hasMixed Whether parent has mixed content
+ */
+function processChildren(
+  element: Element,
+  parentNode: XNode,
+  config: Configuration,
+  context: XmlToXNodeContext,
+  hasMixed: boolean
+): void {
+  for (let i = 0; i < element.childNodes.length; i++) {
+    const child = element.childNodes[i];
+
+    switch (child.nodeType) {
+      case NodeType.TEXT_NODE:
+        processTextNode(child, parentNode, config, hasMixed);
+        break;
+
+      case NodeType.CDATA_SECTION_NODE:
+        processCDATANode(child, parentNode, config);
+        break;
+
+      case NodeType.COMMENT_NODE:
+        processCommentNode(child, parentNode, config);
+        break;
+
+      case NodeType.PROCESSING_INSTRUCTION_NODE:
+        processProcessingInstructionNode(
+          child as ProcessingInstruction,
+          parentNode,
+          config
+        );
+        break;
+
+      case NodeType.ELEMENT_NODE:
+        // Recursively process child element
+        const childXNode = convertElementToXNode(
+          child as Element, 
+          config, 
+          { ...context, parentNode }
+        );
+        addChild(parentNode, childXNode);
+        break;
     }
   }
+}
 
-  /**
-   * Process a processing instruction node
-   * @param pi Processing instruction
-   * @param children Children array to add to
-   * @param parentNode Parent XNode
-   * @private
-   */
-  private processProcessingInstructionNode(
-    pi: ProcessingInstruction,
-    children: XNode[],
-    parentNode: XNode
-  ): void {
-    try {
-      if (this.config.preserveProcessingInstr) {
-        const piNode = XNode.createProcessingInstructionNode(pi.target, pi.data || "");
-        piNode.parent = parentNode;
-        children.push(piNode);
-      }
-    } catch (err) {
-      handleError(err, 'process processing instruction node', {
-        data: { 
-          target: pi.target,
-          data: pi.data,
-          parentNodeName: parentNode.name
-        }
-      });
-      // Continue processing even if this node fails
+/**
+ * Process a text node
+ * @param node Text node
+ * @param parentNode Parent XNode
+ * @param config Configuration
+ * @param hasMixed Whether parent has mixed content
+ */
+function processTextNode(
+  node: Node,
+  parentNode: XNode,
+  config: Configuration,
+  hasMixed: boolean
+): void {
+  const text = node.nodeValue || "";
+
+  if (config.preserveWhitespace || hasMixed || hasTextContent(text)) {
+    const normalizedText = xmlUtils.normalizeWhitespace(text, config.preserveWhitespace);
+
+    if (normalizedText && config.preserveTextNodes) {
+      const textNode = createTextNode(normalizedText);
+      addChild(parentNode, textNode);
     }
+  }
+}
+
+/**
+ * Process a CDATA node
+ * @param node CDATA node
+ * @param parentNode Parent XNode
+ * @param config Configuration
+ */
+function processCDATANode(
+  node: Node,
+  parentNode: XNode,
+  config: Configuration
+): void {
+  if (config.preserveCDATA) {
+    const cdataNode = createCDATANode(node.nodeValue || "");
+    addChild(parentNode, cdataNode);
+  }
+}
+
+/**
+ * Process a comment node
+ * @param node Comment node
+ * @param parentNode Parent XNode
+ * @param config Configuration
+ */
+function processCommentNode(
+  node: Node,
+  parentNode: XNode,
+  config: Configuration
+): void {
+  if (config.preserveComments) {
+    const commentNode = createCommentNode(node.nodeValue || "");
+    addChild(parentNode, commentNode);
+  }
+}
+
+/**
+ * Process a processing instruction node
+ * @param pi Processing instruction
+ * @param parentNode Parent XNode
+ * @param config Configuration
+ */
+function processProcessingInstructionNode(
+  pi: ProcessingInstruction,
+  parentNode: XNode,
+  config: Configuration
+): void {
+  if (config.preserveProcessingInstr) {
+    const piNode = createProcessingInstructionNode(pi.target, pi.data || "");
+    addChild(parentNode, piNode);
   }
 }

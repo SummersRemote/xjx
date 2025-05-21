@@ -1,234 +1,165 @@
 /**
- * XJX - Main class with extensible fluent API
- *
- * Core implementation that allows extensions through prototype methods.
+ * XJX - Main class with fluent API
  */
-import { Configuration, Config } from "./core/config";
-import { Transform, FormatId } from "./core/transform";
-import { XNode } from "./core/xnode";
-import {
-  logger,
-  validate,
-  ValidationError,
-  ConfigurationError,
-  handleError,
-  ErrorType,
-} from "./core/error";
-import { Common } from "./core/common";
+import { Configuration, createConfig, getDefaultConfig } from "./core/config";
+import { FORMAT, Transform } from "./core/transform";
+import { XNode, cloneNode } from "./core/xnode";
+import { validate, ValidationError, logger, LogLevel } from "./core/error";
+import { JsonOptions, JsonValue } from "./core/converter";
+import { XmlSerializationOptions } from "./converters/xnode-to-xml-converter";
+import { Extension, TerminalExtensionContext, NonTerminalExtensionContext } from "./core/extension";
 
 /**
- * Main XJX class - provides the fluent API and manages extensions
+ * Main XJX class - provides the fluent API for XML/JSON transformation
  */
-export class XJX {
-  // Allow dynamic property access for extensions
-  [key: string]: any;
-  
+export class XJX implements TerminalExtensionContext, NonTerminalExtensionContext {
   // Instance properties
   public xnode: XNode | null = null;
   public transforms: Transform[] = [];
   public config: Configuration;
-  public sourceFormat: FormatId | null = null;
-  
-  // Static registry properties for tracking extensions
-  private static terminalExtensions: Map<string, Function> = new Map();
-  private static nonTerminalExtensions: Map<string, Function> = new Map();
+  public sourceFormat: FORMAT | null = null;
   
   /**
    * Create a new XJX instance
    * @param config Optional configuration
    */
   constructor(config?: Partial<Configuration>) {
-    try {
-      this.config = Config.createOrUpdate(config);
-      logger.debug('Created new XJX instance with configuration', {
-        preserveNamespaces: this.config.preserveNamespaces,
-        preserveComments: this.config.preserveComments,
-        preserveProcessingInstr: this.config.preserveProcessingInstr,
-        preserveCDATA: this.config.preserveCDATA,
-        preserveTextNodes: this.config.preserveTextNodes,
-        preserveWhitespace: this.config.preserveWhitespace,
-        preserveAttributes: this.config.preserveAttributes
-      });
-    } catch (err) {
-      this.config = Config.getDefault();
-      handleError(err, "initialize XJX instance", {
-        errorType: ErrorType.CONFIGURATION
-      });
-    }
+    this.config = createConfig(config);
+    logger.debug('Created new XJX instance with configuration', {
+      preserveNamespaces: this.config.preserveNamespaces,
+      preserveComments: this.config.preserveComments,
+      preserveTextNodes: this.config.preserveTextNodes,
+      highFidelity: this.config.highFidelity
+    });
   }
   
-  // /**
-  //  * Utility method to validate XML string
-  //  * @param xmlString XML string to validate
-  //  * @returns Validation result with isValid flag and optional error message
-  //  */
-  // public static validateXml(xmlString: string): {
-  //   isValid: boolean;
-  //   message?: string;
-  // } {
-  //   try {
-  //     validate(typeof xmlString === "string", "XML string must be a string");
-  //     logger.debug("Validating XML string", { length: xmlString.length });
-  //     return XmlParser.validate(xmlString);
-  //   } catch (err) {
-  //     return handleError(err, "validate XML", {
-  //       data: { xmlLength: xmlString?.length },
-  //       fallback: { isValid: false, message: String(err) },
-  //     });
-  //   }
-  // }
-
   /**
    * Register a terminal extension method (returns a value)
-   * @param name Extension name
+   * @param name Extension name (e.g., 'toXml')
    * @param method Implementation function
    */
-  public static registerTerminalExtension(name: string, method: Function): void {
+  public static registerTerminalExtension(name: string, method: (this: TerminalExtensionContext, ...args: any[]) => any): void {
     try {
       // Validate inputs
       validate(typeof name === "string" && name.length > 0, "Extension name must be a non-empty string");
       validate(typeof method === "function", "Extension method must be a function");
       
-      // Check for conflicts
-      if ((XJX.prototype as any)[name]) {
-        const err = new ConfigurationError(`Extension '${name}' conflicts with an existing method`);
-        handleError(err, "register terminal extension", {
-          data: { name },
-          errorType: ErrorType.CONFIGURATION
-        });
-        return;
-      }
+      logger.debug('Registering terminal extension', { name });
       
-      // Register the extension
-      this.terminalExtensions.set(name, method);
-      
-      // Add to prototype - directly assign the method
-      (XJX.prototype as any)[name] = method;
+      // Add method to XJX prototype
+      (XJX.prototype as any)[name] = function(...args: any[]): any {
+        // Validate source first for terminal extensions
+        this.validateSource();
+        
+        // Call the implementation method with this context
+        return method.apply(this, args);
+      };
       
       logger.debug('Terminal extension registered', { name });
     } catch (err) {
-      handleError(err, "register terminal extension", {
-        data: { name },
-        errorType: ErrorType.CONFIGURATION
-      });
+      logger.error(`Failed to register terminal extension ${name}`, { error: err });
+      throw err;
     }
   }
 
   /**
    * Register a non-terminal extension method (returns this for chaining)
-   * @param name Extension name
+   * @param name Extension name (e.g., 'fromXml')
    * @param method Implementation function
    */
-  public static registerNonTerminalExtension(name: string, method: Function): void {
+  public static registerNonTerminalExtension(name: string, method: (this: NonTerminalExtensionContext, ...args: any[]) => void): void {
     try {
       // Validate inputs
       validate(typeof name === "string" && name.length > 0, "Extension name must be a non-empty string");
       validate(typeof method === "function", "Extension method must be a function");
       
-      // Check for conflicts
-      if ((XJX.prototype as any)[name]) {
-        const err = new ConfigurationError(`Extension '${name}' conflicts with an existing method`);
-        handleError(err, "register non-terminal extension", {
-          data: { name },
-          errorType: ErrorType.CONFIGURATION
-        });
-        return;
-      }
+      logger.debug('Registering non-terminal extension', { name });
       
-      // Register the extension
-      this.nonTerminalExtensions.set(name, method);
-      
-      // Add to prototype - use a wrapper to ensure it returns 'this'
-      (XJX.prototype as any)[name] = function(...args: any[]) {
+      // Add method to XJX prototype that returns this
+      (XJX.prototype as any)[name] = function(...args: any[]): XJX {
+        // Call the implementation method with this context
         method.apply(this, args);
+        
+        // Return this for chaining
         return this;
       };
       
       logger.debug('Non-terminal extension registered', { name });
     } catch (err) {
-      handleError(err, "register non-terminal extension", {
-        data: { name },
-        errorType: ErrorType.CONFIGURATION
-      });
+      logger.error(`Failed to register non-terminal extension ${name}`, { error: err });
+      throw err;
     }
   }
   
-  /**
-   * Get all registered terminal extensions
-   * @returns Array of extension names
-   */
-  public static getTerminalExtensions(): string[] {
-    return Array.from(this.terminalExtensions.keys());
-  }
-  
-  /**
-   * Get all registered non-terminal extensions
-   * @returns Array of extension names
-   */
-  public static getNonTerminalExtensions(): string[] {
-    return Array.from(this.nonTerminalExtensions.keys());
-  }
-  
-  /**
-   * Deep clone an object (utility method)
-   * @param obj Object to clone
-   * @returns Deep clone of the object
-   */
-  public deepClone<T>(obj: T): T {
-    try {
-      return Common.deepClone(obj);
-    } catch (err) {
-      return handleError(err, "deep clone object", {
-        data: { objectType: typeof obj },
-        fallback: obj
-      });
-    }
-  }
-  
-  /**
-   * Deep merge two objects (utility method)
-   * @param target Target object
-   * @param source Source object to merge into target
-   * @returns New object with merged properties
-   */
-  public deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
-    try {
-      return Common.deepMerge(target, source);
-    } catch (err) {
-      return handleError(err, "deep merge objects", {
-        data: { 
-          targetType: typeof target,
-          sourceType: typeof source
-        },
-        fallback: target
-      });
-    }
-  }
+  // --- Utility Methods ---
   
   /**
    * Validate that a source has been set before transformation
    * @throws Error if no source has been set
    */
   public validateSource(): void {
-    try {
-      if (!this.xnode || !this.sourceFormat) {
-        throw new ValidationError('No source set: call a source-setting extension before transformation');
-      }
-      logger.debug('Source validation passed', {
-        sourceFormat: this.sourceFormat,
-        rootNodeName: this.xnode.name
-      });
-    } catch (err) {
-      handleError(err, "validate source", {
-        data: { 
-          hasNode: this.xnode !== null,
-          sourceFormat: this.sourceFormat
-        },
-        errorType: ErrorType.VALIDATION
-      });
+    if (!this.xnode || !this.sourceFormat) {
+      throw new ValidationError('No source set: call fromXml() or fromJson() before transformation');
     }
+  }
+  
+  /**
+   * Clone an XNode
+   * @param node Node to clone
+   * @param deep Whether to clone deeply
+   * @returns Cloned node
+   */
+  public cloneNode(node: XNode, deep: boolean = false): XNode {
+    return cloneNode(node, deep);
+  }
+  
+  /**
+   * Deep clone a value
+   */
+  public deepClone<T>(obj: T): T {
+    if (obj === undefined || obj === null) {
+      return obj;
+    }
+    return JSON.parse(JSON.stringify(obj));
+  }
+  
+  /**
+   * Deep merge two objects
+   */
+  public deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
+    if (!source || typeof source !== 'object' || source === null) {
+      return this.deepClone(target);
+    }
+
+    if (!target || typeof target !== 'object' || target === null) {
+      return this.deepClone(source) as T;
+    }
+
+    const result = this.deepClone(target);
+
+    Object.keys(source).forEach((key) => {
+      const sourceValue = source[key as keyof Partial<T>];
+      const targetValue = result[key as keyof T];
+
+      if (
+        sourceValue !== null &&
+        targetValue !== null &&
+        typeof sourceValue === 'object' &&
+        typeof targetValue === 'object' &&
+        !Array.isArray(sourceValue) &&
+        !Array.isArray(targetValue)
+      ) {
+        (result[key as keyof T] as any) = this.deepMerge(
+          targetValue as Record<string, any>,
+          sourceValue as Record<string, any>
+        );
+      } else {
+        (result[key as keyof T] as any) = this.deepClone(sourceValue);
+      }
+    });
+
+    return result;
   }
 }
 
-// Export default for easier importing
 export default XJX;

@@ -2,7 +2,7 @@
 <template>
   <v-card>
     <v-card-title class="d-flex align-center">
-      XML ⟷ JSON Converter
+      XML - JSON Converter
       <v-spacer></v-spacer>
       <v-btn-group variant="outlined">
         <v-btn
@@ -12,10 +12,10 @@
           :disabled="isProcessing"
           class="no-wrap"
         >
-          XML → JSON (XJX)
+          XML → JSON
         </v-btn>
         
-        <v-btn
+        <!-- <v-btn
           color="info"
           @click="convertXmlToStandardJson"
           :loading="isProcessing"
@@ -23,7 +23,7 @@
           class="no-wrap"
         >
           XML → JSON (Standard)
-        </v-btn>
+        </v-btn> -->
         
         <v-btn
           color="secondary"
@@ -79,13 +79,13 @@
           <v-card variant="outlined" class="editor-card">
             <v-card-title class="py-2 px-4 bg-blue-grey-lighten-5 d-flex align-center">
               <div>JSON</div>
-              <v-badge
+              <!-- <v-badge
                 v-if="activeJsonFormat && json"
                 color="primary"
                 :content="activeJsonFormat === 'standard' ? 'Standard' : 'XJX'"
                 inline
                 class="ml-2"
-              ></v-badge>
+              ></v-badge> -->
               <v-spacer></v-spacer>
               <v-btn 
                 icon="mdi-content-copy" 
@@ -179,22 +179,22 @@ const copyToClipboard = (content) => {
 // Convert XML to XJX JSON
 const convertXmlToJson = async () => {
   await editorStore.convertXmlToJson();
-  activeJsonFormat.value = 'xjx';
+  // activeJsonFormat.value = 'xjx';
   apiStore.updateLastDirection('xml');
   // Update API Store with the JSON format
   apiStore.updateJsonFormat('xjx');
   apiStore.updateFluentAPI();
 };
 
-// Convert XML to Standard JSON
-const convertXmlToStandardJson = async () => {
-  await editorStore.convertXmlToStandardJson();
-  activeJsonFormat.value = 'standard';
-  apiStore.updateLastDirection('xml');
-  // Update API Store with the JSON format
-  apiStore.updateJsonFormat('standard');
-  apiStore.updateFluentAPI();
-};
+// // Convert XML to Standard JSON
+// const convertXmlToStandardJson = async () => {
+//   await editorStore.convertXmlToStandardJson();
+//   activeJsonFormat.value = 'standard';
+//   apiStore.updateLastDirection('xml');
+//   // Update API Store with the JSON format
+//   apiStore.updateJsonFormat('standard');
+//   apiStore.updateFluentAPI();
+// };
 
 // Convert JSON to XML
 const convertJsonToXml = async () => {

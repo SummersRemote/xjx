@@ -17,7 +17,7 @@ class XJXService {
   getDefaultConfig() {
     // Create a default configuration that matches the updated structure
     return {
-      // Preservation options
+      // Preservation settings
       preserveNamespaces: true,
       preserveComments: true,
       preserveProcessingInstr: true,
@@ -26,56 +26,69 @@ class XJXService {
       preserveWhitespace: false,
       preserveAttributes: true,
 
-      // Converters section with format-specific settings
-      converters: {
-        // Standard JSON converter settings
-        stdJson: {
-          options: {
-            attributeHandling: 'ignore',    // ignore, merge, prefix, property
-            attributePrefix: '@',
-            attributePropertyName: '_attrs',
-            textPropertyName: '_text',
-            alwaysCreateArrays: false,
-            preserveMixedContent: true,
-            emptyElementsAsNull: false
-          },
-          naming: {
-            arrayItem: "item"
-          }
-        },
-        
-        // XJX JSON converter settings
-        xjxJson: {
-          options: {
-            compact: true
-          },
-          naming: {
-            namespace: "$ns",
-            prefix: "$pre",
-            attribute: "$attr",
-            value: "$val",
-            cdata: "$cdata",
-            comment: "$cmnt",
-            processingInstr: "$pi",
-            target: "$trgt",
-            children: "$children"
-          }
-        },
-        
-        // XML converter settings
-        xml: {
-          options: {
-            declaration: true,
-            prettyPrint: true,
-            indent: 2
-          }
-        }
+      // High-level strategies
+      highFidelity: false,
+      attributeStrategy: 'merge',
+      textStrategy: 'direct',
+      namespaceStrategy: 'prefix',
+      arrayStrategy: 'multiple',
+      emptyElementStrategy: 'object',
+      mixedContentStrategy: 'preserve',
+
+      // Property names
+      properties: {
+        attribute: "$attr",
+        value: "$val",
+        text: "_text",
+        namespace: "$ns",
+        prefix: "$pre",
+        cdata: "$cdata",
+        comment: "$cmnt",
+        processingInstr: "$pi",
+        target: "$trgt",
+        children: "$children",
+        compact: true
+      },
+
+      // Prefix configurations
+      prefixes: {
+        attribute: '@',
+        namespace: 'xmlns:',
+        comment: '#',
+        cdata: '!',
+        pi: '?'
+      },
+
+      // Array configurations
+      arrays: {
+        forceArrays: [],
+        defaultItemName: "item",
+        itemNames: {}
+      },
+
+      // Output formatting
+      formatting: {
+        indent: 2,
+        declaration: true,
+        pretty: true
       }
     };
   }
   
   /**
-   * Convert XML to JSON (XJX format)
+   * Get available transformers from the XJX library
+   * @returns {Object} Available transformers
+   */
+  getAvailableTransformers() {
+    return {
+      BooleanTransform: 'BooleanTransform',
+      NumberTransform: 'NumberTransform',
+      RegexTransform: 'RegexTransform'
+    };
+  }
+  
+  /**
+   * Convert XML to JSON (using unified JSON converter)
    * @param {string} xml - XML string
    * @param {Object} config - Configuration object
    * @param {Array} transforms - Array of transform objects
@@ -102,8 +115,8 @@ class XJXService {
       }
     }
     
-    // Use the updated method name: toXjxJson
-    return builder.toXjxJson();
+    // Use the new unified method with highFidelity: true
+    return builder.toJson({ highFidelity: true });
   }
   
   /**
@@ -134,8 +147,8 @@ class XJXService {
       }
     }
     
-    // Use toStandardJson method name (unchanged)
-    return builder.toStandardJson();
+    // Use unified method with highFidelity: false (default)
+    return builder.toJson();
   }
   
   /**
@@ -150,7 +163,7 @@ class XJXService {
     // Create a new instance for each conversion
     const xjx = new XJX();
     
-    // Start the conversion chain - fromJson will auto-detect format
+    // Start the conversion chain with the unified JSON method
     let builder = xjx.fromJson(json);
     
     // Apply config if provided
@@ -167,20 +180,8 @@ class XJXService {
       }
     }
     
-    // Use the new toXmlString method instead of calling stringify on the DOM
+    // Convert to XML string
     return builder.toXmlString();
-  }
-  
-  /**
-   * Get available transformers from the XJX library
-   * @returns {Object} Available transformers
-   */
-  getAvailableTransformers() {
-    return {
-      BooleanTransform: 'BooleanTransform',
-      NumberTransform: 'NumberTransform',
-      RegexTransform: 'RegexTransform'
-    };
   }
   
   /**
@@ -214,16 +215,24 @@ class XJXService {
     
     // Determine the appropriate terminal method based on direction and format
     let terminalMethod;
+    let options = "";
     if (fromType === 'xml') {
-      // Updated method names for JSON output
-      terminalMethod = jsonFormat === 'standard' ? 'toStandardJson' : 'toXjxJson';
+      // Using the unified JSON method with appropriate highFidelity setting
+      terminalMethod = 'toJson';
+      if (jsonFormat === 'standard') {
+        // Standard format is the default (highFidelity: false)
+        options = "";
+      } else {
+        // XJX format requires highFidelity: true
+        options = "({ highFidelity: true })";
+      }
     } else {
-      // For XML output, now we use toXmlString directly
+      // For XML output, use toXmlString
       terminalMethod = 'toXmlString';
     }
     
     // Add the terminal method
-    code += `\n  .${terminalMethod}()`;
+    code += `\n  .${terminalMethod}${options ? options : "()"}`;
     code += ';';
     
     return code;

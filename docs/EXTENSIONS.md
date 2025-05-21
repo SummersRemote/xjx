@@ -1,393 +1,543 @@
-# XJX Extensions Guide
+# Creating Custom Extensions for XJX
 
-This guide provides detailed information about the XJX extension system, which allows you to customize and extend the XJX library's fluent API.
+This guide explains how to extend the XJX library with custom functionality by creating extensions.
 
-## Table of Contents
+## Extension Types
 
-- [Understanding the Extension System](#understanding-the-extension-system)
-- [Types of Extensions](#types-of-extensions)
-- [Built-in Extensions](#built-in-extensions)
-- [Creating Custom Extensions](#creating-custom-extensions)
-- [Advanced Use Cases](#advanced-use-cases)
-- [Best Practices](#best-practices)
+XJX supports two types of extensions:
 
-## Understanding the Extension System
+1. **Terminal Extensions**: Return a value and end the method chain (e.g., `toXml()`)
+2. **Non-Terminal Extensions**: Return the XJX instance for further chaining (e.g., `fromXml()`)
 
-The extension system in XJX provides a flexible way to add new methods to the fluent API. Extensions are registered with the XJX class and become available on all instances of XJX.
+## Extension Context
 
-Key features of the extension system:
+Both types of extensions receive a context object (`this`) that provides access to:
 
-- **Modular**: Extensions can be created and registered independently
-- **Chainable**: Non-terminal extensions return the XJX instance for further chaining
-- **Type-safe**: Extensions integrate with TypeScript type definitions
-- **Self-documenting**: Extensions follow a consistent naming and documentation pattern
+- `config`: Current configuration
+- `xnode`: Current XNode representation
+- `sourceFormat`: Source format (XML, JSON)
+- `transforms`: Current transform pipeline
+- Utility methods: `validateSource()`, `deepClone()`, `deepMerge()`, etc.
 
-## Types of Extensions
+## Creating Terminal Extensions
 
-There are two types of extensions in XJX:
+Terminal extensions return a value rather than the XJX instance. These are methods that produce an output and end the chain.
 
-### Terminal Extensions
-
-Terminal extensions are methods that produce a final result and end the fluent API chain. They return a value rather than the XJX instance.
-
-```javascript
-// Terminal extension
-XJX.registerTerminalExtension("toXjxJson", function() {
-  // Implementation...
-  return jsonResult;
-});
-```
-
-### Non-Terminal Extensions
-
-Non-terminal extensions are methods that return the XJX instance, allowing for method chaining to continue.
-
-```javascript
-// Non-terminal extension
-XJX.registerNonTerminalExtension("withConfig", function(config) {
-  // Implementation...
-  return this; // Automatically handled by the extension system
-});
-```
-
-## Built-in Extensions
-
-XJX includes several built-in extensions for its fluent API:
-
-### Terminal Extensions (Return Values)
-
-These extensions produce a final result and end the fluent API chain:
-
-- **XML Output Extensions**:
-  - `toXml()` - Convert to DOM Document
-  - `toXmlString(options?)` - Convert to XML string with optional formatting settings
-
-- **XJX JSON Output Extensions**:
-  - `toXjxJson()` - Convert to XJX-formatted JSON object (full XML fidelity)
-  - `toXjxJsonString()` - Convert to XJX-formatted JSON string
-
-- **Standard JSON Output Extensions**:
-  - `toStandardJson()` - Convert to standard JavaScript object (natural structure)
-  - `toStandardJsonString()` - Convert to standard JSON string
-
-### Non-Terminal Extensions (Return XJX Instance)
-
-These extensions return the XJX instance for further chaining:
-
-- `fromXml(xml)` - Set XML string as the source
-- `fromJson(json)` - Set JSON object as source (auto-detects format)
-- `fromXjxJson(json)` - Set XJX-formatted JSON as source
-- `fromObjJson(json)` - Set standard JavaScript object as source
-- `withConfig(config)` - Set configuration options
-- `withTransforms(...transforms)` - Add transforms to the pipeline
-- `setLogLevel(level)` - Set logger level
-
-## Creating Custom Extensions
-
-You can create and register your own extensions to extend the XJX API:
-
-### Creating a Terminal Extension
+### Terminal Extension Interface
 
 ```typescript
-import { XJX } from 'xjx';
+import { TerminalExtensionContext } from 'xjx';
 
-// Create a terminal extension that converts to a different format
-function toYamlString(this: XJX): string {
-  // First, validate source
-  this.validateSource();
-  
-  // Get JSON representation
-  const json = this.toStandardJson();
-  
-  // Convert to YAML (example implementation)
-  const yaml = convertJsonToYaml(json);
-  
-  return yaml;
-}
-
-// Register the extension
-XJX.registerTerminalExtension("toYamlString", toYamlString);
-
-// Update TypeScript interface (in a .d.ts file)
-declare module 'xjx' {
-  interface XJX {
-    toYamlString(): string;
-  }
-}
-
-// Usage
-const yaml = new XJX()
-  .fromXml(xml)
-  .toYamlString();
-```
-
-### Creating a Non-Terminal Extension
-
-```typescript
-import { XJX, Transform } from 'xjx';
-
-// Create a non-terminal extension that adds multiple transforms
-function withTypeConversion(this: XJX): void {
-  // Add commonly used data type conversions
-  const transforms: Transform[] = [
-    new BooleanTransform(),
-    new NumberTransform()
-  ];
-  
-  // Use existing withTransforms extension
-  this.withTransforms(...transforms);
-  
-  // No return needed - handled by the extension system
-}
-
-// Register the extension
-XJX.registerNonTerminalExtension("withTypeConversion", withTypeConversion);
-
-// Update TypeScript interface (in a .d.ts file)
-declare module 'xjx' {
-  interface XJX {
-    withTypeConversion(): XJX;
-  }
-}
-
-// Usage
-const json = new XJX()
-  .fromXml(xml)
-  .withTypeConversion()
-  .toStandardJson();
-```
-
-## Advanced Use Cases
-
-### Composite Extensions
-
-You can create composite extensions that combine multiple operations:
-
-```typescript
-import { XJX } from 'xjx';
-
-// Create a terminal extension that performs validation before conversion
-function toValidatedXmlString(this: XJX, schema: string): string {
-  // First, validate source
-  this.validateSource();
-  
-  // Apply schema validation transform
-  this.withTransforms(new SchemaValidationTransform(schema));
-  
-  // Convert to XML string
-  return this.toXmlString();
-}
-
-// Register the extension
-XJX.registerTerminalExtension("toValidatedXmlString", toValidatedXmlString);
-
-// Usage
-try {
-  const validXml = new XJX()
-    .fromJson(json)
-    .toValidatedXmlString(xsdSchema);
-  console.log("Validation passed:", validXml);
-} catch (error) {
-  console.error("Validation failed:", error);
+function myTerminalExtension(this: TerminalExtensionContext, ...args: any[]): any {
+  // Implementation that returns a value
 }
 ```
 
-### Extensions with State
+### Terminal Extension Example
 
-Extensions can maintain state using object properties:
+Here's an example that converts XNode to a YAML string:
 
 ```typescript
-import { XJX } from 'xjx';
+// myExtension.ts
+import { XJX, TerminalExtensionContext } from 'xjx';
 
-// Create a non-terminal extension that captures metrics
-function withMetrics(this: XJX): void {
-  // Initialize metrics object if needed
-  if (!this._metrics) {
-    this._metrics = {
-      startTime: Date.now(),
-      operations: []
-    };
-  }
-  
-  // Wrap transformations to measure performance
-  const originalWithTransforms = this.withTransforms;
-  this.withTransforms = function(...transforms) {
-    const start = performance.now();
-    const result = originalWithTransforms.apply(this, transforms);
-    const end = performance.now();
+/**
+ * Convert XNode to a YAML string
+ */
+export function toYaml(this: TerminalExtensionContext): string {
+  try {
+    // Validate that we have a source
+    this.validateSource();
     
-    this._metrics.operations.push({
-      type: 'transforms',
-      count: transforms.length,
-      duration: end - start
+    // Get the XNode data
+    const node = this.xnode;
+    
+    // Apply any transforms if needed
+    let nodeToConvert = node;
+    if (this.transforms && this.transforms.length > 0) {
+      const FORMAT = require('xjx').FORMAT;
+      nodeToConvert = transformXNode(nodeToConvert, this.transforms, FORMAT.JSON, this.config);
+    }
+    
+    // Convert to YAML (using a hypothetical function)
+    const yamlString = convertXNodeToYaml(nodeToConvert);
+    
+    return yamlString;
+  } catch (err) {
+    // Handle errors
+    if (err instanceof Error) {
+      throw err;
+    }
+    throw new Error(`Failed to convert to YAML: ${String(err)}`);
+  }
+}
+
+// Register the extension with XJX
+XJX.registerTerminalExtension("toYaml", toYaml);
+
+// Helper function to convert XNode to YAML
+function convertXNodeToYaml(node) {
+  // Implementation would go here
+  // ...
+}
+```
+
+### Using a Terminal Extension
+
+Once registered, the extension can be used like any other XJX method:
+
+```javascript
+const yaml = new XJX()
+  .fromXml(xmlString)
+  .toYaml();
+```
+
+## Creating Non-Terminal Extensions
+
+Non-terminal extensions modify the XJX instance and return it for method chaining. These are typically methods that set up data or configure the system.
+
+### Non-Terminal Extension Interface
+
+```typescript
+import { NonTerminalExtensionContext } from 'xjx';
+
+function myNonTerminalExtension(this: NonTerminalExtensionContext, ...args: any[]): void {
+  // Implementation that modifies the context
+  // No return needed - XJX.registerNonTerminalExtension will return 'this'
+}
+```
+
+### Non-Terminal Extension Example
+
+Here's an example that loads XML from a file:
+
+```typescript
+// myExtension.ts
+import { XJX, NonTerminalExtensionContext } from 'xjx';
+
+/**
+ * Load XML from a file path
+ */
+export function fromFile(this: NonTerminalExtensionContext, filePath: string): void {
+  try {
+    // Validate input
+    if (typeof filePath !== 'string' || filePath.trim().length === 0) {
+      throw new Error('File path must be a non-empty string');
+    }
+    
+    // In Node.js, read the file
+    const fs = require('fs');
+    const xml = fs.readFileSync(filePath, 'utf8');
+    
+    // Use the existing fromXml method
+    // We'd need to call the implementation directly
+    const fromXmlFn = require('./from-xml').fromXml;
+    fromXmlFn.call(this, xml);
+    
+  } catch (err) {
+    if (err instanceof Error) {
+      throw err;
+    }
+    throw new Error(`Failed to load from file: ${String(err)}`);
+  }
+}
+
+// Register the extension with XJX
+XJX.registerNonTerminalExtension("fromFile", fromFile);
+```
+
+### Using a Non-Terminal Extension
+
+Once registered, the extension can be used in a method chain:
+
+```javascript
+const result = new XJX()
+  .fromFile('data.xml')
+  .withTransforms(/* ... */)
+  .toJson();
+```
+
+## Extension Registration
+
+Extensions must be registered with XJX to be available. This is done using the static registration methods:
+
+```typescript
+// Terminal extension
+XJX.registerTerminalExtension("toYaml", toYaml);
+
+// Non-terminal extension
+XJX.registerNonTerminalExtension("fromFile", fromFile);
+```
+
+### Registration Best Practices
+
+1. **Register at module load time**: Ensure extensions are registered when your module is imported
+2. **Export your extension functions**: This makes them available to other modules
+3. **Use descriptive names**: Extension names should clearly indicate their purpose
+
+```typescript
+// myExtensions.ts
+import { XJX } from 'xjx';
+
+export function toYaml(/* ... */) { /* ... */ }
+export function fromFile(/* ... */) { /* ... */ }
+
+// Register extensions
+XJX.registerTerminalExtension("toYaml", toYaml);
+XJX.registerNonTerminalExtension("fromFile", fromFile);
+
+// Main export
+export { toYaml, fromFile };
+```
+
+## Extension Boilerplates
+
+### Terminal Extension Boilerplate
+
+```typescript
+// terminalExtension.ts
+import { XJX, TerminalExtensionContext } from 'xjx';
+
+/**
+ * My custom terminal extension
+ * @param arg1 First argument
+ * @param arg2 Second argument
+ * @returns Custom result
+ */
+export function myTerminalExtension(
+  this: TerminalExtensionContext, 
+  arg1: string, 
+  arg2?: number
+): any {
+  try {
+    // Validate that a source is set
+    this.validateSource();
+    
+    // Access XNode, config, and transforms
+    const { xnode, config, transforms } = this;
+    
+    // Validate inputs
+    if (!arg1) {
+      throw new Error('First argument is required');
+    }
+    
+    // Implementation
+    // ...
+    const result = { /* ... */ };
+    
+    // Return some value
+    return result;
+  } catch (err) {
+    if (err instanceof Error) {
+      throw err;
+    }
+    throw new Error(`Failed in myTerminalExtension: ${String(err)}`);
+  }
+}
+
+// Register the extension
+XJX.registerTerminalExtension("myTerminalExtension", myTerminalExtension);
+```
+
+### Non-Terminal Extension Boilerplate
+
+```typescript
+// nonTerminalExtension.ts
+import { XJX, NonTerminalExtensionContext } from 'xjx';
+
+/**
+ * My custom non-terminal extension
+ * @param arg1 First argument
+ * @param arg2 Second argument
+ */
+export function myNonTerminalExtension(
+  this: NonTerminalExtensionContext, 
+  arg1: string, 
+  arg2?: number
+): void {
+  try {
+    // Validate inputs
+    if (!arg1) {
+      throw new Error('First argument is required');
+    }
+    
+    // Implementation
+    // ...
+    
+    // Modify XJX instance properties if needed
+    this.config = this.deepMerge(this.config, { /* ... */ });
+    
+    // No return needed - XJX.registerNonTerminalExtension will return 'this'
+  } catch (err) {
+    if (err instanceof Error) {
+      throw err;
+    }
+    throw new Error(`Failed in myNonTerminalExtension: ${String(err)}`);
+  }
+}
+
+// Register the extension
+XJX.registerNonTerminalExtension("myNonTerminalExtension", myNonTerminalExtension);
+```
+
+## Advanced Extension Examples
+
+### Adding Support for a New Format
+
+This example adds support for converting to and from CSV:
+
+```typescript
+// csvExtensions.ts
+import { XJX, TerminalExtensionContext, NonTerminalExtensionContext } from 'xjx';
+
+// From CSV to XNode
+export function fromCsv(this: NonTerminalExtensionContext, csv: string, options: any = {}): void {
+  try {
+    // Validate input
+    if (typeof csv !== 'string') {
+      throw new Error('CSV source must be a string');
+    }
+    
+    // Parse CSV
+    const rows = csv.split('\n').map(row => row.split(','));
+    const headers = rows[0];
+    const data = rows.slice(1);
+    
+    // Create an XNode structure
+    const rootNode = {
+      name: options.rootName || 'root',
+      type: 1, // Element node
+      children: data.map(row => ({
+        name: options.itemName || 'item',
+        type: 1, // Element node
+        children: headers.map((header, i) => ({
+          name: header.trim(),
+          type: 1, // Element node
+          value: row[i]?.trim()
+        }))
+      }))
+    };
+    
+    // Set as current XNode
+    this.xnode = rootNode;
+    
+    // Set source format (using JSON as fallback)
+    const FORMAT = require('xjx').FORMAT;
+    this.sourceFormat = FORMAT.JSON;
+  } catch (err) {
+    if (err instanceof Error) {
+      throw err;
+    }
+    throw new Error(`Failed to parse CSV: ${String(err)}`);
+  }
+}
+
+// From XNode to CSV
+export function toCsv(this: TerminalExtensionContext, options: any = {}): string {
+  try {
+    // Validate source
+    this.validateSource();
+    
+    // Apply transforms if any
+    let nodeToConvert = this.xnode;
+    if (this.transforms && this.transforms.length > 0) {
+      const FORMAT = require('xjx').FORMAT;
+      const transformXNode = require('xjx').transformXNode;
+      nodeToConvert = transformXNode(nodeToConvert, this.transforms, FORMAT.JSON, this.config);
+    }
+    
+    // Extract data
+    const rows = [];
+    const headers = new Set();
+    
+    // Find all item nodes
+    const itemNodes = nodeToConvert.children || [];
+    
+    // Collect all headers first
+    itemNodes.forEach(item => {
+      (item.children || []).forEach(field => {
+        headers.add(field.name);
+      });
     });
     
+    // Convert headers set to array
+    const headerArray = Array.from(headers);
+    rows.push(headerArray.join(','));
+    
+    // Add data rows
+    itemNodes.forEach(item => {
+      const row = headerArray.map(header => {
+        const field = (item.children || []).find(child => child.name === header);
+        return field?.value || '';
+      });
+      rows.push(row.join(','));
+    });
+    
+    // Join rows with newlines
+    return rows.join('\n');
+  } catch (err) {
+    if (err instanceof Error) {
+      throw err;
+    }
+    throw new Error(`Failed to convert to CSV: ${String(err)}`);
+  }
+}
+
+// Register extensions
+XJX.registerNonTerminalExtension("fromCsv", fromCsv);
+XJX.registerTerminalExtension("toCsv", toCsv);
+```
+
+### Adding Custom Validation
+
+This example adds a validation feature:
+
+```typescript
+// validationExtension.ts
+import { XJX, TerminalExtensionContext } from 'xjx';
+
+export interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+}
+
+/**
+ * Validate the current XNode against rules
+ */
+export function validate(
+  this: TerminalExtensionContext, 
+  rules: Record<string, any>
+): ValidationResult {
+  try {
+    // Validate source
+    this.validateSource();
+    
+    const result: ValidationResult = {
+      isValid: true,
+      errors: []
+    };
+    
+    // Get the XNode to validate
+    const node = this.xnode;
+    
+    // Example validation logic
+    function validateNode(node, rulePath, rules) {
+      // Check required fields
+      if (rules.required && Array.isArray(rules.required)) {
+        rules.required.forEach(field => {
+          const hasField = (node.children || []).some(child => child.name === field);
+          if (!hasField) {
+            result.isValid = false;
+            result.errors.push(`Missing required field '${field}' at path ${rulePath}`);
+          }
+        });
+      }
+      
+      // Check child rules
+      if (rules.children && typeof rules.children === 'object') {
+        Object.entries(rules.children).forEach(([childName, childRules]) => {
+          const childNodes = (node.children || []).filter(child => child.name === childName);
+          
+          // Check if child exists when required
+          if (childRules.required === true && childNodes.length === 0) {
+            result.isValid = false;
+            result.errors.push(`Missing required child '${childName}' at path ${rulePath}`);
+            return;
+          }
+          
+          // Apply rules to each matching child
+          childNodes.forEach(childNode => {
+            validateNode(childNode, `${rulePath}.${childName}`, childRules);
+          });
+        });
+      }
+    }
+    
+    // Start validation from root
+    validateNode(node, node.name, rules);
+    
     return result;
-  };
+  } catch (err) {
+    if (err instanceof Error) {
+      throw err;
+    }
+    throw new Error(`Validation failed: ${String(err)}`);
+  }
 }
 
-// Create a terminal extension to retrieve metrics
-function getMetrics(this: XJX): any {
-  return this._metrics || { operations: [] };
-}
+// Register the extension
+XJX.registerTerminalExtension("validate", validate);
+```
 
-// Register the extensions
-XJX.registerNonTerminalExtension("withMetrics", withMetrics);
-XJX.registerTerminalExtension("getMetrics", getMetrics);
+## Common Extension Patterns
 
-// Usage
-const xjx = new XJX()
-  .withMetrics()
-  .fromXml(xml)
-  .withTransforms(
-    new BooleanTransform(),
-    new NumberTransform()
-  )
-  .toStandardJson();
+### 1. Data Format Converters
 
-const metrics = xjx.getMetrics();
-console.log("Performance metrics:", metrics);
+Extensions that convert to/from other formats (CSV, YAML, etc.):
+
+```javascript
+// Terminal: toFormat()
+// Non-Terminal: fromFormat()
+```
+
+### 2. Data Manipulation
+
+Extensions that transform or manipulate data:
+
+```javascript
+// Non-Terminal: withSorting()
+// Non-Terminal: withFiltering()
+```
+
+### 3. Validation and Analysis
+
+Extensions that validate or analyze data:
+
+```javascript
+// Terminal: validate()
+// Terminal: analyze()
+```
+
+### 4. I/O Operations
+
+Extensions that interact with files or network:
+
+```javascript
+// Non-Terminal: fromFile()
+// Terminal: saveToFile()
 ```
 
 ## Best Practices
 
-When creating and using extensions, follow these best practices:
+1. **Validate Inputs**: Always validate method arguments
+2. **Handle Errors**: Use try/catch blocks and provide useful error messages
+3. **Document Extensions**: Add JSDoc comments to explain behavior and parameters
+4. **Follow Naming Conventions**: Use descriptive names that match the XJX style
+5. **Immutability**: Avoid modifying input values directly
+6. **Testing**: Test extensions with various inputs and edge cases
 
-### 1. Extension Naming
+## Common Pitfalls
 
-Use clear, descriptive names that follow XJX's conventions:
+1. **Forgetting Registration**: Extensions must be registered to be usable
+2. **Ignoring Context**: The extension context provides important state info
+3. **Side Effects**: Be careful about modifying global state
+4. **Invalid Returns**: Terminal extensions must return a value, non-terminal must not
 
-```javascript
-// Good: Clear about what it does
-XJX.registerTerminalExtension("toHtmlString", toHtmlString);
+## Debugging Extensions
 
-// Bad: Unclear purpose
-XJX.registerTerminalExtension("process", process);
-```
-
-Terminal extensions should use names that indicate what they return:
-- `toXmlString()` - Returns XML string
-- `toXjxJson()` - Returns XJX JSON object
-- `toStandardJsonString()` - Returns standard JSON string
-
-Non-terminal extensions should use names that indicate what they do:
-- `withConfig()` - Sets configuration
-- `fromXml()` - Sets XML source
-- `withTransforms()` - Adds transforms
-
-### 2. Extension Implementation
-
-Extensions should follow XJX's implementation patterns:
+To debug extensions, use the XJX logging system:
 
 ```javascript
-// Good: Validates input and uses XJX's error handling
-function myExtension(this: XJX, param: string): void {
-  try {
-    // Validate parameter
-    validate(typeof param === "string", "Parameter must be a string");
-    
-    // Implementation...
-  } catch (err) {
-    handleError(err, "my extension operation", {
-      data: { param },
-      errorType: ErrorType.VALIDATION
-    });
-  }
-}
+import { XJX, LogLevel } from 'xjx';
 
-// Bad: No validation or error handling
-function myExtension(this: XJX, param: string): void {
-  // Implementation without validation...
-}
+// Enable debug logging
+const xjx = new XJX()
+  .setLogLevel(LogLevel.DEBUG);
+  
+// Use your extension
+const result = xjx
+  .myCustomExtension(/* ... */)
+  .toJson();
 ```
 
-### 3. Type Definitions
-
-Always provide TypeScript type definitions for your extensions:
-
-```typescript
-// In your .d.ts file
-declare module 'xjx' {
-  interface XJX {
-    // Terminal extension
-    toCustomFormat(): string;
-    
-    // Non-terminal extension
-    withCustomFeature(options: CustomOptions): XJX;
-  }
-}
-```
-
-### 4. Documentation
-
-Document your extensions thoroughly:
-
-```javascript
-/**
- * Convert XNode to HTML string with syntax highlighting
- * 
- * @param options - Highlighting options
- * @param options.theme - Color theme (default: 'light')
- * @param options.lineNumbers - Whether to show line numbers (default: false)
- * @returns HTML string with syntax highlighting
- * 
- * @example
- * ```javascript
- * const html = new XJX()
- *   .fromXml(xml)
- *   .toHtmlString({ theme: 'dark', lineNumbers: true });
- * ```
- */
-function toHtmlString(this: XJX, options?: HighlightOptions): string {
-  // Implementation...
-}
-```
-
-### 5. Extension Dependencies
-
-Be mindful of dependencies between extensions:
-
-```javascript
-// Good: Uses existing methods and handles errors
-function toFormattedXmlString(this: XJX): string {
-  try {
-    // Use existing toXmlString method
-    return this.toXmlString({
-      prettyPrint: true,
-      indent: 4,
-      declaration: true
-    });
-  } catch (err) {
-    return handleError(err, "format XML string", {
-      fallback: "<root/>"
-    });
-  }
-}
-
-// Bad: Reimplements existing functionality
-function toFormattedXmlString(this: XJX): string {
-  // Duplicates toXmlString implementation...
-}
-```
-
-### 6. Extension Registration
-
-Register extensions properly:
-
-```javascript
-// Good: Correct extension type
-XJX.registerTerminalExtension("toXjxJson", toXjxJson);
-XJX.registerNonTerminalExtension("fromXml", fromXml);
-
-// Bad: Wrong extension type
-XJX.registerTerminalExtension("fromXml", fromXml); // Should be non-terminal
-XJX.registerNonTerminalExtension("toXjxJson", toXjxJson); // Should be terminal
-```
-
-## Conclusion
-
-The extension system in XJX provides a powerful way to enhance the library's capabilities. By creating custom extensions, you can add support for new formats, implement specialized transformations, or integrate with other libraries and tools.
-
-With the consistent naming pattern across all output methods (`toXml()`, `toXmlString()`, `toXjxJson()`, `toXjxJsonString()`, `toStandardJson()`, `toStandardJsonString()`), users can easily understand and use the API intuitively.
-
-For more information on the transform system, which complements the extension system, see the [Transforms Guide](./TRANSFORMS.md).
+This will show detailed information about extension execution, which can help identify issues.

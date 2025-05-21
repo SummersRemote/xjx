@@ -12,40 +12,46 @@
       "require": "./dist/cjs/index.js",
       "types": "./dist/types/index.d.ts"
     },
-    "./full": {
-      "import": "./dist/esm/xjx.full.js",
-      "require": "./dist/cjs/xjx.full.js",
-      "types": "./dist/types/xjx.full.d.ts"
+    "./transforms": {
+      "import": "./dist/esm/transforms/index.js",
+      "require": "./dist/cjs/transforms/index.js",
+      "types": "./dist/types/transforms/index.d.ts"
     }
   },
   "files": [
     "dist",
     "package.json",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
-  "scripts": {
-    "clean": "rimraf dist",
-    "build": "npm run clean && npm run build:types && npm run build:js",
-    "build:types": "tsc --emitDeclarationOnly --outDir dist/types",
-    "build:js": "rollup -c",
-    "build:prod": "NODE_ENV=production npm run build:js",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
-    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
-    "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --coverage"
-  },
+"scripts": {
+  "clean": "rimraf dist",
+  "build": "npm run clean && npm run build:types && npm run build:js",
+  "build:types": "tsc --emitDeclarationOnly --declarationDir dist/types --outDir dist/types",
+  "build:js": "rollup -c",
+  "build:prod": "NODE_ENV=production npm run build:js",
+  "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+  "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
+  "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --coverage"
+},
   "keywords": [
     "xml",
     "json",
     "convert",
-    "transform"
+    "transform",
+    "xml-parser",
+    "json-parser"
   ],
   "license": "MIT",
   "sideEffects": [
+    "**/extensions/*.js",
+    "**/extensions/*.ts",
     "**/index.js",
-    "**/extensions/**/*.js",
-    "**/*.extensions.js",
-    "dist/esm/extensions/index.js",
-    "dist/cjs/extensions/index.js"
+    "**/index.ts",
+    "dist/esm/index.js",
+    "dist/cjs/index.js",
+    "dist/esm/extensions/*.js",
+    "dist/cjs/extensions/*.js"
   ],
   "devDependencies": {
     "@babel/core": "^7.27.1",

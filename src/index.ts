@@ -1,59 +1,103 @@
 /**
  * XJX Library - XML/JSON transformation with fluent API
- * Self-registering extensions for webpack compatibility
  */
 
-// Pre-register all extensions to prevent tree-shaking issues
-// IMPORTANT: This import has side effects!
-import './extensions';
+// IMPORTANT: Register all extensions by importing their files
+// These imports MUST be kept as they register methods on the XJX prototype
+import './extensions/from-xml';
+import './extensions/from-json';
+import './extensions/to-xml';
+import './extensions/to-json';
+import './extensions/config-extensions';
+import './extensions/with-transforms';
 
 // Export the main class (for instantiation)
-export { XJX } from './XJX.js';
-
-// Export configuration types
-export { Configuration } from './core/config.js';
+export { XJX } from './XJX';
+export { default } from './XJX';
 
 // Export core interfaces and types
 export {
+  // Configuration
+  Configuration,
+} from './core/config';
+
+export {
+  // Transform system
+  FORMAT,
   Transform,
   TransformTarget,
   TransformContext,
   TransformResult,
-  FormatId,
-  FORMATS,
   createTransformResult,
-} from './core/transform.js';
+  StrategyInfo,
+} from './core/transform';
 
 // Export error handling
 export {
   ValidationError,
-  ParseError,
-  SerializeError,
-  ConfigurationError,
-  TransformError,
-  EnvironmentError,
+  ProcessingError,
+  XJXError,
   validate,
   logger,
   LogLevel,
-} from './core/error.js';
+} from './core/error';
 
-// Export model classes
-export { XNode } from './core/xnode.js';
+// Export model interfaces
+export { XNode } from './core/xnode';
 
-// Export core transformers
+// Export extension context interfaces
 export {
+  TerminalExtensionContext,
+  NonTerminalExtensionContext
+} from './core/extension';
+
+// Export JSON conversion types
+export {
+  JsonOptions,
+  JsonValue,
+  JsonObject,
+  JsonArray,
+  FormatDetectionResult,
+} from './core/converter';
+
+// Export transform classes and creators
+export {
+  // Transform Classes
   BooleanTransform,
-  BooleanTransformOptions,
-} from './transforms/boolean-transform.js';
-export {
   NumberTransform,
-  NumberTransformOptions,
-} from './transforms/number-transform.js';
-export { 
-  RegexTransform, 
-  RegexOptions 
-} from './transforms/regex-transform.js';
-export {
+  RegexTransform,
   MetadataTransform,
+  // Creator functions
+  createBooleanTransform,
+  createNumberTransform,
+  createRegexTransform,
+  createMetadataTransform,
+  // Option interfaces
+  BooleanTransformOptions,
+  NumberTransformOptions,
+  RegexOptions,
   MetadataTransformOptions,
-} from './transforms/metadata-transform.js';
+  // Additional transform types
+  NodeSelector,
+  FormatMetadata
+} from './transforms';
+
+// Manual registration verification - this function does nothing at runtime
+// but ensures that tree-shaking doesn't remove our extension imports
+function ensureExtensionsRegistered() {
+  if (process.env.NODE_ENV === 'development') {
+    console.log('XJX Extensions registered successfully');
+  }
+  // The mere existence of this function with references prevents tree-shaking
+  return [
+    './extensions/from-xml',
+    './extensions/from-json',
+    './extensions/to-xml',
+    './extensions/to-json',
+    './extensions/config-extensions',
+    './extensions/with-transforms'
+  ];
+}
+
+// This will be removed in production builds but helps ensure extensions are loaded
+ensureExtensionsRegistered();

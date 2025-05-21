@@ -1,15 +1,41 @@
 /**
  * Transforms module
- * 
- * This module provides the transformers for converting between data types
- * and modifying XML/JSON data during transformation.
+ *
+ * This module provides transformation functions for modifying XML/JSON data.
  */
-  
-  // Core transformers for data type conversion
-  export { BooleanTransform, BooleanTransformOptions } from './boolean-transform';
-  export { NumberTransform, NumberTransformOptions } from './number-transform';
-  export { RegexTransform, RegexOptions } from './regex-transform';
-  export { MetadataTransform, MetadataTransformOptions } from './metadata-transform';
-  
-  // Add other transforms as they're implemented:
+// Re-export transform interfaces and utilities from core
+export {
+  Transform,
+  TransformContext,
+  TransformResult,
+  TransformTarget,
+  FORMAT,
+  createTransformResult,
+} from "../core/transform";
 
+// Export transform classes and factory functions
+export { 
+  BooleanTransform,
+  createBooleanTransform,
+  BooleanTransformOptions 
+} from "./boolean-transform";
+
+export { 
+  NumberTransform,
+  createNumberTransform,
+  NumberTransformOptions 
+} from "./number-transform";
+
+export { 
+  RegexTransform,
+  createRegexTransform,
+  RegexOptions 
+} from "./regex-transform";
+
+export { 
+  MetadataTransform,
+  createMetadataTransform,
+  MetadataTransformOptions,
+  NodeSelector,
+  FormatMetadata
+} from "./metadata-transform";

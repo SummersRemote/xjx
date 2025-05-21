@@ -1,255 +1,245 @@
-# XJX Project Overview
+# XJX Library: AI Introduction
 
-## Design Principles & Intent
+XJX is a JavaScript/TypeScript library for converting and transforming between XML and JSON formats with high fidelity. This document provides key information about XJX's design, capabilities, and usage patterns to help AI assistants reason about and generate code for this library.
 
-- **Simplicity First**: Prioritizes clear APIs and straightforward usage patterns. Complex features are opt-in.
-- **Developer Experience**: Fluent API design for readability and discoverability. Sensible defaults with explicit overrides.
-- **Format Fidelity**: Preserves full XML structure fidelity with XJX JSON format, with optional Standard JSON for easier consumption.
-- **Graceful Degradation**: Features like namespaces, comments, and CDATA are preserved when possible, dropped gracefully when not.
-- **Error Resilience**: Sophisticated error handling system with context-aware recovery and fallbacks.
-- **Immutability**: Transform operations produce new objects rather than mutating originals.
-- **Progressive Enhancement**: Core functionality works without configuration; additional features add progressively.
-- **Format Awareness**: Tools adjust behavior based on target format for optimal results in either direction.
-- **Performance Conscious**: Early-exit patterns and lazy evaluation to minimize unnecessary processing.
-- **Self-Documenting**: Explicit naming and patterns over implicit conventions.
-- **DOM Access**: Direct access to underlying DOM structures with explicit serialization methods.
+## Core Concepts
 
-## Architecture
+- **Bidirectional Conversion**: XJX converts XML to JSON and back, with configurable fidelity.
+- **Fluent API**: Operations are chained using method calls (`fromXml().withTransforms().toJson()`).
+- **Intermediate Representation**: All conversions use an internal `XNode` format that preserves structure.
+- **Transformation Pipeline**: Customizable transforms modify data during conversion.
+- **Extensions System**: The API can be extended with custom methods.
 
-XJX is a bidirectional XML/JSON conversion library with a modular, extensible architecture built on a fluent API. The core conversion pipeline is:
-
-1. Parse source (XML/JSON) → XNode (internal model)
-2. Apply transforms to XNode
-3. Convert XNode → target format (XML DOM/JSON)
-4. Optional: Convert target format to string representation
-
-## Core Components
-
-- **XNode**: Central data model representing XML nodes with attributes, values, children
-- **Converters**: Convert between formats and XNode
-  - XML → XNode
-  - XNode → XML DOM
-  - JSON (XJX format) → XNode
-  - XNode → JSON (XJX format)
-  - Standard JSON → XNode
-  - XNode → Standard JSON
-- **Transforms**: Modify XNode during conversion
-- **Extensions**: Add methods to the fluent API
-
-## Data Flow
-
-```
-╔════════════╗      ╔═══════════════╗      ╔════════════════════╗      ╔════════════╗
-║ XML/JSON   ║ ──→  ║ XNode +       ║ ──→  ║ DOM Document/JSON  ║ ──→  ║ String     ║
-║ Source     ║      ║ Transforms    ║      ║ Object              ║      ║ (optional) ║
-╚════════════╝      ╚═══════════════╝      ╚════════════════════╝      ╚════════════╝
-```
-
-## Configuration System
-
-Configuration is organized by format:
+## Basic Usage Pattern
 
 ```javascript
-{
-  // Global preservation options
-  preserveNamespaces: true,
-  preserveComments: true,
-  preserveProcessingInstr: true,
-  preserveCDATA: true,
-  preserveTextNodes: true,
-  preserveWhitespace: false,
-  preserveAttributes: true,
+// Convert XML to JSON
+const result = new XJX()
+  .fromXml(xmlString)              // Set XML source
+  .withTransforms(                 // Apply transformations (optional)
+    createBooleanTransform(),      // Convert boolean strings to actual booleans
+    createNumberTransform()        // Convert number strings to actual numbers
+  )
+  .toJson();                       // Output as JSON
 
-  // Format-specific settings
-  converters: {
-    // Standard JSON settings
-    stdJson: {
-      options: { 
-        attributeHandling: 'merge',    // ignore, merge, prefix, property
-        attributePrefix: '@',          // prefix for attributes if using 'prefix' mode
-        attributePropertyName: '_attrs', // property for attributes if using 'property' mode
-        textPropertyName: '_text',     // property for text content with attributes/children
-        alwaysCreateArrays: false,     // always create arrays for elements with same name
-        preserveMixedContent: true,    // preserve mixed content (text + elements)
-        emptyElementsAsNull: false     // represent empty elements as null
-      },
-      naming: { 
-        arrayItem: "item"              // name for array items in XML
-      }
-    },
-    
-    // XJX JSON settings
-    xjxJson: {
-      options: { 
-        compact: true                  // remove empty nodes/properties
-      },
-      naming: { 
-        namespace: "$ns",              // namespace URI property
-        prefix: "$pre",                // namespace prefix property
-        attribute: "$attr",            // attributes collection property
-        value: "$val",                 // node value property
-        cdata: "$cdata",               // CDATA content property
-        comment: "$cmnt",              // comment content property
-        processingInstr: "$pi",        // processing instruction property
-        target: "$trgt",               // PI target property
-        children: "$children"          // child nodes collection property
-      }
-    },
-    
-    // XML settings
-    xml: {
-      options: {
-        declaration: true,             // include XML declaration
-        prettyPrint: true,             // format with indentation
-        indent: 2                      // indentation spaces
-      }
-    }
+// Convert JSON to XML
+const xml = new XJX()
+  .fromJson(jsonObject)            // Set JSON source
+  .toXmlString({ prettyPrint: true }); // Output as XML string with pretty printing
+```
+
+## Key Components
+
+### XNode Model
+
+The `XNode` interface is the central data structure:
+
+```typescript
+interface XNode {
+  name: string;                     // Element name
+  type: number;                     // Node type (element, text, etc.)
+  value?: any;                      // Node value
+  attributes?: Record<string, any>; // Element attributes
+  children?: XNode[];               // Child nodes
+  namespace?: string;               // Namespace URI
+  prefix?: string;                  // Namespace prefix
+  namespaceDeclarations?: Record<string, string>; // Namespace declarations
+  metadata?: Record<string, any>;   // User-defined metadata
+  parent?: XNode;                   // Parent node reference
+}
+```
+
+### Configuration Options
+
+XJX offers extensive configuration options:
+
+```javascript
+const xjx = new XJX({
+  // Preservation options
+  preserveNamespaces: true,     // Keep XML namespaces
+  preserveComments: true,       // Keep XML comments
+  preserveCDATA: true,          // Keep CDATA sections
+  preserveTextNodes: true,      // Keep text nodes
+
+  // JSON conversion strategies
+  highFidelity: false,          // Use verbose but lossless JSON format
+  attributeStrategy: 'merge',   // How to handle attributes ('merge', 'prefix', 'property')
+  textStrategy: 'direct',       // How to handle text ('direct', 'property')
+  arrayStrategy: 'multiple',    // When to create arrays ('multiple', 'always', 'never')
+
+  // Output formatting
+  formatting: {
+    indent: 2,                  // Indentation spaces
+    declaration: true,          // Include XML declaration
+    pretty: true                // Pretty-print output
+  }
+});
+```
+
+### Transform System
+
+Transforms modify data during conversion:
+
+```javascript
+// Built-in transforms
+createBooleanTransform()        // Convert strings to booleans
+createNumberTransform()         // Convert strings to numbers
+createRegexTransform({          // Apply regex replacements
+  pattern: /pattern/,
+  replacement: 'replacement'
+})
+createMetadataTransform({       // Add metadata to nodes
+  selector: 'nodeName',
+  metadata: { /* custom data */ }
+})
+
+// Custom transforms implement the Transform interface
+interface Transform {
+  targets: TransformTarget[];   // What this transform targets (values, attributes, elements)
+  transform(value: any, context: TransformContext): TransformResult<any>;
+}
+```
+
+## XML/JSON Conversion Modes
+
+### Standard Mode (Default)
+
+XML:
+```xml
+<user id="123">
+  <name>John</name>
+  <active>true</active>
+</user>
+```
+
+JSON (with attribute prefixing):
+```json
+{
+  "user": {
+    "@id": "123",
+    "name": "John",
+    "active": "true"
   }
 }
 ```
 
-## Key Interfaces
+### High-Fidelity Mode
 
-```typescript
-// Transform interface
-interface Transform {
-  targets: TransformTarget[];
-  transform(value: any, context: TransformContext): TransformResult<any>;
+Same XML input results in more verbose but lossless JSON:
+
+```json
+{
+  "user": {
+    "$attr": [
+      { "id": { "$val": "123" } }
+    ],
+    "$children": [
+      { "name": { "$val": "John" } },
+      { "active": { "$val": "true" } }
+    ]
+  }
 }
-
-// Converter interface
-interface Converter<TInput, TOutput> {
-  convert(input: TInput): TOutput;
-}
-
-// Extension registration
-XJX.registerTerminalExtension(name: string, method: Function): void;
-XJX.registerNonTerminalExtension(name: string, method: Function): void;
 ```
 
-## Terminal Methods
+## Common Scenarios
 
-```typescript
-// XML output methods
-toXml(): Document                 // Returns a standard DOM Document
-toXmlString(options?): string     // Returns an XML string with optional formatting
+### Type Conversion
 
-// XJX JSON output methods (full fidelity)
-toXjxJson(): object               // Returns an XJX-formatted JSON object
-toXjxJsonString(): string         // Returns an XJX-formatted JSON string
+Convert string values to appropriate types:
 
-// Standard JSON output methods (natural JS objects)
-toStandardJson(): any             // Returns a standard JavaScript object
-toStandardJsonString(): string    // Returns a standard JSON string
+```javascript
+new XJX()
+  .fromXml('<user><active>true</active><count>5</count></user>')
+  .withTransforms(
+    createBooleanTransform(),
+    createNumberTransform()
+  )
+  .toJson();
+
+// Result: { "user": { "active": true, "count": 5 } }
 ```
 
-## JSON Formats
+### Date Format Conversion
 
-1. **XJX Format**: Full-fidelity XML representation with namespaces, CDATA, etc.
-   ```javascript
-   {
-     "element": {
-       "$attr": [{ "id": { "$val": "123" } }],
-       "$children": [{ "child": { "$val": "value" } }]
-     }
-   }
-   ```
+Convert between date formats:
 
-2. **Standard Format**: Natural JavaScript object structure
-   ```javascript
-   {
-     "element": {
-       "id": "123",
-       "child": "value"
-     }
-   }
-   ```
+```javascript
+new XJX()
+  .fromXml('<user><date>2023-04-15</date></user>')
+  .withTransforms(
+    createRegexTransform({
+      pattern: /(\d{4})-(\d{2})-(\d{2})/,
+      replacement: '$2/$3/$1'
+    })
+  )
+  .toJson();
 
-## File Structure
+// Result: { "user": { "date": "04/15/2023" } }
+```
 
-- `/src/core/`: Core functionality (XNode, configuration, error handling)
-  - `/src/core/xml/`: XML processing
-  - `/src/core/json/`: JSON processing
-- `/src/transforms/`: Built-in transforms
-- `/src/extensions/`: Extension registration
-  - `/src/extensions/terminal/`: Terminal (value-returning) extensions
-  - `/src/extensions/nonterminal/`: Non-terminal (chainable) extensions
-- `/src/converters/`: Format converters
+### Custom Transforms
+
+Create custom data transformations:
+
+```javascript
+class TitleCaseTransform implements Transform {
+  public readonly targets = [TransformTarget.Value];
+  
+  transform(value: any, context: TransformContext): TransformResult<any> {
+    if (typeof value !== 'string') return createTransformResult(value);
+    
+    const transformed = value.replace(/\w\S*/g, (txt) => {
+      return txt.charAt(0).toUpperCase() + txt.substring(1).toLowerCase();
+    });
+    
+    return createTransformResult(transformed);
+  }
+}
+
+// Using the custom transform
+new XJX()
+  .fromXml('<user><name>john doe</name></user>')
+  .withTransforms(new TitleCaseTransform())
+  .toJson();
+
+// Result: { "user": { "name": "John Doe" } }
+```
 
 ## Error Handling
 
-Centralized error handling system with typed errors:
-- ValidationError
-- ParseError
-- SerializeError
-- TransformError
-- ConfigurationError
-- EnvironmentError
-
-## Key Dependencies
-
-- **Browser**: Uses native DOM APIs
-- **Node.js**: Uses JSDOM or xmldom as fallback
-- **TypeScript**: For type safety
-- **Zero runtime dependencies**: Self-contained
-
-## Usage Patterns
+XJX provides specific error types:
 
 ```javascript
-// Convert XML to Standard JSON
-const standardJson = new XJX()
-  .withConfig({
-    converters: {
-      stdJson: { options: { attributeHandling: 'merge' } }
-    }
-  })
-  .fromXml(xml)
-  .withTransforms(
-    new BooleanTransform(),
-    new NumberTransform()
-  )
-  .toStandardJson();
-
-// Convert XML to DOM and string
-const xmlDoc = new XJX()
-  .fromXml(xml)
-  .toXml();
-
-// Get XML string directly
-const xmlString = new XJX()
-  .fromXml(xml)
-  .toXmlString({ prettyPrint: true, indent: 4 });
-
-// Get XJX JSON string
-const xjxJsonString = new XJX()
-  .fromXml(xml)
-  .toXjxJsonString();
-
-// Get Standard JSON string
-const stdJsonString = new XJX()
-  .fromXml(xml)
-  .toStandardJsonString();
+try {
+  const result = new XJX().fromXml(malformedXml).toJson();
+} catch (err) {
+  if (err instanceof ValidationError) {
+    // Input validation error
+  } else if (err instanceof ProcessingError) {
+    // Processing error during conversion
+  } else {
+    // Other error
+  }
+}
 ```
 
-## Extension Points
+## Key API Methods
 
-- Add custom transforms for data type conversion or structure changes
-- Create terminal/non-terminal extensions for new conversion paths 
-- Use metadata to control conversion behavior
-- Override format-specific handling at node level
-- Extend the DOM interface with custom methods
+- **Source Methods**: `fromXml()`, `fromJson()`, `fromJsonString()`
+- **Transform Methods**: `withTransforms()`
+- **Configuration Methods**: `withConfig()`, `setLogLevel()`
+- **Output Methods**: `toXml()`, `toXmlString()`, `toJson()`, `toJsonString()`
 
-## Refactoring Considerations
+## Memory and Performance Considerations
 
-- **Extension method dependencies and order**: Extensions build on each other; respect dependencies
-- **Transform context sharing**: Ensure context is correctly propagated through the transform chain
-- **Error propagation and recovery**: Maintain fallback behavior in the error handling chain
-- **Format-awareness in transforms**: Transforms should check target format and adjust behavior
-- **Config structure integrity**: Validate against the complete configuration schema
-- **XNode immutability**: Clone nodes rather than modifying them directly
-- **Progressive enhancement**: New features should be opt-in with sensible defaults
-- **API surface consistency**: Follow existing naming patterns for new methods
-- **Type safety**: Maintain strong typing throughout the codebase
-- **Test boundary cases**: Handle empty values, deep nesting, unusual XML structures
-- **Performance profiling**: Focus optimizations on the critical conversion path
-- **DOM access patterns**: Provide consistent methods for DOM manipulation and serialization
+- XJX creates an in-memory representation of the entire document
+- For very large documents, memory usage can be significant
+- Transforms are applied to the entire document, which can impact performance
+
+## Technical Limitations
+
+- XJX is designed for document conversion, not streaming
+- XML Schema validation is not built-in
+- XPath querying is not supported natively
+
+This guide provides the key information needed to understand XJX's capabilities and generate correct code examples. For more details, refer to the README, ARCHITECTURE, and EXTENSIONS-AND-TRANSFORMS documents.

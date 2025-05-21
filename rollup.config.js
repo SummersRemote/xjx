@@ -40,19 +40,19 @@ export default [
       sourcemap: !isProd,
       preserveModules: true,
       preserveModulesRoot: "src",
-      exports: "named" // Fix for mixed exports warning
+      exports: "named"
     },
     external,
     plugins: [
       ...commonPlugins,
       typescript({
         tsconfig: "./tsconfig.json",
-        declaration: false, // Skip declarations in this build
+        declaration: false,
         outDir: "dist/esm",
         rootDir: "src",
       }),
     ],
-    // Critical: preserving side effects for extension registration
+    // Preserve all side effects to ensure extension registration works
     treeshake: {
       moduleSideEffects: "no-external",
       preset: "recommended"
@@ -68,19 +68,18 @@ export default [
       sourcemap: !isProd,
       preserveModules: true,
       preserveModulesRoot: "src",
-      exports: "named" // Fix for mixed exports warning
+      exports: "named"
     },
     external,
     plugins: [
       ...commonPlugins,
       typescript({
         tsconfig: "./tsconfig.json",
-        declaration: false, // Skip declarations in this build
+        declaration: false,
         outDir: "dist/cjs",
         rootDir: "src",
       }),
     ],
-    // Critical: preserving side effects for extension registration
     treeshake: {
       moduleSideEffects: "no-external",
       preset: "recommended"
@@ -95,7 +94,7 @@ export default [
       format: "umd",
       name: "XJX",
       sourcemap: !isProd,
-      exports: "named", // Fix for mixed exports warning
+      exports: "named",
       globals: {
         jsdom: "JSDOM",
         "@xmldom/xmldom": "xmldom",
@@ -106,14 +105,13 @@ export default [
       ...commonPlugins,
       typescript({
         tsconfig: "./tsconfig.json",
-        declaration: false, // Skip declarations in this build
-        declarationMap: false, // Turn off declaration maps to match
-        composite: false, // Make sure composite is off
+        declaration: false,
+        declarationMap: false,
+        composite: false,
       }),
       ...prodPlugins,
     ],
-    // UMD build should preserve everything
-    treeshake: false,
+    treeshake: false, // Preserve everything for UMD
   },
   
   // Minified UMD build
@@ -124,7 +122,7 @@ export default [
       format: "umd",
       name: "XJX",
       sourcemap: false,
-      exports: "named", // Fix for mixed exports warning
+      exports: "named",
       globals: {
         jsdom: "JSDOM",
         "@xmldom/xmldom": "xmldom",
@@ -135,35 +133,35 @@ export default [
       ...commonPlugins,
       typescript({
         tsconfig: "./tsconfig.json",
-        declaration: false, // Skip declarations in this build
-        declarationMap: false, // Turn off declaration maps to match
-        composite: false, // Make sure composite is off
+        declaration: false,
+        declarationMap: false,
+        composite: false,
       }),
       terser(),
     ],
-    // UMD build should preserve everything
-    treeshake: false,
+    treeshake: false, // Preserve everything for UMD
   },
   
-  // Declaration files build (separate)
+  // Declaration files build
   {
     input: "src/index.ts",
     output: {
       dir: "dist/types",
-      format: "es", // Format doesn't matter for declarations
+      format: "es",
       preserveModules: true,
       preserveModulesRoot: "src",
+      sourcemap: true  // Add this to fix the first error
     },
     external,
     plugins: [
       typescript({
         tsconfig: "./tsconfig.json",
-        declaration: true, // Generate declarations
-        declarationMap: true, // Generate declaration maps
-        declarationDir: "dist/types", // Output to types directory
-        emitDeclarationOnly: true, // Only output declarations
+        declaration: true,
+        declarationMap: true,
+        emitDeclarationOnly: true,
+        outDir: "dist/types",  // Ensure this matches the output.dir value above
         rootDir: "src",
       }),
-    ],
+    ]
   },
 ].filter(Boolean);

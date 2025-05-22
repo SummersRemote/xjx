@@ -23,7 +23,7 @@ export interface Configuration {
     namespaceStrategy: 'prefix' | 'property';
     arrayStrategy: 'multiple' | 'always' | 'never';
     emptyElementStrategy: 'object' | 'null' | 'string';
-    mixedContentStrategy: 'preserve' | 'prioritize-text' | 'prioritize-elements';
+    mixedContentStrategy: 'preserve' | 'merge';  // Updated: removed prioritize options, added merge
   };
 
   // Property names and special markers
@@ -87,7 +87,7 @@ export const DEFAULT_CONFIG: Configuration = {
     namespaceStrategy: 'prefix',
     arrayStrategy: 'multiple',
     emptyElementStrategy: 'object',
-    mixedContentStrategy: 'preserve',
+    mixedContentStrategy: 'preserve',  // Updated: default remains preserve
   },
 
   // Property names
@@ -180,60 +180,3 @@ export function createConfig(
 
   return result;
 }
-
-// /**
-//  * Create effective configuration for JSON conversion by merging options
-//  * @param baseConfig Base configuration
-//  * @param options JSON conversion options
-//  * @returns Effective configuration
-//  */
-// export function createJsonConfig(
-//   baseConfig: Configuration,
-//   options?: {
-//     highFidelity?: boolean;
-//     attributeStrategy?: 'merge' | 'prefix' | 'property';
-//     textStrategy?: 'direct' | 'property';
-//     namespaceStrategy?: 'prefix' | 'property';
-//     arrayStrategy?: 'multiple' | 'always' | 'never';
-//     emptyElementStrategy?: 'object' | 'null' | 'string';
-//     mixedContentStrategy?: 'preserve' | 'prioritize-text' | 'prioritize-elements';
-//     formatting?: Partial<Configuration['formatting']>;
-//   }
-// ): Configuration {
-//   if (!options || Object.keys(options).length === 0) {
-//     return baseConfig;
-//   }
-  
-//   // Create override configuration from options
-//   const overrides: Partial<Configuration> = {};
-  
-//   // Apply direct strategy options
-//   if (options.highFidelity !== undefined || 
-//       options.attributeStrategy !== undefined ||
-//       options.textStrategy !== undefined ||
-//       options.namespaceStrategy !== undefined ||
-//       options.arrayStrategy !== undefined ||
-//       options.emptyElementStrategy !== undefined ||
-//       options.mixedContentStrategy !== undefined) {
-    
-//     overrides.strategies = { ...baseConfig.strategies };
-    
-//     if (options.highFidelity !== undefined) overrides.strategies.highFidelity = options.highFidelity;
-//     if (options.attributeStrategy !== undefined) overrides.strategies.attributeStrategy = options.attributeStrategy;
-//     if (options.textStrategy !== undefined) overrides.strategies.textStrategy = options.textStrategy;
-//     if (options.namespaceStrategy !== undefined) overrides.strategies.namespaceStrategy = options.namespaceStrategy;
-//     if (options.arrayStrategy !== undefined) overrides.strategies.arrayStrategy = options.arrayStrategy;
-//     if (options.emptyElementStrategy !== undefined) overrides.strategies.emptyElementStrategy = options.emptyElementStrategy;
-//     if (options.mixedContentStrategy !== undefined) overrides.strategies.mixedContentStrategy = options.mixedContentStrategy;
-//   }
-  
-//   // Apply formatting options if provided
-//   if (options.formatting) {
-//     overrides.formatting = {
-//       ...baseConfig.formatting,
-//       ...options.formatting
-//     };
-//   }
-  
-//   return mergeConfig(baseConfig, overrides);
-// }

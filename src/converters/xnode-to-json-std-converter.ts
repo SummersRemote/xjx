@@ -217,25 +217,13 @@ class XNodeToJsonConverterImpl implements Converter<XNode, JsonValue, { config: 
           this.processChildElements(result, elementNodes, config);
           break;
           
-        case 'prioritize-text':
-          // Only use text if we have it
-          if (textNodes.length > 0 && config.preserveTextNodes) {
-            const combinedText = textNodes.map(t => t.value).join('');
-            result[config.properties.text] = combinedText;
-          } else {
-            // Fall back to elements
-            this.processChildElements(result, elementNodes, config);
-          }
-          break;
-          
-        case 'prioritize-elements':
-          // Only use elements if we have them
-          if (elementNodes.length > 0) {
-            this.processChildElements(result, elementNodes, config);
-          } else if (textNodes.length > 0 && config.preserveTextNodes) {
-            // Fall back to text
-            const combinedText = textNodes.map(t => t.value).join('');
-            result[config.properties.text] = combinedText;
+        case 'merge':
+          // NEW: Merge all text and element content into readable text
+          if (config.preserveTextNodes) {
+            const mergedText = this.extractAllTextContent(node.children || []);
+            if (mergedText.trim()) {
+              result[config.properties.text] = mergedText;
+            }
           }
           break;
       }
@@ -250,6 +238,31 @@ class XNodeToJsonConverterImpl implements Converter<XNode, JsonValue, { config: 
     }
     
     return result;
+  }
+  
+  /**
+   * Extract all text content from mixed nodes (NEW METHOD)
+   * Recursively extracts text from both text nodes and element nodes
+   * @param nodes Array of nodes to extract text from
+   * @returns Combined text content
+   */
+  private extractAllTextContent(nodes: XNode[]): string {
+    return nodes.map(node => {
+      if (node.type === NodeType.TEXT_NODE || node.type === NodeType.CDATA_SECTION_NODE) {
+        return node.value || '';
+      } else if (node.type === NodeType.ELEMENT_NODE) {
+        // For element nodes, get their direct value if present
+        if (node.value !== undefined) {
+          return String(node.value);
+        }
+        // Or recursively extract text from their children
+        if (node.children && node.children.length > 0) {
+          return this.extractAllTextContent(node.children);
+        }
+        return '';
+      }
+      return '';
+    }).join(' ').replace(/\s+/g, ' ').trim();
   }
   
   /**

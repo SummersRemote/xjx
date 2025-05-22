@@ -1,5 +1,11 @@
 <!-- components/EditorPanel.vue -->
 <template>
+  
+  <!-- Error Alert -->
+  <v-alert v-if="error" type="error" variant="tonal" closable class="mt-4">
+    {{ error }}
+  </v-alert>
+
   <v-card>
     <v-card-title class="d-flex align-center">
       <v-spacer></v-spacer>
@@ -39,6 +45,31 @@
             >
               <div>XML</div>
               <v-spacer></v-spacer>
+
+              <!-- XML Sample Selector -->
+              <v-select
+                v-model="selectedXmlSample"
+                :items="xmlSampleItems"
+                item-title="name"
+                item-value="index"
+                label="Load Sample"
+                density="compact"
+                variant="outlined"
+                style="max-width: 200px"
+                class="me-2"
+                @update:model-value="loadXmlSample"
+                clearable
+              >
+                <template v-slot:item="{ props, item }">
+                  <v-list-item v-bind="props">
+                    <v-list-item-title>{{ item.raw.name }}</v-list-item-title>
+                    <v-list-item-subtitle>{{
+                      item.raw.description
+                    }}</v-list-item-subtitle>
+                  </v-list-item>
+                </template>
+              </v-select>
+
               <v-btn
                 icon="mdi-content-copy"
                 size="small"
@@ -69,6 +100,31 @@
             >
               <div>JSON</div>
               <v-spacer></v-spacer>
+
+              <!-- JSON Sample Selector -->
+              <v-select
+                v-model="selectedJsonSample"
+                :items="jsonSampleItems"
+                item-title="name"
+                item-value="index"
+                label="Load Sample"
+                density="compact"
+                variant="outlined"
+                style="max-width: 200px"
+                class="me-2"
+                @update:model-value="loadJsonSample"
+                clearable
+              >
+                <template v-slot:item="{ props, item }">
+                  <v-list-item v-bind="props">
+                    <v-list-item-title>{{ item.raw.name }}</v-list-item-title>
+                    <v-list-item-subtitle>{{
+                      item.raw.description
+                    }}</v-list-item-subtitle>
+                  </v-list-item>
+                </template>
+              </v-select>
+
               <v-btn
                 icon="mdi-content-copy"
                 size="small"
@@ -92,11 +148,6 @@
         </v-col>
       </v-row>
 
-      <!-- Error Alert -->
-      <v-alert v-if="error" type="error" variant="tonal" closable class="mt-4">
-        {{ error }}
-      </v-alert>
-
       <!-- Copy Success Snackbar -->
       <v-snackbar v-model="copySuccess" :timeout="2000" color="success">
         Copied to clipboard!
@@ -110,10 +161,26 @@ import { ref, computed, watch } from "vue";
 import { useEditorStore } from "../stores/editorStore";
 import { useAPIStore } from "../stores/apiStore";
 import { storeToRefs } from "pinia";
+import { xmlSamples, jsonSamples } from "../services/sampleData";
 
 const editorStore = useEditorStore();
 const apiStore = useAPIStore();
 const { xml, json, isProcessing, error, jsonFormat } = storeToRefs(editorStore);
+
+// Sample selection state
+const selectedXmlSample = ref(null);
+const selectedJsonSample = ref(null);
+
+// Create sample items for dropdowns
+const xmlSampleItems = xmlSamples.map((sample, index) => ({
+  ...sample,
+  index,
+}));
+
+const jsonSampleItems = jsonSamples.map((sample, index) => ({
+  ...sample,
+  index,
+}));
 
 // Track active JSON format
 const activeJsonFormat = ref(null);
@@ -142,6 +209,22 @@ const jsonText = computed({
 // For clipboard operations
 const copySuccess = ref(false);
 
+// Load XML sample
+const loadXmlSample = (index) => {
+  if (index !== null && index !== undefined) {
+    const sample = xmlSamples[index];
+    editorStore.updateXml(sample.content);
+  }
+};
+
+// Load JSON sample
+const loadJsonSample = (index) => {
+  if (index !== null && index !== undefined) {
+    const sample = jsonSamples[index];
+    editorStore.updateJson(sample.content);
+  }
+};
+
 // Copy content to clipboard
 const copyToClipboard = (content) => {
   navigator.clipboard.writeText(content);
@@ -154,6 +237,10 @@ const convertXmlToJson = async () => {
   apiStore.updateLastDirection("xml");
   apiStore.updateJsonFormat("xjx");
   apiStore.updateFluentAPI();
+
+  // Clear sample selections after conversion
+  selectedXmlSample.value = null;
+  selectedJsonSample.value = null;
 };
 
 // Convert JSON to XML
@@ -161,12 +248,18 @@ const convertJsonToXml = async () => {
   await editorStore.convertJsonToXml();
   apiStore.updateLastDirection("json");
   apiStore.updateFluentAPI();
+
+  // Clear sample selections after conversion
+  selectedXmlSample.value = null;
+  selectedJsonSample.value = null;
 };
 
 // Reset the editor
 const reset = () => {
   editorStore.reset();
   activeJsonFormat.value = null;
+  selectedXmlSample.value = null;
+  selectedJsonSample.value = null;
   apiStore.updateFluentAPI();
 };
 

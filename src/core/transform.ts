@@ -37,7 +37,7 @@ export interface StrategyInfo {
   namespaceStrategy: 'prefix' | 'property';
   arrayStrategy: 'multiple' | 'always' | 'never';
   emptyElementStrategy: 'object' | 'null' | 'string';
-  mixedContentStrategy: 'preserve' | 'prioritize-text' | 'prioritize-elements';
+  mixedContentStrategy: 'preserve' | 'merge';  // Updated: removed prioritize options, added merge
 }
 
 /**

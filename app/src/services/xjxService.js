@@ -44,7 +44,7 @@ class XJXService {
         namespaceStrategy: "prefix",
         arrayStrategy: "multiple",
         emptyElementStrategy: "object",
-        mixedContentStrategy: "preserve",
+        mixedContentStrategy: "preserve",  // Updated: default remains preserve
       },
 
       // Property names

@@ -180,57 +180,69 @@ class XNodeToJsonHiFiConverterImpl implements Converter<XNode, JsonValue, JsonOp
     return result;
   }
   
-  /**
-   * Process attributes
-   * @param node Node with attributes
-   * @returns Attributes in HiFi format
-   */
-  private processAttributes(node: XNode): JsonArray {
-    const attrs: JsonArray = [];
-    const { properties } = this.config;
+ /**
+ * Process attributes
+ * @param node Node with attributes
+ * @returns Attributes in HiFi format
+ */
+private processAttributes(node: XNode): JsonArray {
+  const attrs: JsonArray = [];
+  const { properties } = this.config;
 
-    // Process regular attributes
-    for (const [name, value] of Object.entries(node.attributes || {})) {
-      // Skip xmlns attributes if not preserving namespaces or if handled elsewhere
-      if (name === "xmlns" || name.startsWith("xmlns:")) {
-        continue; // Namespace declarations are handled separately
-      }
-      
-      // Create attribute object
-      const attrObj: JsonObject = {};
-      
-      // Handle attributes with namespaces
-      if (name.includes(':') && this.config.preserveNamespaces) {
-        const [prefix, localName] = name.split(':');
-        
-        // Find namespace URI for this prefix if available
-        let namespaceURI = null;
-        if (node.namespaceDeclarations) {
-          namespaceURI = node.namespaceDeclarations[prefix];
-        }
-        
-        // Create attribute with namespace info
-        const attrValue: JsonObject = { 
-          [properties.value]: value,
-          [properties.prefix]: prefix
-        };
-        
-        // Add namespace URI if available
-        if (namespaceURI) {
-          attrValue[properties.namespace] = namespaceURI;
-        }
-        
-        attrObj[localName] = attrValue;
-      } else {
-        // Regular attribute
-        attrObj[name] = { [properties.value]: value };
-      }
-      
-      attrs.push(attrObj);
+  // Process regular attributes
+  for (const [name, value] of Object.entries(node.attributes || {})) {
+    // Skip xmlns attributes if not preserving namespaces or if handled elsewhere
+    if (name === "xmlns" || name.startsWith("xmlns:")) {
+      continue; // Namespace declarations are handled separately
     }
-
-    return attrs;
+    
+    // Create attribute object
+    const attrObj: JsonObject = {};
+    
+    // FIXED: Apply preservePrefixedNames logic consistently
+    let finalAttrName = name;
+    
+    // Handle attributes with namespaces/prefixes
+    if (name.includes(':') && this.config.preserveNamespaces) {
+      const [prefix, localName] = name.split(':');
+      
+      // Determine the attribute name to use based on preservePrefixedNames
+      finalAttrName = this.config.preservePrefixedNames ? name : localName;
+      
+      // Find namespace URI for this prefix if available
+      let namespaceURI = null;
+      if (node.namespaceDeclarations) {
+        namespaceURI = node.namespaceDeclarations[prefix];
+      }
+      
+      // Create attribute with namespace info
+      const attrValue: JsonObject = { 
+        [properties.value]: value,
+        [properties.prefix]: prefix
+      };
+      
+      // Add namespace URI if available
+      if (namespaceURI) {
+        attrValue[properties.namespace] = namespaceURI;
+      }
+      
+      attrObj[finalAttrName] = attrValue;
+    } else {
+      // Regular attribute or prefixed attribute without namespace preservation
+      if (name.includes(':') && !this.config.preservePrefixedNames) {
+        // Strip prefix if preservePrefixedNames is false
+        const parts = name.split(':');
+        finalAttrName = parts[parts.length - 1];
+      }
+      
+      attrObj[finalAttrName] = { [properties.value]: value };
+    }
+    
+    attrs.push(attrObj);
   }
+
+  return attrs;
+}
   
   /**
    * Process child nodes

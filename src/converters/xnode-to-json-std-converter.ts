@@ -309,44 +309,72 @@ class XNodeToJsonConverterImpl implements Converter<XNode, JsonValue, { config: 
     }
   }
   
-  /**
-   * Add attributes to a result object
-   * @param result Result object
-   * @param node Source node
-   * @param config Configuration
-   */
-  private addAttributes(result: JsonObject, node: XNode, config: Configuration): void {
-    if (!node.attributes) return;
-    
-    const { properties, prefixes } = config;
-    const { attributeStrategy } = config.strategies;
+/**
+ * Add attributes to a result object
+ * @param result Result object
+ * @param node Source node
+ * @param config Configuration
+ */
+private addAttributes(result: JsonObject, node: XNode, config: Configuration): void {
+  if (!node.attributes) return;
+  
+  const { properties, prefixes } = config;
+  const { attributeStrategy } = config.strategies;
 
-    switch (attributeStrategy) {
-      case 'merge':
-        // Add attributes directly to the element object
-        Object.entries(node.attributes).forEach(([key, value]) => {
-          result[key] = value;
-        });
-        break;
-        
-      case 'prefix':
-        // Add attributes with a prefix
-        const prefix = prefixes.attribute;
-        Object.entries(node.attributes).forEach(([key, value]) => {
-          result[prefix + key] = value;
-        });
-        break;
-        
-      case 'property':
-        // Add attributes as a separate property
-        const attrs: JsonObject = {};
-        Object.entries(node.attributes).forEach(([key, value]) => {
-          attrs[key] = value;
-        });
-        result[properties.attribute] = attrs;
-        break;
-    }
+  switch (attributeStrategy) {
+    case 'merge':
+      // Add attributes directly to the element object
+      Object.entries(node.attributes).forEach(([key, value]) => {
+        // FIXED: Apply preservePrefixedNames logic to attribute names
+        const attrName = this.getAttributeName(key, node, config);
+        result[attrName] = value;
+      });
+      break;
+      
+    case 'prefix':
+      // Add attributes with a prefix
+      const prefix = prefixes.attribute;
+      Object.entries(node.attributes).forEach(([key, value]) => {
+        // FIXED: Apply preservePrefixedNames logic to attribute names
+        const attrName = this.getAttributeName(key, node, config);
+        result[prefix + attrName] = value;
+      });
+      break;
+      
+    case 'property':
+      // Add attributes as a separate property
+      const attrs: JsonObject = {};
+      Object.entries(node.attributes).forEach(([key, value]) => {
+        // FIXED: Apply preservePrefixedNames logic to attribute names
+        const attrName = this.getAttributeName(key, node, config);
+        attrs[attrName] = value;
+      });
+      result[properties.attribute] = attrs;
+      break;
   }
+}
+
+/**
+ * Get the appropriate attribute name based on configuration
+ * @param originalName Original attribute name (may include prefix)
+ * @param node Node containing the attribute
+ * @param config Configuration
+ * @returns Processed attribute name
+ */
+private getAttributeName(originalName: string, node: XNode, config: Configuration): string {
+  // If preservePrefixedNames is true, keep the full name including prefix
+  if (config.preservePrefixedNames) {
+    return originalName;
+  }
+  
+  // If preservePrefixedNames is false, strip the prefix (use local name only)
+  if (originalName.includes(':')) {
+    const parts = originalName.split(':');
+    return parts[parts.length - 1]; // Return the local name part
+  }
+  
+  return originalName;
+}
   
   /**
    * Process child elements into a result object

@@ -198,8 +198,9 @@ function processAttributes(
     // Skip namespace declarations
     if (attr.name === "xmlns" || attr.name.startsWith("xmlns:")) continue;
 
-    // Use the full attribute name (with prefix) when preserving namespaces
-    const attrName = config.preserveNamespaces 
+    // FIXED: Use preservePrefixedNames instead of preserveNamespaces for attribute names
+    // This makes attribute name handling consistent with element name handling
+    const attrName = config.preservePrefixedNames 
       ? attr.name 
       : (attr.localName || attr.name.split(":").pop() || attr.name);
     

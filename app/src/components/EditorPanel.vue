@@ -1,6 +1,5 @@
 <!-- components/EditorPanel.vue -->
 <template>
-  
   <!-- Error Alert -->
   <v-alert v-if="error" type="error" variant="tonal" closable class="mt-4">
     {{ error }}
@@ -40,35 +39,24 @@
         <!-- XML Editor -->
         <v-col cols="12" md="6">
           <v-card variant="outlined" class="editor-card">
-            <v-card-title
-              class="py-2 px-4 bg-blue-grey-lighten-5 d-flex align-center"
-            >
-              <div>XML</div>
-              <v-spacer></v-spacer>
-
+            <v-toolbar flat color="primary" dark>
+              <v-card-title class="py-0 pr-4">XML</v-card-title>
               <!-- XML Sample Selector -->
               <v-select
                 v-model="selectedXmlSample"
                 :items="xmlSampleItems"
-                item-title="name"
+                 :item-props="itemProps"
                 item-value="index"
                 label="Load Sample"
                 density="compact"
                 variant="outlined"
+                hide-details
                 style="max-width: 200px"
-                class="me-2"
                 @update:model-value="loadXmlSample"
-                clearable
               >
-                <template v-slot:item="{ props, item }">
-                  <v-list-item v-bind="props">
-                    <v-list-item-title>{{ item.raw.name }}</v-list-item-title>
-                    <v-list-item-subtitle>{{
-                      item.raw.description
-                    }}</v-list-item-subtitle>
-                  </v-list-item>
-                </template>
               </v-select>
+
+              <v-spacer></v-spacer>
 
               <v-btn
                 icon="mdi-content-copy"
@@ -76,7 +64,8 @@
                 variant="text"
                 @click="copyToClipboard(xml)"
               ></v-btn>
-            </v-card-title>
+            </v-toolbar>
+
             <v-card-text class="pa-0">
               <v-textarea
                 v-model="xml"
@@ -95,43 +84,34 @@
         <!-- JSON Editor -->
         <v-col cols="12" md="6">
           <v-card variant="outlined" class="editor-card">
-            <v-card-title
-              class="py-2 px-4 bg-blue-grey-lighten-5 d-flex align-center"
-            >
-              <div>JSON</div>
-              <v-spacer></v-spacer>
+            <v-toolbar flat color="primary" dark>
+              <v-card-title class="py-0 pr-4">JSON</v-card-title>
 
               <!-- JSON Sample Selector -->
               <v-select
                 v-model="selectedJsonSample"
                 :items="jsonSampleItems"
-                item-title="name"
+                 :item-props="itemProps"
                 item-value="index"
                 label="Load Sample"
                 density="compact"
                 variant="outlined"
+                hide-details
                 style="max-width: 200px"
-                class="me-2"
                 @update:model-value="loadJsonSample"
-                clearable
               >
-                <template v-slot:item="{ props, item }">
-                  <v-list-item v-bind="props">
-                    <v-list-item-title>{{ item.raw.name }}</v-list-item-title>
-                    <v-list-item-subtitle>{{
-                      item.raw.description
-                    }}</v-list-item-subtitle>
-                  </v-list-item>
-                </template>
               </v-select>
 
+              <v-spacer></v-spacer>
+              
               <v-btn
                 icon="mdi-content-copy"
                 size="small"
                 variant="text"
                 @click="copyToClipboard(jsonText)"
               ></v-btn>
-            </v-card-title>
+            </v-toolbar>
+
             <v-card-text class="pa-0">
               <v-textarea
                 v-model="jsonText"
@@ -181,6 +161,13 @@ const jsonSampleItems = jsonSamples.map((sample, index) => ({
   ...sample,
   index,
 }));
+
+function itemProps (item) {
+    return {
+      title: item.name,
+      subtitle: item.description,
+    }
+  }
 
 // Track active JSON format
 const activeJsonFormat = ref(null);

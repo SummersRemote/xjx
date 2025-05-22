@@ -4,7 +4,7 @@ import { logger, ProcessingError } from '../core/error';
 import { XNode } from '../core/xnode';
 import { validateInput, Converter, JsonOptions, JsonValue, JsonObject, JsonArray } from '../core/converter';
 import { createConverter } from '../core/converter';
-import { compact } from '../core/json-utils';
+import { removeEmptyElements } from '../core/json-utils';
 
 /**
  * Create an XNode to JSON HiFi converter
@@ -27,7 +27,15 @@ export function createXNodeToJsonHiFiConverter(config: Configuration): Converter
       const converter = new XNodeToJsonHiFiConverterImpl(config);
       
       // Convert to HiFi format
-      return converter.convert(node, options);
+      const result = converter.convert(node, options);
+      
+      // Apply remove empty elements strategy if configured
+      if (config.strategies.emptyElementStrategy === 'remove') {
+        const processedResult = removeEmptyElements(result, config);
+        return processedResult === undefined ? {} : processedResult;
+      }
+      
+      return result;
     } catch (err) {
       throw new ProcessingError(`Failed to convert XNode to JSON HiFi: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -152,7 +160,10 @@ class XNodeToJsonHiFiConverterImpl implements Converter<XNode, JsonValue, JsonOp
       nodeObj[properties.value] = node.value;
     } else if (node.children && node.children.length > 0) {
       // Process children
-      nodeObj[properties.children] = this.processChildren(node.children);
+      const children = this.processChildren(node.children);
+      if (children.length > 0) {
+        nodeObj[properties.children] = children;
+      }
     }
     
     // Add metadata if present
@@ -165,12 +176,6 @@ class XNodeToJsonHiFiConverterImpl implements Converter<XNode, JsonValue, JsonOp
       `${node.prefix}:${node.name}` : node.name;
     
     result[elementName] = nodeObj;
-    
-    // Apply compact mode if configured
-    if (this.config.properties.compact) {
-      const compacted = compact(result);
-      return compacted === undefined ? {} : compacted;
-    }
     
     return result;
   }

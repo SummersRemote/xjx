@@ -36,8 +36,8 @@ export interface StrategyInfo {
   textStrategy: 'direct' | 'property';
   namespaceStrategy: 'prefix' | 'property';
   arrayStrategy: 'multiple' | 'always' | 'never';
-  emptyElementStrategy: 'object' | 'null' | 'string';
-  mixedContentStrategy: 'preserve' | 'merge';  // Updated: removed prioritize options, added merge
+  emptyElementStrategy: 'object' | 'null' | 'string' | 'remove';  // Added 'remove' option
+  mixedContentStrategy: 'preserve' | 'merge';
 }
 
 /**

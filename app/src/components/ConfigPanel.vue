@@ -196,7 +196,7 @@
       v-model="config.strategies.emptyElementStrategy"
       :items="emptyElementStrategyOptions"
       label="Empty Element Strategy"
-      hint="How to represent empty elements in JSON"
+      hint="How to handle empty elements in JSON"
       persistent-hint
       density="compact"
       class="mb-2"
@@ -312,19 +312,9 @@
       hint="Property name for child elements"
       persistent-hint
       density="compact"
-      class="mb-2"
-      @update:model-value="updateConfig"
-    ></v-text-field>
-    
-    <v-switch
-      v-model="config.properties.compact"
-      label="Compact Output"
-      hint="Remove empty objects/arrays in output"
-      persistent-hint
-      density="compact"
       class="mb-4"
       @update:model-value="updateConfig"
-    ></v-switch>
+    ></v-text-field>
     
     <!-- Prefix Configurations Section -->
     <div class="section-title">Prefix Configurations</div>
@@ -504,7 +494,8 @@ const arrayStrategyOptions = [
 const emptyElementStrategyOptions = [
   { title: 'Object (Empty object)', value: 'object' },
   { title: 'Null (null value)', value: 'null' },
-  { title: 'String (Empty string)', value: 'string' }
+  { title: 'String (Empty string)', value: 'string' },
+  { title: 'Remove (Remove empty elements)', value: 'remove' }  // Added new remove option
 ];
 
 const mixedContentStrategyOptions = [

@@ -4,6 +4,7 @@ import { logger, ProcessingError } from '../core/error';
 import { XNode, getTextContent } from '../core/xnode';
 import { validateInput, Converter, JsonOptions, JsonValue, JsonObject, JsonArray } from '../core/converter';
 import { createConverter } from '../core/converter';
+import { removeEmptyElements } from '../core/json-utils';
 
 /**
  * Create an XNode to standard JSON converter
@@ -32,7 +33,15 @@ export function createXNodeToJsonConverter(config: Configuration): Converter<XNo
       }
       
       // Convert with effective config
-      return converter.convert(node, { config: effectiveConfig });
+      const result = converter.convert(node, { config: effectiveConfig });
+      
+      // Apply remove empty elements strategy if configured
+      if (effectiveConfig.strategies.emptyElementStrategy === 'remove') {
+        const processedResult = removeEmptyElements(result, effectiveConfig);
+        return processedResult === undefined ? {} : processedResult;
+      }
+      
+      return result;
     } catch (err) {
       throw new ProcessingError(`Failed to convert XNode to JSON: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -289,6 +298,10 @@ class XNodeToJsonConverterImpl implements Converter<XNode, JsonValue, { config: 
         
       case 'string':
         return '';
+        
+      case 'remove':
+        // This will be handled by removeEmptyElements function
+        return {};
         
       case 'object':
       default:

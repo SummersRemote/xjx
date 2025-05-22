@@ -43,11 +43,11 @@ class XJXService {
         textStrategy: "direct",
         namespaceStrategy: "prefix",
         arrayStrategy: "multiple",
-        emptyElementStrategy: "object",
-        mixedContentStrategy: "preserve",  // Updated: default remains preserve
+        emptyElementStrategy: "object",  // Default remains 'object'
+        mixedContentStrategy: "preserve",
       },
 
-      // Property names
+      // Property names - removed compact property
       properties: {
         attribute: "$attr",
         value: "$val",
@@ -58,8 +58,7 @@ class XJXService {
         comment: "$cmnt",
         processingInstr: "$pi",
         target: "$trgt",
-        children: "$children",
-        compact: true,
+        children: "$children"
       },
 
       // Prefix configurations

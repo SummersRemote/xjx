@@ -86,51 +86,169 @@ function hasHighFidelityMarkers(obj: JsonObject, config: Configuration): boolean
 }
 
 /**
- * Recursively compacts a JSON structure by removing empty objects and arrays
- * Empty means: {}, [], null, undefined
- * Preserves all primitive values including empty strings, 0, false, etc.
- *
- * @param value JSON value to compact
- * @returns Compacted JSON value or undefined if the value is completely empty
+ * Check if a JSON value represents an empty element
+ * @param value JSON value to check
+ * @param config Configuration for property names
+ * @returns True if the value represents an empty element
  */
-export function compact(value: JsonValue): JsonValue | undefined {
+export function isEmptyElement(value: JsonValue, config: Configuration): boolean {
+  // Null or undefined are empty
+  if (value === null || value === undefined) {
+    return true;
+  }
+
+  // Empty string is empty
+  if (value === '') {
+    return true;
+  }
+
+  // Arrays
+  if (Array.isArray(value)) {
+    // Empty array is empty
+    if (value.length === 0) {
+      return true;
+    }
+    // Array with all empty elements is empty
+    return value.every(item => isEmptyElement(item, config));
+  }
+
+  // Objects
+  if (typeof value === 'object') {
+    const obj = value as JsonObject;
+    const keys = Object.keys(obj);
+    
+    // Empty object is empty
+    if (keys.length === 0) {
+      return true;
+    }
+
+    const { properties } = config;
+
+    // For high-fidelity format, check specific properties
+    if (obj[properties.value] !== undefined) {
+      // Has a value property - check if it's empty
+      return isEmptyElement(obj[properties.value], config);
+    }
+
+    if (obj[properties.children] !== undefined) {
+      // Has children property - check if all children are empty
+      const children = obj[properties.children];
+      if (Array.isArray(children)) {
+        return children.length === 0 || children.every(child => isEmptyElement(child, config));
+      }
+      return isEmptyElement(children, config);
+    }
+
+    // For standard format, check if all properties are empty
+    // Skip metadata properties like attributes, namespaces, etc.
+    const contentKeys = keys.filter(key => 
+      !key.startsWith('$') && 
+      !key.startsWith('_') && 
+      key !== properties.attribute &&
+      key !== properties.namespace &&
+      key !== properties.prefix &&
+      key !== 'namespaceDeclarations' &&
+      key !== 'isDefaultNamespace' &&
+      key !== 'metadata'
+    );
+
+    if (contentKeys.length === 0) {
+      return true;
+    }
+
+    // Check if all content properties are empty
+    return contentKeys.every(key => isEmptyElement(obj[key], config));
+  }
+
+  // Primitive values - not empty unless they're falsy
+  return false;
+}
+
+/**
+ * Remove empty elements from JSON structure
+ * An element is considered empty if:
+ * - It's null, undefined, or empty string
+ * - It's an empty object or array
+ * - It contains only other empty elements
+ * 
+ * @param value JSON value to process
+ * @param config Configuration for determining what's empty
+ * @returns Processed JSON value with empty elements removed, or undefined if entire value is empty
+ */
+export function removeEmptyElements(value: JsonValue, config: Configuration): JsonValue | undefined {
   // Handle null/undefined
   if (value === null || value === undefined) {
     return undefined;
   }
 
-  // Preserve primitive values
-  if (typeof value !== "object") {
-    return value;
-  }
-
   // Handle arrays
   if (Array.isArray(value)) {
-    const compactedArray: JsonValue[] = [];
+    const processedArray: JsonValue[] = [];
 
     for (const item of value) {
-      const compactedItem = compact(item);
-      if (compactedItem !== undefined) {
-        compactedArray.push(compactedItem);
+      const processedItem = removeEmptyElements(item, config);
+      if (processedItem !== undefined) {
+        processedArray.push(processedItem);
       }
     }
 
-    return compactedArray.length > 0 ? compactedArray : undefined;
+    return processedArray.length > 0 ? processedArray : undefined;
   }
 
   // Handle objects
-  const compactedObj: JsonObject = {};
-  let hasProperties = false;
+  if (typeof value === 'object') {
+    const obj = value as JsonObject;
+    const processedObj: JsonObject = {};
+    let hasContent = false;
 
-  for (const [key, propValue] of Object.entries(value as JsonObject)) {
-    const compactedValue = compact(propValue);
-    if (compactedValue !== undefined) {
-      compactedObj[key] = compactedValue;
-      hasProperties = true;
+    for (const [key, propValue] of Object.entries(obj)) {
+      const processedValue = removeEmptyElements(propValue, config);
+      if (processedValue !== undefined) {
+        processedObj[key] = processedValue;
+        hasContent = true;
+      }
     }
+
+    // After processing all properties, check if the object is still meaningful
+    if (!hasContent) {
+      return undefined;
+    }
+
+    // Special handling for high-fidelity format
+    const { properties } = config;
+    
+    // If this object only has metadata (attributes, namespaces, etc.) but no content, it might be empty
+    const contentKeys = Object.keys(processedObj).filter(key => 
+      key !== properties.attribute &&
+      key !== properties.namespace &&
+      key !== properties.prefix &&
+      key !== 'namespaceDeclarations' &&
+      key !== 'isDefaultNamespace' &&
+      key !== 'metadata'
+    );
+
+    // If no content keys, but has metadata, keep it (it represents an empty element with attributes)
+    // If no content keys and no metadata, remove it
+    if (contentKeys.length === 0) {
+      const hasMetadata = 
+        processedObj[properties.attribute] !== undefined ||
+        processedObj[properties.namespace] !== undefined ||
+        processedObj[properties.prefix] !== undefined ||
+        processedObj.namespaceDeclarations !== undefined ||
+        processedObj.metadata !== undefined;
+      
+      return hasMetadata ? processedObj : undefined;
+    }
+
+    return processedObj;
   }
 
-  return hasProperties ? compactedObj : undefined;
+  // Primitive values
+  if (typeof value === 'string' && value.trim() === '') {
+    return undefined;
+  }
+
+  return value;
 }
 
 /**

@@ -22,8 +22,8 @@ export interface Configuration {
     textStrategy: 'direct' | 'property';
     namespaceStrategy: 'prefix' | 'property';
     arrayStrategy: 'multiple' | 'always' | 'never';
-    emptyElementStrategy: 'object' | 'null' | 'string';
-    mixedContentStrategy: 'preserve' | 'merge';  // Updated: removed prioritize options, added merge
+    emptyElementStrategy: 'object' | 'null' | 'string' | 'remove';  // Added 'remove' option
+    mixedContentStrategy: 'preserve' | 'merge';
   };
 
   // Property names and special markers
@@ -38,7 +38,7 @@ export interface Configuration {
     processingInstr: string;
     target: string;
     children: string;
-    compact: boolean;
+    // Removed compact property
   };
 
   // Prefix configurations
@@ -86,11 +86,11 @@ export const DEFAULT_CONFIG: Configuration = {
     textStrategy: 'direct',
     namespaceStrategy: 'prefix',
     arrayStrategy: 'multiple',
-    emptyElementStrategy: 'object',
-    mixedContentStrategy: 'preserve',  // Updated: default remains preserve
+    emptyElementStrategy: 'object',  // Default remains 'object'
+    mixedContentStrategy: 'preserve',
   },
 
-  // Property names
+  // Property names - removed compact
   properties: {
     attribute: "$attr",
     value: "$val",
@@ -101,8 +101,7 @@ export const DEFAULT_CONFIG: Configuration = {
     comment: "$cmnt",
     processingInstr: "$pi",
     target: "$trgt",
-    children: "$children",
-    compact: true
+    children: "$children"
   },
 
   // Prefix configurations
@@ -175,7 +174,8 @@ export function createConfig(
   logger.debug("Successfully created/updated configuration", {
     preserveNamespaces: result.preserveNamespaces,
     highFidelity: result.strategies.highFidelity,
-    attributeStrategy: result.strategies.attributeStrategy
+    attributeStrategy: result.strategies.attributeStrategy,
+    emptyElementStrategy: result.strategies.emptyElementStrategy
   });
 
   return result;

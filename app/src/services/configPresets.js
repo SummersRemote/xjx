@@ -41,8 +41,7 @@ export const configPresets = [
         comment: "$cmnt",
         processingInstr: "$pi",
         target: "$trgt",
-        children: "$children",
-        compact: false
+        children: "$children"
       },
       prefixes: {
         attribute: "@",
@@ -94,8 +93,7 @@ export const configPresets = [
         comment: "$cmnt",
         processingInstr: "$pi",
         target: "$trgt",
-        children: "$children",
-        compact: true
+        children: "$children"
       },
       prefixes: {
         attribute: "@",
@@ -134,7 +132,7 @@ export const configPresets = [
         textStrategy: "direct",
         namespaceStrategy: "prefix",
         arrayStrategy: "always",
-        emptyElementStrategy: "null",
+        emptyElementStrategy: "remove",  // Use remove strategy for Parker
         mixedContentStrategy: "merge"
       },
       properties: {
@@ -147,8 +145,7 @@ export const configPresets = [
         comment: "$cmnt",
         processingInstr: "$pi",
         target: "$trgt",
-        children: "$children",
-        compact: true
+        children: "$children"
       },
       prefixes: {
         attribute: "@",
@@ -200,8 +197,7 @@ export const configPresets = [
         comment: "$cmnt",
         processingInstr: "$pi",
         target: "$trgt",
-        children: "$children",
-        compact: true
+        children: "$children"
       },
       prefixes: {
         attribute: "@",
@@ -240,7 +236,7 @@ export const configPresets = [
         textStrategy: "direct",
         namespaceStrategy: "prefix",
         arrayStrategy: "multiple",
-        emptyElementStrategy: "object",
+        emptyElementStrategy: "remove",  // Use remove strategy for structure-only
         mixedContentStrategy: "preserve"
       },
       properties: {
@@ -253,8 +249,7 @@ export const configPresets = [
         comment: "$cmnt",
         processingInstr: "$pi",
         target: "$trgt",
-        children: "$children",
-        compact: true
+        children: "$children"
       },
       prefixes: {
         attribute: "@",
@@ -306,8 +301,7 @@ export const configPresets = [
         comment: "$cmnt",
         processingInstr: "$pi",
         target: "$trgt",
-        children: "$children",
-        compact: true
+        children: "$children"
       },
       prefixes: {
         attribute: "@",
@@ -359,8 +353,7 @@ export const configPresets = [
         comment: "comment",
         processingInstr: "processingInstruction",
         target: "target",
-        children: "children",
-        compact: false
+        children: "children"
       },
       prefixes: {
         attribute: "@",
@@ -383,7 +376,7 @@ export const configPresets = [
   },
   {
     name: "Compact",
-    description: "Focused on minimal output size with aggressive compacting",
+    description: "Focused on minimal output size with aggressive compacting and empty element removal",
     config: {
       preserveNamespaces: false,
       preserveComments: false,
@@ -399,7 +392,7 @@ export const configPresets = [
         textStrategy: "direct",
         namespaceStrategy: "prefix",
         arrayStrategy: "never",
-        emptyElementStrategy: "null",
+        emptyElementStrategy: "remove",  // Use remove strategy for compact output
         mixedContentStrategy: "merge"
       },
       properties: {
@@ -412,8 +405,7 @@ export const configPresets = [
         comment: "$cmnt",
         processingInstr: "$pi",
         target: "$trgt",
-        children: "$children",
-        compact: true
+        children: "$children"
       },
       prefixes: {
         attribute: "@",

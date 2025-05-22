@@ -7,7 +7,7 @@
 
   <v-card>
     <v-card-title class="d-flex align-center">
-      <v-spacer></v-spacer>
+      <!-- <v-spacer></v-spacer>
       <v-btn-group variant="outlined">
         <v-btn
           color="primary"
@@ -31,7 +31,7 @@
         <v-btn color="error" @click="reset" :disabled="isProcessing">
           Reset
         </v-btn>
-      </v-btn-group>
+      </v-btn-group> -->
     </v-card-title>
 
     <v-card-text>
@@ -40,12 +40,23 @@
         <v-col cols="12" md="6">
           <v-card variant="outlined" class="editor-card">
             <v-toolbar flat color="primary" dark>
-              <v-card-title class="py-0 pr-4">XML</v-card-title>
+              <!-- <v-card-title class="py-0 pr-4">XML</v-card-title> -->
+
+              <v-btn
+                class="py-0 pl-4"
+                variant="outlined"
+                @click="convertXmlToJson"
+                :loading="isProcessing"
+                :disabled="isProcessing"
+              >
+                XML → JSON
+              </v-btn>
               <!-- XML Sample Selector -->
               <v-select
+                class="py-0 pl-4"
                 v-model="selectedXmlSample"
                 :items="xmlSampleItems"
-                 :item-props="itemProps"
+                :item-props="itemProps"
                 item-value="index"
                 label="Load Sample"
                 density="compact"
@@ -85,13 +96,22 @@
         <v-col cols="12" md="6">
           <v-card variant="outlined" class="editor-card">
             <v-toolbar flat color="primary" dark>
-              <v-card-title class="py-0 pr-4">JSON</v-card-title>
-
+              <!-- <v-card-title class="py-0 pr-4">JSON</v-card-title> -->
+              <v-btn
+                class="py-0 pl-4"
+                variant="outlined"
+                @click="convertJsonToXml"
+                :loading="isProcessing"
+                :disabled="isProcessing"
+              >
+                JSON → XML
+              </v-btn>
               <!-- JSON Sample Selector -->
               <v-select
+                class="py-0 pl-4"
                 v-model="selectedJsonSample"
                 :items="jsonSampleItems"
-                 :item-props="itemProps"
+                :item-props="itemProps"
                 item-value="index"
                 label="Load Sample"
                 density="compact"
@@ -103,7 +123,7 @@
               </v-select>
 
               <v-spacer></v-spacer>
-              
+
               <v-btn
                 icon="mdi-content-copy"
                 size="small"
@@ -162,12 +182,12 @@ const jsonSampleItems = jsonSamples.map((sample, index) => ({
   index,
 }));
 
-function itemProps (item) {
-    return {
-      title: item.name,
-      subtitle: item.description,
-    }
-  }
+function itemProps(item) {
+  return {
+    title: item.name,
+    subtitle: item.description,
+  };
+}
 
 // Track active JSON format
 const activeJsonFormat = ref(null);

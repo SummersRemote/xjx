@@ -14,17 +14,18 @@
       @update:model-value="setLogLevel"
     ></v-select>
 
-    <!-- Reset Configuration Button -->
-    <v-btn
-      block
-      color="error"
-      variant="tonal"
-      prepend-icon="mdi-refresh"
-      @click="resetConfig"
+    <!-- Configuration Presets Dropdown -->
+    <v-select
+      v-model="selectedPreset"
+      :items="presetItems"
+      :item-props="itemProps"
+      label="Configuration Preset"
+      density="compact"
+      variant="outlined"
       class="mb-2"
+      @update:model-value="loadPreset"
     >
-      Reset Configuration
-    </v-btn>
+    </v-select>
 
     <!-- Action Buttons Row -->
     <v-row dense class="mb-4">
@@ -442,8 +443,10 @@
 </template>
 
 <script setup>
+import { ref, onMounted } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useConfigStore } from '@/stores/configStore';
+import { configPresets } from '@/services/configPresets.js';
 
 // Define emits for parent communication
 const emit = defineEmits(['showApi', 'showConfig']);
@@ -451,6 +454,29 @@ const emit = defineEmits(['showApi', 'showConfig']);
 // Store and configuration
 const configStore = useConfigStore();
 const { config, logLevel } = storeToRefs(configStore);
+
+// Preset selection state - start with Default selected
+const selectedPreset = ref(0);
+
+// Create preset items for dropdown
+const presetItems = configPresets.map((preset, index) => ({
+  ...preset,
+  value: index
+}));
+
+function itemProps (item) {
+    return {
+      title: item.name,
+      subtitle: item.description,
+    }
+  }
+
+// Item props function for preset dropdown
+const presetItemProps = (item) => ({
+  title: item.name,
+  subtitle: item.description,
+  value: item.value
+});
 
 // Select options
 const attributeStrategyOptions = [
@@ -497,15 +523,30 @@ const logLevelOptions = [
 // Methods
 const updateConfig = () => {
   configStore.updateConfig(JSON.parse(JSON.stringify(config.value)));
-};
-
-const resetConfig = () => {
-  configStore.resetToDefault();
+  // Clear preset selection when manually updating config
+  selectedPreset.value = null;
 };
 
 const setLogLevel = (level) => {
   configStore.updateLogLevel(level);
 };
+
+const loadPreset = (presetIndex) => {
+  if (presetIndex !== null && presetIndex !== undefined) {
+    const preset = configPresets[presetIndex];
+    if (preset && preset.config) {
+      configStore.updateConfig(JSON.parse(JSON.stringify(preset.config)));
+    }
+  }
+};
+
+// Initialize with default configuration on mount
+onMounted(() => {
+  // Load the default configuration (first preset) if no config is already set
+  if (selectedPreset.value === 0) {
+    loadPreset(0);
+  }
+});
 </script>
 
 <style scoped>

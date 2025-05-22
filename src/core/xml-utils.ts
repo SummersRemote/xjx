@@ -64,11 +64,10 @@ export function serializeXml(node: Node): string {
 }
 
 /**
- * Format XML string with indentation
+ * Format XML string with indentation - preserves all text content exactly as-is
  */
 export function formatXml(xmlString: string, indent: number = 2): string {
   const INDENT_STRING = " ".repeat(indent);
-  let preserveWhitespace = false;
 
   // Parse the XML to a DOM document
   const doc = parseXml(xmlString);
@@ -93,7 +92,7 @@ export function formatXml(xmlString: string, indent: number = 2): string {
           return `${pad}${openTag.replace(/>$/, " />")}\n`;
         }
 
-        // Check for mixed content
+        // Check for mixed content or text-only content
         const hasElementChildren = children.some(
           (child) => child.nodeType === NodeType.ELEMENT_NODE
         );
@@ -105,41 +104,36 @@ export function formatXml(xmlString: string, indent: number = 2): string {
             child.nodeType === NodeType.CDATA_SECTION_NODE
         );
 
-        // Handle mixed content to preserve structure
+        // Handle mixed content - preserve exact structure
         if (hasElementChildren && hasTextOrCDATA) {
           let inner = "";
           for (const child of children) {
-            // For elements in mixed content, we still want them indented properly
             if (child.nodeType === NodeType.ELEMENT_NODE) {
-              // Remove newlines from nested element serialization
+              // For elements in mixed content, serialize without padding
               const childSerialized = serializeNode(child, 0);
-              inner += childSerialized.trim(); // trim to remove newlines
+              inner += childSerialized.trim();
             } else {
-              // For text and CDATA, just append directly
+              // For text and CDATA, preserve exactly as-is
               inner += serializeTextOrCDATA(child);
             }
           }
           return `${pad}${openTag}${inner}</${tagName}>\n`;
         }
 
-        // Text-only content
+        // Text-only content - preserve text exactly as-is
         if (!hasElementChildren && hasTextOrCDATA) {
           let inner = "";
           for (const child of children) {
             inner += serializeTextOrCDATA(child);
           }
 
-          // Normalize whitespace if not preserving
-          if (!preserveWhitespace) {
-            inner = inner.trim().replace(/\s+/g, " ");
-          }
-
-          if (inner) {
+          // Don't normalize text content - preserve it exactly
+          if (inner !== "") {
             return `${pad}${openTag}${inner}</${tagName}>\n`;
           }
         }
 
-        // Empty or whitespace-only
+        // Empty or whitespace-only elements
         if (
           children.every(
             (child) =>
@@ -161,18 +155,14 @@ export function formatXml(xmlString: string, indent: number = 2): string {
 
       case NodeType.TEXT_NODE: {
         const text = node.textContent || "";
-        // Skip whitespace-only text nodes in indented output unless preserveWhitespace is true
+        // Skip whitespace-only text nodes in pretty formatting unless they have content
         const trimmed = text.trim();
-        if (!trimmed && !preserveWhitespace) {
+        if (!trimmed) {
           return "";
         }
 
-        // Normalize whitespace according to configuration
-        const normalized = preserveWhitespace
-          ? text
-          : trimmed.replace(/\s+/g, " ");
-
-        return `${pad}${normalized}\n`;
+        // IMPORTANT: Don't normalize whitespace in text content - preserve it exactly
+        return `${pad}${text}\n`;
       }
 
       case NodeType.CDATA_SECTION_NODE:
@@ -197,8 +187,10 @@ export function formatXml(xmlString: string, indent: number = 2): string {
   };
 
   // Helper function to serialize text or CDATA without adding indentation or newlines
+  // CRITICAL: This preserves text content exactly as-is
   const serializeTextOrCDATA = (node: Node): string => {
     if (node.nodeType === NodeType.TEXT_NODE) {
+      // Return text content exactly as-is - no normalization
       return node.textContent || "";
     } else if (node.nodeType === NodeType.CDATA_SECTION_NODE) {
       return `<![CDATA[${node.nodeValue}]]>`;
@@ -279,6 +271,7 @@ export function safeXmlText(text: string): string {
 
 /**
  * Normalize whitespace in text content
+ * This should only be used during XML-to-XNode conversion, NOT during pretty printing
  */
 export function normalizeWhitespace(text: string, preserveWhitespace: boolean = false): string {
   if (!text) return '';

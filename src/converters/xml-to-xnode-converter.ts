@@ -111,10 +111,14 @@ function convertElementToXNode(
       !hasMixed
     ) {
       const text = element.childNodes[0].nodeValue || "";
-      const normalizedText = xmlUtils.normalizeWhitespace(text, config.preserveWhitespace);
+      
+      // Only process if the text has actual content (not just whitespace)
+      if (hasTextContent(text)) {
+        const normalizedText = xmlUtils.normalizeWhitespace(text, config.preserveWhitespace);
 
-      if (normalizedText && config.preserveTextNodes) {
-        xnode.value = normalizedText;
+        if (normalizedText && config.preserveTextNodes) {
+          xnode.value = normalizedText;
+        }
       }
     } else {
       // Process multiple children
@@ -291,7 +295,7 @@ function processChildren(
 }
 
 /**
- * Process a text node
+ * Process a text node with improved whitespace handling
  * @param node Text node
  * @param parentNode Parent XNode
  * @param config Configuration
@@ -305,14 +309,27 @@ function processTextNode(
 ): void {
   const text = node.nodeValue || "";
 
-  if (config.preserveWhitespace || hasMixed || hasTextContent(text)) {
+  // Check if this text node has actual content (not just whitespace)
+  const hasContent = hasTextContent(text);
+  
+  // Preserve text node if:
+  // 1. It has actual content, OR
+  // 2. It's whitespace-only but we're in mixed content (preserves spacing in mixed content)
+  if (hasContent || hasMixed) {
     const normalizedText = xmlUtils.normalizeWhitespace(text, config.preserveWhitespace);
 
-    if (normalizedText && config.preserveTextNodes) {
-      const textNode = createTextNode(normalizedText);
+    // Only add the text node if:
+    // - We have content after normalization, OR
+    // - We're preserving whitespace and in mixed content (to preserve formatting whitespace)
+    if ((normalizedText && config.preserveTextNodes) || 
+        (config.preserveWhitespace && hasMixed && config.preserveTextNodes)) {
+      const textNode = createTextNode(normalizedText || text);
       addChild(parentNode, textNode);
     }
   }
+  
+  // If text is whitespace-only and we're NOT in mixed content, it gets filtered out
+  // This removes formatting whitespace like "\n  " between elements
 }
 
 /**

@@ -54,7 +54,7 @@ function isHighFidelityFormat(json: JsonValue, context: NonTerminalExtensionCont
 /**
  * Implementation for auto-detecting JSON format
  */
-export function fromAutoJson(
+export function fromJson(
   this: NonTerminalExtensionContext, 
   json: JsonValue, 
   options?: JsonOptions
@@ -63,48 +63,42 @@ export function fromAutoJson(
     // Validate input
     validate(json !== null && typeof json === 'object', "JSON source must be an object or array");
     
-    logger.debug('Auto-detecting JSON format', {
-      sourceType: Array.isArray(json) ? 'array' : 'object'
+    // ✅ SIMPLE: Just check the configuration!
+    const useHighFidelity = options?.highFidelity ?? this.config.strategies.highFidelity;
+    
+    logger.debug('Using JSON format based on configuration', {
+      sourceType: Array.isArray(json) ? 'array' : 'object',
+      highFidelity: useHighFidelity
     });
     
-    // Detect if this is high-fidelity HiFi format
-    const isHiFi = isHighFidelityFormat(json, this);
-    
-    logger.debug('JSON format detected', {
-      isHighFidelityFormat: isHiFi
-    });
-    
-    // Create effective options with detected format
+    // Create effective options
     const effectiveOptions = {
       ...options,
-      highFidelity: isHiFi
+      highFidelity: useHighFidelity
     };
     
-    if (isHiFi) {
-      // Use JSON HiFi to XNode converter for high-fidelity format
+    if (useHighFidelity) {
       const converter = createJsonHiFiToXNodeConverter(this.config);
       this.xnode = converter.convert(json, effectiveOptions);
     } else {
-      // Use standard JSON to XNode converter
       const converter = createJsonToXNodeConverter(this.config);
       this.xnode = converter.convert(json, effectiveOptions);
     }
     
-    // Set source format
     this.sourceFormat = FORMAT.JSON;
     
-    logger.debug('Successfully set JSON source with auto-detection', {
+    logger.debug('Successfully set JSON source', {
       rootNodeName: this.xnode?.name,
       rootNodeType: this.xnode?.type,
-      detectedFormat: isHiFi ? 'high-fidelity HiFi' : 'standard JSON'
+      usedHighFidelity: useHighFidelity
     });
   } catch (err) {
     if (err instanceof Error) {
       throw err;
     }
-    throw new Error(`Failed to parse JSON source with auto-detection: ${String(err)}`);
+    throw new Error(`Failed to parse JSON source: ${String(err)}`);
   }
 }
 
 // Register the extension with XJX
-XJX.registerNonTerminalExtension("fromJson", fromAutoJson);
+XJX.registerNonTerminalExtension("fromJson", fromJson);

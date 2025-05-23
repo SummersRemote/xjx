@@ -81,7 +81,7 @@ function hasHighFidelityMarkers(obj: JsonObject, config: Configuration): boolean
     obj[properties.cdata] !== undefined ||
     obj[properties.comment] !== undefined ||
     obj[properties.processingInstr] !== undefined ||
-    obj[properties.value] !== undefined
+    obj[properties.value] !== undefined  // MERGED: single value property
   );
 }
 

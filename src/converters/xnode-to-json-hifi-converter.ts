@@ -84,6 +84,7 @@ class XNodeToJsonHiFiConverterImpl implements Converter<XNode, JsonValue, JsonOp
     switch (node.type) {
       case NodeType.TEXT_NODE:
         if (this.config.preserveTextNodes) {
+          // MERGED: Use properties.value for text nodes
           return { [properties.value]: node.value };
         }
         break;
@@ -107,6 +108,7 @@ class XNodeToJsonHiFiConverterImpl implements Converter<XNode, JsonValue, JsonOp
           };
           
           if (node.value !== undefined) {
+            // MERGED: Use properties.value for PI data
             piObj[properties.value] = node.value;
           }
           
@@ -156,7 +158,7 @@ class XNodeToJsonHiFiConverterImpl implements Converter<XNode, JsonValue, JsonOp
 
     // Process value or children
     if (node.value !== undefined && this.config.preserveTextNodes) {
-      // Direct value
+      // MERGED: Use properties.value for element value
       nodeObj[properties.value] = node.value;
     } else if (node.children && node.children.length > 0) {
       // Process children
@@ -199,7 +201,6 @@ private processAttributes(node: XNode): JsonArray {
     // Create attribute object
     const attrObj: JsonObject = {};
     
-    // FIXED: Apply preservePrefixedNames logic consistently
     let finalAttrName = name;
     
     // Handle attributes with namespaces/prefixes
@@ -217,6 +218,7 @@ private processAttributes(node: XNode): JsonArray {
       
       // Create attribute with namespace info
       const attrValue: JsonObject = { 
+        // MERGED: Use properties.value for attribute values
         [properties.value]: value,
         [properties.prefix]: prefix
       };
@@ -235,6 +237,7 @@ private processAttributes(node: XNode): JsonArray {
         finalAttrName = parts[parts.length - 1];
       }
       
+      // MERGED: Use properties.value for attribute values
       attrObj[finalAttrName] = { [properties.value]: value };
     }
     

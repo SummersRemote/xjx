@@ -47,11 +47,10 @@ class XJXService {
         mixedContentStrategy: "preserve",
       },
 
-      // Property names - removed compact property
+      // Property names - MERGED: single 'value' property
       properties: {
         attribute: "$attr",
-        value: "$val",
-        text: "_text",
+        value: "$val",  // MERGED: single property for all values/text
         namespace: "$ns",
         prefix: "$pre",
         cdata: "$cdata",

@@ -229,17 +229,7 @@
     <v-text-field
       v-model="config.properties.value"
       label="Value Property"
-      hint="Property name for values"
-      persistent-hint
-      density="compact"
-      class="mb-2"
-      @update:model-value="updateConfig"
-    ></v-text-field>
-    
-    <v-text-field
-      v-model="config.properties.text"
-      label="Text Property"
-      hint="Property name for text content"
+      hint="Property name for values and text content"
       persistent-hint
       density="compact"
       class="mb-2"

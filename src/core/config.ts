@@ -29,8 +29,7 @@ export interface Configuration {
   // Property names and special markers
   properties: {
     attribute: string;
-    value: string;
-    text: string;
+    value: string;  // MERGED: combines former 'value' and 'text' properties
     namespace: string;
     prefix: string;
     cdata: string;
@@ -38,7 +37,6 @@ export interface Configuration {
     processingInstr: string;
     target: string;
     children: string;
-    // Removed compact property
   };
 
   // Prefix configurations
@@ -90,11 +88,10 @@ export const DEFAULT_CONFIG: Configuration = {
     mixedContentStrategy: 'preserve',
   },
 
-  // Property names - removed compact
+  // Property names - now with single 'value' property
   properties: {
     attribute: "$attr",
-    value: "$val",
-    text: "_text",
+    value: "$val",  // MERGED: single property for all values/text
     namespace: "$ns",
     prefix: "$pre",
     cdata: "$cdata",

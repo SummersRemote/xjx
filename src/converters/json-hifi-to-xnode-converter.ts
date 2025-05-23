@@ -141,6 +141,7 @@ class JsonHiFiToXNodeConverterImpl implements Converter<JsonValue, XNode, JsonOp
     }
     
     // Process value
+    // MERGED: Check for properties.value instead of separate value property
     if (obj[properties.value] !== undefined && this.config.preserveTextNodes) {
       element.value = obj[properties.value];
     }
@@ -188,6 +189,7 @@ class JsonHiFiToXNodeConverterImpl implements Converter<JsonValue, XNode, JsonOp
         const attrProps = attrValue as JsonObject;
         
         // Get the actual value
+        // MERGED: Use properties.value for attribute values
         const value = attrProps[properties.value];
         
         // Check if this is a namespaced attribute
@@ -222,6 +224,7 @@ class JsonHiFiToXNodeConverterImpl implements Converter<JsonValue, XNode, JsonOp
         const childObj = child as JsonObject;
         
         // Text node
+        // MERGED: Check for properties.value for text nodes
         if (childObj[properties.value] !== undefined && this.config.preserveTextNodes) {
           const textNode = createTextNode(String(childObj[properties.value]));
           addChild(parent, textNode);
@@ -248,6 +251,7 @@ class JsonHiFiToXNodeConverterImpl implements Converter<JsonValue, XNode, JsonOp
           if (piObj && typeof piObj === 'object' && !Array.isArray(piObj)) {
             const piProps = piObj as JsonObject;
             const target = piProps[properties.target];
+            // MERGED: Use properties.value for PI data
             const value = piProps[properties.value] || '';
             
             if (target) {

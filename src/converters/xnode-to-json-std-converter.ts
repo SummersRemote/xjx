@@ -179,13 +179,8 @@ class XNodeToJsonConverterImpl implements Converter<XNode, JsonValue, { config: 
     }
     
     // Add text content based on strategy
-    if (config.strategies.textStrategy === 'direct') {
-      // Add as special property
-      result[config.properties.text] = text;
-    } else {
-      // Add as configured property
-      result[config.properties.text] = text;
-    }
+    // MERGED: Always use properties.value for text content
+    result[config.properties.value] = text;
     
     return result;
   }
@@ -220,18 +215,20 @@ class XNodeToJsonConverterImpl implements Converter<XNode, JsonValue, { config: 
           // Add text nodes as a property
           if (textNodes.length > 0 && config.preserveTextNodes) {
             const combinedText = textNodes.map(t => t.value).join('');
-            result[config.properties.text] = combinedText;
+            // MERGED: Use properties.value for text content
+            result[config.properties.value] = combinedText;
           }
           // Then add elements normally
           this.processChildElements(result, elementNodes, config);
           break;
           
         case 'merge':
-          // NEW: Merge all text and element content into readable text
+          // Merge all text and element content into readable text
           if (config.preserveTextNodes) {
             const mergedText = this.extractAllTextContent(node.children || []);
             if (mergedText.trim()) {
-              result[config.properties.text] = mergedText;
+              // MERGED: Use properties.value for merged text
+              result[config.properties.value] = mergedText;
             }
           }
           break;
@@ -240,7 +237,8 @@ class XNodeToJsonConverterImpl implements Converter<XNode, JsonValue, { config: 
       // Not mixed content, process normally
       if (textNodes.length > 0 && config.preserveTextNodes) {
         const combinedText = textNodes.map(t => t.value).join('');
-        result[config.properties.text] = combinedText;
+        // MERGED: Use properties.value for text content
+        result[config.properties.value] = combinedText;
       } else if (elementNodes.length > 0) {
         this.processChildElements(result, elementNodes, config);
       }
@@ -250,7 +248,7 @@ class XNodeToJsonConverterImpl implements Converter<XNode, JsonValue, { config: 
   }
   
   /**
-   * Extract all text content from mixed nodes (NEW METHOD)
+   * Extract all text content from mixed nodes
    * Recursively extracts text from both text nodes and element nodes
    * @param nodes Array of nodes to extract text from
    * @returns Combined text content
@@ -325,7 +323,6 @@ private addAttributes(result: JsonObject, node: XNode, config: Configuration): v
     case 'merge':
       // Add attributes directly to the element object
       Object.entries(node.attributes).forEach(([key, value]) => {
-        // FIXED: Apply preservePrefixedNames logic to attribute names
         const attrName = this.getAttributeName(key, node, config);
         result[attrName] = value;
       });
@@ -335,7 +332,6 @@ private addAttributes(result: JsonObject, node: XNode, config: Configuration): v
       // Add attributes with a prefix
       const prefix = prefixes.attribute;
       Object.entries(node.attributes).forEach(([key, value]) => {
-        // FIXED: Apply preservePrefixedNames logic to attribute names
         const attrName = this.getAttributeName(key, node, config);
         result[prefix + attrName] = value;
       });
@@ -345,7 +341,6 @@ private addAttributes(result: JsonObject, node: XNode, config: Configuration): v
       // Add attributes as a separate property
       const attrs: JsonObject = {};
       Object.entries(node.attributes).forEach(([key, value]) => {
-        // FIXED: Apply preservePrefixedNames logic to attribute names
         const attrName = this.getAttributeName(key, node, config);
         attrs[attrName] = value;
       });

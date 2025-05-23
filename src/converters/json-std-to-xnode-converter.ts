@@ -295,10 +295,11 @@ class JsonToXNodeConverterImpl
     }
 
     // Extract text content based on strategy
+    // MERGED: Check for properties.value instead of properties.text
     if (config.preserveTextNodes) {
-      if (obj[properties.text] !== undefined) {
-        textContent = obj[properties.text];
-        delete remainingProperties[properties.text];
+      if (obj[properties.value] !== undefined) {
+        textContent = obj[properties.value];
+        delete remainingProperties[properties.value];
       }
     }
 
@@ -314,39 +315,6 @@ class JsonToXNodeConverterImpl
           // Apply preservePrefixedNames logic to attribute names
           const finalAttrName = this.processAttributeName(key, config);
           attributes[finalAttrName] = value;
-        } else {
-          childElements[key] = value;
-        }
-      });
-
-      // Set attributes if we found any
-      if (Object.keys(attributes).length > 0) {
-        element.attributes = attributes;
-        hasAttributes = true;
-
-        // Update remaining properties to only include child elements
-        remainingProperties = childElements;
-      }
-    }
-
-    // Extract text content based on strategy
-    if (config.preserveTextNodes) {
-      if (obj[properties.text] !== undefined) {
-        textContent = obj[properties.text];
-        delete remainingProperties[properties.text];
-      }
-    }
-
-    // For merge strategy, remaining properties after text extraction
-    // could be attributes or child elements. Need to determine which is which.
-    if (attributeStrategy === "merge" && config.preserveAttributes) {
-      const childElements: Record<string, any> = {};
-      const attributes: Record<string, any> = {};
-
-      // Heuristic: primitives are likely attributes, objects/arrays are likely elements
-      Object.entries(remainingProperties).forEach(([key, value]) => {
-        if (value === null || typeof value !== "object") {
-          attributes[key] = value;
         } else {
           childElements[key] = value;
         }

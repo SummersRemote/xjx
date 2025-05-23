@@ -10,6 +10,8 @@ import './extensions/to-xml';
 import './extensions/to-json';
 import './extensions/config-extensions';
 import './extensions/with-transforms';
+import './extensions/to-xnode';
+import './extensions/from-xnode';
 
 // Export the main class (for instantiation)
 export { XJX } from './XJX';
@@ -85,9 +87,9 @@ export {
 // Manual registration verification - this function does nothing at runtime
 // but ensures that tree-shaking doesn't remove our extension imports
 function ensureExtensionsRegistered() {
-  if (process.env.NODE_ENV === 'development') {
-    console.log('XJX Extensions registered successfully');
-  }
+  // if (process.env.NODE_ENV === 'development') {
+  //   console.log('XJX Extensions registered successfully');
+  // }
   // The mere existence of this function with references prevents tree-shaking
   return [
     './extensions/from-xml',
@@ -95,7 +97,9 @@ function ensureExtensionsRegistered() {
     './extensions/to-xml',
     './extensions/to-json',
     './extensions/config-extensions',
-    './extensions/with-transforms'
+    './extensions/with-transforms',
+    './extensions/to-xnode',
+    './extensions/from-xnode'
   ];
 }
 

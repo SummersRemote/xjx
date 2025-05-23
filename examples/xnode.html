@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>XJX Xnodetest</title>
+  </head>
+  <body>
+    <h1>XJX Simple Examples</h1>
+
+    <script type="module">
+      import {
+        XJX,
+        BooleanTransform,
+        NumberTransform,
+        TransformTarget,
+        createTransformResult,
+        LogLevel,
+      } from "../dist/esm/index.js";
+
+      // Example 1: Simple Round-Trip Conversion
+      const xml = `<users xmlns="urn:bar" >
+  <user id="1" xmlns:foo="urn:foo">
+    <foo:name>John Doe</foo:name>
+    <email>john@example.com</email>
+  </user>
+  <user id="2">
+    <name>Jane Smith</name>
+    <email>jane@example.com</email>
+  </user>
+</users>`;
+
+      const xjx = new XJX();
+      console.log(xjx.fromXml(xml).toXnode());
+    </script>
+  </body>
+</html>

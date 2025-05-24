@@ -70,8 +70,8 @@ function isResultsContainer(this: NonTerminalExtensionContext, node: XNode): boo
     this.config.fragmentRoot : 'results';
   
   return node.name === fragmentRootName && 
-         node.children && 
-         node.children.length > 0;
+        Array.isArray(node.children) && 
+        node.children.length > 0;
 }
 
 /**

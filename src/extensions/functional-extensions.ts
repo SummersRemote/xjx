@@ -1,14 +1,12 @@
 /**
- * Node operations extensions for XJX
+ * Node operations extensions for XJX - Complete Implementation
  * 
- * This file implements core node operation extensions:
+ * This file implements all functional and axis navigation extensions:
+ * - transform: Apply mode-aware transforms to current selection
  * - select: Find nodes in the document matching a predicate
  * - filter: Narrow down the current selection based on a predicate
  * - map: Transform each node in the current selection
  * - reduce: Aggregate nodes in the current selection into a single value
- * - transform: Apply transforms to the current selection
- * 
- * Plus axis-based navigation functions:
  * - children: Select direct child nodes
  * - descendants: Select all descendant nodes
  * - parent: Navigate to parent node
@@ -19,8 +17,143 @@ import { XJX } from "../XJX";
 import { XNode, createElement, cloneNode, addChild } from "../core/xnode";
 import { logger, validate, ValidationError } from "../core/error";
 import { NonTerminalExtensionContext, TerminalExtensionContext } from "../core/extension";
-import { FORMAT, Transform } from "../core/transform";
-import { transformXNode } from "../converters/xnode-transformer";
+import { Transform, TransformContext, TransformTarget, applyTransforms, FORMAT } from "../core/transform";
+
+// ========================================
+// SIMPLIFIED TRANSFORM FUNCTION
+// ========================================
+
+/**
+ * Implementation for applying mode-aware transforms to the current selection
+ * @param transforms One or more transforms to apply
+ * @returns this for chaining
+ */
+export function transform(
+  this: NonTerminalExtensionContext,
+  ...transforms: Transform[]
+): void {
+  try {
+    // API boundary validation
+    validate(transforms && transforms.length > 0, "At least one transform must be provided");
+    this.validateSource();
+    
+    logger.debug('Applying mode-aware transforms to current node selection', {
+      transformCount: transforms.length
+    });
+    
+    // Get current node
+    const currentNode = this.xnode as XNode;
+    
+    // Apply transforms based on context
+    if (isResultsContainer.call(this, currentNode)) {
+      // Multiple nodes in results container
+      transformResultsContainer.call(this, currentNode, transforms);
+    } else {
+      // Single node
+      this.xnode = transformSingleNode.call(this, currentNode, transforms);
+    }
+    
+    logger.debug('Successfully applied mode-aware transforms');
+  } catch (err) {
+    if (err instanceof Error) {
+      throw err;
+    }
+    throw new Error(`Failed to apply transforms: ${String(err)}`);
+  }
+}
+
+/**
+ * Check if current node is a results container from functional operations
+ */
+function isResultsContainer(this: NonTerminalExtensionContext, node: XNode): boolean {
+  const fragmentRootName = typeof this.config.fragmentRoot === 'string' ? 
+    this.config.fragmentRoot : 'results';
+  
+  return node.name === fragmentRootName && 
+         node.children && 
+         node.children.length > 0;
+}
+
+/**
+ * Transform children in a results container
+ */
+function transformResultsContainer(
+  this: NonTerminalExtensionContext,
+  containerNode: XNode, 
+  transforms: Transform[]
+): void {
+  if (!containerNode.children) return;
+  
+  containerNode.children = containerNode.children.map(child => {
+    const clonedChild = cloneNode(child, true);
+    return transformSingleNode.call(this, clonedChild, transforms);
+  });
+}
+
+/**
+ * Transform a single node and its descendants
+ */
+function transformSingleNode(
+  this: NonTerminalExtensionContext,
+  node: XNode, 
+  transforms: Transform[]
+): XNode {
+  // Create transform context (no target format confusion!)
+  const context: TransformContext = {
+    nodeName: node.name,
+    nodeType: node.type,
+    path: node.name,
+    namespace: node.namespace,
+    prefix: node.prefix,
+    config: this.config,
+    targetFormat: FORMAT.JSON, // Legacy field, mode-aware transforms ignore this
+  };
+  
+  // Transform node value if present
+  if (node.value !== undefined) {
+    const valueResult = applyTransforms(node.value, context, transforms, TransformTarget.Value);
+    if (valueResult.remove) {
+      delete node.value;
+    } else {
+      node.value = valueResult.value;
+    }
+  }
+  
+  // Transform attributes if present
+  if (node.attributes) {
+    const newAttributes: Record<string, any> = {};
+    
+    for (const [name, value] of Object.entries(node.attributes)) {
+      const attrContext: TransformContext = { 
+        ...context, 
+        isAttribute: true, 
+        attributeName: name,
+        path: `${context.path}.@${name}`
+      };
+      
+      const attrResult = applyTransforms(value, attrContext, transforms, TransformTarget.Value);
+      
+      if (!attrResult.remove) {
+        newAttributes[name] = attrResult.value;
+      }
+    }
+    
+    node.attributes = newAttributes;
+  }
+  
+  // Recursively transform children
+  if (node.children && node.children.length > 0) {
+    node.children = node.children.map(child => {
+      return transformSingleNode.call(this, cloneNode(child, true), transforms);
+    }).filter(Boolean);
+  }
+  
+  return node;
+}
+
+// ========================================
+// UTILITY FUNCTIONS
+// ========================================
 
 /**
  * Create result node based on fragmentRoot parameter or configuration
@@ -46,6 +179,69 @@ function createResultNode(
     return createElement('results');
   }
 }
+
+/**
+ * Traverse the node tree and find matching nodes
+ * @param root Root node to start traversal from
+ * @param predicate Function to test each node
+ * @returns Array of matching nodes
+ */
+function findMatchingNodes(root: XNode, predicate: (node: XNode) => boolean): XNode[] {
+  const results: XNode[] = [];
+  
+  const traverse = (node: XNode) => {
+    try {
+      // Test the current node
+      if (predicate(node)) {
+        results.push(node);
+      }
+      
+      // Recursively process children
+      if (node.children && node.children.length > 0) {
+        node.children.forEach(child => traverse(child));
+      }
+    } catch (err) {
+      logger.warn(`Error evaluating predicate on node: ${node.name}`, { error: err });
+    }
+  };
+  
+  traverse(root);
+  return results;
+}
+
+/**
+ * Find descendant nodes that match a predicate
+ * @param node Parent node to search within
+ * @param predicate Function to test each descendant
+ * @returns Array of matching nodes
+ */
+function findDescendants(node: XNode, predicate: (node: XNode) => boolean): XNode[] {
+  const results: XNode[] = [];
+  
+  const traverse = (current: XNode) => {
+    if (current.children && current.children.length > 0) {
+      current.children.forEach(child => {
+        try {
+          if (predicate(child)) {
+            results.push(child);
+          }
+        } catch (err) {
+          logger.warn(`Error evaluating predicate on node: ${child.name}`, { error: err });
+        }
+        
+        // Continue traversing regardless of whether this node matched
+        traverse(child);
+      });
+    }
+  };
+  
+  traverse(node);
+  return results;
+}
+
+// ========================================
+// CORE FUNCTIONAL OPERATIONS
+// ========================================
 
 /**
  * Implementation for selecting nodes from the document
@@ -313,74 +509,9 @@ export function reduce<T>(
   }
 }
 
-/**
- * Implementation for applying transforms to the current selection
- * @param transforms One or more transforms to apply
- * @returns this for chaining
- */
-export function transform(
-  this: NonTerminalExtensionContext,
-  ...transforms: Transform[]
-): void {
-  try {
-    // API boundary validation
-    validate(transforms && transforms.length > 0, "At least one transform must be provided");
-    this.validateSource();
-    
-    logger.debug('Applying transforms to current node selection', {
-      transformCount: transforms.length
-    });
-    
-    // Get current node
-    const currentNode = this.xnode as XNode;
-    
-    // Determine the target format based on source format
-    const targetFormat = this.sourceFormat === FORMAT.XML ? FORMAT.JSON : FORMAT.XML;
-    
-    // Apply transforms according to the context
-    if (currentNode.name === 'results' && currentNode.children && currentNode.children.length > 0) {
-      // We're in a functional pipeline with a results container
-      // Apply transforms to each child node
-      const transformedChildren: XNode[] = [];
-      
-      currentNode.children.forEach(child => {
-        // Apply transforms to the child node
-        const transformedChild = transformXNode(
-          cloneNode(child, true),
-          transforms,
-          targetFormat,
-          this.config
-        );
-        
-        transformedChildren.push(transformedChild);
-      });
-      
-      // Replace the children with transformed children
-      currentNode.children = transformedChildren;
-    } else {
-      // Single node or source node - apply transforms directly
-      const transformedNode = transformXNode(
-        currentNode,
-        transforms,
-        targetFormat,
-        this.config
-      );
-      
-      // Update current node with transformed version
-      this.xnode = transformedNode;
-    }
-    
-    // Store transforms for potential use in terminal operations
-    this.transforms.push(...transforms);
-    
-    logger.debug('Successfully applied transforms to current selection');
-  } catch (err) {
-    if (err instanceof Error) {
-      throw err;
-    }
-    throw new Error(`Failed to apply transforms: ${String(err)}`);
-  }
-}
+// ========================================
+// AXIS NAVIGATION FUNCTIONS
+// ========================================
 
 /**
  * Implementation for selecting immediate children of the current node
@@ -684,71 +815,16 @@ export function siblings(
   }
 }
 
-/**
- * Traverse the node tree and find matching nodes
- * @param root Root node to start traversal from
- * @param predicate Function to test each node
- * @returns Array of matching nodes
- */
-function findMatchingNodes(root: XNode, predicate: (node: XNode) => boolean): XNode[] {
-  const results: XNode[] = [];
-  
-  const traverse = (node: XNode) => {
-    try {
-      // Test the current node
-      if (predicate(node)) {
-        results.push(node);
-      }
-      
-      // Recursively process children
-      if (node.children && node.children.length > 0) {
-        node.children.forEach(child => traverse(child));
-      }
-    } catch (err) {
-      logger.warn(`Error evaluating predicate on node: ${node.name}`, { error: err });
-    }
-  };
-  
-  traverse(root);
-  return results;
-}
+// ========================================
+// REGISTRATION WITH XJX
+// ========================================
 
-/**
- * Find descendant nodes that match a predicate
- * @param node Parent node to search within
- * @param predicate Function to test each descendant
- * @returns Array of matching nodes
- */
-function findDescendants(node: XNode, predicate: (node: XNode) => boolean): XNode[] {
-  const results: XNode[] = [];
-  
-  const traverse = (current: XNode) => {
-    if (current.children && current.children.length > 0) {
-      current.children.forEach(child => {
-        try {
-          if (predicate(child)) {
-            results.push(child);
-          }
-        } catch (err) {
-          logger.warn(`Error evaluating predicate on node: ${child.name}`, { error: err });
-        }
-        
-        // Continue traversing regardless of whether this node matched
-        traverse(child);
-      });
-    }
-  };
-  
-  traverse(node);
-  return results;
-}
-
-// Register the extensions with XJX
+// Register all extensions with XJX
+XJX.registerNonTerminalExtension("transform", transform);
 XJX.registerNonTerminalExtension("select", select);
 XJX.registerNonTerminalExtension("filter", filter);
 XJX.registerNonTerminalExtension("map", map);
 XJX.registerTerminalExtension("reduce", reduce);
-XJX.registerNonTerminalExtension("transform", transform);
 
 // Register axis navigation extensions
 XJX.registerNonTerminalExtension("children", children);

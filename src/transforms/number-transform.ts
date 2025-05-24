@@ -1,19 +1,23 @@
 /**
- * NumberTransform - Converts string values to numbers
+ * NumberTransform - Mode-aware number conversion
  */
 import { 
   TransformContext, 
   TransformResult, 
   TransformTarget,
   createTransformResult,
-  FORMAT
+  Transform,
+  TransformOptions,
+  ProcessingIntent,
+  getDefaultMode,
+  shouldParse
 } from '../core/transform';
 import { logger } from '../core/error';
 
 /**
  * Options for number transformer
  */
-export interface NumberTransformOptions {
+export interface NumberTransformOptions extends TransformOptions {
   /**
    * Whether to convert integers (default: true)
    */
@@ -39,27 +43,40 @@ export interface NumberTransformOptions {
    * Will be removed before parsing
    */
   thousandsSeparator?: string;
+  
+  /**
+   * Precision for number formatting when serializing (default: undefined = no rounding)
+   */
+  precision?: number;
 }
 
 /**
- * NumberTransform class for converting string values to numbers
+ * NumberTransform class for converting between strings and numbers
+ * 
+ * PARSE mode (default): Converts string values to numbers
+ *   "123" → 123, "45.67" → 45.67, "1,234.56" → 1234.56
+ * 
+ * SERIALIZE mode: Converts number values to strings
+ *   123 → "123", 45.67 → "45.67"
  * 
  * Example usage:
  * ```
- * XJX.fromXml(xml)
- *    .withTransforms(new NumberTransform({
- *      decimals: true,
- *      scientific: true
- *    }))
- *    .toJson();
+ * new NumberTransform() // Default PARSE mode
+ * new NumberTransform({ mode: ProcessingIntent.SERIALIZE })
+ * new NumberTransform({ 
+ *   precision: 2, 
+ *   thousandsSeparator: ',' 
+ * })
  * ```
  */
-export class NumberTransform {
+export class NumberTransform implements Transform {
+  private mode: ProcessingIntent;
   private integers: boolean;
   private decimals: boolean;
   private scientific: boolean;
   private decimalSeparator: string;
   private thousandsSeparator: string;
+  private precision?: number;
   
   /**
    * Array of transform targets - this transform targets values only
@@ -67,40 +84,49 @@ export class NumberTransform {
   public readonly targets = [TransformTarget.Value];
   
   /**
+   * Type identifier for runtime type checking
+   */
+  public static readonly type = 'NumberTransform';
+  public readonly type = NumberTransform.type;
+  
+  /**
    * Create a new NumberTransform
    * @param options Options for customizing the transform behavior
    */
   constructor(options: NumberTransformOptions = {}) {
+    this.mode = options.mode || getDefaultMode();
     this.integers = options.integers !== false; // Default to true
     this.decimals = options.decimals !== false; // Default to true
     this.scientific = options.scientific !== false; // Default to true
     this.decimalSeparator = options.decimalSeparator || '.';
     this.thousandsSeparator = options.thousandsSeparator || ',';
+    this.precision = options.precision;
   }
   
   /**
-   * Transform implementation
+   * Transform implementation - uses processing intent to determine direction
    * @param value Value to transform
    * @param context Transform context
    * @returns Transform result
    */
   transform(value: any, context: TransformContext): TransformResult<any> {
     try {
-      // Check if we're transforming to JSON or XML
-      if (context.targetFormat === FORMAT.JSON) {
-        // To JSON: Convert strings to numbers
-        return this.stringToNumber(value);
-      } else if (context.targetFormat === FORMAT.XML) {
-        // To XML: Convert numbers to strings
-        return this.numberToString(value);
+      // Handle null/undefined
+      if (value == null) {
+        return createTransformResult(value);
       }
       
-      // For any other format, keep as is
-      return createTransformResult(value);
+      // Determine direction based on mode and value type
+      if (shouldParse(this.mode, value)) {
+        return this.parseToNumber(value);
+      } else {
+        return this.serializeToString(value);
+      }
     } catch (err) {
       logger.error(`Number transform error: ${err instanceof Error ? err.message : String(err)}`, {
         value,
         valueType: typeof value,
+        mode: this.mode,
         path: context.path
       });
       
@@ -110,108 +136,126 @@ export class NumberTransform {
   }
   
   /**
-   * Convert a string to number
+   * Parse string value to number
    */
-  private stringToNumber(value: any): TransformResult<any> {
-    // Already a number, return as is
+  private parseToNumber(value: any): TransformResult<any> {
+    // Already a number in parse mode - leave as is
     if (typeof value === 'number') {
       return createTransformResult(value);
     }
     
-    // Skip non-string values
-    if (typeof value !== 'string') {
+    // Convert to string for parsing
+    const strValue = String(value).trim();
+    if (!strValue) {
       return createTransformResult(value);
     }
     
-    // Try simple conversion first
-    if (this.isDefaultConfiguration()) {
-      const trimmed = value.trim();
-      const parsed = Number(trimmed);
-      
+    // Quick parse for simple cases (optimization)
+    if (this.isSimpleConfiguration()) {
+      const parsed = Number(strValue);
       if (!isNaN(parsed)) {
         return createTransformResult(parsed);
       }
     }
     
-    // For more complex cases or custom options, use the full implementation
-    return this.transformComplex(value);
+    // Complex parsing with custom separators
+    return this.parseComplexNumber(strValue);
   }
   
   /**
-   * Check if using default configuration
+   * Serialize number value to string
    */
-  private isDefaultConfiguration(): boolean {
-    return this.integers === true && 
-           this.decimals === true && 
-           this.scientific === true && 
-           this.decimalSeparator === '.' &&
-           this.thousandsSeparator === ',';
-  }
-  
-  /**
-   * Convert a number to string
-   */
-  private numberToString(value: any): TransformResult<any> {
-    // Only convert number values
+  private serializeToString(value: any): TransformResult<any> {
     if (typeof value === 'number') {
-      return createTransformResult(String(value));
+      let result = value;
+      
+      // Apply precision if specified
+      if (this.precision !== undefined) {
+        result = Number(result.toFixed(this.precision));
+      }
+      
+      return createTransformResult(String(result));
     }
     
-    // Otherwise return unchanged
+    // Non-number in serialize mode - leave as is
     return createTransformResult(value);
   }
   
   /**
-   * Complex transformation with custom options
+   * Check if using simple configuration for optimization
    */
-  private transformComplex(value: any): TransformResult<any> {
-    const strValue = String(value).trim();
-    if (!strValue) return createTransformResult(value);
+  private isSimpleConfiguration(): boolean {
+    return this.integers === true && 
+           this.decimals === true && 
+           this.scientific === true && 
+           this.decimalSeparator === '.' &&
+           this.thousandsSeparator === ',' &&
+           this.precision === undefined;
+  }
   
-    let patternParts: string[] = [];
-    let escapedDecimal = this.decimalSeparator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    let escapedThousands = this.thousandsSeparator.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  
-    // Build integer pattern with proper thousands separator grouping
+  /**
+   * Parse complex numbers with custom separators and validation
+   */
+  private parseComplexNumber(strValue: string): TransformResult<any> {
+    // Build regex pattern based on configuration
+    const patterns: string[] = [];
+    const escapedDecimal = this.escapeRegex(this.decimalSeparator);
+    const escapedThousands = this.escapeRegex(this.thousandsSeparator);
+    
+    // Integer pattern
     if (this.integers) {
-      let intPattern = `(?:-?(?:\\d{1,3}(?:${escapedThousands}\\d{3})*))`;
-      patternParts.push(intPattern);
+      patterns.push(`-?(?:\\d{1,3}(?:${escapedThousands}\\d{3})*|\\d+)`);
     }
-  
-    // Build decimal pattern
+    
+    // Decimal pattern
     if (this.decimals) {
-      let decPattern = `(?:-?(?:\\d{1,3}(?:${escapedThousands}\\d{3})*|\\d*)${escapedDecimal}\\d+)`;
-      patternParts.push(decPattern);
+      patterns.push(`-?(?:\\d{1,3}(?:${escapedThousands}\\d{3})*|\\d*)${escapedDecimal}\\d+`);
     }
-  
-    // Build scientific notation pattern (with optional decimal)
+    
+    // Scientific notation pattern
     if (this.scientific) {
-      let sciPattern = `(?:-?(?:\\d+(?:${escapedDecimal}\\d+)?|\\d*${escapedDecimal}\\d+)[eE][+-]?\\d+)`;
-      patternParts.push(sciPattern);
+      patterns.push(`-?(?:\\d+(?:${escapedDecimal}\\d+)?|\\d*${escapedDecimal}\\d+)[eE][+-]?\\d+`);
     }
-  
-    const fullPattern = `^(${patternParts.join('|')})$`;
+    
+    if (patterns.length === 0) {
+      return createTransformResult(strValue);
+    }
+    
+    const fullPattern = `^(${patterns.join('|')})$`;
     const regex = new RegExp(fullPattern);
-  
+    
     if (!regex.test(strValue)) {
-      return createTransformResult(value);
+      return createTransformResult(strValue);
     }
-  
-    // Normalize to JS-parsable format
+    
+    // Normalize for JavaScript parsing
     let normalized = strValue;
-  
+    
+    // Remove thousands separators
     if (this.thousandsSeparator) {
-      const sepRegex = new RegExp(escapedThousands, 'g');
+      const sepRegex = new RegExp(this.escapeRegex(this.thousandsSeparator), 'g');
       normalized = normalized.replace(sepRegex, '');
     }
-  
+    
+    // Replace decimal separator
     if (this.decimalSeparator !== '.') {
-      const decRegex = new RegExp(escapedDecimal, 'g');
+      const decRegex = new RegExp(this.escapeRegex(this.decimalSeparator), 'g');
       normalized = normalized.replace(decRegex, '.');
     }
-  
+    
     const parsed = parseFloat(normalized);
-    return createTransformResult(isNaN(parsed) ? value : parsed);
+    if (isNaN(parsed)) {
+      return createTransformResult(strValue);
+    }
+    
+    return createTransformResult(parsed);
+  }
+  
+  /**
+   * Escape special regex characters
+   */
+  private escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 }
 

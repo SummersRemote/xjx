@@ -77,7 +77,7 @@ export {
   // Option interfaces
   BooleanTransformOptions,
   NumberTransformOptions,
-  RegexOptions,
+  RegexTransformOptions,
   MetadataTransformOptions,
   // Additional transform types
   NodeSelector,

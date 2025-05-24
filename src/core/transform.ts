@@ -1,5 +1,5 @@
 /**
- * Core transform interfaces and utilities
+ * Core transform interfaces and utilities - Enhanced with Processing Intent
  */
 import { XNode } from './xnode';
 import { logger } from './error';
@@ -11,6 +11,25 @@ import { Configuration } from './config';
 export enum FORMAT {
   XML = 'xml',
   JSON = 'json'
+}
+
+/**
+ * Processing intent for transforms - determines direction of transformation
+ */
+export enum ProcessingIntent {
+  /**
+   * Parse mode: Convert strings to typed values
+   * Examples: "123" → 123, "true" → true, "2023-01-15" → Date
+   * Use for: Functional operations, data processing, filtering
+   */
+  PARSE = 'parse',
+  
+  /**
+   * Serialize mode: Convert typed values to strings  
+   * Examples: 123 → "123", true → "true", Date → "2023-01-15"
+   * Use for: XML output, string formatting, display
+   */
+  SERIALIZE = 'serialize'
 }
 
 /**
@@ -28,6 +47,17 @@ export enum TransformTarget {
 }
 
 /**
+ * Base options interface for all transforms
+ */
+export interface TransformOptions {
+  /**
+   * Processing intent - determines direction of transformation
+   * @default ProcessingIntent.PARSE
+   */
+  mode?: ProcessingIntent;
+}
+
+/**
  * JSON Strategies for transform context
  */
 export interface StrategyInfo {
@@ -36,7 +66,7 @@ export interface StrategyInfo {
   textStrategy: 'direct' | 'property';
   namespaceStrategy: 'prefix' | 'property';
   arrayStrategy: 'multiple' | 'always' | 'never';
-  emptyElementStrategy: 'object' | 'null' | 'string' | 'remove';  // Added 'remove' option
+  emptyElementStrategy: 'object' | 'null' | 'string' | 'remove';
   mixedContentStrategy: 'preserve' | 'merge';
 }
 
@@ -67,7 +97,7 @@ export interface TransformContext {
   // Configuration
   config: Configuration;
   
-  // Target format
+  // Target format (legacy - mostly ignored by mode-aware transforms)
   targetFormat: FORMAT;
   
   // Strategy information - available when transforming JSON
@@ -104,6 +134,29 @@ export interface Transform {
  */
 export function createTransformResult<T>(value: T, remove: boolean = false): TransformResult<T> {
   return { value, remove };
+}
+
+/**
+ * Get the default processing mode
+ */
+export function getDefaultMode(): ProcessingIntent {
+  return ProcessingIntent.PARSE;
+}
+
+/**
+ * Utility function to determine if we should parse (string → typed value)
+ * @param mode Processing intent
+ * @param value Current value
+ * @returns true if should parse, false if should serialize
+ */
+export function shouldParse(mode: ProcessingIntent, value: any): boolean {
+  if (mode === ProcessingIntent.PARSE) {
+    // Parse mode: convert strings to typed values
+    return typeof value === 'string';
+  } else {
+    // Serialize mode: convert typed values to strings
+    return typeof value !== 'string';
+  }
 }
 
 /**

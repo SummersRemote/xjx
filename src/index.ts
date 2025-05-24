@@ -9,10 +9,9 @@ import './extensions/from-json';
 import './extensions/to-xml';
 import './extensions/to-json';
 import './extensions/config-extensions';
-import './extensions/with-transforms';
 import './extensions/to-xnode';
-  import './extensions/from-xnode';
-  import './extensions/functional-extensions';
+import './extensions/from-xnode';
+import './extensions/functional-extensions';
 
 // Export the main class (for instantiation)
 export { XJX } from './XJX';
@@ -98,7 +97,6 @@ function ensureExtensionsRegistered() {
     './extensions/to-xml',
     './extensions/to-json',
     './extensions/config-extensions',
-    './extensions/with-transforms',
     './extensions/to-xnode',
     './extensions/from-xnode',
     './extensions/functional-extensions'

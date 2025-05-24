@@ -146,7 +146,7 @@ class XJXService {
       const transformInstances = this._createTransformers(transforms);
 
       if (transformInstances.length > 0) {
-        builder = builder.withTransforms(...transformInstances);
+        builder = builder.transform(...transformInstances);
       }
     }
 
@@ -181,7 +181,7 @@ class XJXService {
       const transformInstances = this._createTransformers(transforms);
 
       if (transformInstances.length > 0) {
-        builder = builder.withTransforms(...transformInstances);
+        builder = builder.transform(...transformInstances);
       }
     }
 
@@ -227,7 +227,7 @@ class XJXService {
         })
         .join(",\n    ");
 
-      code += `\n  .withTransforms(\n    ${transformsStr}\n  )`;
+      code += `\n  .transform(\n    ${transformsStr}\n  )`;
     }
 
     // Determine the appropriate terminal method based on direction and format

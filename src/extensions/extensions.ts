@@ -6,13 +6,15 @@
 // Source extensions
 export * from './from-xml';
 export * from './from-json';
+export * from './from-xnode';
 
 // Output extensions
 export * from './to-xml';
 export * from './to-json';
+export * from './to-xnode';
 
 // Configuration extensions
 export * from './config-extensions';
 
-// Transform extensions
-export * from './with-transforms';
+// Functional extensions (including transform)
+export * from './functional-extensions';

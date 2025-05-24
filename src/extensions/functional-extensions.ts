@@ -6,6 +6,7 @@
  * - filter: Narrow down the current selection based on a predicate
  * - map: Transform each node in the current selection
  * - reduce: Aggregate nodes in the current selection into a single value
+ * - transform: Apply transforms to the current selection
  * 
  * Plus axis-based navigation functions:
  * - children: Select direct child nodes
@@ -18,6 +19,8 @@ import { XJX } from "../XJX";
 import { XNode, createElement, cloneNode, addChild } from "../core/xnode";
 import { logger, validate, ValidationError } from "../core/error";
 import { NonTerminalExtensionContext, TerminalExtensionContext } from "../core/extension";
+import { FORMAT, Transform } from "../core/transform";
+import { transformXNode } from "../converters/xnode-transformer";
 
 /**
  * Create result node based on fragmentRoot parameter or configuration
@@ -307,6 +310,75 @@ export function reduce<T>(
       throw err;
     }
     throw new Error(`Failed to reduce nodes: ${String(err)}`);
+  }
+}
+
+/**
+ * Implementation for applying transforms to the current selection
+ * @param transforms One or more transforms to apply
+ * @returns this for chaining
+ */
+export function transform(
+  this: NonTerminalExtensionContext,
+  ...transforms: Transform[]
+): void {
+  try {
+    // API boundary validation
+    validate(transforms && transforms.length > 0, "At least one transform must be provided");
+    this.validateSource();
+    
+    logger.debug('Applying transforms to current node selection', {
+      transformCount: transforms.length
+    });
+    
+    // Get current node
+    const currentNode = this.xnode as XNode;
+    
+    // Determine the target format based on source format
+    const targetFormat = this.sourceFormat === FORMAT.XML ? FORMAT.JSON : FORMAT.XML;
+    
+    // Apply transforms according to the context
+    if (currentNode.name === 'results' && currentNode.children && currentNode.children.length > 0) {
+      // We're in a functional pipeline with a results container
+      // Apply transforms to each child node
+      const transformedChildren: XNode[] = [];
+      
+      currentNode.children.forEach(child => {
+        // Apply transforms to the child node
+        const transformedChild = transformXNode(
+          cloneNode(child, true),
+          transforms,
+          targetFormat,
+          this.config
+        );
+        
+        transformedChildren.push(transformedChild);
+      });
+      
+      // Replace the children with transformed children
+      currentNode.children = transformedChildren;
+    } else {
+      // Single node or source node - apply transforms directly
+      const transformedNode = transformXNode(
+        currentNode,
+        transforms,
+        targetFormat,
+        this.config
+      );
+      
+      // Update current node with transformed version
+      this.xnode = transformedNode;
+    }
+    
+    // Store transforms for potential use in terminal operations
+    this.transforms.push(...transforms);
+    
+    logger.debug('Successfully applied transforms to current selection');
+  } catch (err) {
+    if (err instanceof Error) {
+      throw err;
+    }
+    throw new Error(`Failed to apply transforms: ${String(err)}`);
   }
 }
 
@@ -676,6 +748,7 @@ XJX.registerNonTerminalExtension("select", select);
 XJX.registerNonTerminalExtension("filter", filter);
 XJX.registerNonTerminalExtension("map", map);
 XJX.registerTerminalExtension("reduce", reduce);
+XJX.registerNonTerminalExtension("transform", transform);
 
 // Register axis navigation extensions
 XJX.registerNonTerminalExtension("children", children);
@@ -689,6 +762,7 @@ export { select as selectNodes };
 export { filter as filterNodes };
 export { map as mapNodes };
 export { reduce as reduceNodes };
+export { transform as transformNodes };
 export { children as childrenNodes };
 export { descendants as descendantsNodes };
 export { parent as parentNode };

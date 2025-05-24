@@ -11,7 +11,8 @@ import './extensions/to-json';
 import './extensions/config-extensions';
 import './extensions/with-transforms';
 import './extensions/to-xnode';
-import './extensions/from-xnode';
+  import './extensions/from-xnode';
+  import './extensions/node-functions';
 
 // Export the main class (for instantiation)
 export { XJX } from './XJX';

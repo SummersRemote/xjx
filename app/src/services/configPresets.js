@@ -34,7 +34,6 @@ export const configPresets = [
       properties: {
         attribute: "$attr",
         value: "$val",
-        text: "_text",
         namespace: "$ns",
         prefix: "$pre",
         cdata: "$cdata",
@@ -59,7 +58,8 @@ export const configPresets = [
         indent: 2,
         declaration: true,
         pretty: true
-      }
+      },
+      fragmentRoot: "results"
     }
   },
   {
@@ -85,8 +85,7 @@ export const configPresets = [
       },
       properties: {
         attribute: "$attr",
-        value: "$val",
-        text: "$",
+        value: "$",
         namespace: "$ns",
         prefix: "$pre",
         cdata: "$cdata",
@@ -111,7 +110,8 @@ export const configPresets = [
         indent: 2,
         declaration: false,
         pretty: true
-      }
+      },
+      fragmentRoot: "results"
     }
   },
   {
@@ -138,7 +138,6 @@ export const configPresets = [
       properties: {
         attribute: "$attr",
         value: "$val",
-        text: "_text",
         namespace: "$ns",
         prefix: "$pre",
         cdata: "$cdata",
@@ -163,7 +162,8 @@ export const configPresets = [
         indent: 0,
         declaration: false,
         pretty: false
-      }
+      },
+      fragmentRoot: "results"
     }
   },
   {
@@ -190,7 +190,6 @@ export const configPresets = [
       properties: {
         attribute: "$attr",
         value: "$val",
-        text: "_text",
         namespace: "$ns",
         prefix: "$pre",
         cdata: "$cdata",
@@ -215,7 +214,8 @@ export const configPresets = [
         indent: 2,
         declaration: false,
         pretty: true
-      }
+      },
+      fragmentRoot: "results"
     }
   },
   {
@@ -242,7 +242,6 @@ export const configPresets = [
       properties: {
         attribute: "$attr",
         value: "$val",
-        text: "_text",
         namespace: "$ns",
         prefix: "$pre",
         cdata: "$cdata",
@@ -267,7 +266,8 @@ export const configPresets = [
         indent: 2,
         declaration: true,
         pretty: true
-      }
+      },
+      fragmentRoot: "results"
     }
   },
   {
@@ -294,7 +294,6 @@ export const configPresets = [
       properties: {
         attribute: "$attr",
         value: "$val",
-        text: "_text",
         namespace: "$ns",
         prefix: "$pre",
         cdata: "$cdata",
@@ -319,7 +318,8 @@ export const configPresets = [
         indent: 0,
         declaration: false,
         pretty: false
-      }
+      },
+      fragmentRoot: "results"
     }
   },
   {
@@ -346,7 +346,6 @@ export const configPresets = [
       properties: {
         attribute: "attributes",
         value: "value",
-        text: "textContent",
         namespace: "namespaceURI",
         prefix: "namespacePrefix",
         cdata: "cdata",
@@ -371,7 +370,8 @@ export const configPresets = [
         indent: 2,
         declaration: true,
         pretty: true
-      }
+      },
+      fragmentRoot: "elements"
     }
   },
   {
@@ -398,7 +398,6 @@ export const configPresets = [
       properties: {
         attribute: "$attr",
         value: "$val",
-        text: "_text",
         namespace: "$ns",
         prefix: "$pre",
         cdata: "$cdata",
@@ -423,7 +422,8 @@ export const configPresets = [
         indent: 0,
         declaration: false,
         pretty: false
-      }
+      },
+      fragmentRoot: "results"
     }
   }
 ];

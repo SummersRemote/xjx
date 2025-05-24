@@ -99,7 +99,8 @@ function ensureExtensionsRegistered() {
     './extensions/config-extensions',
     './extensions/with-transforms',
     './extensions/to-xnode',
-    './extensions/from-xnode'
+    './extensions/from-xnode',
+    './extensions/node-functions'
   ];
 }
 

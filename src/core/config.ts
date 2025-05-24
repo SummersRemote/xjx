@@ -61,6 +61,9 @@ export interface Configuration {
     declaration: boolean;
     pretty: boolean;
   };
+
+  // Fragment root name for functional operations
+  fragmentRoot: string;
 }
 
 /**
@@ -122,7 +125,10 @@ export const DEFAULT_CONFIG: Configuration = {
     indent: 2,
     declaration: true,
     pretty: true
-  }
+  },
+
+  // Fragment root name for functional operations
+  fragmentRoot: "results"
 };
 
 /**
@@ -172,7 +178,8 @@ export function createConfig(
     preserveNamespaces: result.preserveNamespaces,
     highFidelity: result.strategies.highFidelity,
     attributeStrategy: result.strategies.attributeStrategy,
-    emptyElementStrategy: result.strategies.emptyElementStrategy
+    emptyElementStrategy: result.strategies.emptyElementStrategy,
+    fragmentRoot: result.fragmentRoot
   });
 
   return result;

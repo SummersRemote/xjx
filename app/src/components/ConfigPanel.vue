@@ -418,6 +418,18 @@
       @update:model-value="updateConfig"
     ></v-text-field>
 
+    <!-- Functional Operations Section -->
+    <div class="section-title">Functional Operations</div>
+    <v-text-field
+      v-model="config.fragmentRoot"
+      label="Fragment Root Name"
+      hint="Root element name for functional operations (select, filter, map, reduce)"
+      persistent-hint
+      density="compact"
+      class="mb-4"
+      @update:model-value="updateConfig"
+    ></v-text-field>
+
     <v-divider class="mb-4"></v-divider>
   </v-sheet>
 </template>

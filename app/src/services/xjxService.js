@@ -82,6 +82,9 @@ class XJXService {
         declaration: true,
         pretty: true,
       },
+
+      // Fragment root name for functional operations
+      fragmentRoot: "results",
     };
   }
 

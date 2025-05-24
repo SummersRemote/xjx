@@ -29,7 +29,7 @@ export interface Configuration {
   // Property names and special markers
   properties: {
     attribute: string;
-    value: string;  // MERGED: combines former 'value' and 'text' properties
+    value: string; 
     namespace: string;
     prefix: string;
     cdata: string;

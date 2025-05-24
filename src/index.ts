@@ -12,7 +12,7 @@ import './extensions/config-extensions';
 import './extensions/with-transforms';
 import './extensions/to-xnode';
   import './extensions/from-xnode';
-  import './extensions/node-functions';
+  import './extensions/functional-extensions';
 
 // Export the main class (for instantiation)
 export { XJX } from './XJX';
@@ -101,7 +101,7 @@ function ensureExtensionsRegistered() {
     './extensions/with-transforms',
     './extensions/to-xnode',
     './extensions/from-xnode',
-    './extensions/node-functions'
+    './extensions/functional-extensions'
   ];
 }
 

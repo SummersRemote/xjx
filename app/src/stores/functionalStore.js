@@ -27,8 +27,9 @@ export const useFunctionalStore = defineStore('functional', {
      * Execute select operation on XML content
      * @param {string} xml - XML content to operate on
      * @param {string} predicateString - JavaScript predicate function as string
+     * @param {string} fragmentRoot - Optional container element name
      */
-    async executeSelect(xml, predicateString) {
+    async executeSelect(xml, predicateString, fragmentRoot) {
       const configStore = useConfigStore();
       
       this.isProcessing = true;
@@ -51,10 +52,14 @@ export const useFunctionalStore = defineStore('functional', {
         const { XJX } = await import("../../../dist/esm/index.js");
         
         // Create XJX instance and perform select operation
-        const xjx = new XJX()
-          .withConfig(configStore.config)
-          .fromXml(xml)
-          .select(predicate);
+        let xjx = new XJX().withConfig(configStore.config).fromXml(xml);
+        
+        // Call select with optional fragmentRoot parameter
+        if (fragmentRoot) {
+          xjx = xjx.select(predicate, fragmentRoot);
+        } else {
+          xjx = xjx.select(predicate);
+        }
         
         // Store the XJX instance for potential chaining
         this.currentXJX = xjx;
@@ -83,8 +88,9 @@ export const useFunctionalStore = defineStore('functional', {
     /**
      * Execute filter operation on current selection
      * @param {string} predicateString - JavaScript predicate function as string
+     * @param {string} fragmentRoot - Optional container element name
      */
-    async executeFilter(predicateString) {
+    async executeFilter(predicateString, fragmentRoot) {
       this.isProcessing = true;
       this.functionalError = null;
       
@@ -101,8 +107,13 @@ export const useFunctionalStore = defineStore('functional', {
         // Create predicate function from string
         const predicate = this.createPredicateFunction(predicateString);
         
-        // Apply filter to current selection
-        const filteredXJX = this.currentXJX.filter(predicate);
+        // Apply filter to current selection with optional fragmentRoot
+        let filteredXJX;
+        if (fragmentRoot) {
+          filteredXJX = this.currentXJX.filter(predicate, fragmentRoot);
+        } else {
+          filteredXJX = this.currentXJX.filter(predicate);
+        }
         
         // Update current XJX instance
         this.currentXJX = filteredXJX;
@@ -120,6 +131,80 @@ export const useFunctionalStore = defineStore('functional', {
       } catch (err) {
         this.functionalError = `Filter operation failed: ${err.message}`;
         console.error('Filter operation error:', err);
+        this.filterResults = null;
+      } finally {
+        this.isProcessing = false;
+      }
+    },
+    
+    /**
+     * Execute axis navigation operation on current selection
+     * @param {string} axisName - Navigation axis ('children', 'descendants', 'parent', 'ancestors', 'siblings')
+     * @param {string} predicateString - Optional JavaScript predicate function as string
+     * @param {string} fragmentRoot - Optional container element name
+     */
+    async executeAxisNavigation(axisName, predicateString, fragmentRoot) {
+      this.isProcessing = true;
+      this.functionalError = null;
+      
+      try {
+        // Validate inputs
+        if (!this.currentXJX) {
+          throw new Error('No current selection available. Run a select operation first.');
+        }
+        
+        // Validate axis name
+        const validAxes = ['children', 'descendants', 'parent', 'ancestors', 'siblings'];
+        if (!validAxes.includes(axisName)) {
+          throw new Error(`Invalid axis name: ${axisName}`);
+        }
+        
+        // For 'parent' axis, predicate isn't applicable
+        if (axisName === 'parent' && predicateString) {
+          console.warn('Predicate is ignored for parent axis');
+          predicateString = null;
+        }
+        
+        // Create predicate function from string if provided
+        let predicate;
+        if (predicateString) {
+          predicate = this.createPredicateFunction(predicateString);
+        }
+        
+        // Apply axis navigation to current selection
+        let navigationXJX;
+        
+        // Handle different parameter combinations
+        if (predicateString && fragmentRoot) {
+          // Both predicate and fragmentRoot
+          navigationXJX = this.currentXJX[axisName](predicate, fragmentRoot);
+        } else if (predicateString) {
+          // Only predicate
+          navigationXJX = this.currentXJX[axisName](predicate);
+        } else if (fragmentRoot) {
+          // Only fragmentRoot
+          navigationXJX = this.currentXJX[axisName](undefined, fragmentRoot);
+        } else {
+          // No parameters
+          navigationXJX = this.currentXJX[axisName]();
+        }
+        
+        // Update current XJX instance
+        this.currentXJX = navigationXJX;
+        
+        // Get the XNode results
+        const xnodeResults = navigationXJX.toXnode();
+        this.filterResults = xnodeResults; // Reuse filter results state
+        
+        // Convert to XML for display
+        const xmlResults = navigationXJX.toXmlString({ prettyPrint: true });
+        this.functionalResults = xmlResults;
+        
+        console.log(`${axisName} navigation completed. ${xnodeResults.length} result(s).`);
+        
+      } catch (err) {
+        this.functionalError = `${axisName} navigation failed: ${err.message}`;
+        console.error(`${axisName} navigation error:`, err);
         this.filterResults = null;
       } finally {
         this.isProcessing = false;

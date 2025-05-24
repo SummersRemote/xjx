@@ -88,13 +88,20 @@
         </v-col>
       </v-row>
 
-      <!-- Select Operation -->
-      <v-expansion-panels variant="accordion" class="mb-4">
-        <v-expansion-panel>
-          <v-expansion-panel-title>
-            <div class="d-flex align-center">
+      <!-- Operations Tabs -->
+      <v-tabs v-model="activeTab" slider-color="primary" class="mb-4">
+        <v-tab value="select">Global Select</v-tab>
+        <v-tab value="filter">Filter</v-tab>
+        <v-tab value="navigation">Navigation</v-tab>
+      </v-tabs>
+
+      <v-window v-model="activeTab" class="mb-4">
+        <!-- Select Operation Tab -->
+        <v-window-item value="select">
+          <v-card variant="outlined" class="pa-4">
+            <div class="d-flex align-center mb-3">
               <v-icon icon="mdi-magnify" class="me-2"></v-icon>
-              Select Operation
+              <div class="text-subtitle-1">Select Operation</div>
               <v-spacer></v-spacer>
               <v-chip
                 v-if="selectResults"
@@ -104,8 +111,7 @@
                 {{ selectResults.length }} nodes
               </v-chip>
             </div>
-          </v-expansion-panel-title>
-          <v-expansion-panel-text>
+
             <v-row>
               <v-col cols="12">
                 <v-textarea
@@ -120,7 +126,20 @@
                   class="mb-2"
                 ></v-textarea>
               </v-col>
-              <v-col cols="12">
+              
+              <v-col cols="12" sm="6">
+                <v-text-field
+                  v-model="fragmentRoot"
+                  label="Fragment Root Element (Optional)"
+                  hint="Container element name for multiple results"
+                  persistent-hint
+                  density="compact"
+                  variant="outlined"
+                  class="mb-2"
+                ></v-text-field>
+              </v-col>
+              
+              <v-col cols="12" sm="6">
                 <v-btn
                   color="primary"
                   @click="executeSelect"
@@ -132,17 +151,15 @@
                 </v-btn>
               </v-col>
             </v-row>
-          </v-expansion-panel-text>
-        </v-expansion-panel>
-      </v-expansion-panels>
+          </v-card>
+        </v-window-item>
 
-      <!-- Filter Operation -->
-      <v-expansion-panels variant="accordion" class="mb-4">
-        <v-expansion-panel>
-          <v-expansion-panel-title>
-            <div class="d-flex align-center">
+        <!-- Filter Operation Tab -->
+        <v-window-item value="filter">
+          <v-card variant="outlined" class="pa-4">
+            <div class="d-flex align-center mb-3">
               <v-icon icon="mdi-filter" class="me-2"></v-icon>
-              Filter Operation
+              <div class="text-subtitle-1">Filter Operation</div>
               <v-spacer></v-spacer>
               <v-chip
                 v-if="filterResults"
@@ -152,8 +169,7 @@
                 {{ filterResults.length }} nodes
               </v-chip>
             </div>
-          </v-expansion-panel-title>
-          <v-expansion-panel-text>
+
             <v-row>
               <v-col cols="12">
                 <v-textarea
@@ -168,7 +184,20 @@
                   class="mb-2"
                 ></v-textarea>
               </v-col>
-              <v-col cols="12">
+              
+              <v-col cols="12" sm="6">
+                <v-text-field
+                  v-model="fragmentRoot"
+                  label="Fragment Root Element (Optional)"
+                  hint="Container element name for multiple results"
+                  persistent-hint
+                  density="compact"
+                  variant="outlined"
+                  class="mb-2"
+                ></v-text-field>
+              </v-col>
+              
+              <v-col cols="12" sm="6">
                 <v-btn
                   color="secondary"
                   @click="executeFilter"
@@ -180,9 +209,107 @@
                 </v-btn>
               </v-col>
             </v-row>
-          </v-expansion-panel-text>
-        </v-expansion-panel>
-      </v-expansion-panels>
+          </v-card>
+        </v-window-item>
+
+        <!-- Navigation Operations Tab -->
+        <v-window-item value="navigation">
+          <v-card variant="outlined" class="pa-4">
+            <div class="d-flex align-center mb-3">
+              <v-icon icon="mdi-directions" class="me-2"></v-icon>
+              <div class="text-subtitle-1">Axis Navigation</div>
+            </div>
+
+            <v-row>
+              <v-col cols="12">
+                <v-alert
+                  type="info"
+                  variant="tonal"
+                  density="compact"
+                  class="mb-3"
+                >
+                  Axis navigation functions let you traverse the XML tree relative to the current context node.
+                </v-alert>
+              </v-col>
+              
+              <v-col cols="12" sm="6">
+                <v-text-field
+                  v-model="navigationPredicate"
+                  label="Predicate (Optional)"
+                  placeholder="node => node.name === 'item'"
+                  hint="Leave empty to select all nodes in this axis"
+                  persistent-hint
+                  density="compact"
+                  variant="outlined"
+                  class="mb-2"
+                ></v-text-field>
+              </v-col>
+              
+              <v-col cols="12" sm="6">
+                <v-text-field
+                  v-model="fragmentRoot"
+                  label="Fragment Root Element (Optional)"
+                  hint="Container element name for multiple results"
+                  persistent-hint
+                  density="compact"
+                  variant="outlined"
+                  class="mb-2"
+                ></v-text-field>
+              </v-col>
+              
+              <v-col cols="12">
+                <v-btn-group variant="outlined" class="w-100">
+                  <v-btn
+                    color="primary"
+                    @click="executeAxisNavigation('children')"
+                    :loading="isProcessing"
+                    :disabled="!hasSelection"
+                    class="flex-grow-1"
+                  >
+                    Children
+                  </v-btn>
+                  <v-btn
+                    color="primary"
+                    @click="executeAxisNavigation('descendants')"
+                    :loading="isProcessing"
+                    :disabled="!hasSelection"
+                    class="flex-grow-1"
+                  >
+                    Descendants
+                  </v-btn>
+                  <v-btn
+                    color="primary"
+                    @click="executeAxisNavigation('parent')"
+                    :loading="isProcessing"
+                    :disabled="!hasSelection"
+                    class="flex-grow-1"
+                  >
+                    Parent
+                  </v-btn>
+                  <v-btn
+                    color="primary"
+                    @click="executeAxisNavigation('ancestors')"
+                    :loading="isProcessing"
+                    :disabled="!hasSelection"
+                    class="flex-grow-1"
+                  >
+                    Ancestors
+                  </v-btn>
+                  <v-btn
+                    color="primary"
+                    @click="executeAxisNavigation('siblings')"
+                    :loading="isProcessing"
+                    :disabled="!hasSelection"
+                    class="flex-grow-1"
+                  >
+                    Siblings
+                  </v-btn>
+                </v-btn-group>
+              </v-col>
+            </v-row>
+          </v-card>
+        </v-window-item>
+      </v-window>
 
       <!-- Results Display -->
       <div v-if="functionalResults">
@@ -257,6 +384,9 @@ const {
 
 const copySuccess = ref(false);
 const showHelp = ref(false);
+const activeTab = ref('select');
+const fragmentRoot = ref('');
+const navigationPredicate = ref('');
 
 // Computed properties
 const hasXmlContent = computed(() => {
@@ -309,7 +439,9 @@ const applyExample = (example) => {
 
 const executeSelect = async () => {
   try {
-    await functionalStore.executeSelect(editorStore.xml, selectPredicate.value);
+    // Pass optional fragment root
+    const rootToUse = fragmentRoot.value.trim() || undefined;
+    await functionalStore.executeSelect(editorStore.xml, selectPredicate.value, rootToUse);
   } catch (err) {
     console.error('Select operation failed:', err);
   }
@@ -317,9 +449,26 @@ const executeSelect = async () => {
 
 const executeFilter = async () => {
   try {
-    await functionalStore.executeFilter(filterPredicate.value);
+    // Pass optional fragment root
+    const rootToUse = fragmentRoot.value.trim() || undefined;
+    await functionalStore.executeFilter(filterPredicate.value, rootToUse);
   } catch (err) {
     console.error('Filter operation failed:', err);
+  }
+};
+
+const executeAxisNavigation = async (axisName) => {
+  try {
+    // Get predicate if specified, otherwise undefined
+    const predicate = navigationPredicate.value.trim() || undefined;
+    
+    // Get fragment root if specified, otherwise undefined
+    const rootToUse = fragmentRoot.value.trim() || undefined;
+    
+    // Execute navigation operation
+    await functionalStore.executeAxisNavigation(axisName, predicate, rootToUse);
+  } catch (err) {
+    console.error(`${axisName} navigation failed:`, err);
   }
 };
 
@@ -338,6 +487,8 @@ const copyResults = () => {
 
 const resetFunctional = () => {
   functionalStore.reset();
+  fragmentRoot.value = '';
+  navigationPredicate.value = '';
 };
 </script>
 

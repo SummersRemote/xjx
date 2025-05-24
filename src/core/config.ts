@@ -3,6 +3,7 @@
  */
 import { deepClone, deepMerge } from "./common";
 import { logger } from "./error";
+import { XNode } from "./xnode";
 
 export interface Configuration {
   // Features to preserve during transformation
@@ -62,8 +63,8 @@ export interface Configuration {
     pretty: boolean;
   };
 
-  // Fragment root name for functional operations
-  fragmentRoot: string;
+  // Fragment root name or XNode for functional operations
+  fragmentRoot: string | XNode;
 }
 
 /**
@@ -179,7 +180,7 @@ export function createConfig(
     highFidelity: result.strategies.highFidelity,
     attributeStrategy: result.strategies.attributeStrategy,
     emptyElementStrategy: result.strategies.emptyElementStrategy,
-    fragmentRoot: result.fragmentRoot
+    fragmentRoot: typeof result.fragmentRoot === 'string' ? result.fragmentRoot : 'custom-xnode'
   });
 
   return result;

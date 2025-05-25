@@ -1,30 +1,19 @@
 /**
- * BooleanTransform - Mode-aware boolean conversion
+ * Boolean transform - Converts string values to booleans
  */
-import { 
-  TransformContext, 
-  TransformResult, 
-  TransformTarget,
-  createTransformResult,
-  Transform,
-  TransformOptions,
-  ProcessingIntent,
-  getDefaultMode,
-  shouldParse
-} from '../core/transform';
-import { logger } from '../core/error';
+import { Transform, TransformOptions, TransformIntent, createTransform } from '../core/transform';
 
 /**
- * Options for boolean transformer
+ * Options for boolean transform
  */
-export interface BooleanTransformOptions extends TransformOptions {
+export interface BooleanOptions extends TransformOptions {
   /**
-   * Values to consider as true (default: ["true", "yes", "1", "on"])
+   * Values to consider as true (default: ['true', 'yes', '1', 'on'])
    */
   trueValues?: string[];
   
   /**
-   * Values to consider as false (default: ["false", "no", "0", "off"])
+   * Values to consider as false (default: ['false', 'no', '0', 'off'])
    */
   falseValues?: string[];
   
@@ -34,158 +23,98 @@ export interface BooleanTransformOptions extends TransformOptions {
   ignoreCase?: boolean;
   
   /**
-   * String representation for true when serializing (default: "true")
+   * String representation for true when serializing (default: 'true')
    */
   trueString?: string;
   
   /**
-   * String representation for false when serializing (default: "false")
+   * String representation for false when serializing (default: 'false')
    */
   falseString?: string;
 }
 
 /**
- * Default boolean values
+ * Default values for boolean conversion
  */
 const DEFAULT_TRUE_VALUES = ['true', 'yes', '1', 'on'];
 const DEFAULT_FALSE_VALUES = ['false', 'no', '0', 'off'];
 
 /**
- * BooleanTransform class for converting between strings and booleans
+ * Create a transform that converts between string values and booleans
  * 
- * PARSE mode (default): Converts string values to booleans
- *   "true", "yes", "1", "on" → true
- *   "false", "no", "0", "off" → false
- * 
- * SERIALIZE mode: Converts boolean values to strings
- *   true → "true" (or custom trueString)
- *   false → "false" (or custom falseString)
- * 
- * Example usage:
+ * @example
  * ```
- * new BooleanTransform() // Default PARSE mode
- * new BooleanTransform({ mode: ProcessingIntent.SERIALIZE })
- * new BooleanTransform({ 
+ * // PARSE mode (default): Convert strings to booleans
+ * xjx.transform(toBoolean());
+ * 
+ * // With custom values
+ * xjx.transform(toBoolean({ 
  *   trueValues: ['yes', 'y'], 
  *   falseValues: ['no', 'n'] 
- * })
+ * }));
+ * 
+ * // SERIALIZE mode: Convert booleans to strings
+ * xjx.transform(toBoolean({ 
+ *   intent: TransformIntent.SERIALIZE,
+ *   trueString: 'YES',
+ *   falseString: 'NO' 
+ * }));
  * ```
+ * 
+ * @param options Boolean transform options
+ * @returns A boolean transform function
  */
-export class BooleanTransform implements Transform {
-  private mode: ProcessingIntent;
-  private trueValues: string[];
-  private falseValues: string[];
-  private ignoreCase: boolean;
-  private trueString: string;
-  private falseString: string;
+export function toBoolean(options: BooleanOptions = {} as BooleanOptions): Transform {
+  const {
+    trueValues = DEFAULT_TRUE_VALUES,
+    falseValues = DEFAULT_FALSE_VALUES,
+    ignoreCase = true,
+    trueString = 'true',
+    falseString = 'false',
+    intent = TransformIntent.PARSE,
+    ...transformOptions
+  } = options;
   
-  /**
-   * Array of transform targets - this transform targets values only
-   */
-  public readonly targets = [TransformTarget.Value];
-  
-  /**
-   * Type identifier for runtime type checking
-   */
-  public static readonly type = 'BooleanTransform';
-  public readonly type = BooleanTransform.type;
-  
-  /**
-   * Create a new BooleanTransform
-   * @param options Options for customizing the transform behavior
-   */
-  constructor(options: BooleanTransformOptions = {}) {
-    this.mode = options.mode || getDefaultMode();
-    this.trueValues = options.trueValues || DEFAULT_TRUE_VALUES;
-    this.falseValues = options.falseValues || DEFAULT_FALSE_VALUES;
-    this.ignoreCase = options.ignoreCase !== false; // Default to true
-    this.trueString = options.trueString || 'true';
-    this.falseString = options.falseString || 'false';
-  }
-  
-  /**
-   * Transform implementation - uses processing intent to determine direction
-   * @param value Value to transform
-   * @param context Transform context
-   * @returns Transform result
-   */
-  transform(value: any, context: TransformContext): TransformResult<any> {
-    try {
-      // Handle null/undefined
-      if (value == null) {
-        return createTransformResult(value);
+  return createTransform((value: any) => {
+    // Handle null/undefined
+    if (value == null) {
+      return value;
+    }
+    
+    // SERIALIZE mode: convert boolean to string
+    if (intent === TransformIntent.SERIALIZE && typeof value === 'boolean') {
+      return value ? trueString : falseString;
+    }
+    
+    // PARSE mode: convert string to boolean
+    if (intent === TransformIntent.PARSE) {
+      // Already a boolean, return as is
+      if (typeof value === 'boolean') {
+        return value;
       }
       
-      // Determine direction based on mode and value type
-      if (shouldParse(this.mode, value)) {
-        return this.parseToBoolean(value);
-      } else {
-        return this.serializeToString(value);
-      }
-    } catch (err) {
-      logger.error(`Boolean transform error: ${err instanceof Error ? err.message : String(err)}`, {
-        value,
-        valueType: typeof value,
-        mode: this.mode,
-        path: context.path
-      });
+      // Convert to string for comparison
+      const strValue = String(value).trim();
+      const compareValue = ignoreCase ? strValue.toLowerCase() : strValue;
       
-      // Return original value on error
-      return createTransformResult(value);
-    }
-  }
-  
-  /**
-   * Parse string value to boolean
-   */
-  private parseToBoolean(value: any): TransformResult<any> {
-    // Already a boolean in parse mode - leave as is
-    if (typeof value === 'boolean') {
-      return createTransformResult(value);
-    }
-    
-    // Convert to string for comparison
-    const strValue = String(value);
-    const compareValue = this.ignoreCase ? strValue.toLowerCase().trim() : strValue.trim();
-    
-    // Check for true values
-    for (const trueVal of this.trueValues) {
-      const compareTrue = this.ignoreCase ? trueVal.toLowerCase() : trueVal;
-      if (compareValue === compareTrue) {
-        return createTransformResult(true);
+      // Check for true values
+      for (const trueVal of trueValues) {
+        const compareTrue = ignoreCase ? trueVal.toLowerCase() : trueVal;
+        if (compareValue === compareTrue) {
+          return true;
+        }
+      }
+      
+      // Check for false values
+      for (const falseVal of falseValues) {
+        const compareFalse = ignoreCase ? falseVal.toLowerCase() : falseVal;
+        if (compareValue === compareFalse) {
+          return false;
+        }
       }
     }
     
-    // Check for false values
-    for (const falseVal of this.falseValues) {
-      const compareFalse = this.ignoreCase ? falseVal.toLowerCase() : falseVal;
-      if (compareValue === compareFalse) {
-        return createTransformResult(false);
-      }
-    }
-    
-    // No match: return original value unchanged
-    return createTransformResult(value);
-  }
-  
-  /**
-   * Serialize boolean value to string
-   */
-  private serializeToString(value: any): TransformResult<any> {
-    if (typeof value === 'boolean') {
-      return createTransformResult(value ? this.trueString : this.falseString);
-    }
-    
-    // Non-boolean in serialize mode - leave as is
-    return createTransformResult(value);
-  }
-}
-
-/**
- * Create a BooleanTransform instance
- * @param options Options for customizing the transform behavior
- * @returns A new BooleanTransform instance
- */
-export function createBooleanTransform(options: BooleanTransformOptions = {}): BooleanTransform {
-  return new BooleanTransform(options);
+    // No match or not applicable for the current intent, return original value
+    return value;
+  }, transformOptions);
 }

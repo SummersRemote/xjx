@@ -1,77 +1,72 @@
 /**
- * Transforms module - Consolidated exports
+ * Transforms module - Functional transform factories
  *
- * This module provides transformation functions for modifying XML/JSON data
- * using the simplified mode-aware transform system.
+ * This module provides transform factories for converting data between formats.
+ * All transforms are simple functions that can be composed together.
  */
 
-// Re-export transform interfaces and utilities from core (now consolidated)
+// Core transform types and utilities
 export {
   Transform,
-  TransformContext,
-  TransformResult,
-  TransformTarget,
   TransformOptions,
-  ProcessingIntent,
-  FORMAT,
-  createTransformResult,
-  getDefaultMode,
-  shouldParse,
-} from "../core/transform";
+  TransformIntent,
+  compose,
+  createTransform
+} from '../core/transform';
 
-// Export transform classes and factory functions
-export { 
-  BooleanTransform,
-  createBooleanTransform,
-  BooleanTransformOptions 
-} from "./boolean-transform";
+// Number transform
+export {
+  toNumber,
+  NumberOptions
+} from './number-transform';
 
-export { 
-  NumberTransform,
-  createNumberTransform,
-  NumberTransformOptions 
-} from "./number-transform";
+// Boolean transform
+export {
+  toBoolean,
+  BooleanOptions
+} from './boolean-transform';
 
-export { 
-  RegexTransform,
-  createRegexTransform,
-  RegexTransformOptions 
-} from "./regex-transform";
-
-// Keep existing MetadataTransform (unchanged)
-export { 
-  MetadataTransform,
-  createMetadataTransform,
-  MetadataTransformOptions,
-  NodeSelector,
-  FormatMetadata
-} from "./metadata-transform";
+// Regex transform
+export {
+  regex,
+  regexMulti,
+  RegexOptions
+} from './regex-transform';
 
 /**
- * Quick reference for the consolidated transform system:
+ * Quick reference for the functional transform system:
  * 
- * ProcessingIntent.PARSE (default):
- * - Converts strings to typed values
- * - Perfect for functional operations (filter, map, etc.)
- * - Examples: "123" → 123, "true" → true
- * 
- * ProcessingIntent.SERIALIZE:
- * - Converts typed values to strings
- * - Used for final formatting/output
- * - Examples: 123 → "123", true → "true"
- * 
- * Usage patterns:
  * ```typescript
- * // Default PARSE mode - perfect for functional pipelines
- * new NumberTransform()
+ * // Simple usage with defaults
+ * xjx.fromXml(xml)
+ *    .select(node => node.name === 'price')
+ *    .transform(toNumber())
+ *    .filter(node => node.value > 100)
+ *    .toXml();
  * 
- * // Explicit SERIALIZE mode when needed
- * new NumberTransform({ mode: ProcessingIntent.SERIALIZE })
+ * // With parameters
+ * xjx.fromXml(xml)
+ *    .select(node => node.name === 'price')
+ *    .transform(toNumber({ precision: 2, thousandsSeparator: '.' }))
+ *    .toXml();
  * 
- * // Combined with other options
- * new NumberTransform({ 
- *   mode: ProcessingIntent.PARSE,
- *   precision: 2 
- * })
+ * // Create reusable configured transforms
+ * const currencyTransform = toNumber({ precision: 2 });
+ * const yesNoBoolean = toBoolean({ trueValues: ['yes'], falseValues: ['no'] });
+ * const sanitizePhone = regex(/[^\d]/g, '');
+ * 
+ * // Use them anywhere
+ * xjx.transform(currencyTransform);
+ * xjx.transform(yesNoBoolean);
+ * xjx.transform(sanitizePhone);
+ * 
+ * // Compose transforms
+ * const processPrice = compose(
+ *   regex(/[^\d.]/g, ''),  // Remove non-digits
+ *   toNumber({ precision: 2 }),
+ *   (value) => value * 1.1  // Add 10% markup
+ * );
+ * 
+ * xjx.transform(processPrice);
  * ```
  */

@@ -11,7 +11,9 @@ import './extensions/to-json';
 import './extensions/config-extensions';
 import './extensions/to-xnode';
 import './extensions/from-xnode';
-import './extensions/functional-extensions';
+import './extensions/functional/functional-extensions';
+import './extensions/functional/axis-extensions';
+import './extensions/functional/transform-extension';
 
 // Export the main class (for instantiation)
 export { XJX } from './XJX';
@@ -25,13 +27,12 @@ export {
 
 export {
   // Transform system
-  FORMAT,
   Transform,
-  TransformTarget,
-  TransformContext,
-  TransformResult,
-  createTransformResult,
-  StrategyInfo,
+  TransformOptions,
+  TransformIntent,
+  compose,
+  createTransform,
+  FORMAT
 } from './core/transform';
 
 // Export error handling
@@ -59,37 +60,25 @@ export {
   JsonValue,
   JsonObject,
   JsonArray,
-  FormatDetectionResult,
 } from './core/converter';
 
-// Export transform classes and creators
+// Export transform functions and creators
 export {
-  // Transform Classes
-  BooleanTransform,
-  NumberTransform,
-  RegexTransform,
-  MetadataTransform,
-  // Creator functions
-  createBooleanTransform,
-  createNumberTransform,
-  createRegexTransform,
-  createMetadataTransform,
-  // Option interfaces
-  BooleanTransformOptions,
-  NumberTransformOptions,
-  RegexTransformOptions,
-  MetadataTransformOptions,
-  // Additional transform types
-  NodeSelector,
-  FormatMetadata
+  // Transform Factories
+  toNumber,
+  toBoolean,
+  regex,
+  regexMulti,
+  
+  // Options interfaces
+  NumberOptions,
+  BooleanOptions,
+  RegexOptions,
 } from './transforms';
 
 // Manual registration verification - this function does nothing at runtime
 // but ensures that tree-shaking doesn't remove our extension imports
 function ensureExtensionsRegistered() {
-  // if (process.env.NODE_ENV === 'development') {
-  //   console.log('XJX Extensions registered successfully');
-  // }
   // The mere existence of this function with references prevents tree-shaking
   return [
     './extensions/from-xml',
@@ -99,7 +88,9 @@ function ensureExtensionsRegistered() {
     './extensions/config-extensions',
     './extensions/to-xnode',
     './extensions/from-xnode',
-    './extensions/functional-extensions'
+    './extensions/functional/functional-extensions',
+    './extensions/functional/axis-extensions',
+    './extensions/functional/transform-extension'
   ];
 }
 

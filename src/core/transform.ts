@@ -1,12 +1,148 @@
 /**
- * Core transform interfaces and utilities - Enhanced with Processing Intent
+ * Simplified transform system for XJX
+ * 
+ * Transforms are just functions that take a value and return a value.
+ * This makes them easy to create, compose, and use in the functional pipeline.
  */
 import { XNode } from './xnode';
-import { logger } from './error';
 import { Configuration } from './config';
 
 /**
- * Standard formats
+ * Core Transform type - just a function that transforms a value
+ */
+export type Transform = (value: any) => any;
+
+/**
+ * Transform intent - determines direction of transformation
+ */
+export enum TransformIntent {
+  /**
+   * Parse mode: Convert strings to typed values (default)
+   * Examples: "123" → 123, "true" → true, "2023-01-15" → Date
+   */
+  PARSE = 'parse',
+  
+  /**
+   * Serialize mode: Convert typed values to strings
+   * Examples: 123 → "123", true → "true", Date → "2023-01-15"
+   */
+  SERIALIZE = 'serialize'
+}
+
+/**
+ * Options for customizing transform behavior
+ */
+export interface TransformOptions {
+  /**
+   * Apply to node values (default: true)
+   */
+  values?: boolean;
+  
+  /**
+   * Apply to attribute values (default: true)
+   */
+  attributes?: boolean;
+  
+  /**
+   * Filter for specific attributes (optional)
+   * Only attributes matching this filter will be transformed
+   */
+  attributeFilter?: string | RegExp | ((name: string) => boolean);
+  
+  /**
+   * Filter for specific nodes by path (optional)
+   * Only nodes matching this path filter will be transformed
+   */
+  pathFilter?: string | RegExp | ((path: string) => boolean);
+  
+  /**
+   * Direction of transformation (default: TransformIntent.PARSE)
+   * - PARSE: Convert strings to typed values
+   * - SERIALIZE: Convert typed values to strings
+   */
+  intent?: TransformIntent;
+}
+
+/**
+ * Compose multiple transforms into a single transform
+ * Transforms are applied in order (left to right)
+ * 
+ * @example
+ * ```
+ * const processPrice = compose(
+ *   regex(/[^\d.]/g, ''),  // Remove non-digits and dots
+ *   toNumber({ precision: 2 }),
+ *   (value) => value * 1.1  // Add 10% markup
+ * );
+ * ```
+ * 
+ * @param transforms Array of transforms to compose
+ * @returns A composed transform function
+ */
+export function compose(...transforms: Transform[]): Transform {
+  return (value: any) => {
+    return transforms.reduce((result, transform) => transform(result), value);
+  };
+}
+
+/**
+ * Create a transform with error handling and default behaviors
+ * 
+ * @param transformer Core transformation function
+ * @param options Transform options
+ * @returns A new transform function
+ */
+export function createTransform(
+  transformer: (value: any) => any,
+  options: TransformOptions = {}
+): Transform {
+  const {
+    values = true,
+    attributes = true,
+    attributeFilter,
+    pathFilter
+  } = options;
+  
+  // Create a matcher function for attribute filter if provided
+  const matchesAttribute = attributeFilter 
+    ? createMatcher(attributeFilter)
+    : () => true;
+  
+  // Create a matcher function for path filter if provided
+  const matchesPath = pathFilter
+    ? createMatcher(pathFilter)
+    : () => true;
+  
+  // Return the transform function with proper error handling
+  return (value: any) => {
+    try {
+      return transformer(value);
+    } catch (err) {
+      // If transformation fails, return original value
+      console.warn(`Transform error: ${err instanceof Error ? err.message : String(err)}`);
+      return value;
+    }
+  };
+}
+
+/**
+ * Create a matcher function from a string, RegExp, or function
+ */
+function createMatcher(pattern: string | RegExp | ((input: string) => boolean)): (input: string) => boolean {
+  if (typeof pattern === 'function') {
+    return pattern;
+  } else if (pattern instanceof RegExp) {
+    return (input: string) => pattern.test(input);
+  } else {
+    return (input: string) => input === pattern;
+  }
+}
+
+// Legacy exports to maintain compatibility with existing code
+// These will be gradually phased out
+
+/**
+ * Standard formats (kept for backward compatibility in converters)
  */
 export enum FORMAT {
   XML = 'xml',
@@ -14,26 +150,7 @@ export enum FORMAT {
 }
 
 /**
- * Processing intent for transforms - determines direction of transformation
- */
-export enum ProcessingIntent {
-  /**
-   * Parse mode: Convert strings to typed values
-   * Examples: "123" → 123, "true" → true, "2023-01-15" → Date
-   * Use for: Functional operations, data processing, filtering
-   */
-  PARSE = 'parse',
-  
-  /**
-   * Serialize mode: Convert typed values to strings  
-   * Examples: 123 → "123", true → "true", Date → "2023-01-15"
-   * Use for: XML output, string formatting, display
-   */
-  SERIALIZE = 'serialize'
-}
-
-/**
- * Transform target types enum - specifies which nodes a transformer can target
+ * Legacy transform target enum
  */
 export enum TransformTarget {
   Value = 'value',
@@ -47,124 +164,42 @@ export enum TransformTarget {
 }
 
 /**
- * Base options interface for all transforms
- */
-export interface TransformOptions {
-  /**
-   * Processing intent - determines direction of transformation
-   * @default ProcessingIntent.PARSE
-   */
-  mode?: ProcessingIntent;
-}
-
-/**
- * JSON Strategies for transform context
- */
-export interface StrategyInfo {
-  highFidelity: boolean;
-  attributeStrategy: 'merge' | 'prefix' | 'property';
-  textStrategy: 'direct' | 'property';
-  namespaceStrategy: 'prefix' | 'property';
-  arrayStrategy: 'multiple' | 'always' | 'never';
-  emptyElementStrategy: 'object' | 'null' | 'string' | 'remove';
-  mixedContentStrategy: 'preserve' | 'merge';
-}
-
-/**
- * Context for transformation operations
- */
-export interface TransformContext {
-  // Node information
-  nodeName: string;
-  nodeType: number;
-  path: string;
-  
-  // Type-specific information
-  isAttribute?: boolean;
-  attributeName?: string;
-  isText?: boolean;
-  isCDATA?: boolean;
-  isComment?: boolean;
-  isProcessingInstruction?: boolean;
-  
-  // Namespace information
-  namespace?: string;
-  prefix?: string;
-  
-  // Parent context for hierarchy
-  parent?: TransformContext;
-  
-  // Configuration
-  config: Configuration;
-  
-  // Target format (legacy - mostly ignored by mode-aware transforms)
-  targetFormat: FORMAT;
-  
-  // Strategy information - available when transforming JSON
-  strategies?: StrategyInfo;
-}
-
-/**
- * Result of a transformation operation
+ * Legacy transform result interface
  */
 export interface TransformResult<T> {
-  // The transformed value
   value: T;
-  
-  // Whether the node/value should be removed
   remove?: boolean;
 }
 
 /**
- * Unified Transform interface
- */
-export interface Transform {
-  // Target types this transformer can handle
-  targets: TransformTarget[];
-  
-  // Transform method with context
-  transform(value: any, context: TransformContext): TransformResult<any>;
-}
-
-/**
- * Create a transform result
- * @param value Result value
- * @param remove Whether to remove the node
- * @returns Transform result object
+ * Create a transform result (legacy)
  */
 export function createTransformResult<T>(value: T, remove: boolean = false): TransformResult<T> {
   return { value, remove };
 }
 
 /**
- * Get the default processing mode
+ * Legacy context for transforms
  */
-export function getDefaultMode(): ProcessingIntent {
-  return ProcessingIntent.PARSE;
+export interface TransformContext {
+  nodeName: string;
+  nodeType: number;
+  path: string;
+  config: Configuration;
+  targetFormat: FORMAT;
+  parent?: TransformContext;
+  namespace?: string;
+  prefix?: string;
+  isAttribute?: boolean;
+  attributeName?: string;
+  isText?: boolean;
+  isCDATA?: boolean;
+  isComment?: boolean;
+  isProcessingInstruction?: boolean;
 }
 
 /**
- * Utility function to determine if we should parse (string → typed value)
- * @param mode Processing intent
- * @param value Current value
- * @returns true if should parse, false if should serialize
- */
-export function shouldParse(mode: ProcessingIntent, value: any): boolean {
-  if (mode === ProcessingIntent.PARSE) {
-    // Parse mode: convert strings to typed values
-    return typeof value === 'string';
-  } else {
-    // Serialize mode: convert typed values to strings
-    return typeof value !== 'string';
-  }
-}
-
-/**
- * Create a root transformation context
- * @param targetFormat Target format identifier
- * @param rootNode Root node
- * @param config Configuration
- * @returns Root transformation context
+ * Create a root transformation context (legacy)
  */
 export function createRootContext(
   targetFormat: FORMAT,
@@ -178,78 +213,20 @@ export function createRootContext(
     namespace: rootNode.namespace,
     prefix: rootNode.prefix,
     config: config,
-    targetFormat,
-    // Add strategy information when converting to/from JSON
-    strategies: targetFormat === FORMAT.JSON ? {
-      highFidelity: config.strategies.highFidelity,
-      attributeStrategy: config.strategies.attributeStrategy,
-      textStrategy: config.strategies.textStrategy,
-      namespaceStrategy: config.strategies.namespaceStrategy,
-      arrayStrategy: config.strategies.arrayStrategy,
-      emptyElementStrategy: config.strategies.emptyElementStrategy,
-      mixedContentStrategy: config.strategies.mixedContentStrategy
-    } : undefined
+    targetFormat
   };
 }
 
 /**
- * Create a child context from a parent context
- * @param parentContext Parent context
- * @param childNode Child node
- * @param index Index of child in parent
- * @returns Child context
+ * Legacy transform interface
  */
-export function createChildContext(
-  parentContext: TransformContext,
-  childNode: XNode,
-  index: number
-): TransformContext {
-  return {
-    nodeName: childNode.name,
-    nodeType: childNode.type,
-    namespace: childNode.namespace,
-    prefix: childNode.prefix,
-    path: `${parentContext.path}.${childNode.name}[${index}]`,
-    config: parentContext.config,
-    targetFormat: parentContext.targetFormat,
-    parent: parentContext,
-    isText: childNode.type === 3, // Text node
-    isCDATA: childNode.type === 4, // CDATA
-    isComment: childNode.type === 8, // Comment
-    isProcessingInstruction: childNode.type === 7, // Processing instruction
-    strategies: parentContext.strategies
-  };
+export interface LegacyTransform {
+  targets: TransformTarget[];
+  transform(value: any, context: TransformContext): TransformResult<any>;
 }
 
 /**
- * Create an attribute context from a parent context
- * @param parentContext Parent context
- * @param attributeName Attribute name
- * @returns Attribute context
- */
-export function createAttributeContext(
-  parentContext: TransformContext,
-  attributeName: string
-): TransformContext {
-  return {
-    nodeName: parentContext.nodeName,
-    nodeType: parentContext.nodeType,
-    namespace: parentContext.namespace,
-    prefix: parentContext.prefix,
-    path: `${parentContext.path}.@${attributeName}`,
-    config: parentContext.config,
-    targetFormat: parentContext.targetFormat,
-    parent: parentContext,
-    isAttribute: true,
-    attributeName,
-    strategies: parentContext.strategies
-  };
-}
-
-/**
- * Get the appropriate transform target type based on context
- * @param context Transform context
- * @returns Target type
+ * Get context target type (legacy)
  */
 export function getContextTargetType(context: TransformContext): TransformTarget {
   if (context.isAttribute) {
@@ -260,38 +237,16 @@ export function getContextTargetType(context: TransformContext): TransformTarget
     return TransformTarget.Text;
   }
   
-  if (context.isCDATA) {
-    return TransformTarget.CDATA;
-  }
-  
-  if (context.isComment) {
-    return TransformTarget.Comment;
-  }
-  
-  if (context.isProcessingInstruction) {
-    return TransformTarget.ProcessingInstruction;
-  }
-  
-  if (context.nodeType === 1) { // Element node
-    return TransformTarget.Element;
-  }
-  
-  // Default to Value
-  return TransformTarget.Value;
+  return TransformTarget.Element;
 }
 
 /**
- * Apply transforms to a value
- * @param value Value to transform
- * @param context Transformation context
- * @param transforms Transforms to apply
- * @param targetType Target type to filter transforms
- * @returns Transform result
+ * Apply transforms (legacy)
  */
 export function applyTransforms<T>(
   value: T,
   context: TransformContext,
-  transforms: Transform[],
+  transforms: LegacyTransform[],
   targetType: TransformTarget
 ): TransformResult<T> {
   // Filter applicable transforms
@@ -316,27 +271,9 @@ export function applyTransforms<T>(
         return result;
       }
     } catch (err) {
-      logger.error(`Transform error: ${err instanceof Error ? err.message : String(err)}`, {
-        transform: transform.targets,
-        path: context.path
-      });
+      console.warn(`Transform error: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
   
   return result;
-}
-
-/**
- * Interface for XML validation result
- */
-export interface ValidationResult {
-  /**
-   * Whether the XML is valid
-   */
-  isValid: boolean;
-
-  /**
-   * Error message if the XML is invalid
-   */
-  message?: string;
 }

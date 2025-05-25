@@ -78,6 +78,11 @@ export function toNumber(options: NumberOptions = {}): Transform {
       return precision !== undefined ? Number(value.toFixed(precision)) : value;
     }
 
+    // Handle boolean values (add this case)
+    if (typeof value === "boolean") {
+      return value ? true : false;
+    }
+
     // Handle null/undefined
     if (value == null) {
       return value;

@@ -31,7 +31,7 @@ logger.debug("Config", options)
     let nodeToConvert = this.xnode as XNode;
     
     if (this.transforms && this.transforms.length > 0) {
-      nodeToConvert = transformXNode(nodeToConvert, this.transforms, FORMAT.JSON, this.config);
+      nodeToConvert = transformXNode(nodeToConvert, this.transforms, this.config);
       
       logger.debug('Applied transforms to XNode', {
         transformCount: this.transforms.length,

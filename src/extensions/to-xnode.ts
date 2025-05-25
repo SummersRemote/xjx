@@ -27,7 +27,7 @@ export function toXnode(this: TerminalExtensionContext): XNode[] {
     if (this.transforms && this.transforms.length > 0) {
       // Clone the node before applying transforms to avoid modifying the original
       const clonedNode = cloneNode(nodeToConvert, true);
-      nodeToConvert = transformXNode(clonedNode, this.transforms, FORMAT.XML, this.config);
+      nodeToConvert = transformXNode(clonedNode, this.transforms, this.config);
       
       logger.debug('Applied transforms to XNode', {
         transformCount: this.transforms.length,

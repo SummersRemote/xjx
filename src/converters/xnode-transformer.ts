@@ -1,21 +1,11 @@
 /**
- * XNode transformer implementation with functional core
+ * XNode transformer implementation with functional approach
  * 
- * Applies transformations to XNode based on transform targets.
+ * Applies transformations to XNode using transform functions.
  */
 import { Configuration } from '../core/config';
 import { XNode } from '../core/xnode';
-import {
-  Transform,
-  TransformContext,
-  TransformResult,
-  TransformTarget,
-  FORMAT,
-  createTransformResult,
-  createRootContext,
-  getContextTargetType,
-  applyTransforms
-} from '../core/transform';
+import { Transform } from '../core/transform';
 import { NodeType } from '../core/dom';
 import { logger } from '../core/error';
 
@@ -23,14 +13,12 @@ import { logger } from '../core/error';
  * Apply transformations to an XNode
  * @param node XNode to transform
  * @param transforms Transformations to apply
- * @param targetFormat Target format identifier
  * @param config Configuration
  * @returns Transformed XNode
  */
 export function transformXNode(
   node: XNode,
   transforms: Transform[],
-  targetFormat: FORMAT,
   config: Configuration
 ): XNode {
   // Skip if no transforms to apply
@@ -39,89 +27,29 @@ export function transformXNode(
     return node;
   }
 
-  // Create root context
-  const context = createRootContext(targetFormat, node, config);
-  
   logger.debug('Starting node transformation', { 
     nodeName: node.name, 
-    transformCount: transforms.length,
-    targetFormat 
+    transformCount: transforms.length
   });
 
-  // Apply transformations using functional core
-  const transformedNode = processNode(node, context, transforms);
-
-  if (!transformedNode) {
-    logger.error('Root node was removed during transformation', {
-      nodeName: node.name
-    });
-    return node; // Return original node as fallback
-  }
-
-  logger.debug('Successfully transformed node', { 
-    nodeName: transformedNode.name, 
-    hasChildren: !!transformedNode.children && transformedNode.children.length > 0 
-  });
-  
-  return transformedNode;
-}
-
-/**
- * Process a node and its children
- * @param node Node to process
- * @param context Transform context
- * @param transforms Transforms to apply
- * @returns Processed node or null if removed
- */
-function processNode(
-  node: XNode,
-  context: TransformContext,
-  transforms: Transform[]
-): XNode | null {
   try {
-    // 1. Apply element transforms first
-    const targetType = getContextTargetType(context);
-    const elementResult = applyTransforms(node, context, transforms, targetType);
+    // Create a deep clone of the node to avoid modifying the original
+    // Note: We're not using XNode.cloneNode here to avoid circular dependencies
+    const clonedNode = JSON.parse(JSON.stringify(node));
+    
+    // Apply transformations to the node and its descendants
+    const transformedNode = processNode(clonedNode, transforms);
 
-    if (elementResult.remove) {
-      return null;
-    }
-
-    const transformedNode = elementResult.value as XNode;
-
-    // 2. Transform node value if present
-    if (transformedNode.value !== undefined) {
-      const valueContext: TransformContext = {
-        ...context,
-        isText: true,
-      };
-
-      const valueResult = applyTransforms(
-        transformedNode.value,
-        valueContext,
-        transforms,
-        TransformTarget.Value
-      );
-
-      if (valueResult.remove) {
-        delete transformedNode.value;
-      } else {
-        transformedNode.value = valueResult.value;
-      }
-    }
-
-    // 3. Transform attributes
-    transformAttributes(transformedNode, context, transforms);
-
-    // 4. Transform children
-    transformChildren(transformedNode, context, transforms);
-
+    logger.debug('Successfully transformed node', { 
+      nodeName: transformedNode.name, 
+      hasChildren: !!transformedNode.children && transformedNode.children.length > 0 
+    });
+    
     return transformedNode;
   } catch (err) {
     logger.error('Error applying transforms to node', {
       nodeName: node?.name,
       nodeType: node?.type,
-      path: context.path,
       error: err
     });
     return node; // Return original node as fallback
@@ -129,123 +57,111 @@ function processNode(
 }
 
 /**
+ * Process a node and its descendants with transforms
+ * @param node Node to process
+ * @param transforms Transforms to apply
+ * @returns Processed node
+ */
+function processNode(
+  node: XNode,
+  transforms: Transform[]
+): XNode {
+  // Apply transforms to node value
+  if (node.value !== undefined) {
+    node.value = applyTransforms(node.value, transforms);
+  }
+
+  // Apply transforms to attributes
+  if (node.attributes) {
+    transformAttributes(node, transforms);
+  }
+
+  // Apply transforms to children
+  if (node.children && node.children.length > 0) {
+    transformChildren(node, transforms);
+  }
+
+  return node;
+}
+
+/**
+ * Apply a series of transforms to a value
+ * @param value Value to transform
+ * @param transforms Transforms to apply
+ * @returns Transformed value
+ */
+function applyTransforms(
+  value: any,
+  transforms: Transform[]
+): any {
+  return transforms.reduce((result, transform) => {
+    try {
+      return transform(result);
+    } catch (err) {
+      logger.warn('Error applying transform to value', {
+        value,
+        error: err
+      });
+      return result; // Return unchanged value on error
+    }
+  }, value);
+}
+
+/**
  * Transform node attributes
  * @param node Node to transform
- * @param context Parent context
  * @param transforms Transforms to apply
  */
 function transformAttributes(
   node: XNode,
-  context: TransformContext,
   transforms: Transform[]
 ): void {
   if (!node.attributes) return;
 
-  const attributeTransforms = transforms.filter(t => 
-    t.targets.includes(TransformTarget.Attribute) || 
-    t.targets.includes(TransformTarget.Value)
-  );
-  
-  if (attributeTransforms.length === 0) return;
-
-  const newAttributes: Record<string, any> = {};
-
-  for (const [name, value] of Object.entries(node.attributes)) {
+  // Apply transforms to each attribute value
+  for (const [key, value] of Object.entries(node.attributes)) {
     // Skip xmlns attributes since they're handled separately
-    if (name === "xmlns" || name.startsWith("xmlns:")) {
-      newAttributes[name] = value;
-      continue;
-    }
-
-    // Create attribute context
-    const attrContext: TransformContext = {
-      ...context,
-      isAttribute: true,
-      attributeName: name,
-      path: `${context.path}.@${name}`,
-    };
-
-    // Transform attribute value
-    const valueResult = applyTransforms(
-      value,
-      attrContext,
-      transforms,
-      TransformTarget.Value
-    );
-
-    if (valueResult.remove) {
-      continue;
-    }
-
-    let attrName = name;
-    let attrValue = valueResult.value;
-
-    // Apply attribute transforms
-    for (const transform of attributeTransforms) {
-      if (transform.targets.includes(TransformTarget.Attribute)) {
-        const result = transform.transform([attrName, attrValue], attrContext);
-        
-        if (result.remove) {
-          attrName = '';
-          break;
-        }
-        
-        const [newName, newValue] = result.value as [string, any];
-        attrName = newName;
-        attrValue = newValue;
-      }
-    }
-
-    // Add transformed attribute if not removed
-    if (attrName) {
-      newAttributes[attrName] = attrValue;
-    }
+    if (key === "xmlns" || key.startsWith("xmlns:")) continue;
+    
+    // Apply transforms to attribute value
+    node.attributes[key] = applyTransforms(value, transforms);
   }
-
-  node.attributes = newAttributes;
 }
 
 /**
  * Transform child nodes
- * @param node Node to transform
- * @param context Parent context
+ * @param node Parent node
  * @param transforms Transforms to apply
  */
 function transformChildren(
   node: XNode,
-  context: TransformContext,
   transforms: Transform[]
 ): void {
-  if (!node.children) return;
+  if (!node.children || node.children.length === 0) return;
 
-  const newChildren: XNode[] = [];
-
+  // Process each child node
   for (let i = 0; i < node.children.length; i++) {
     const child = node.children[i];
-
-    // Create child context with appropriate type flags
-    const childContext: TransformContext = {
-      nodeName: child.name,
-      nodeType: child.type,
-      namespace: child.namespace,
-      prefix: child.prefix,
-      path: `${context.path}.${child.name}[${i}]`,
-      config: context.config,
-      targetFormat: context.targetFormat,
-      parent: context,
-      isText: child.type === NodeType.TEXT_NODE,
-      isCDATA: child.type === NodeType.CDATA_SECTION_NODE,
-      isComment: child.type === NodeType.COMMENT_NODE,
-      isProcessingInstruction: child.type === NodeType.PROCESSING_INSTRUCTION_NODE,
-    };
-
-    // Process child based on its type
-    const transformedChild = processNode(child, childContext, transforms);
-
-    if (transformedChild) {
-      newChildren.push(transformedChild);
+    
+    // Apply appropriate transformations based on node type
+    switch (child.type) {
+      case NodeType.TEXT_NODE:
+      case NodeType.CDATA_SECTION_NODE:
+        // For text and CDATA nodes, transform the value
+        if (child.value !== undefined) {
+          child.value = applyTransforms(child.value, transforms);
+        }
+        break;
+        
+      case NodeType.ELEMENT_NODE:
+        // Recursively process element nodes
+        processNode(child, transforms);
+        break;
+        
+      case NodeType.COMMENT_NODE:
+      case NodeType.PROCESSING_INSTRUCTION_NODE:
+        // Skip comments and processing instructions by default
+        break;
     }
   }
-
-  node.children = newChildren;
 }

@@ -25,7 +25,7 @@ export function toXml(this: TerminalExtensionContext): Document {
     let nodeToConvert = this.xnode as XNode;
     
     if (this.transforms && this.transforms.length > 0) {
-      nodeToConvert = transformXNode(nodeToConvert, this.transforms, FORMAT.XML, this.config);
+      nodeToConvert = transformXNode(nodeToConvert, this.transforms, this.config);
       
       logger.debug('Applied transforms to XNode', {
         transformCount: this.transforms.length,
@@ -66,7 +66,7 @@ export function toXmlString(
     let nodeToConvert = this.xnode as XNode;
     
     if (this.transforms && this.transforms.length > 0) {
-      nodeToConvert = transformXNode(nodeToConvert, this.transforms, FORMAT.XML, this.config);
+      nodeToConvert = transformXNode(nodeToConvert, this.transforms, this.config);
       
       logger.debug('Applied transforms to XNode', {
         transformCount: this.transforms.length,

@@ -52,18 +52,6 @@
             <TransformManager />
           </v-col>
         </v-row>
-
-        <v-row>
-          <v-col cols="12">
-            <FunctionTransformDemo />
-          </v-col>
-        </v-row>
-
-        <v-row>
-          <v-col cols="12">
-            <FunctionalPanel />
-          </v-col>
-        </v-row>
       </v-container>
     </v-main>
 
@@ -85,8 +73,6 @@ import EditorPanel from '@/components/EditorPanel.vue';
 import ConfigPanel from '@/components/ConfigPanel.vue';
 import ConfigViewer from '@/components/ConfigViewer.vue';
 import TransformManager from '@/components/TransformManager.vue';
-import FunctionalPanel from '@/components/FunctionalPanel.vue';
-import FunctionTransformDemo from '@/components/FunctionTransformDemo.vue';
 import APIViewer from '@/components/APIViewer.vue';
 
 // References for dialogs

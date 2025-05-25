@@ -8,10 +8,10 @@
  * - ancestors: Navigate to ancestor nodes
  * - siblings: Select sibling nodes
  */
-import { XJX } from "../../XJX";
-import { XNode, cloneNode } from "../../core/xnode";
-import { logger, validate, ValidationError } from "../../core/error";
-import { NonTerminalExtensionContext } from "../../core/extension";
+import { XJX } from "../XJX";
+import { XNode, cloneNode } from "../core/xnode";
+import { logger, validate, ValidationError } from "../core/error";
+import { NonTerminalExtensionContext } from "../core/extension";
 import { 
   findDescendants, 
   createResultNode,

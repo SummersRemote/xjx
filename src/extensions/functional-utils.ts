@@ -4,9 +4,9 @@
  * This file contains common utility functions used by
  * both functional operations and axis navigation operations.
  */
-import { XNode, createElement, cloneNode, addChild } from "../../core/xnode";
-import { NonTerminalExtensionContext } from "../../core/extension";
-import { logger } from "../../core/error";
+import { XNode, createElement, cloneNode, addChild } from "../core/xnode";
+import { NonTerminalExtensionContext } from "../core/extension";
+import { logger } from "../core/error";
 
 /**
  * Create result node based on fragmentRoot parameter or configuration

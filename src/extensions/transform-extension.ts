@@ -3,11 +3,11 @@
  * 
  * Implements the transform function for the functional pipeline
  */
-import { XJX } from "../../XJX";
-import { XNode, cloneNode } from "../../core/xnode";
-import { logger, validate } from "../../core/error";
-import { NonTerminalExtensionContext } from "../../core/extension";
-import { Transform } from "../../core/transform";
+import { XJX } from "../XJX";
+import { XNode, cloneNode } from "../core/xnode";
+import { logger, validate } from "../core/error";
+import { NonTerminalExtensionContext } from "../core/extension";
+import { Transform } from "../core/transform";
 
 /**
  * Implementation for applying transforms to the current selection

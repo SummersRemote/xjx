@@ -1,19 +1,13 @@
-// services/XJXService.js
+// services/xjxService.js
 // Wrapper service for the XJX library with webpack-compatibility
 import {
   XJX,
   LogLevel,
-  BooleanTransform,
-  NumberTransform,
-  RegexTransform,
+  toBoolean,
+  toNumber,
+  regex,
+  compose,
 } from "../../../dist/esm/index.js";
-
-// Create a map of transformer types to their constructors
-const transformerMap = {
-  BooleanTransform: BooleanTransform,
-  NumberTransform: NumberTransform,
-  RegexTransform: RegexTransform,
-};
 
 // Create a singleton XJX instance for log level management
 const globalXJX = new XJX();
@@ -43,14 +37,14 @@ class XJXService {
         textStrategy: "direct",
         namespaceStrategy: "prefix",
         arrayStrategy: "multiple",
-        emptyElementStrategy: "object",  // Default remains 'object'
+        emptyElementStrategy: "object",
         mixedContentStrategy: "preserve",
       },
 
-      // Property names - MERGED: single 'value' property
+      // Property names - using single 'value' property
       properties: {
         attribute: "$attr",
-        value: "$val",  // MERGED: single property for all values/text
+        value: "$val",
         namespace: "$ns",
         prefix: "$pre",
         cdata: "$cdata",
@@ -143,10 +137,13 @@ class XJXService {
 
     // Apply transforms if provided
     if (transforms && transforms.length > 0) {
-      const transformInstances = this._createTransformers(transforms);
+      const transformFunctions = this._createTransformers(transforms);
 
-      if (transformInstances.length > 0) {
-        builder = builder.transform(...transformInstances);
+      if (transformFunctions.length > 0) {
+        // Use compose to combine all transforms into a single function
+        const combinedTransform = compose(...transformFunctions);
+        // Apply the combined transform
+        builder = builder.transform(combinedTransform);
       }
     }
 
@@ -178,10 +175,13 @@ class XJXService {
 
     // Apply transforms if provided
     if (transforms && transforms.length > 0) {
-      const transformInstances = this._createTransformers(transforms);
+      const transformFunctions = this._createTransformers(transforms);
 
-      if (transformInstances.length > 0) {
-        builder = builder.transform(...transformInstances);
+      if (transformFunctions.length > 0) {
+        // Use compose to combine all transforms into a single function
+        const combinedTransform = compose(...transformFunctions);
+        // Apply the combined transform
+        builder = builder.transform(combinedTransform);
       }
     }
 
@@ -200,7 +200,7 @@ class XJXService {
    */
   generateFluentAPI(fromType, content, config, transforms, jsonFormat = "xjx") {
     // Use the fluent API in the examples
-    let code = `import { XJX, LogLevel } from 'xjx';\n\n`;
+    let code = `import { XJX, LogLevel, toBoolean, toNumber, regex, compose } from 'xjx';\n\n`;
     code += `const xjx = new XJX();\n`;
 
     // Add log level if not default
@@ -221,13 +221,11 @@ class XJXService {
     if (transforms && transforms.length > 0) {
       const transformsStr = transforms
         .map((t) => {
-          const type = t.type;
-          const options = JSON.stringify(t.options);
-          return `new ${type}(${options})`;
+          return this._generateTransformCode(t);
         })
         .join(",\n    ");
 
-      code += `\n  .transform(\n    ${transformsStr}\n  )`;
+      code += `\n  .transform(compose(\n    ${transformsStr}\n  ))`;
     }
 
     // Determine the appropriate terminal method based on direction and format
@@ -250,22 +248,81 @@ class XJXService {
   }
 
   /**
-   * Create transformer instances from transformer configurations
+   * Create transformer functions from transformer configurations
    * @param {Array} transforms - Array of transform objects
-   * @returns {Array} Array of transformer instances
+   * @returns {Array} Array of transformer functions
    * @private
    */
   _createTransformers(transforms) {
     return transforms
       .map((t) => {
-        const TransformerClass = transformerMap[t.type];
-        if (!TransformerClass) {
-          console.error(`Transformer class not found for type: ${t.type}`);
-          return null;
-        }
-        return new TransformerClass(t.options);
+        return this._createTransformerFunction(t);
       })
       .filter(Boolean); // Remove any null entries
+  }
+
+  /**
+   * Create a transformer function from transform configuration
+   * @param {Object} transform - Transform object with type and options
+   * @returns {Function} Transform function
+   * @private
+   */
+  _createTransformerFunction(transform) {
+    try {
+      switch (transform.type) {
+        case 'BooleanTransform':
+          return toBoolean(transform.options);
+        case 'NumberTransform':
+          return toNumber(transform.options);
+        case 'RegexTransform':
+          if (transform.options && transform.options.pattern) {
+            const pattern = transform.options.pattern;
+            const replacement = transform.options.replacement || '';
+            const options = { ...transform.options };
+            delete options.pattern;
+            delete options.replacement;
+            
+            return regex(pattern, replacement, options);
+          }
+          return null;
+        default:
+          console.error(`Unsupported transformer type: ${transform.type}`);
+          return null;
+      }
+    } catch (err) {
+      console.error(`Error creating transformer: ${err.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Generate transform code for API display
+   * @param {Object} transform - Transform object
+   * @returns {string} Transform code
+   * @private
+   */
+  _generateTransformCode(transform) {
+    switch (transform.type) {
+      case 'BooleanTransform':
+        return `toBoolean(${JSON.stringify(transform.options)})`;
+      case 'NumberTransform':
+        return `toNumber(${JSON.stringify(transform.options)})`;
+      case 'RegexTransform':
+        if (transform.options && transform.options.pattern) {
+          const pattern = transform.options.pattern;
+          const replacement = transform.options.replacement || '';
+          const otherOptions = { ...transform.options };
+          delete otherOptions.pattern;
+          delete otherOptions.replacement;
+          
+          return `regex(${JSON.stringify(pattern)}, ${JSON.stringify(replacement)}${
+            Object.keys(otherOptions).length > 0 ? `, ${JSON.stringify(otherOptions)}` : ''
+          })`;
+        }
+        return 'regex(/.*/, "")';
+      default:
+        return '/* Unsupported transform */';
+    }
   }
 }
 

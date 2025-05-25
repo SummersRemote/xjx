@@ -7,10 +7,10 @@
  * - map: Transform each node in the current selection
  * - reduce: Aggregate nodes in the current selection into a single value
  */
-import { XJX } from "../../XJX";
-import { XNode, cloneNode, addChild } from "../../core/xnode";
-import { logger, validate, ValidationError } from "../../core/error";
-import { NonTerminalExtensionContext, TerminalExtensionContext } from "../../core/extension";
+import { XJX } from "../XJX";
+import { XNode, cloneNode, addChild } from "../core/xnode";
+import { logger, validate, ValidationError } from "../core/error";
+import { NonTerminalExtensionContext, TerminalExtensionContext } from "../core/extension";
 import { 
   findMatchingNodes, 
   isResultsContainer, 

@@ -18,13 +18,13 @@ export * from './to-xnode';
 export * from './config-extensions';
 
 // Transform extension
-export * from './functional/transform-extension';
+export * from './transform-extension';
 
 // Functional extensions (core operations)
-export * from './functional/functional-extensions';
+export * from './functional-extensions';
 
 // Axis navigation extensions
-export * from './functional/axis-extensions';
+export * from './axis-extensions';
 
 // Utilities (for custom extensions)
-export * from './functional/functional-utils';
+export * from './functional-utils';

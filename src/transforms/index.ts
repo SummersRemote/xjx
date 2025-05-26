@@ -29,7 +29,6 @@ export {
 // Regex transform
 export {
   regex,
-  regexMulti,
   RegexOptions
 } from './regex-transform';
 

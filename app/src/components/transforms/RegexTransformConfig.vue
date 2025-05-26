@@ -49,7 +49,7 @@
           v-model="localOptions.pattern"
           label="Pattern"
           placeholder="Enter regex pattern"
-          hint="/Regular expression/ or simple string to match"
+          hint="Use simple text for exact match or /pattern/flags for regex"
           persistent-hint
           density="compact"
           @update:model-value="updateOptions"
@@ -67,46 +67,39 @@
           @update:model-value="updateOptions"
         ></v-text-field>
       </v-col>
-      
-      <v-col cols="12" sm="6">
-        <v-text-field
-          v-model="localOptions.flags"
-          label="Regex Flags"
-          placeholder="g, gi, etc."
-          hint="Regular expression flags (default: g)"
-          persistent-hint
+    </v-row>
+
+    <v-row dense>
+      <v-col cols="12">
+        <v-alert
+          type="info"
+          variant="tonal"
           density="compact"
-          @update:model-value="updateOptions"
-        ></v-text-field>
-      </v-col>
-      
-      <v-col cols="12" sm="6">
-        <v-switch
-          v-model="localOptions.matchOnly"
-          label="Match Only"
-          hint="Only transform values that match the pattern"
-          persistent-hint
-          density="compact"
-          @update:model-value="updateOptions"
-        ></v-switch>
+          icon="mdi-information-outline"
+          class="text-caption mt-3"
+        >
+          <strong>Pattern Syntax:</strong><br>
+          - Simple text: Exact match, global replacement<br>
+          - /pattern/flags: Full regex with flags (g, i, m, etc.)
+        </v-alert>
       </v-col>
     </v-row>
     
-    <v-row dense v-if="showAttributeFilter">
+    <v-row dense v-if="showTransformNote">
       <v-col cols="12">
-        <div class="text-subtitle-2 mb-2">Targeting Options</div>
-      </v-col>
-      
-      <v-col cols="12">
-        <v-text-field
-          v-model="localOptions.attributeFilter"
-          label="Attribute Filter"
-          placeholder="name, price, etc."
-          hint="Only transform attributes with this name"
-          persistent-hint
+        <v-alert
+          type="info"
+          variant="tonal"
           density="compact"
-          @update:model-value="updateOptions"
-        ></v-text-field>
+          icon="mdi-information-outline"
+          class="text-caption mt-3"
+        >
+          <strong>Need more targeting control?</strong><br>
+          Use <code>select()</code> and <code>filter()</code> before transform to target specific nodes:
+          <br><code>.select(node => node.name === 'phone')</code>
+          <br><code>.filter(node => node.value?.length > 10)</code>
+          <br><code>.transform(regex('[^0-9]', ''))</code>
+        </v-alert>
       </v-col>
     </v-row>
   </v-container>
@@ -129,22 +122,19 @@ const props = defineProps({
       values: true,
       attributes: true,
       intent: 'parse',
-      attributeFilter: undefined,
       
       // Regex transform specific options
       pattern: '',
-      replacement: '',
-      flags: 'g',
-      matchOnly: false
+      replacement: ''
     })
   }
 });
 
 const emit = defineEmits(['update']);
 
-// Compute whether to show attribute filter section
-const showAttributeFilter = computed(() => {
-  return localOptions.attributes === true;
+// Show transform note only when targeting options are used
+const showTransformNote = computed(() => {
+  return localOptions.values !== true || localOptions.attributes !== true;
 });
 
 // Create a local reactive copy of the props
@@ -153,13 +143,10 @@ const localOptions = reactive({
   values: props.value.values !== undefined ? props.value.values : true,
   attributes: props.value.attributes !== undefined ? props.value.attributes : true,
   intent: props.value.intent || 'parse',
-  attributeFilter: props.value.attributeFilter,
   
   // Regex transform specific options
   pattern: props.value.pattern || '',
-  replacement: props.value.replacement || '',
-  flags: props.value.flags || 'g',
-  matchOnly: props.value.matchOnly || false
+  replacement: props.value.replacement || ''
 });
 
 // Emit changes to the parent
@@ -175,13 +162,10 @@ watch(() => props.value, (newValue) => {
       values: newValue.values !== undefined ? newValue.values : true,
       attributes: newValue.attributes !== undefined ? newValue.attributes : true,
       intent: newValue.intent || 'parse',
-      attributeFilter: newValue.attributeFilter,
       
       // Regex transform specific options
       pattern: newValue.pattern || '',
-      replacement: newValue.replacement || '',
-      flags: newValue.flags || 'g',
-      matchOnly: newValue.matchOnly || false
+      replacement: newValue.replacement || ''
     });
   }
 }, { deep: true });

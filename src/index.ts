@@ -68,7 +68,6 @@ export {
   toNumber,
   toBoolean,
   regex,
-  regexMulti,
   
   // Options interfaces
   NumberOptions,

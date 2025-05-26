@@ -7,17 +7,26 @@ import { Transform, TransformOptions, TransformIntent, createTransform } from '.
  * Options for regex transform
  */
 export interface RegexOptions extends TransformOptions {
-  /**
-   * Whether to only apply to values that match the pattern (default: false)
-   * When true, non-matching values are left unchanged
-   */
-  matchOnly?: boolean;
-  
-  /**
-   * Regular expression flags (default: 'g')
-   * Only used when pattern is a string
-   */
-  flags?: string;
+  // Only inherits standard TransformOptions
+}
+
+/**
+ * Detect if a string is a regular expression pattern
+ * Matches patterns like: /pattern/flags
+ * 
+ * @param pattern String to check
+ * @returns Object with the parsed regex and flags if it's a regex pattern, null otherwise
+ */
+function parseRegexPattern(pattern: string): { source: string, flags: string } | null {
+  // Match /pattern/flags format
+  const match = pattern.match(/^\/(.+)\/([gimuy]*)$/);
+  if (match) {
+    return {
+      source: match[1],
+      flags: match[2]
+    };
+  }
+  return null;
 }
 
 /**
@@ -25,19 +34,16 @@ export interface RegexOptions extends TransformOptions {
  * 
  * @example
  * ```
- * // PARSE mode (default): Apply to all string values
- * xjx.transform(regex(/\s+/g, ''));
+ * // Simple text replacement (global, case-sensitive)
+ * xjx.transform(regex('hello', 'hi'));
  * 
- * // Add currency symbol
- * xjx.transform(regex(/^(\d+(\.\d+)?)$/, '$$$1'));
+ * // Full regex with flags
+ * xjx.transform(regex('/hello/gi', 'hi'));
  * 
- * // With string pattern and custom flags
- * xjx.transform(regex('hello', 'hi', { flags: 'gi' }));
+ * // Using RegExp object
+ * xjx.transform(regex(/hello/gi, 'hi'));
  * 
- * // Only transform matching values
- * xjx.transform(regex(/^\d+$/, 'NUMBER', { matchOnly: true }));
- * 
- * // SERIALIZE mode: Only apply to string values when serializing
+ * // SERIALIZE mode: Only apply when serializing
  * xjx.transform(regex(/\d{4}-\d{2}-\d{2}/, 'DATE', { 
  *   intent: TransformIntent.SERIALIZE 
  * }));
@@ -45,7 +51,7 @@ export interface RegexOptions extends TransformOptions {
  * 
  * @param pattern Regular expression pattern (string or RegExp)
  * @param replacement Replacement string (can use capture groups)
- * @param options Regex transform options
+ * @param options Transform options
  * @returns A regex transform function
  */
 export function regex(
@@ -54,23 +60,36 @@ export function regex(
   options: RegexOptions = {}
 ): Transform {
   const {
-    matchOnly = false,
-    flags = 'g',
     intent = TransformIntent.PARSE,
     ...restOptions
   } = options;
   
-  // Create RegExp object
-  const re = pattern instanceof RegExp 
-    ? new RegExp(pattern.source, pattern.flags) 
-    : new RegExp(pattern, flags);
+  // Create RegExp object based on input type
+  let re: RegExp;
+  
+  if (pattern instanceof RegExp) {
+    // Use the RegExp object as is
+    re = pattern;
+  } else if (typeof pattern === 'string') {
+    // Check if the string is in /pattern/flags format
+    const parsed = parseRegexPattern(pattern);
+    if (parsed) {
+      // Create RegExp from parsed pattern and flags
+      re = new RegExp(parsed.source, parsed.flags);
+    } else {
+      // Simple text pattern - make it global and case-sensitive
+      // Escape special regex characters
+      const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      re = new RegExp(escaped, 'g');
+    }
+  } else {
+    throw new Error('Pattern must be a string or RegExp');
+  }
   
   // Include all options in transformOptions, including intent
   const transformOptions = {
     ...restOptions,
-    intent,
-    matchOnly,
-    flags
+    intent
   };
   
   return createTransform((value: any, context?: any) => {
@@ -89,98 +108,10 @@ export function regex(
     
     // In SERIALIZE mode, only transform if the intent matches
     if (currentIntent === TransformIntent.SERIALIZE && intent !== TransformIntent.SERIALIZE) {
-      return value;
-    }
-    
-    // Check if we should only transform matching values
-    if (matchOnly && !re.test(value)) {
-      // Reset lastIndex since test() advances it
-      re.lastIndex = 0;
       return value;
     }
     
     // Apply replacement
     return value.replace(re, replacement);
-  }, transformOptions);
-}
-
-/**
- * Extended regex transform with support for multiple patterns
- * 
- * @example
- * ```
- * // Apply multiple replacements in sequence
- * xjx.transform(regexMulti([
- *   { pattern: /\s+/g, replacement: ' ' },  // Normalize whitespace
- *   { pattern: /[^\w\s]/g, replacement: '' }, // Remove special chars
- *   { pattern: /^\s+|\s+$/g, replacement: '' } // Trim
- * ]));
- * ```
- * 
- * @param patterns Array of pattern and replacement pairs
- * @param options Regex transform options
- * @returns A regex transform function
- */
-export function regexMulti(
-  patterns: Array<{ pattern: RegExp | string, replacement: string, flags?: string }>,
-  options: RegexOptions = {}
-): Transform {
-  const { 
-    matchOnly = false, 
-    intent = TransformIntent.PARSE,
-    ...restOptions 
-  } = options;
-  
-  // Include all options in transformOptions, including intent
-  const transformOptions = {
-    ...restOptions,
-    intent,
-    matchOnly
-  };
-  
-  // Create RegExp objects for all patterns
-  const regexps = patterns.map(({ pattern, replacement, flags = 'g' }) => {
-    const re = pattern instanceof RegExp 
-      ? new RegExp(pattern.source, pattern.flags) 
-      : new RegExp(pattern, flags);
-    
-    return { re, replacement };
-  });
-  
-  return createTransform((value: any, context?: any) => {
-    // Handle null/undefined
-    if (value == null) {
-      return value;
-    }
-    
-    // Only transform strings
-    if (typeof value !== 'string') {
-      return value;
-    }
-    
-    // Get the current intent (from context or from options)
-    const currentIntent = context?.intent || intent;
-    
-    // In SERIALIZE mode, only transform if the intent matches
-    if (currentIntent === TransformIntent.SERIALIZE && intent !== TransformIntent.SERIALIZE) {
-      return value;
-    }
-    
-    // Apply each pattern in sequence
-    let result = value;
-    
-    for (const { re, replacement } of regexps) {
-      // Check if we should only transform matching values
-      if (matchOnly && !re.test(result)) {
-        // Reset lastIndex since test() advances it
-        re.lastIndex = 0;
-        continue;
-      }
-      
-      // Apply replacement
-      result = result.replace(re, replacement);
-    }
-    
-    return result;
   }, transformOptions);
 }

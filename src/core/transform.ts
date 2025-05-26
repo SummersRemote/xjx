@@ -62,6 +62,7 @@ export enum TransformIntent {
 
 /**
  * Options for customizing transform behavior
+ * Simplified to focus on core options, removing redundant filters
  */
 export interface TransformOptions {
   /**
@@ -73,18 +74,6 @@ export interface TransformOptions {
    * Apply to attribute values (default: true)
    */
   attributes?: boolean;
-  
-  /**
-   * Filter for specific attributes (optional)
-   * Only attributes matching this filter will be transformed
-   */
-  attributeFilter?: string | RegExp | ((name: string) => boolean);
-  
-  /**
-   * Filter for specific nodes by path (optional)
-   * Only nodes matching this path filter will be transformed
-   */
-  pathFilter?: string | RegExp | ((path: string) => boolean);
   
   /**
    * Direction of transformation (default: TransformIntent.PARSE)
@@ -130,20 +119,8 @@ export function createTransform(
   const {
     values = true,
     attributes = true,
-    attributeFilter,
-    pathFilter,
     intent = TransformIntent.PARSE
   } = options;
-  
-  // Create a matcher function for attribute filter if provided
-  const matchesAttribute = attributeFilter 
-    ? createMatcher(attributeFilter)
-    : () => true;
-  
-  // Create a matcher function for path filter if provided
-  const matchesPath = pathFilter
-    ? createMatcher(pathFilter)
-    : () => true;
   
   // Return the transform function with proper error handling
   return (value: any, context?: TransformContext): any => {

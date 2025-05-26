@@ -110,11 +110,29 @@
         ></v-text-field>
       </v-col>
     </v-row>
+    
+    <v-row dense v-if="showTransformNote">
+      <v-col cols="12">
+        <v-alert
+          type="info"
+          variant="tonal"
+          density="compact"
+          icon="mdi-information-outline"
+          class="text-caption mt-3"
+        >
+          <strong>Need more targeting control?</strong><br>
+          Use <code>select()</code> and <code>filter()</code> before transform to target specific nodes:
+          <br><code>.select(node => node.name === 'active')</code>
+          <br><code>.filter(node => node.attributes?.type === 'checkbox')</code>
+          <br><code>.transform(toBoolean())</code>
+        </v-alert>
+      </v-col>
+    </v-row>
   </v-container>
 </template>
 
 <script setup>
-import { reactive, watch } from 'vue';
+import { reactive, watch, computed } from 'vue';
 
 // Intent options
 const intentItems = [
@@ -142,6 +160,11 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['update']);
+
+// Show transform note only when targeting options are used
+const showTransformNote = computed(() => {
+  return localOptions.values !== true || localOptions.attributes !== true;
+});
 
 // Create a local reactive copy of the props
 const localOptions = reactive({

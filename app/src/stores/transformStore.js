@@ -117,8 +117,6 @@ export const useTransformStore = defineStore('transform', {
             ...commonOptions,
             pattern: '',
             replacement: '',
-            flags: 'g',
-            matchOnly: false,
             attributeFilter: undefined
           };
           

@@ -1,7 +1,8 @@
 /**
- * Updated transform extension for XJX - Now properly handles TransformIntent
+ * Simplified transform extension for XJX
  * 
- * Implements the transform function with proper targeting and intent support
+ * Implements the transform function with basic targeting and intent support
+ * Relies on select() and filter() for more complex node targeting
  */
 import { XJX } from "../XJX";
 import { XNode, cloneNode } from "../core/xnode";
@@ -12,7 +13,7 @@ import { transformXNode } from "../converters/xnode-transformer";
 
 /**
  * Implementation for applying transforms to the current selection
- * Now properly supports TransformIntent for bidirectional transformations
+ * Simplified to focus on basic targeting (values/attributes) and intent
  * 
  * @example
  * ```
@@ -22,17 +23,18 @@ import { transformXNode } from "../converters/xnode-transformer";
  * // Transform only node values, not attributes
  * xjx.transform(toNumber(), { values: true, attributes: false });
  * 
- * // Transform only specific attributes
- * xjx.transform(toNumber(), { 
- *   values: false, 
- *   attributes: true,
- *   attributeFilter: 'price' 
- * });
+ * // Transform only attributes, not node values
+ * xjx.transform(toNumber(), { values: false, attributes: true });
  * 
  * // Serialize mode - convert numbers to strings
  * xjx.transform(toNumber({ format: '0.00' }), { 
  *   intent: TransformIntent.SERIALIZE 
  * });
+ * 
+ * // For more complex targeting, use select() and filter() first:
+ * xjx.select(node => node.name === 'price')
+ *    .filter(node => node.attributes && node.attributes.currency === 'USD')
+ *    .transform(toNumber());
  * ```
  * 
  * @param transformer Transform function to apply
@@ -53,16 +55,12 @@ export function transform(
     const {
       values = true,
       attributes = true,
-      attributeFilter,
-      pathFilter,
       intent = TransformIntent.PARSE
     } = options;
     
     logger.debug('Applying transform with targeting options', { 
       values, 
       attributes, 
-      hasAttributeFilter: !!attributeFilter,
-      hasPathFilter: !!pathFilter,
       intent: intent === TransformIntent.PARSE ? 'PARSE' : 'SERIALIZE'
     });
     
@@ -78,7 +76,7 @@ export function transform(
     // Apply the transforms to the node, including intent
     this.xnode = transformXNode(
       currentNode, 
-      [wrapTransformWithOptions(transformer, { values, attributes, attributeFilter, pathFilter })],
+      [wrapTransformWithOptions(transformer, { values, attributes })],
       this.config,
       { intent }
     );
@@ -100,39 +98,25 @@ function wrapTransformWithOptions(
   transform: Transform,
   options: { 
     values: boolean; 
-    attributes: boolean; 
-    attributeFilter?: string | RegExp | ((name: string) => boolean);
-    pathFilter?: string | RegExp | ((path: string) => boolean);
+    attributes: boolean;
   }
 ): Transform {
-  const { values, attributes, attributeFilter, pathFilter } = options;
+  const { values, attributes } = options;
   
   return (value: any, context?: TransformContext): any => {
     // If no context is provided, create an empty one
     const ctx = context || {};
     
-    // Get path and attribute information from context
-    const path = ctx.path || '';
+    // Check if the value is from an attribute
     const isAttribute = ctx.isAttribute || false;
-    const attributeName = ctx.attributeName || '';
     
     // Check if we should apply the transform based on options
     if (isAttribute) {
       if (!attributes) {
         return value;
       }
-      
-      // Check attribute filter if provided
-      if (attributeFilter && !matchesFilter(attributeName, attributeFilter)) {
-        return value;
-      }
     } else {
       if (!values) {
-        return value;
-      }
-      
-      // Check path filter if provided
-      if (pathFilter && !matchesFilter(path, pathFilter)) {
         return value;
       }
     }
@@ -140,28 +124,6 @@ function wrapTransformWithOptions(
     // Apply the transform with the provided context
     return transform(value, ctx);
   };
-}
-
-/**
- * Check if a string matches a filter (string, RegExp, or function)
- */
-function matchesFilter(
-  input: string, 
-  filter: string | RegExp | ((input: string) => boolean)
-): boolean {
-  try {
-    if (typeof filter === 'string') {
-      return input === filter;
-    } else if (filter instanceof RegExp) {
-      return filter.test(input);
-    } else if (typeof filter === 'function') {
-      return filter(input);
-    }
-    return true;
-  } catch (err) {
-    logger.warn('Error in filter evaluation', { input, error: err });
-    return false;
-  }
 }
 
 // Register the transform extension with XJX

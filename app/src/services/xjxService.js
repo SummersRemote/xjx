@@ -285,16 +285,6 @@ class XJXService {
           TransformIntent.SERIALIZE : TransformIntent.PARSE;
       }
       
-      // Add optional attribute filter
-      if (attributeFilter) {
-        transformOptions.attributeFilter = attributeFilter;
-      }
-      
-      // Add optional path filter
-      if (pathFilter) {
-        transformOptions.pathFilter = pathFilter;
-      }
-      
       switch (transform.type) {
         case 'BooleanTransform': {
           const options = { ...transform.options };
@@ -333,10 +323,8 @@ class XJXService {
             const pattern = options.pattern;
             const replacement = options.replacement || '';
             
-            // Extract regex-specific options
+            // Extract transform options
             const regexOptions = {
-              matchOnly: options.matchOnly,
-              flags: options.flags || 'g',
               ...transformOptions
             };
             
@@ -459,14 +447,6 @@ class XJXService {
           
           // Extract regex-specific options
           const regexOptions = { ...commonOptions };
-          
-          if (options.matchOnly) {
-            regexOptions.matchOnly = true;
-          }
-          
-          if (options.flags && options.flags !== 'g') {
-            regexOptions.flags = options.flags;
-          }
           
           // Generate code with options if needed
           const hasOptions = Object.keys(regexOptions).length > 0;

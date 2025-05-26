@@ -77,32 +77,53 @@ export const useTransformStore = defineStore('transform', {
      * @returns {Object} Default options
      */
     getDefaultOptions(type) {
+      // Common transform options shared by all transform types
+      const commonOptions = {
+        values: true,
+        attributes: true,
+        intent: 'parse'
+      };
+      
       switch (type) {
         case 'BooleanTransform':
           return {
+            ...commonOptions,
+            // Parse mode options
             trueValues: ['true', 'yes', '1', 'on'],
             falseValues: ['false', 'no', '0', 'off'],
             ignoreCase: true,
-            format: undefined
+            // Serialize mode options
+            trueString: 'true',
+            falseString: 'false'
           };
+          
         case 'NumberTransform':
           return {
+            ...commonOptions,
+            // Parse mode options
             integers: true,
             decimals: true,
             scientific: true,
-            strictParsing: true,
             decimalSeparator: '.',
             thousandsSeparator: ',',
+            // Common options for both modes
+            precision: undefined,
+            // Serialize mode options
             format: undefined
           };
+          
         case 'RegexTransform':
           return {
+            ...commonOptions,
             pattern: '',
             replacement: '',
-            format: undefined
+            flags: 'g',
+            matchOnly: false,
+            attributeFilter: undefined
           };
+          
         default:
-          return {};
+          return commonOptions;
       }
     }
   }

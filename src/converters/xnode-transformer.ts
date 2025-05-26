@@ -4,8 +4,8 @@
  * Applies transformations to XNode using transform functions.
  */
 import { Configuration } from '../core/config';
-import { XNode } from '../core/xnode';
-import { Transform } from '../core/transform';
+import { XNode, cloneNode } from '../core/xnode';
+import { Transform, TransformIntent, TransformContext } from '../core/transform';
 import { NodeType } from '../core/dom';
 import { logger } from '../core/error';
 
@@ -14,12 +14,14 @@ import { logger } from '../core/error';
  * @param node XNode to transform
  * @param transforms Transformations to apply
  * @param config Configuration
+ * @param options Transform options including intent
  * @returns Transformed XNode
  */
 export function transformXNode(
   node: XNode,
   transforms: Transform[],
-  config: Configuration
+  config: Configuration,
+  options: { intent?: TransformIntent } = {}
 ): XNode {
   // Skip if no transforms to apply
   if (!transforms || transforms.length === 0) {
@@ -29,16 +31,17 @@ export function transformXNode(
 
   logger.debug('Starting node transformation', { 
     nodeName: node.name, 
-    transformCount: transforms.length
+    transformCount: transforms.length,
+    intent: options.intent || 'PARSE'
   });
 
   try {
-    // Create a deep clone of the node to avoid modifying the original
-    // Note: We're not using XNode.cloneNode here to avoid circular dependencies
-    const clonedNode = JSON.parse(JSON.stringify(node));
+    // Create a deep clone of the node using cloneNode instead of JSON.stringify/parse
+    // This properly handles circular references like parent properties
+    const clonedNode = cloneNode(node, true);
     
     // Apply transformations to the node and its descendants
-    const transformedNode = processNode(clonedNode, transforms);
+    const transformedNode = processNode(clonedNode, transforms, options.intent);
 
     logger.debug('Successfully transformed node', { 
       nodeName: transformedNode.name, 
@@ -60,25 +63,30 @@ export function transformXNode(
  * Process a node and its descendants with transforms
  * @param node Node to process
  * @param transforms Transforms to apply
+ * @param intent Transform intent (PARSE or SERIALIZE)
  * @returns Processed node
  */
 function processNode(
-  node: XNode,
-  transforms: Transform[]
+  node: XNode, 
+  transforms: Transform[],
+  intent?: TransformIntent
 ): XNode {
   // Apply transforms to node value
   if (node.value !== undefined) {
-    node.value = applyTransforms(node.value, transforms);
+    node.value = applyTransforms(node.value, transforms, {
+      intent,
+      path: node.name
+    });
   }
 
   // Apply transforms to attributes
   if (node.attributes) {
-    transformAttributes(node, transforms);
+    transformAttributes(node, transforms, intent);
   }
 
   // Apply transforms to children
   if (node.children && node.children.length > 0) {
-    transformChildren(node, transforms);
+    transformChildren(node, transforms, intent);
   }
 
   return node;
@@ -88,15 +96,18 @@ function processNode(
  * Apply a series of transforms to a value
  * @param value Value to transform
  * @param transforms Transforms to apply
+ * @param context Transform context including intent
  * @returns Transformed value
  */
 function applyTransforms(
   value: any,
-  transforms: Transform[]
+  transforms: Transform[],
+  context: TransformContext = {}
 ): any {
   return transforms.reduce((result, transform) => {
     try {
-      return transform(result);
+      // Pass the context to the transform
+      return transform(result, context);
     } catch (err) {
       logger.warn('Error applying transform to value', {
         value,
@@ -108,23 +119,39 @@ function applyTransforms(
 }
 
 /**
- * Transform node attributes
+ * Transform node attributes with filtering
  * @param node Node to transform
  * @param transforms Transforms to apply
+ * @param intent Transform intent (PARSE or SERIALIZE)
  */
 function transformAttributes(
   node: XNode,
-  transforms: Transform[]
+  transforms: Transform[],
+  intent?: TransformIntent
 ): void {
   if (!node.attributes) return;
 
-  // Apply transforms to each attribute value
   for (const [key, value] of Object.entries(node.attributes)) {
     // Skip xmlns attributes since they're handled separately
     if (key === "xmlns" || key.startsWith("xmlns:")) continue;
     
     // Apply transforms to attribute value
-    node.attributes[key] = applyTransforms(value, transforms);
+    try {
+      node.attributes[key] = applyTransforms(value, transforms, {
+        intent,
+        isAttribute: true,
+        attributeName: key,
+        path: `${node.name}[@${key}]`
+      });
+    } catch (err) {
+      logger.warn('Error transforming attribute', { 
+        nodeName: node.name, 
+        attributeName: key, 
+        attributeValue: value,
+        error: err 
+      });
+      // Continue processing other attributes on error
+    }
   }
 }
 
@@ -132,10 +159,12 @@ function transformAttributes(
  * Transform child nodes
  * @param node Parent node
  * @param transforms Transforms to apply
+ * @param intent Transform intent (PARSE or SERIALIZE)
  */
 function transformChildren(
   node: XNode,
-  transforms: Transform[]
+  transforms: Transform[],
+  intent?: TransformIntent
 ): void {
   if (!node.children || node.children.length === 0) return;
 
@@ -149,13 +178,16 @@ function transformChildren(
       case NodeType.CDATA_SECTION_NODE:
         // For text and CDATA nodes, transform the value
         if (child.value !== undefined) {
-          child.value = applyTransforms(child.value, transforms);
+          child.value = applyTransforms(child.value, transforms, {
+            intent,
+            path: `${node.name}/text()[${i}]`
+          });
         }
         break;
         
       case NodeType.ELEMENT_NODE:
         // Recursively process element nodes
-        processNode(child, transforms);
+        processNode(child, transforms, intent);
         break;
         
       case NodeType.COMMENT_NODE:

@@ -8,9 +8,40 @@ import { XNode } from './xnode';
 import { Configuration } from './config';
 
 /**
- * Core Transform type - just a function that transforms a value
+ * Context information passed to transforms
+ * Contains metadata about the transformation process
  */
-export type Transform = (value: any) => any;
+export interface TransformContext {
+  /**
+   * Transformation intent (PARSE or SERIALIZE)
+   */
+  intent?: TransformIntent;
+  
+  /**
+   * Whether the current value is from an attribute
+   */
+  isAttribute?: boolean;
+  
+  /**
+   * Name of the attribute (if isAttribute is true)
+   */
+  attributeName?: string;
+  
+  /**
+   * Current path in the document
+   */
+  path?: string;
+  
+  /**
+   * Additional context properties
+   */
+  [key: string]: any;
+}
+
+/**
+ * Core Transform type - function that transforms a value with optional context
+ */
+export type Transform = (value: any, context?: TransformContext) => any;
 
 /**
  * Transform intent - determines direction of transformation
@@ -80,8 +111,8 @@ export interface TransformOptions {
  * @returns A composed transform function
  */
 export function compose(...transforms: Transform[]): Transform {
-  return (value: any) => {
-    return transforms.reduce((result, transform) => transform(result), value);
+  return (value: any, context?: TransformContext) => {
+    return transforms.reduce((result, transform) => transform(result, context), value);
   };
 }
 
@@ -93,14 +124,15 @@ export function compose(...transforms: Transform[]): Transform {
  * @returns A new transform function
  */
 export function createTransform(
-  transformer: (value: any) => any,
+  transformer: (value: any, context?: TransformContext) => any,
   options: TransformOptions = {}
 ): Transform {
   const {
     values = true,
     attributes = true,
     attributeFilter,
-    pathFilter
+    pathFilter,
+    intent = TransformIntent.PARSE
   } = options;
   
   // Create a matcher function for attribute filter if provided
@@ -114,9 +146,15 @@ export function createTransform(
     : () => true;
   
   // Return the transform function with proper error handling
-  return (value: any) => {
+  return (value: any, context?: TransformContext): any => {
     try {
-      return transformer(value);
+      // Create a merged context with our options and passed context
+      const mergedContext: TransformContext = {
+        ...(context || {}),
+        intent: context?.intent || intent
+      };
+      
+      return transformer(value, mergedContext);
     } catch (err) {
       // If transformation fails, return original value
       console.warn(`Transform error: ${err instanceof Error ? err.message : String(err)}`);
@@ -181,13 +219,13 @@ export function createTransformResult<T>(value: T, remove: boolean = false): Tra
 /**
  * Legacy context for transforms
  */
-export interface TransformContext {
+export interface LegacyTransformContext {
   nodeName: string;
   nodeType: number;
   path: string;
   config: Configuration;
   targetFormat: FORMAT;
-  parent?: TransformContext;
+  parent?: LegacyTransformContext;
   namespace?: string;
   prefix?: string;
   isAttribute?: boolean;
@@ -205,7 +243,7 @@ export function createRootContext(
   targetFormat: FORMAT,
   rootNode: XNode,
   config: Configuration
-): TransformContext {
+): LegacyTransformContext {
   return {
     nodeName: rootNode.name,
     nodeType: rootNode.type,
@@ -222,13 +260,13 @@ export function createRootContext(
  */
 export interface LegacyTransform {
   targets: TransformTarget[];
-  transform(value: any, context: TransformContext): TransformResult<any>;
+  transform(value: any, context: LegacyTransformContext): TransformResult<any>;
 }
 
 /**
  * Get context target type (legacy)
  */
-export function getContextTargetType(context: TransformContext): TransformTarget {
+export function getContextTargetType(context: LegacyTransformContext): TransformTarget {
   if (context.isAttribute) {
     return TransformTarget.Attribute;
   }
@@ -245,7 +283,7 @@ export function getContextTargetType(context: TransformContext): TransformTarget
  */
 export function applyTransforms<T>(
   value: T,
-  context: TransformContext,
+  context: LegacyTransformContext,
   transforms: LegacyTransform[],
   targetType: TransformTarget
 ): TransformResult<T> {

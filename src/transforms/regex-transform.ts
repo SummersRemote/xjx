@@ -29,7 +29,7 @@ export interface RegexOptions extends TransformOptions {
  * xjx.transform(regex(/\s+/g, ''));
  * 
  * // Add currency symbol
- * xjx.transform(regex(/^(\d+(\.\d+)?)$/, '$$1'));
+ * xjx.transform(regex(/^(\d+(\.\d+)?)$/, '$$$1'));
  * 
  * // With string pattern and custom flags
  * xjx.transform(regex('hello', 'hi', { flags: 'gi' }));
@@ -37,7 +37,7 @@ export interface RegexOptions extends TransformOptions {
  * // Only transform matching values
  * xjx.transform(regex(/^\d+$/, 'NUMBER', { matchOnly: true }));
  * 
- * // SERIALIZE mode: Only apply to string values
+ * // SERIALIZE mode: Only apply to string values when serializing
  * xjx.transform(regex(/\d{4}-\d{2}-\d{2}/, 'DATE', { 
  *   intent: TransformIntent.SERIALIZE 
  * }));
@@ -57,7 +57,7 @@ export function regex(
     matchOnly = false,
     flags = 'g',
     intent = TransformIntent.PARSE,
-    ...transformOptions
+    ...restOptions
   } = options;
   
   // Create RegExp object
@@ -65,7 +65,15 @@ export function regex(
     ? new RegExp(pattern.source, pattern.flags) 
     : new RegExp(pattern, flags);
   
-  return createTransform((value: any) => {
+  // Include all options in transformOptions, including intent
+  const transformOptions = {
+    ...restOptions,
+    intent,
+    matchOnly,
+    flags
+  };
+  
+  return createTransform((value: any, context?: any) => {
     // Handle null/undefined
     if (value == null) {
       return value;
@@ -76,9 +84,11 @@ export function regex(
       return value;
     }
     
-    // In SERIALIZE mode, only transform if the intent is to produce a string representation
-    // In PARSE mode, always transform strings
-    if (intent === TransformIntent.SERIALIZE && typeof value !== 'string') {
+    // Get the current intent (from context or from options)
+    const currentIntent = context?.intent || intent;
+    
+    // In SERIALIZE mode, only transform if the intent matches
+    if (currentIntent === TransformIntent.SERIALIZE && intent !== TransformIntent.SERIALIZE) {
       return value;
     }
     
@@ -118,8 +128,15 @@ export function regexMulti(
   const { 
     matchOnly = false, 
     intent = TransformIntent.PARSE,
-    ...transformOptions 
+    ...restOptions 
   } = options;
+  
+  // Include all options in transformOptions, including intent
+  const transformOptions = {
+    ...restOptions,
+    intent,
+    matchOnly
+  };
   
   // Create RegExp objects for all patterns
   const regexps = patterns.map(({ pattern, replacement, flags = 'g' }) => {
@@ -130,7 +147,7 @@ export function regexMulti(
     return { re, replacement };
   });
   
-  return createTransform((value: any) => {
+  return createTransform((value: any, context?: any) => {
     // Handle null/undefined
     if (value == null) {
       return value;
@@ -141,9 +158,11 @@ export function regexMulti(
       return value;
     }
     
-    // In SERIALIZE mode, only transform if the intent is to produce a string representation
-    // In PARSE mode, always transform strings
-    if (intent === TransformIntent.SERIALIZE && typeof value !== 'string') {
+    // Get the current intent (from context or from options)
+    const currentIntent = context?.intent || intent;
+    
+    // In SERIALIZE mode, only transform if the intent matches
+    if (currentIntent === TransformIntent.SERIALIZE && intent !== TransformIntent.SERIALIZE) {
       return value;
     }
     

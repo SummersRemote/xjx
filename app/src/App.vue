@@ -47,11 +47,12 @@
           </v-col>
         </v-row>
         
-        <v-row>
-          <v-col cols="12">
-            <TransformManager />
-          </v-col>
-        </v-row>
+<v-row>
+  <v-col cols="12">
+    <PipelineManager />
+  </v-col>
+</v-row>
+
       </v-container>
     </v-main>
 
@@ -72,7 +73,7 @@ import { ref } from 'vue';
 import EditorPanel from '@/components/EditorPanel.vue';
 import ConfigPanel from '@/components/ConfigPanel.vue';
 import ConfigViewer from '@/components/ConfigViewer.vue';
-import TransformManager from '@/components/TransformManager.vue';
+import PipelineManager from '@/components/PipelineManager.vue'; // Updated import
 import APIViewer from '@/components/APIViewer.vue';
 
 // References for dialogs

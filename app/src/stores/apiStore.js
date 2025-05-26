@@ -1,8 +1,8 @@
-// stores/apiStore.js
+// stores/apiStore.js - updated to use the pipeline store
 import { defineStore } from 'pinia';
 import XJXService from '../services/xjxService';
 import { useConfigStore } from './configStore';
-import { useTransformStore } from './transformStore';
+import { usePipelineStore } from './pipelineStore';
 import { useEditorStore } from './editorStore';
 
 export const useAPIStore = defineStore('api', {
@@ -17,7 +17,7 @@ export const useAPIStore = defineStore('api', {
      */
     updateFluentAPI() {
       const configStore = useConfigStore();
-      const transformStore = useTransformStore();
+      const pipelineStore = usePipelineStore();
       const editorStore = useEditorStore();
       
       // Use the last direction for API generation
@@ -36,7 +36,7 @@ export const useAPIStore = defineStore('api', {
         fromType,
         content,
         configForApi,
-        transformStore.transforms,
+        pipelineStore.steps,
         this.jsonFormat
       );
     },

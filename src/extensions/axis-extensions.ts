@@ -1,21 +1,20 @@
 /**
  * Axis navigation extensions for XJX
  * 
- * This file implements all axis navigation extensions:
+ * This file implements downward traversal and root navigation:
  * - children: Select direct child nodes
  * - descendants: Select all descendant nodes
- * - parent: Navigate to parent node
- * - ancestors: Navigate to ancestor nodes
- * - siblings: Select sibling nodes
+ * - root: Navigate to the root node of the current selection
  */
 import { XJX } from "../XJX";
 import { XNode, cloneNode } from "../core/xnode";
-import { logger, validate, ValidationError } from "../core/error";
+import { logger, validate } from "../core/error";
 import { NonTerminalExtensionContext } from "../core/extension";
 import { 
   findDescendants, 
   createResultNode,
-  processResults 
+  processResults,
+  isResultsContainer
 } from "./functional-utils";
 
 /**
@@ -107,157 +106,68 @@ export function descendants(
 }
 
 /**
- * Implementation for navigating to the parent node of the current node
+ * Implementation for navigating to the root node of the current selection
+ * @param fragmentRoot Optional container element name or XNode (ignored for root)
  * @returns this for chaining
  */
-export function parent(this: NonTerminalExtensionContext): void {
-  try {
-    // API boundary validation
-    this.validateSource();
-    
-    logger.debug('Navigating to parent node');
-    
-    const currentNode = this.xnode as XNode;
-    
-    // Check if parent exists
-    if (currentNode.parent) {
-      // Create a deep clone of the parent to avoid mutation
-      this.xnode = cloneNode(currentNode.parent, true);
-      logger.debug('Successfully navigated to parent node');
-    } else {
-      // No parent - throw error
-      throw new ValidationError('Current node has no parent');
-    }
-  } catch (err) {
-    if (err instanceof Error) {
-      throw err;
-    }
-    throw new Error(`Failed to navigate to parent: ${String(err)}`);
-  }
-}
-
-/**
- * Implementation for selecting ancestor nodes of the current node
- * @param predicate Optional function to filter ancestors (defaults to all ancestors)
- * @param fragmentRoot Optional container element name or XNode
- * @returns this for chaining
- */
-export function ancestors(
+export function root(
   this: NonTerminalExtensionContext, 
-  predicate?: (node: XNode) => boolean,
   fragmentRoot?: string | XNode
 ): void {
   try {
     // API boundary validation
     this.validateSource();
     
-    // If predicate not provided, match all nodes
-    const effectivePredicate = predicate || (() => true);
-    validate(typeof effectivePredicate === 'function', "Predicate must be a function");
-    
-    logger.debug('Selecting ancestors of current node');
+    logger.debug('Navigating to root node');
     
     const currentNode = this.xnode as XNode;
     
-    // Find all matching ancestors
-    const matches: XNode[] = [];
-    let ancestor = currentNode.parent;
-    
-    while (ancestor) {
-      try {
-        if (effectivePredicate(ancestor)) {
-          matches.push(ancestor);
-        }
-      } catch (err) {
-        logger.warn(`Error evaluating predicate on ancestor node: ${ancestor.name}`, { error: err });
-      }
-      
-      // Move up to next ancestor
-      ancestor = ancestor.parent;
-    }
-    
-    logger.debug(`Found ${matches.length} matching ancestors`);
-    
-    // Process results and set as current node
-    this.xnode = processResults(this, matches, fragmentRoot);
-    
-    logger.debug('Ancestor selection completed successfully');
-  } catch (err) {
-    if (err instanceof Error) {
-      throw err;
-    }
-    throw new Error(`Failed to select ancestors: ${String(err)}`);
-  }
-}
-
-/**
- * Implementation for selecting sibling nodes of the current node
- * @param predicate Optional function to filter siblings (defaults to all siblings)
- * @param fragmentRoot Optional container element name or XNode
- * @returns this for chaining
- */
-export function siblings(
-  this: NonTerminalExtensionContext, 
-  predicate?: (node: XNode) => boolean,
-  fragmentRoot?: string | XNode
-): void {
-  try {
-    // API boundary validation
-    this.validateSource();
-    
-    // If predicate not provided, match all nodes
-    const effectivePredicate = predicate || (() => true);
-    validate(typeof effectivePredicate === 'function', "Predicate must be a function");
-    
-    logger.debug('Selecting siblings of current node');
-    
-    const currentNode = this.xnode as XNode;
-    
-    // Get siblings from parent
-    if (!currentNode.parent || !currentNode.parent.children) {
-      // No parent or no siblings
-      logger.debug('Current node has no parent or parent has no children');
-      this.xnode = createResultNode(this, fragmentRoot);
+    // If already at root level, do nothing
+    if (!currentNode.parent) {
+      logger.debug('Current node is already at the document root (no parent)');
       return;
     }
     
-    // Get siblings excluding the current node
-    const siblings = currentNode.parent.children.filter(node => node !== currentNode);
+    // Check if we're in a selection results container
+    if (isResultsContainer(this, currentNode)) {
+      logger.debug('Current node is already a results container');
+      return;
+    }
     
-    // Filter siblings using predicate
-    const matches = siblings.filter(node => {
-      try {
-        return effectivePredicate(node);
-      } catch (err) {
-        logger.warn(`Error evaluating predicate on sibling node: ${node.name}`, { error: err });
-        return false;
+    // Try to find the nearest results container as a parent
+    let rootNode = currentNode;
+    let foundResultsContainer = false;
+    
+    while (rootNode.parent) {
+      if (isResultsContainer(this, rootNode.parent)) {
+        rootNode = rootNode.parent;
+        foundResultsContainer = true;
+        break;
       }
+      rootNode = rootNode.parent;
+    }
+    
+    // Create a deep clone of the root to avoid mutation
+    this.xnode = cloneNode(rootNode, true);
+    
+    logger.debug('Successfully navigated to root node', {
+      rootNodeName: this.xnode.name,
+      isResultsContainer: foundResultsContainer
     });
-    
-    logger.debug(`Found ${matches.length} matching siblings out of ${siblings.length} total`);
-    
-    // Process results and set as current node
-    this.xnode = processResults(this, matches, fragmentRoot);
-    
-    logger.debug('Sibling selection completed successfully');
   } catch (err) {
     if (err instanceof Error) {
       throw err;
     }
-    throw new Error(`Failed to select siblings: ${String(err)}`);
+    throw new Error(`Failed to navigate to root: ${String(err)}`);
   }
 }
 
 // Register the axis navigation extensions with XJX
 XJX.registerNonTerminalExtension("children", children);
 XJX.registerNonTerminalExtension("descendants", descendants);
-XJX.registerNonTerminalExtension("parent", parent);
-XJX.registerNonTerminalExtension("ancestors", ancestors);
-XJX.registerNonTerminalExtension("siblings", siblings);
+XJX.registerNonTerminalExtension("root", root);
 
 // Optional: export individual functions for use in tests or other contexts
 export { children as childrenNodes };
 export { descendants as descendantsNodes };
-export { parent as parentNode };
-export { ancestors as ancestorsNodes };
-export { siblings as siblingsNodes };
+export { root as rootNode };

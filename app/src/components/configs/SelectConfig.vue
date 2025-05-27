@@ -54,7 +54,8 @@
           icon="mdi-code-braces"
           class="text-caption mt-3"
         >
-          The <code>select()</code> operation finds all nodes matching the predicate throughout the document.
+          The <code>select()</code> operation finds all nodes matching the predicate throughout the document
+          and maintains the document hierarchy (keeping ancestors of matching nodes).
         </v-alert>
       </v-col>
     </v-row>

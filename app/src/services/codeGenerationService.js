@@ -1,6 +1,5 @@
-// services/CodeGenerationService.js
+// services/codeGenerationService.js
 import LoggingService from "./loggingService.js";
-import { toBoolean, toNumber, regex } from "../../../dist/esm/index.js";
 
 /**
  * Service for generating code from operations
@@ -87,12 +86,8 @@ class CodeGenerationService {
         return this._generateMapCode(step.options);
       case 'reduce':
         return this._generateReduceCode(step.options);
-      case 'children':
-        return this._generateChildrenCode(step.options);
-      case 'descendants':
-        return this._generateDescendantsCode(step.options);
-      case 'root':
-        return this._generateRootCode(step.options);
+      case 'get':
+        return this._generateGetCode(step.options);
       case 'transform':
         return this._generateTransformCode(step.options);
       default:
@@ -203,71 +198,20 @@ class CodeGenerationService {
   }
 
   /**
-   * Generate code for children operation
-   * @param {Object} options - Children options
-   * @returns {string} Children code
+   * Generate code for get operation
+   * @param {Object} options - Get options
+   * @returns {string} Get code
    * @private
    */
-  _generateChildrenCode(options) {
-    const { predicate, fragmentRoot } = options || {};
+  _generateGetCode(options) {
+    const { index, unwrap } = options || {};
     
-    // If predicate is empty or just 'node => true'
-    if (!predicate || predicate === 'node => true') {
-      if (fragmentRoot) {
-        return `children(undefined, "${fragmentRoot}")`;
-      }
-      return 'children()';
-    }
+    // Default values if not provided
+    const indexValue = index !== undefined ? index : 0;
+    const unwrapValue = unwrap !== undefined ? unwrap : true;
     
-    let code = `children(${predicate})`;
-    
-    if (fragmentRoot) {
-      code = `children(${predicate}, "${fragmentRoot}")`;
-    }
-    
-    return code;
-  }
-
-  /**
-   * Generate code for descendants operation
-   * @param {Object} options - Descendants options
-   * @returns {string} Descendants code
-   * @private
-   */
-  _generateDescendantsCode(options) {
-    const { predicate, fragmentRoot } = options || {};
-    
-    // If predicate is empty or just 'node => true'
-    if (!predicate || predicate === 'node => true') {
-      if (fragmentRoot) {
-        return `descendants(undefined, "${fragmentRoot}")`;
-      }
-      return 'descendants()';
-    }
-    
-    let code = `descendants(${predicate})`;
-    
-    if (fragmentRoot) {
-      code = `descendants(${predicate}, "${fragmentRoot}")`;
-    }
-    
-    return code;
-  }
-
-  /**
-   * Generate code for root operation
-   * @param {Object} options - Root options
-   * @returns {string} Root code
-   * @private
-   */
-  _generateRootCode(options) {
-    const { fragmentRoot } = options || {};
-    
-    if (fragmentRoot) {
-      return `root("${fragmentRoot}")`;
-    }
-    
-    return 'root()';
+    // Generate the code for the get function
+    return `get(${indexValue}, ${unwrapValue})`;
   }
 
   /**

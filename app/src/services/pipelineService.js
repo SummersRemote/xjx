@@ -1,4 +1,4 @@
-// services/PipelineService.js
+// services/pipelineService.js
 import { 
   toBoolean,
   toNumber,
@@ -34,12 +34,8 @@ class PipelineService {
         case 'reduce':
           // Note: reduce is a terminal operation and should be last
           return this._applyReduceStep(currentBuilder, step.options);
-        case 'children':
-          return this._applyChildrenStep(currentBuilder, step.options);
-        case 'descendants':
-          return this._applyDescendantsStep(currentBuilder, step.options);
-        case 'root':
-          return this._applyRootStep(currentBuilder, step.options);
+        case 'get':
+          return this._applyGetStep(currentBuilder, step.options);
         case 'transform':
           return this._applyTransformStep(currentBuilder, step.options);
         default:
@@ -163,89 +159,20 @@ class PipelineService {
   }
 
   /**
-   * Apply children step
+   * Apply get step
    * @param {XJX} builder - XJX builder
    * @param {Object} options - Step options
    * @returns {XJX} Updated builder
    * @private
    */
-  _applyChildrenStep(builder, options) {
-    const { predicate, fragmentRoot } = options || {};
-
+  _applyGetStep(builder, options) {
+    const { index, unwrap } = options || {};
+    
     try {
-      // If predicate is empty or 'node => true', call without predicate
-      if (!predicate || predicate === 'node => true') {
-        if (fragmentRoot) {
-          return builder.children(undefined, fragmentRoot);
-        }
-        return builder.children();
-      }
-
-      // Create predicate function from string
-      const predicateFunc = TransformerService.createFunction(predicate);
-
-      // Apply with or without fragmentRoot
-      if (fragmentRoot) {
-        return builder.children(predicateFunc, fragmentRoot);
-      }
-      return builder.children(predicateFunc);
+      // Use the get function to select a node by index
+      return builder.get(index !== undefined ? index : 0, unwrap !== undefined ? unwrap : true);
     } catch (err) {
-      LoggingService.error('Error applying children step:', err);
-      return builder;
-    }
-  }
-
-  /**
-   * Apply descendants step
-   * @param {XJX} builder - XJX builder
-   * @param {Object} options - Step options
-   * @returns {XJX} Updated builder
-   * @private
-   */
-  _applyDescendantsStep(builder, options) {
-    const { predicate, fragmentRoot } = options || {};
-
-    try {
-      // If predicate is empty or 'node => true', call without predicate
-      if (!predicate || predicate === 'node => true') {
-        if (fragmentRoot) {
-          return builder.descendants(undefined, fragmentRoot);
-        }
-        return builder.descendants();
-      }
-
-      // Create predicate function from string
-      const predicateFunc = TransformerService.createFunction(predicate);
-
-      // Apply with or without fragmentRoot
-      if (fragmentRoot) {
-        return builder.descendants(predicateFunc, fragmentRoot);
-      }
-      return builder.descendants(predicateFunc);
-    } catch (err) {
-      LoggingService.error('Error applying descendants step:', err);
-      return builder;
-    }
-  }
-
-  /**
-   * Apply root step
-   * @param {XJX} builder - XJX builder
-   * @param {Object} options - Step options
-   * @returns {XJX} Updated builder
-   * @private
-   */
-  _applyRootStep(builder, options) {
-    const { fragmentRoot } = options || {};
-
-    try {
-      // Apply with or without fragmentRoot
-      if (fragmentRoot) {
-        return builder.root(fragmentRoot);
-      }
-      return builder.root();
-    } catch (err) {
-      LoggingService.error('Error applying root step:', err);
+      LoggingService.error('Error applying get step:', err);
       return builder;
     }
   }

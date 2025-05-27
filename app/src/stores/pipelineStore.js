@@ -7,18 +7,14 @@ export const usePipelineStore = defineStore('pipeline', {
     steps: [], // Array of operation steps
     availableOperations: {
       // Functional operations
-      'select': { type: 'select', name: 'Select Nodes', category: 'functional' },
-      'filter': { type: 'filter', name: 'Filter Selection', category: 'functional' },
-      'map': { type: 'map', name: 'Map Nodes', category: 'functional' },
-      'reduce': { type: 'reduce', name: 'Reduce Nodes', category: 'functional' },
-      
-      // Axis operations
-      'children': { type: 'children', name: 'Select Children', category: 'axis' },
-      'descendants': { type: 'descendants', name: 'Select Descendants', category: 'axis' },
-      'root': { type: 'root', name: 'Navigate to Root', category: 'axis' },
+      'select': { type: 'select', name: 'Select Nodes', category: 'functional', description: 'Find nodes matching a predicate while preserving hierarchy' },
+      'filter': { type: 'filter', name: 'Filter Selection', category: 'functional', description: 'Remove nodes matching a predicate while maintaining hierarchy' },
+      'map': { type: 'map', name: 'Map Nodes', category: 'functional', description: 'Transform each node in the selection' },
+      'reduce': { type: 'reduce', name: 'Reduce Nodes', category: 'functional', description: 'Aggregate nodes into a single value' },
+      'get': { type: 'get', name: 'Get Node by Index', category: 'functional', description: 'Select a specific node by index from the current selection' },
       
       // Transform operations
-      'transform': { type: 'transform', name: 'Transform Values', category: 'transform' }
+      'transform': { type: 'transform', name: 'Transform Values', category: 'transform', description: 'Apply value transformations (boolean, number, regex)' }
     }
   }),
   actions: {
@@ -94,6 +90,10 @@ export const usePipelineStore = defineStore('pipeline', {
       // Return default options based on operation type
       switch (type) {
         case 'select':
+          return { 
+            predicate: 'node => node.name === "example"', 
+            fragmentRoot: '' 
+          };
         case 'filter':
           return { 
             predicate: 'node => node.name === "example"', 
@@ -110,14 +110,11 @@ export const usePipelineStore = defineStore('pipeline', {
             initialValue: '0', 
             fragmentRoot: '' 
           };
-        case 'children':
-        case 'descendants':
+        case 'get':
           return { 
-            predicate: 'node => true', // Optional predicate
-            fragmentRoot: '' 
+            index: 0,
+            unwrap: true 
           };
-        case 'root':
-          return { fragmentRoot: '' }; // No options needed
         case 'transform':
           // For transforms, reuse the existing structure from transformStore
           return { 

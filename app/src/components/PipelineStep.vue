@@ -63,9 +63,7 @@ import SelectConfig from './configs/SelectConfig.vue';
 import FilterConfig from './configs/FilterConfig.vue';
 import MapConfig from './configs/MapConfig.vue';
 import ReduceConfig from './configs/ReduceConfig.vue';
-import ChildrenConfig from './configs/ChildrenConfig.vue';
-import DescendantsConfig from './configs/DescendantsConfig.vue';
-import RootConfig from './configs/RootConfig.vue';
+import GetConfig from './configs/GetConfig.vue';
 import TransformConfig from './configs/TransformConfig.vue';
 
 const props = defineProps({
@@ -107,7 +105,6 @@ const operationCategory = computed(() => {
 const categoryColor = computed(() => {
   switch (operationCategory.value) {
     case 'functional': return 'primary';
-    case 'axis': return 'secondary';
     case 'transform': return 'success';
     default: return 'grey';
   }
@@ -117,7 +114,6 @@ const categoryColor = computed(() => {
 const categoryLabel = computed(() => {
   switch (operationCategory.value) {
     case 'functional': return 'FUNC';
-    case 'axis': return 'AXIS';
     case 'transform': return 'TRANS';
     default: return 'OP';
   }
@@ -132,9 +128,7 @@ const configComponent = computed(() => {
     case 'filter': return FilterConfig;
     case 'map': return MapConfig;
     case 'reduce': return ReduceConfig;
-    case 'children': return ChildrenConfig;
-    case 'descendants': return DescendantsConfig;
-    case 'root': return RootConfig;
+    case 'get': return GetConfig;
     case 'transform': return TransformConfig;
     default: return null;
   }

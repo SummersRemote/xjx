@@ -6,7 +6,7 @@
         <v-textarea
           v-model="localOptions.predicate"
           label="Filter Predicate"
-          hint="Function that determines if a node should be kept"
+          hint="Function that determines if a node should be REMOVED"
           persistent-hint
           auto-grow
           rows="3"
@@ -31,6 +31,21 @@
     <v-row dense>
       <v-col cols="12">
         <v-alert
+          type="warning"
+          variant="tonal"
+          density="compact"
+          icon="mdi-information-outline"
+          class="text-caption mt-3"
+        >
+          <strong>Important:</strong> Nodes that match the predicate will be REMOVED. The predicate function
+          should return true for nodes you want to remove, not keep.
+        </v-alert>
+      </v-col>
+    </v-row>
+    
+    <v-row dense>
+      <v-col cols="12">
+        <v-alert
           type="info"
           variant="tonal"
           density="compact"
@@ -38,9 +53,9 @@
           class="text-caption mt-3"
         >
           <strong>Example predicates:</strong><br>
-          - <code>node => node.attributes && node.attributes.type === 'admin'</code><br>
-          - <code>node => parseInt(node.value) > 1000</code><br>
-          - <code>node => node.name.startsWith('product')</code>
+          - <code>node => node.attributes && node.attributes.type === 'admin'</code> (remove admin nodes)<br>
+          - <code>node => parseInt(node.value) > 1000</code> (remove nodes with values > 1000)<br>
+          - <code>node => node.name.startsWith('_')</code> (remove nodes with names starting with underscore)
         </v-alert>
       </v-col>
     </v-row>
@@ -54,7 +69,7 @@
           icon="mdi-code-braces"
           class="text-caption mt-3"
         >
-          The <code>filter()</code> operation narrows down the current selection based on the predicate.
+          The <code>filter()</code> operation removes nodes that match the predicate while maintaining the document hierarchy.
         </v-alert>
       </v-col>
     </v-row>

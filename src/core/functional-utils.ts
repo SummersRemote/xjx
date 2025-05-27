@@ -79,98 +79,66 @@ export function collectNodes(
 }
 
 /**
- * Determine if a node or any of its ancestors should be kept based on predicate
- * @param node Node to evaluate
- * @param predicate Predicate to determine if node should be kept
- * @param keepMap Map tracking which nodes should be kept
- * @returns True if node or any descendant should be kept
- */
-export function evaluateNodeHierarchy(
-  node: XNode,
-  predicate: (node: XNode) => boolean,
-  keepMap: WeakMap<XNode, boolean>
-): boolean {
-  // If we've already evaluated this node, return the cached result
-  if (keepMap.has(node)) {
-    return keepMap.get(node) as boolean;
-  }
-  
-  let shouldKeep = false;
-  
-  try {
-    // Check if this node matches the predicate
-    shouldKeep = predicate(node);
-  } catch (err) {
-    logger.warn(`Error evaluating predicate on node: ${node.name}`, {
-      error: err instanceof Error ? err.message : String(err)
-    });
-  }
-  
-  // If this node matches, we're done
-  if (shouldKeep) {
-    keepMap.set(node, true);
-    return true;
-  }
-  
-  // Check if any children should be kept
-  if (node.children && node.children.length > 0) {
-    for (const child of node.children) {
-      if (evaluateNodeHierarchy(child, predicate, keepMap)) {
-        shouldKeep = true;
-        break;
-      }
-    }
-  }
-  
-  // Cache and return the result
-  keepMap.set(node, shouldKeep);
-  return shouldKeep;
-}
-
-/**
- * Apply filter to node hierarchy
+ * Improved filter implementation that properly handles negations
  * @param node Root node to filter
- * @param predicate Function to determine if a node should be kept
- * @returns New filtered node tree
+ * @param predicate Function that determines if a node should be kept
+ * @returns New filtered node tree or null if no matches
  */
 export function filterNodeHierarchy(
   node: XNode,
   predicate: (node: XNode) => boolean
 ): XNode | null {
-  // Track which nodes should be kept
-  const keepMap = new WeakMap<XNode, boolean>();
-  
-  // First pass: Determine which nodes should be kept
-  const shouldKeepRoot = evaluateNodeHierarchy(node, predicate, keepMap);
-  
-  if (!shouldKeepRoot) {
-    return null;
-  }
-  
-  // Second pass: Clone and filter the tree
-  const cloneAndFilter = (currentNode: XNode): XNode => {
-    // Create a shallow clone of the current node
-    const clonedNode = cloneNode(currentNode, false);
-    
-    // Filter and clone children
-    if (currentNode.children && currentNode.children.length > 0) {
-      clonedNode.children = [];
+  try {
+    // Function to recursively filter the tree
+    const filterNode = (currentNode: XNode): XNode | null => {
+      // Check if this node matches the predicate
+      let keepThisNode: boolean;
       
-      for (const child of currentNode.children) {
-        if (keepMap.get(child)) {
-          const filteredChild = cloneAndFilter(child);
+      try {
+        keepThisNode = predicate(currentNode);
+      } catch (err) {
+        logger.warn(`Error in filter predicate for node ${currentNode.name}:`, err);
+        keepThisNode = false;
+      }
+      
+      // Process children first (if any)
+      const keptChildren: XNode[] = [];
+      
+      if (currentNode.children && currentNode.children.length > 0) {
+        for (const child of currentNode.children) {
+          const filteredChild = filterNode(child);
           if (filteredChild) {
-            filteredChild.parent = clonedNode;
-            clonedNode.children.push(filteredChild);
+            keptChildren.push(filteredChild);
           }
         }
       }
-    }
+      
+      // If this node doesn't match the predicate and has no children that match,
+      // remove it entirely
+      if (!keepThisNode && keptChildren.length === 0) {
+        return null;
+      }
+      
+      // Create a new node for the result
+      const resultNode = cloneNode(currentNode, false);
+      
+      // If we have kept children, add them
+      if (keptChildren.length > 0) {
+        resultNode.children = keptChildren;
+        // Set parent references
+        keptChildren.forEach(child => child.parent = resultNode);
+      }
+      
+      return resultNode;
+    };
     
-    return clonedNode;
-  };
-  
-  return cloneAndFilter(node);
+    // Start the filtering process from the root
+    return filterNode(node);
+  } catch (err) {
+    logger.error('Error in filter operation:', err);
+    // Return a clone of the original on critical error to avoid mutation
+    return cloneNode(node, true);
+  }
 }
 
 /**

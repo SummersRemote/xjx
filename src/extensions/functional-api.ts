@@ -221,63 +221,149 @@ export function select(
 }
 
 /**
- * Retrieve a specific node by index from the current selection
- *
- * @param index Index of the node to get (0-based)
- * @param unwrap Whether to unwrap the node from its container
+ * Slice selected nodes using Python-like array slicing syntax
+ * 
+ * @param start Starting index (inclusive, default: 0)
+ * @param end Ending index (exclusive, default: length)
+ * @param step Step value (default: 1)
  * @returns this for chaining
  */
-export function get(
+export function slice(
   this: NonTerminalExtensionContext,
-  index: number = 0,
-  unwrap: boolean = false
+  start?: number,
+  end?: number,
+  step: number = 1
 ): void {
   try {
     // API boundary validation
     this.validateSource();
-    validate(typeof index === "number", "Index must be a number");
-    validate(index >= 0, "Index must be non-negative");
-
+    validate(step !== 0, "Step cannot be zero");
+    
     // Get the current node
     const currentNode = this.xnode as XNode;
-
+    
     // Handle different cases based on current node structure
-    if (currentNode.children && currentNode.children.length > 0) {
-      // Check if index is valid
-      if (index >= currentNode.children.length) {
-        throw new ValidationError(
-          `Index out of bounds: ${index} (max: ${currentNode.children.length - 1})`
-        );
+    if (!currentNode.children || currentNode.children.length === 0) {
+      throw new ValidationError("Current node has no children");
+    }
+    
+    const children = currentNode.children;
+    const length = children.length;
+    
+    // Handle Python-like negative indices and defaults
+    const normalizedStart = start !== undefined ? (start < 0 ? length + start : start) : 0;
+    const normalizedEnd = end !== undefined ? (end < 0 ? length + end : end) : length;
+    
+    // Determine indices to include based on start, end, and step
+    const indices: number[] = [];
+    
+    if (step > 0) {
+      // Forward direction
+      for (let i = normalizedStart; i < normalizedEnd; i += step) {
+        if (i >= 0 && i < length) {
+          indices.push(i);
+        }
       }
-
-      const selectedNode = currentNode.children[index];
-
-      if (unwrap) {
-        // Replace current node with the selected child
-        this.xnode = cloneNode(selectedNode, true);
-      } else {
-        // Create a new container with only the selected child
-        const container = createResultsContainer(
-          typeof this.config.fragmentRoot === 'string' 
-            ? this.config.fragmentRoot 
-            : 'results'
-        );
-        addChild(container, cloneNode(selectedNode, true));
-        this.xnode = container;
+    } else {
+      // Reverse direction
+      for (let i = normalizedStart; i > normalizedEnd; i += step) {
+        if (i >= 0 && i < length) {
+          indices.push(i);
+        }
       }
+    }
+    
+    // Create a container for the results
+    const container = createResultsContainer(
+      typeof this.config.fragmentRoot === 'string' 
+        ? this.config.fragmentRoot 
+        : 'results'
+    );
+    
+    // Add selected nodes to container
+    for (const index of indices) {
+      addChild(container, cloneNode(children[index], true));
+    }
+    
+    // Set the container as the new current node
+    this.xnode = container;
+    
+    logger.debug("Successfully sliced nodes", {
+      start: normalizedStart,
+      end: normalizedEnd,
+      step,
+      resultCount: indices.length
+    });
+  } catch (err) {
+    if (err instanceof Error) {
+      throw err;
+    }
+    throw new Error(`Failed to slice nodes: ${String(err)}`);
+  }
+}
 
-      logger.debug("Successfully retrieved node by index", {
-        index,
-        unwrap
+/**
+ * Unwrap the container and promote its children
+ * If there's a single child, that child becomes the new root
+ * If there are multiple children, their common name becomes the new root
+ * 
+ * @returns this for chaining
+ */
+export function unwrap(
+  this: NonTerminalExtensionContext
+): void {
+  try {
+    // API boundary validation
+    this.validateSource();
+    
+    // Get the current node
+    const currentNode = this.xnode as XNode;
+    
+    if (!currentNode.children || currentNode.children.length === 0) {
+      // Nothing to unwrap
+      logger.debug("No children to unwrap");
+      return;
+    }
+    
+    // Single child case: promote the child
+    if (currentNode.children.length === 1) {
+      this.xnode = cloneNode(currentNode.children[0], true);
+      logger.debug("Unwrapped single child node", {
+        nodeName: this.xnode.name
+      });
+      return;
+    }
+    
+    // Multiple children case: check if they all have the same name
+    const firstChildName = currentNode.children[0].name;
+    const allSameName = currentNode.children.every(child => child.name === firstChildName);
+    
+    if (allSameName) {
+      // Create a new container with the common name
+      const container = createElement(firstChildName);
+      
+      // Add all children to this container
+      for (const child of currentNode.children) {
+        addChild(container, cloneNode(child, true));
+      }
+      
+      this.xnode = container;
+      logger.debug("Unwrapped multiple children with same name", {
+        nodeName: firstChildName,
+        childCount: currentNode.children.length
       });
     } else {
-      throw new ValidationError("Current node has no children");
+      // Mixed children - can't unwrap cleanly
+      logger.warn("Cannot unwrap mixed children with different names");
+      throw new ValidationError(
+        "Cannot unwrap container with mixed child types. All children must have the same name."
+      );
     }
   } catch (err) {
     if (err instanceof Error) {
       throw err;
     }
-    throw new Error(`Failed to get node by index: ${String(err)}`);
+    throw new Error(`Failed to unwrap nodes: ${String(err)}`);
   }
 }
 
@@ -286,7 +372,8 @@ XJX.registerNonTerminalExtension("filter", filter);
 XJX.registerNonTerminalExtension("map", map);
 XJX.registerTerminalExtension("reduce", reduce);
 XJX.registerNonTerminalExtension("select", select);
-XJX.registerNonTerminalExtension("get", get);
+XJX.registerNonTerminalExtension("slice", slice);
+XJX.registerNonTerminalExtension("unwrap", unwrap);
 
 // Export compose as a global utility
 // export { compose };

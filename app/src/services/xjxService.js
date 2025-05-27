@@ -1,86 +1,33 @@
-// services/xjxService.js
-// Wrapper service for the XJX library with webpack-compatibility
-import {
-  XJX,
-  LogLevel,
-  toBoolean,
-  toNumber,
-  regex,
-  compose,
-  TransformIntent,
-} from "../../../dist/esm/index.js";
+// services/XJXService.js
+import { XJX } from "../../../dist/esm/index.js";
+import ConfigService from "./configService.js";
+import LoggingService from "./loggingService.js";
+import TransformerService from "./transformerService.js";
+import PipelineService from "./pipelineService.js";
+import ConversionService from "./conversionService.js";
+import CodeGenerationService from "./codeGenerationService.js";
 
-// Create a singleton XJX instance for log level management
-const globalXJX = new XJX();
-
+/**
+ * Main XJX Service that composes all other services
+ * This is the main entry point for the application to interact with the XJX library
+ */
 class XJXService {
+  constructor() {
+    // Reference to all other services for easy access
+    this.configService = ConfigService;
+    this.loggingService = LoggingService;
+    this.transformerService = TransformerService;
+    this.pipelineService = PipelineService;
+    this.conversionService = ConversionService;
+    this.codeGenerationService = CodeGenerationService;
+  }
+
   /**
    * Get default configuration
    * @returns {Object} Default configuration
    */
   getDefaultConfig() {
-    // Create a default configuration that matches the updated structure
-    return {
-      // Preservation settings
-      preserveNamespaces: true,
-      preserveComments: true,
-      preserveProcessingInstr: true,
-      preserveCDATA: true,
-      preserveTextNodes: true,
-      preserveWhitespace: false,
-      preserveAttributes: true,
-      preservePrefixedNames: false,
-
-      // High-level strategies - now grouped under strategies property
-      strategies: {
-        highFidelity: false,
-        attributeStrategy: "merge",
-        textStrategy: "direct",
-        namespaceStrategy: "prefix",
-        arrayStrategy: "multiple",
-        emptyElementStrategy: "object",
-        mixedContentStrategy: "preserve",
-      },
-
-      // Property names - using single 'value' property
-      properties: {
-        attribute: "$attr",
-        value: "$val",
-        namespace: "$ns",
-        prefix: "$pre",
-        cdata: "$cdata",
-        comment: "$cmnt",
-        processingInstr: "$pi",
-        target: "$trgt",
-        children: "$children",
-      },
-
-      // Prefix configurations
-      prefixes: {
-        attribute: "@",
-        namespace: "xmlns:",
-        comment: "#",
-        cdata: "!",
-        pi: "?",
-      },
-
-      // Array configurations
-      arrays: {
-        forceArrays: [],
-        defaultItemName: "item",
-        itemNames: {},
-      },
-
-      // Output formatting
-      formatting: {
-        indent: 2,
-        declaration: true,
-        pretty: true,
-      },
-
-      // Fragment root name for functional operations
-      fragmentRoot: "results",
-    };
+    return this.configService.getDefaultConfig();
   }
 
   /**
@@ -88,11 +35,16 @@ class XJXService {
    * @returns {Object} Available transformers
    */
   getAvailableTransformers() {
-    return {
-      BooleanTransform: "BooleanTransform",
-      NumberTransform: "NumberTransform",
-      RegexTransform: "RegexTransform",
-    };
+    return this.configService.getAvailableTransformers();
+  }
+
+  /**
+   * Get default options for a transform type
+   * @param {string} type - Transform type
+   * @returns {Object} Default options
+   */
+  getDefaultOptions(type) {
+    return this.configService.getDefaultOptions(type);
   }
 
   /**
@@ -100,106 +52,16 @@ class XJXService {
    * @param {string} level - Log level ('debug', 'info', 'warn', 'error', 'none')
    */
   setLogLevel(level) {
-    // Map string levels to LogLevel enum values
-    const logLevelMap = {
-      debug: LogLevel.DEBUG,
-      info: LogLevel.INFO,
-      warn: LogLevel.WARN,
-      error: LogLevel.ERROR,
-      none: LogLevel.NONE,
-    };
-
-    // Set log level in the global instance
-    globalXJX.setLogLevel(logLevelMap[level] || LogLevel.ERROR);
-
-    console.log(`XJX log level set to: ${level}`);
+    this.loggingService.setLogLevel(level);
   }
 
   /**
-   * Convert XML to JSON (using unified JSON converter)
-   * @param {string} xml - XML string
-   * @param {Object} config - Configuration object
-   * @param {Array} transforms - Array of transform objects (from transformStore)
-   * @param {Array} pipelineSteps - Array of pipeline steps (from pipelineStore)
-   * @returns {Object} Resulting JSON
+   * Create a function from a string
+   * @param {string} functionString - Function string
+   * @returns {Function} Created function
    */
-  convertXmlToJson(xml, config, transforms, pipelineSteps = []) {
-    // Create a new instance for each conversion
-    const xjx = new XJX();
-
-    let builder = xjx;
-
-    // Apply config if provided
-    if (config) {
-      builder = builder.withConfig(config);
-    }
-
-    // Start the conversion chain with fluent API
-    builder = builder.fromXml(xml);
-
-    // Apply pipeline steps if provided
-    if (pipelineSteps && pipelineSteps.length > 0) {
-      builder = this._applyPipelineSteps(builder, pipelineSteps);
-    }
-
-    // Apply transforms if provided (legacy support)
-    if (transforms && transforms.length > 0) {
-      const transformFunctions = this._createTransformers(transforms);
-
-      if (transformFunctions.length > 0) {
-        // Use compose to combine all transforms into a single function
-        const combinedTransform = compose(...transformFunctions);
-        // Apply the combined transform
-        builder = builder.transform(combinedTransform);
-      }
-    }
-
-    // Convert to JSON with the high-fidelity setting from config.strategies
-    return builder.toJson();
-  }
-
-  /**
-   * Convert JSON to XML
-   * Auto-detects whether input is XJX JSON or standard JSON
-   * @param {Object} json - JSON object
-   * @param {Object} config - Configuration object
-   * @param {Array} transforms - Array of transform objects (from transformStore)
-   * @param {Array} pipelineSteps - Array of pipeline steps (from pipelineStore)
-   * @returns {string} Resulting XML
-   */
-  convertJsonToXml(json, config, transforms, pipelineSteps = []) {
-    // Create a new instance for each conversion
-    const xjx = new XJX();
-
-    let builder = xjx;
-
-    // Apply config if provided
-    if (config) {
-      builder = builder.withConfig(config);
-    }
-
-    // Start the conversion chain with the unified JSON method
-    builder = builder.fromJson(json);
-
-    // Apply pipeline steps if provided
-    if (pipelineSteps && pipelineSteps.length > 0) {
-      builder = this._applyPipelineSteps(builder, pipelineSteps);
-    }
-
-    // Apply transforms if provided (legacy support)
-    if (transforms && transforms.length > 0) {
-      const transformFunctions = this._createTransformers(transforms);
-
-      if (transformFunctions.length > 0) {
-        // Use compose to combine all transforms into a single function
-        const combinedTransform = compose(...transformFunctions);
-        // Apply the combined transform
-        builder = builder.transform(combinedTransform);
-      }
-    }
-
-    // Convert to XML string
-    return builder.toXmlString();
+  createFunction(functionString) {
+    return this.transformerService.createFunction(functionString);
   }
 
   /**
@@ -207,330 +69,33 @@ class XJXService {
    * @param {XJX} builder - XJX builder instance
    * @param {Array} steps - Pipeline steps
    * @returns {XJX} Updated builder with steps applied
-   * @private
    */
-  _applyPipelineSteps(builder, steps) {
-    if (!steps || steps.length === 0) return builder;
-
-    // Process each step in order
-    return steps.reduce((currentBuilder, step) => {
-      switch (step.type) {
-        case 'select':
-          return this._applySelectStep(currentBuilder, step.options);
-        case 'filter':
-          return this._applyFilterStep(currentBuilder, step.options);
-        case 'map':
-          return this._applyMapStep(currentBuilder, step.options);
-        case 'reduce':
-          // Note: reduce is a terminal operation and should be last
-          return this._applyReduceStep(currentBuilder, step.options);
-        case 'children':
-          return this._applyChildrenStep(currentBuilder, step.options);
-        case 'descendants':
-          return this._applyDescendantsStep(currentBuilder, step.options);
-        case 'root':
-          return this._applyRootStep(currentBuilder, step.options);
-        case 'transform':
-          return this._applyTransformStep(currentBuilder, step.options);
-        default:
-          console.warn(`Unknown pipeline step type: ${step.type}`);
-          return currentBuilder;
-      }
-    }, builder);
+  applyPipelineSteps(builder, steps) {
+    return this.pipelineService.applyPipelineSteps(builder, steps);
   }
 
   /**
-   * Apply select step
-   * @param {XJX} builder - XJX builder
-   * @param {Object} options - Step options
-   * @returns {XJX} Updated builder
-   * @private
+   * Convert XML to JSON
+   * @param {string} xml - XML string
+   * @param {Object} config - Configuration object
+   * @param {Array} transforms - Array of transform objects (from transformStore)
+   * @param {Array} pipelineSteps - Array of pipeline steps (from pipelineStore)
+   * @returns {Object} Resulting JSON
    */
-  _applySelectStep(builder, options) {
-    const { predicate, fragmentRoot } = options || {};
-    if (!predicate) return builder;
-
-    try {
-      // Create predicate function from string
-      const predicateFunc = this._createFunction(predicate);
-
-      // Apply with or without fragmentRoot
-      if (fragmentRoot) {
-        return builder.select(predicateFunc, fragmentRoot);
-      }
-      return builder.select(predicateFunc);
-    } catch (err) {
-      console.error('Error applying select step:', err);
-      return builder;
-    }
+  convertXmlToJson(xml, config, transforms, pipelineSteps = []) {
+    return this.conversionService.convertXmlToJson(xml, config, transforms, pipelineSteps);
   }
 
   /**
-   * Apply filter step
-   * @param {XJX} builder - XJX builder
-   * @param {Object} options - Step options
-   * @returns {XJX} Updated builder
-   * @private
+   * Convert JSON to XML
+   * @param {Object} json - JSON object
+   * @param {Object} config - Configuration object
+   * @param {Array} transforms - Array of transform objects (from transformStore)
+   * @param {Array} pipelineSteps - Array of pipeline steps (from pipelineStore)
+   * @returns {string} Resulting XML
    */
-  _applyFilterStep(builder, options) {
-    const { predicate, fragmentRoot } = options || {};
-    if (!predicate) return builder;
-
-    try {
-      // Create predicate function from string
-      const predicateFunc = this._createFunction(predicate);
-
-      // Apply with or without fragmentRoot
-      if (fragmentRoot) {
-        return builder.filter(predicateFunc, fragmentRoot);
-      }
-      return builder.filter(predicateFunc);
-    } catch (err) {
-      console.error('Error applying filter step:', err);
-      return builder;
-    }
-  }
-
-  /**
-   * Apply map step
-   * @param {XJX} builder - XJX builder
-   * @param {Object} options - Step options
-   * @returns {XJX} Updated builder
-   * @private
-   */
-  _applyMapStep(builder, options) {
-    const { mapper, fragmentRoot } = options || {};
-    if (!mapper) return builder;
-
-    try {
-      // Create mapper function from string
-      const mapperFunc = this._createFunction(mapper);
-
-      // Apply with or without fragmentRoot
-      if (fragmentRoot) {
-        return builder.map(mapperFunc, fragmentRoot);
-      }
-      return builder.map(mapperFunc);
-    } catch (err) {
-      console.error('Error applying map step:', err);
-      return builder;
-    }
-  }
-
-  /**
-   * Apply reduce step
-   * @param {XJX} builder - XJX builder
-   * @param {Object} options - Step options
-   * @returns {XJX} Updated builder
-   * @private
-   */
-  _applyReduceStep(builder, options) {
-    const { reducer, initialValue, fragmentRoot } = options || {};
-    if (!reducer) return builder;
-
-    try {
-      // Create reducer function from string
-      const reducerFunc = this._createFunction(reducer);
-
-      // Parse initial value (could be string, number, boolean, array, object)
-      let parsedInitialValue;
-      try {
-        parsedInitialValue = JSON.parse(initialValue);
-      } catch (e) {
-        // If not valid JSON, use as is (string)
-        parsedInitialValue = initialValue;
-      }
-
-      // Apply with or without fragmentRoot
-      if (fragmentRoot) {
-        return builder.reduce(reducerFunc, parsedInitialValue, fragmentRoot);
-      }
-      return builder.reduce(reducerFunc, parsedInitialValue);
-    } catch (err) {
-      console.error('Error applying reduce step:', err);
-      return builder;
-    }
-  }
-
-  /**
-   * Apply children step
-   * @param {XJX} builder - XJX builder
-   * @param {Object} options - Step options
-   * @returns {XJX} Updated builder
-   * @private
-   */
-  _applyChildrenStep(builder, options) {
-    const { predicate, fragmentRoot } = options || {};
-
-    try {
-      // If predicate is empty or 'node => true', call without predicate
-      if (!predicate || predicate === 'node => true') {
-        if (fragmentRoot) {
-          return builder.children(undefined, fragmentRoot);
-        }
-        return builder.children();
-      }
-
-      // Create predicate function from string
-      const predicateFunc = this._createFunction(predicate);
-
-      // Apply with or without fragmentRoot
-      if (fragmentRoot) {
-        return builder.children(predicateFunc, fragmentRoot);
-      }
-      return builder.children(predicateFunc);
-    } catch (err) {
-      console.error('Error applying children step:', err);
-      return builder;
-    }
-  }
-
-  /**
-   * Apply descendants step
-   * @param {XJX} builder - XJX builder
-   * @param {Object} options - Step options
-   * @returns {XJX} Updated builder
-   * @private
-   */
-  _applyDescendantsStep(builder, options) {
-    const { predicate, fragmentRoot } = options || {};
-
-    try {
-      // If predicate is empty or 'node => true', call without predicate
-      if (!predicate || predicate === 'node => true') {
-        if (fragmentRoot) {
-          return builder.descendants(undefined, fragmentRoot);
-        }
-        return builder.descendants();
-      }
-
-      // Create predicate function from string
-      const predicateFunc = this._createFunction(predicate);
-
-      // Apply with or without fragmentRoot
-      if (fragmentRoot) {
-        return builder.descendants(predicateFunc, fragmentRoot);
-      }
-      return builder.descendants(predicateFunc);
-    } catch (err) {
-      console.error('Error applying descendants step:', err);
-      return builder;
-    }
-  }
-
-  /**
-   * Apply root step
-   * @param {XJX} builder - XJX builder
-   * @param {Object} options - Step options
-   * @returns {XJX} Updated builder
-   * @private
-   */
-  _applyRootStep(builder, options) {
-    const { fragmentRoot } = options || {};
-
-    try {
-      // Apply with or without fragmentRoot
-      if (fragmentRoot) {
-        return builder.root(fragmentRoot);
-      }
-      return builder.root();
-    } catch (err) {
-      console.error('Error applying root step:', err);
-      return builder;
-    }
-  }
-
-  /**
-   * Apply transform step
-   * @param {XJX} builder - XJX builder
-   * @param {Object} options - Step options
-   * @returns {XJX} Updated builder
-   * @private
-   */
-  _applyTransformStep(builder, options) {
-    try {
-      const transformType = options.type;
-      const transformOptions = options.options || {};
-
-      let transformFunction;
-      switch (transformType) {
-        case 'BooleanTransform':
-          transformFunction = toBoolean(transformOptions);
-          break;
-        case 'NumberTransform':
-          transformFunction = toNumber(transformOptions);
-          break;
-        case 'RegexTransform':
-          transformFunction = regex(transformOptions.pattern, transformOptions.replacement, transformOptions);
-          break;
-        default:
-          console.warn(`Unknown transform type: ${transformType}`);
-          return builder;
-      }
-
-      return builder.transform(transformFunction);
-    } catch (err) {
-      console.error('Error applying transform step:', err);
-      return builder;
-    }
-  }
-
-  /**
-   * Create a function from a string
-   * @param {string} functionString - Function string
-   * @returns {Function} Created function
-   * @private
-   */
-_createFunction(functionString) {
-  try {
-    // Clean up the function string
-    let cleanFunctionString = functionString.trim();
-    
-    // If it doesn't start with function, node =>, or similar, assume it's a function body
-    if (!cleanFunctionString.startsWith('function') && 
-        !cleanFunctionString.startsWith('(') && 
-        !cleanFunctionString.includes('=>')) {
-      cleanFunctionString = `node => ${cleanFunctionString}`;
-    }
-    
-    // Try to create the function
-    return new Function('return ' + cleanFunctionString)();
-  } catch (err) {
-    console.error('Error creating function from string:', err);
-    
-    // Or if you must provide a fallback, make it more restrictive:
-    return () => false; // No nodes will match
-  }
-}
-
-  /**
-   * Create transformer functions from transform objects
-   * @param {Array} transforms - Array of transform objects
-   * @returns {Array} Array of transform functions
-   * @private
-   */
-  _createTransformers(transforms) {
-    if (!transforms || transforms.length === 0) return [];
-
-    return transforms.map(transform => {
-      const type = transform.type;
-      const options = transform.options || {};
-
-      switch (type) {
-        case 'BooleanTransform':
-          return toBoolean(options);
-        case 'NumberTransform':
-          return toNumber(options);
-        case 'RegexTransform':
-          if (options.pattern) {
-            return regex(options.pattern, options.replacement || '', options);
-          }
-          return null;
-        default:
-          console.warn(`Unknown transform type: ${type}`);
-          return null;
-      }
-    }).filter(Boolean); // Remove null items
+  convertJsonToXml(json, config, transforms, pipelineSteps = []) {
+    return this.conversionService.convertJsonToXml(json, config, transforms, pipelineSteps);
   }
 
   /**
@@ -543,279 +108,7 @@ _createFunction(functionString) {
    * @returns {string} Fluent API code
    */
   generateFluentAPI(fromType, content, config, steps, jsonFormat = "xjx") {
-    // Use the fluent API in the examples
-    let code = `import { XJX, LogLevel, toBoolean, toNumber, regex, compose, TransformIntent } from 'xjx';\n\n`;
-    code += `const xjx = new XJX();\n`;
-
-    // Add log level if not default
-    if (this.globalXJX && this.globalXJX.logLevel && this.globalXJX.logLevel !== "error") {
-      code += `xjx.setLogLevel(LogLevel.${(
-        this.globalXJX.logLevel || "ERROR"
-      ).toUpperCase()});\n`;
-    }
-
-    code += `const builder = xjx.from${fromType === "xml" ? "Xml" : "Json"}(${
-      fromType === "xml" ? "xml" : "json"
-    })`;
-
-    if (config) {
-      code += `\n  .withConfig(${JSON.stringify(config, null, 2)})`;
-    }
-
-    // Apply all pipeline steps
-    if (steps && steps.length > 0) {
-      steps.forEach(step => {
-        const stepCode = this._generateStepCode(step);
-        if (stepCode) {
-          code += `\n  ${stepCode}`;
-        }
-      });
-    }
-
-    // Determine the appropriate terminal method based on direction and format
-    let terminalMethod;
-    let options = "";
-    if (fromType === "xml") {
-      terminalMethod = "toJson";
-      options = "()";
-    } else {
-      // For XML output, use toXmlString
-      terminalMethod = "toXmlString";
-      options = "()";
-    }
-
-    // Add the terminal method
-    code += `\n  .${terminalMethod}${options}`;
-    code += ";";
-
-    return code;
-  }
-
-  /**
-   * Generate code for a pipeline step
-   * @param {Object} step - Pipeline step
-   * @returns {string} Step code
-   * @private
-   */
-  _generateStepCode(step) {
-    switch (step.type) {
-      case 'select':
-        return this._generateSelectCode(step.options);
-      case 'filter':
-        return this._generateFilterCode(step.options);
-      case 'map':
-        return this._generateMapCode(step.options);
-      case 'reduce':
-        return this._generateReduceCode(step.options);
-      case 'children':
-        return this._generateChildrenCode(step.options);
-      case 'descendants':
-        return this._generateDescendantsCode(step.options);
-      case 'root':
-        return this._generateRootCode(step.options);
-      case 'transform':
-        return this._generateTransformCode(step.options);
-      default:
-        return null;
-    }
-  }
-
-  /**
-   * Generate code for select operation
-   * @param {Object} options - Select options
-   * @returns {string} Select code
-   * @private
-   */
-  _generateSelectCode(options) {
-    const { predicate, fragmentRoot } = options || {};
-    if (!predicate) return 'select(() => true)';
-    
-    let code = `select(${predicate})`;
-    
-    if (fragmentRoot) {
-      code = `select(${predicate}, "${fragmentRoot}")`;
-    }
-    
-    return code;
-  }
-
-  /**
-   * Generate code for filter operation
-   * @param {Object} options - Filter options
-   * @returns {string} Filter code
-   * @private
-   */
-  _generateFilterCode(options) {
-    const { predicate, fragmentRoot } = options || {};
-    if (!predicate) return 'filter(() => true)';
-    
-    let code = `filter(${predicate})`;
-    
-    if (fragmentRoot) {
-      code = `filter(${predicate}, "${fragmentRoot}")`;
-    }
-    
-    return code;
-  }
-
-  /**
-   * Generate code for map operation
-   * @param {Object} options - Map options
-   * @returns {string} Map code
-   * @private
-   */
-  _generateMapCode(options) {
-    const { mapper, fragmentRoot } = options || {};
-    if (!mapper) return 'map(node => node)';
-    
-    let code = `map(${mapper})`;
-    
-    if (fragmentRoot) {
-      code = `map(${mapper}, "${fragmentRoot}")`;
-    }
-    
-    return code;
-  }
-
-  /**
-   * Generate code for reduce operation
-   * @param {Object} options - Reduce options
-   * @returns {string} Reduce code
-   * @private
-   */
-  _generateReduceCode(options) {
-    const { reducer, initialValue, fragmentRoot } = options || {};
-    if (!reducer) return 'reduce((acc, node) => acc + 1, 0)';
-    
-    let initialValueCode = initialValue || '0';
-    // Try to determine if the initial value is a string, number, boolean, etc.
-    if (initialValueCode === 'true' || initialValueCode === 'false') {
-      // Boolean
-      initialValueCode = initialValueCode === 'true';
-    } else if (initialValueCode === '[]') {
-      // Empty array
-      initialValueCode = '[]';
-    } else if (initialValueCode === '{}') {
-      // Empty object
-      initialValueCode = '{}';
-    } else if (!isNaN(Number(initialValueCode))) {
-      // Number
-      initialValueCode = Number(initialValueCode);
-    } else if (initialValueCode.startsWith('"') && initialValueCode.endsWith('"')) {
-      // Already a string literal
-      // initialValueCode = initialValueCode;
-    } else if (initialValueCode.startsWith("'") && initialValueCode.endsWith("'")) {
-      // Already a string literal
-      // initialValueCode = initialValueCode;
-    } else {
-      // Assume it's a string that needs quotes
-      initialValueCode = `"${initialValueCode}"`;
-    }
-    
-    let code = `reduce(${reducer}, ${initialValueCode})`;
-    
-    if (fragmentRoot) {
-      code = `reduce(${reducer}, ${initialValueCode}, "${fragmentRoot}")`;
-    }
-    
-    return code;
-  }
-
-  /**
-   * Generate code for children operation
-   * @param {Object} options - Children options
-   * @returns {string} Children code
-   * @private
-   */
-  _generateChildrenCode(options) {
-    const { predicate, fragmentRoot } = options || {};
-    
-    // If predicate is empty or just 'node => true'
-    if (!predicate || predicate === 'node => true') {
-      if (fragmentRoot) {
-        return `children(undefined, "${fragmentRoot}")`;
-      }
-      return 'children()';
-    }
-    
-    let code = `children(${predicate})`;
-    
-    if (fragmentRoot) {
-      code = `children(${predicate}, "${fragmentRoot}")`;
-    }
-    
-    return code;
-  }
-
-  /**
-   * Generate code for descendants operation
-   * @param {Object} options - Descendants options
-   * @returns {string} Descendants code
-   * @private
-   */
-  _generateDescendantsCode(options) {
-    const { predicate, fragmentRoot } = options || {};
-    
-    // If predicate is empty or just 'node => true'
-    if (!predicate || predicate === 'node => true') {
-      if (fragmentRoot) {
-        return `descendants(undefined, "${fragmentRoot}")`;
-      }
-      return 'descendants()';
-    }
-    
-    let code = `descendants(${predicate})`;
-    
-    if (fragmentRoot) {
-      code = `descendants(${predicate}, "${fragmentRoot}")`;
-    }
-    
-    return code;
-  }
-
-  /**
-   * Generate code for root operation
-   * @param {Object} options - Root options
-   * @returns {string} Root code
-   * @private
-   */
-  _generateRootCode(options) {
-    const { fragmentRoot } = options || {};
-    
-    if (fragmentRoot) {
-      return `root("${fragmentRoot}")`;
-    }
-    
-    return 'root()';
-  }
-
-  /**
-   * Generate code for transform operation
-   * @param {Object} options - Transform options
-   * @returns {string} Transform code
-   * @private
-   */
-  _generateTransformCode(options) {
-    const transformType = options?.type;
-    const transformOptions = options?.options || {};
-    
-    if (!transformType) {
-      return 'transform(/* Unknown transform */)';
-    }
-    
-    switch (transformType) {
-      case 'BooleanTransform':
-        return `transform(toBoolean(${JSON.stringify(transformOptions)}))`;
-      case 'NumberTransform':
-        return `transform(toNumber(${JSON.stringify(transformOptions)}))`;
-      case 'RegexTransform':
-        if (transformOptions.pattern) {
-          return `transform(regex(${JSON.stringify(transformOptions.pattern)}, ${JSON.stringify(transformOptions.replacement || '')}, ${JSON.stringify({ ...transformOptions, pattern: undefined, replacement: undefined })}))`;
-        }
-        return `transform(regex("", "", ${JSON.stringify(transformOptions)}))`;
-      default:
-        return `transform(/* ${transformType} */)`;
-    }
+    return this.codeGenerationService.generateFluentAPI(fromType, content, config, steps, jsonFormat);
   }
 }
 

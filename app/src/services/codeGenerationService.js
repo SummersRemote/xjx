@@ -88,6 +88,10 @@ class CodeGenerationService {
         return this._generateSelectCode(step.options);
       case 'get':
         return this._generateGetCode(step.options);
+      case 'slice':
+        return this._generateSliceCode(step.options);
+      case 'unwrap':
+        return this._generateUnwrapCode();
       case 'transform':
         return this._generateTransformCode(step.options);
       default:
@@ -174,20 +178,49 @@ class CodeGenerationService {
   }
 
   /**
-   * Generate code for get operation
-   * @param {Object} options - Get options
-   * @returns {string} Get code
+   * Generate code for slice operation
+   * @param {Object} options - Slice options
+   * @returns {string} Slice code
    * @private
    */
-  _generateGetCode(options) {
-    const { index, unwrap } = options || {};
+  _generateSliceCode(options) {
+    const { start, end, step } = options || {};
     
-    // Default values if not provided
-    const indexValue = index !== undefined ? index : 0;
-    const unwrapValue = unwrap !== undefined ? unwrap : false;
+    // Build the parameters
+    let params = [];
     
-    // Generate the code for the get function
-    return `get(${indexValue}, ${unwrapValue})`;
+    // Start parameter
+    if (start !== undefined && start !== 0) {
+      params.push(start);
+    } else if (end !== undefined || step !== undefined && step !== 1) {
+      // If start is default but end or step is specified, we need to include start
+      params.push(0);
+    }
+    
+    // End parameter
+    if (end !== undefined) {
+      params.push(end);
+    } else if (step !== undefined && step !== 1) {
+      // If end is default but step is specified, we need to include a placeholder for end
+      params.push('undefined');
+    }
+    
+    // Step parameter
+    if (step !== undefined && step !== 1) {
+      params.push(step);
+    }
+    
+    // Generate the code
+    return `slice(${params.join(', ')})`;
+  }
+
+  /**
+   * Generate code for unwrap operation
+   * @returns {string} Unwrap code
+   * @private
+   */
+  _generateUnwrapCode() {
+    return 'unwrap()';
   }
 
   /**

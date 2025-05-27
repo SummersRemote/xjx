@@ -32,7 +32,11 @@
             <template v-slot:item="{ item, props }">
               <v-list-subheader v-if="item.raw.header">{{ item.raw.header }}</v-list-subheader>
               <v-divider v-else-if="item.raw.divider" class="my-2"></v-divider>
-              <v-list-item v-else v-bind="props"></v-list-item>
+              <v-list-item v-else v-bind="props">
+                <template v-slot:subtitle>
+                  {{ item.raw.subtitle }}
+                </template>
+              </v-list-item>
             </template>
           </v-select>
         </v-col>
@@ -84,23 +88,118 @@
         </v-list>
       </div>
       
-      <!-- Composition Examples -->
-      <v-row class="mt-4" v-if="showCompositionHelp">
-        <v-col cols="12">
-          <v-card variant="outlined">
-            <v-card-title class="text-subtitle-1">
-              Function Composition Examples
-              <v-spacer></v-spacer>
-              <v-btn
-                icon="mdi-close"
-                size="small"
-                variant="text"
-                @click="showCompositionHelp = false"
-              ></v-btn>
-            </v-card-title>
-            <v-card-text class="text-caption">
-              <p><strong>Using compose() with map:</strong></p>
-              <pre class="code-example">map(compose(
+      <!-- Pipeline Help Section -->
+      <v-expansion-panels class="mt-4">
+        <v-expansion-panel>
+          <v-expansion-panel-title>
+            <div class="d-flex align-center">
+              <v-icon icon="mdi-help-circle-outline" class="me-2"></v-icon>
+              <span>Pipeline Operations Help</span>
+            </div>
+          </v-expansion-panel-title>
+          <v-expansion-panel-text>
+            <v-tabs v-model="activeHelpTab">
+              <v-tab value="functional">Functional Operations</v-tab>
+              <v-tab value="transform">Transformations</v-tab>
+              <v-tab value="composition">Function Composition</v-tab>
+            </v-tabs>
+            
+            <v-window v-model="activeHelpTab" class="mt-2">
+              <!-- Functional Operations Help -->
+              <v-window-item value="functional">
+                <div class="text-subtitle-1 mb-2">Functional Operations</div>
+                <v-list density="compact" lines="two" class="bg-grey-lighten-5 rounded">
+                  <v-list-item>
+                    <template v-slot:prepend>
+                      <v-chip color="primary" size="small">select()</v-chip>
+                    </template>
+                    <v-list-item-title>Select Nodes</v-list-item-title>
+                    <v-list-item-subtitle>Collect nodes matching predicate into a flat list (without hierarchy)</v-list-item-subtitle>
+                  </v-list-item>
+                  
+                  <v-list-item>
+                    <template v-slot:prepend>
+                      <v-chip color="primary" size="small">filter()</v-chip>
+                    </template>
+                    <v-list-item-title>Filter Nodes</v-list-item-title>
+                    <v-list-item-subtitle>Keep nodes matching predicate (maintains document hierarchy)</v-list-item-subtitle>
+                  </v-list-item>
+                  
+                  <v-list-item>
+                    <template v-slot:prepend>
+                      <v-chip color="primary" size="small">map()</v-chip>
+                    </template>
+                    <v-list-item-title>Transform Nodes</v-list-item-title>
+                    <v-list-item-subtitle>Apply transformation to every node (return null to remove)</v-list-item-subtitle>
+                  </v-list-item>
+                  
+                  <v-list-item>
+                    <template v-slot:prepend>
+                      <v-chip color="primary" size="small">reduce()</v-chip>
+                    </template>
+                    <v-list-item-title>Reduce/Aggregate Nodes</v-list-item-title>
+                    <v-list-item-subtitle>Calculate a single value from all nodes (terminal operation)</v-list-item-subtitle>
+                  </v-list-item>
+                  
+                  <v-list-item>
+                    <template v-slot:prepend>
+                      <v-chip color="primary" size="small">slice()</v-chip>
+                    </template>
+                    <v-list-item-title>Slice Nodes</v-list-item-title>
+                    <v-list-item-subtitle>Select nodes by position using Python-like array slicing</v-list-item-subtitle>
+                  </v-list-item>
+                  
+                  <v-list-item>
+                    <template v-slot:prepend>
+                      <v-chip color="primary" size="small">unwrap()</v-chip>
+                    </template>
+                    <v-list-item-title>Unwrap Container</v-list-item-title>
+                    <v-list-item-subtitle>Remove container element and promote its children</v-list-item-subtitle>
+                  </v-list-item>
+                </v-list>
+              </v-window-item>
+              
+              <!-- Transformations Help -->
+              <v-window-item value="transform">
+                <div class="text-subtitle-1 mb-2">Value Transformations</div>
+                <v-list density="compact" lines="two" class="bg-grey-lighten-5 rounded">
+                  <v-list-item>
+                    <template v-slot:prepend>
+                      <v-chip color="success" size="small">Boolean</v-chip>
+                    </template>
+                    <v-list-item-title>Boolean Transform</v-list-item-title>
+                    <v-list-item-subtitle>Convert between string values and booleans (e.g., "true" ↔ true)</v-list-item-subtitle>
+                  </v-list-item>
+                  
+                  <v-list-item>
+                    <template v-slot:prepend>
+                      <v-chip color="success" size="small">Number</v-chip>
+                    </template>
+                    <v-list-item-title>Number Transform</v-list-item-title>
+                    <v-list-item-subtitle>Convert between string values and numbers (e.g., "123.45" ↔ 123.45)</v-list-item-subtitle>
+                  </v-list-item>
+                  
+                  <v-list-item>
+                    <template v-slot:prepend>
+                      <v-chip color="success" size="small">Regex</v-chip>
+                    </template>
+                    <v-list-item-title>Regex Transform</v-list-item-title>
+                    <v-list-item-subtitle>Apply regular expression replacements to string values</v-list-item-subtitle>
+                  </v-list-item>
+                </v-list>
+                
+                <div class="text-caption mt-3">
+                  <strong>Tip:</strong> Transforms can be targeted to specific nodes by using <code>select()</code> or <code>filter()</code> operations first.
+                  Each transform can also be configured to apply to node values, attributes, or both.
+                </div>
+              </v-window-item>
+              
+              <!-- Function Composition Help -->
+              <v-window-item value="composition">
+                <div class="text-subtitle-1 mb-2">Function Composition Examples</div>
+                
+                <p class="text-body-2 mb-1"><strong>Combining operations with map():</strong></p>
+                <pre class="code-example">map(compose(
   // Select only price nodes
   node => node.name === 'price' ? node : null,
   // Convert to number with 2 decimal places
@@ -112,37 +211,27 @@
     return node;
   }
 ))</pre>
-              <p><strong>Using compose() with transforms:</strong></p>
-              <pre class="code-example">map(compose(
+
+                <p class="text-body-2 mb-1 mt-3"><strong>Boolean conversion with targeting:</strong></p>
+                <pre class="code-example">map(compose(
   // Select only boolean fields
   node => node.name === 'active' || node.name === 'available' ? node : null,
   // Convert to boolean
   toBoolean()
 ))</pre>
-              <p><strong>Removing specific nodes:</strong></p>
-              <pre class="code-example">map(node => {
-  // Remove all comment nodes
-  if (node.name === 'comment') return null;
-  return node;
-})</pre>
-            </v-card-text>
-          </v-card>
-        </v-col>
-      </v-row>
-      
-      <!-- Function Composition Helper Button -->
-      <v-row class="mt-2" v-if="!showCompositionHelp">
-        <v-col cols="12" class="text-center">
-          <v-btn
-            variant="text"
-            prepend-icon="mdi-function"
-            @click="showCompositionHelp = true"
-            size="small"
-          >
-            Show Function Composition Examples
-          </v-btn>
-        </v-col>
-      </v-row>
+
+                <p class="text-body-2 mb-1 mt-3"><strong>Filtering and transformation:</strong></p>
+                <pre class="code-example">select(node => node.name === 'price')
+  .filter(node => node.attributes?.currency === 'USD')
+  .map(node => {
+    node.value = parseFloat(node.value) * 0.9; // 10% discount
+    return node;
+  })</pre>
+              </v-window-item>
+            </v-window>
+          </v-expansion-panel-text>
+        </v-expansion-panel>
+      </v-expansion-panels>
     </v-card-text>
   </v-card>
 </template>
@@ -159,7 +248,7 @@ const apiStore = useAPIStore();
 const { steps } = storeToRefs(pipelineStore);
 
 const selectedOperation = ref(null);
-const showCompositionHelp = ref(false);
+const activeHelpTab = ref('functional');
 
 // Check if the selected operation is valid (not a header or divider)
 const isValidOperation = computed(() => {
@@ -258,5 +347,6 @@ const clearPipeline = () => {
   font-size: 12px;
   overflow-x: auto;
   white-space: pre-wrap;
+  margin-bottom: 8px;
 }
 </style>

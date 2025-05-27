@@ -41,7 +41,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch, computed, onMounted } from 'vue';
+import { ref, reactive, watch, onMounted } from 'vue';
 
 // Import transform configuration components
 import BooleanTransformConfig from '../transforms/BooleanTransformConfig.vue';

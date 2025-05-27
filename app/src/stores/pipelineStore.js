@@ -9,9 +9,10 @@ export const usePipelineStore = defineStore('pipeline', {
       // Core Functional Operations
       'filter': { type: 'filter', name: 'Filter Nodes', category: 'functional', description: 'Keep nodes matching predicate (maintains hierarchy)' },
       'map': { type: 'map', name: 'Transform Nodes', category: 'functional', description: 'Apply transformation to every node' },
-      'reduce': { type: 'reduce', name: 'Aggregate Nodes', category: 'functional', description: 'Calculate a single value from all nodes' },
+      'reduce': { type: 'reduce', name: 'Reduce/Aggregate Nodes', category: 'functional', description: 'Calculate a single value from all nodes' },
       'select': { type: 'select', name: 'Select Nodes', category: 'functional', description: 'Collect matching nodes (without hierarchy)' },
-      'get': { type: 'get', name: 'Get Node by Index', category: 'functional', description: 'Select a specific node by index' },
+      'slice': { type: 'slice', name: 'Slice Nodes', category: 'functional', description: 'Select nodes by position (like array slicing)' },
+      'unwrap': { type: 'unwrap', name: 'Unwrap Container', category: 'functional', description: 'Remove container and promote children' },
       
       // Transform Operations
       'transform': { type: 'transform', name: 'Apply Transform', category: 'transform', description: 'Apply value transformations (boolean, number, regex)' }
@@ -106,11 +107,14 @@ export const usePipelineStore = defineStore('pipeline', {
           return {
             predicate: 'node => node.name === "example"'
           };
-        case 'get':
-          return { 
-            index: 0,
-            unwrap: false
+        case 'slice':
+          return {
+            start: 0,
+            end: undefined,
+            step: 1
           };
+        case 'unwrap':
+          return {}; // No options needed for unwrap
         case 'transform':
           // For transforms, reuse the existing structure from transformStore
           return { 

@@ -37,6 +37,10 @@ class PipelineService {
           return this._applySelectStep(currentBuilder, step.options);
         case 'get':
           return this._applyGetStep(currentBuilder, step.options);
+        case 'slice':
+          return this._applySliceStep(currentBuilder, step.options);
+        case 'unwrap':
+          return this._applyUnwrapStep(currentBuilder);
         case 'transform':
           return this._applyTransformStep(currentBuilder, step.options);
         default:
@@ -148,20 +152,36 @@ class PipelineService {
   }
 
   /**
-   * Apply get step
+   * Apply slice step
    * @param {XJX} builder - XJX builder
    * @param {Object} options - Step options
    * @returns {XJX} Updated builder
    * @private
    */
-  _applyGetStep(builder, options) {
-    const { index, unwrap } = options || {};
+  _applySliceStep(builder, options) {
+    const { start, end, step } = options || {};
     
     try {
-      // Use the get function to select a node by index
-      return builder.get(index !== undefined ? index : 0, unwrap === true);
+      // Use the slice function to select nodes by position
+      return builder.slice(start, end, step);
     } catch (err) {
-      LoggingService.error('Error applying get step:', err);
+      LoggingService.error('Error applying slice step:', err);
+      return builder;
+    }
+  }
+
+  /**
+   * Apply unwrap step
+   * @param {XJX} builder - XJX builder
+   * @returns {XJX} Updated builder
+   * @private
+   */
+  _applyUnwrapStep(builder) {
+    try {
+      // Use the unwrap function to remove the container
+      return builder.unwrap();
+    } catch (err) {
+      LoggingService.error('Error applying unwrap step:', err);
       return builder;
     }
   }

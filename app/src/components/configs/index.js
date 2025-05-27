@@ -5,6 +5,7 @@ import SelectConfig from './SelectConfig.vue';
 import FilterConfig from './FilterConfig.vue';
 import MapConfig from './MapConfig.vue';
 import ReduceConfig from './ReduceConfig.vue';
+import ReduceConfig from './SliceConfig.vue';
 import GetConfig from './GetConfig.vue';
 import TransformConfig from './TransformConfig.vue';
 

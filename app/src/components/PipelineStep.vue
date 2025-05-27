@@ -63,7 +63,8 @@ import SelectConfig from './configs/SelectConfig.vue';
 import FilterConfig from './configs/FilterConfig.vue';
 import MapConfig from './configs/MapConfig.vue';
 import ReduceConfig from './configs/ReduceConfig.vue';
-import GetConfig from './configs/GetConfig.vue';
+import SliceConfig from './configs/SliceConfig.vue';
+import UnwrapConfig from './configs/UnwrapConfig.vue';
 import TransformConfig from './configs/TransformConfig.vue';
 
 const props = defineProps({
@@ -128,7 +129,8 @@ const configComponent = computed(() => {
     case 'filter': return FilterConfig;
     case 'map': return MapConfig;
     case 'reduce': return ReduceConfig;
-    case 'get': return GetConfig;
+    case 'slice': return SliceConfig;
+    case 'unwrap': return UnwrapConfig;
     case 'transform': return TransformConfig;
     default: return null;
   }

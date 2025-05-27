@@ -481,26 +481,27 @@ class XJXService {
    * @returns {Function} Created function
    * @private
    */
-  _createFunction(functionString) {
-    try {
-      // Clean up the function string
-      let cleanFunctionString = functionString.trim();
-      
-      // If it doesn't start with function, node =>, or similar, assume it's a function body
-      if (!cleanFunctionString.startsWith('function') && 
-          !cleanFunctionString.startsWith('(') && 
-          !cleanFunctionString.includes('=>')) {
-        cleanFunctionString = `node => ${cleanFunctionString}`;
-      }
-      
-      // Create the function
-      return new Function('return ' + cleanFunctionString)();
-    } catch (err) {
-      console.error('Error creating function from string:', err);
-      // Return a pass-through function as fallback
-      return (x) => x;
+_createFunction(functionString) {
+  try {
+    // Clean up the function string
+    let cleanFunctionString = functionString.trim();
+    
+    // If it doesn't start with function, node =>, or similar, assume it's a function body
+    if (!cleanFunctionString.startsWith('function') && 
+        !cleanFunctionString.startsWith('(') && 
+        !cleanFunctionString.includes('=>')) {
+      cleanFunctionString = `node => ${cleanFunctionString}`;
     }
+    
+    // Try to create the function
+    return new Function('return ' + cleanFunctionString)();
+  } catch (err) {
+    console.error('Error creating function from string:', err);
+    
+    // Or if you must provide a fallback, make it more restrictive:
+    return () => false; // No nodes will match
   }
+}
 
   /**
    * Create transformer functions from transform objects

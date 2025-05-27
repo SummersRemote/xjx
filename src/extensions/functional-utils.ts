@@ -1,5 +1,5 @@
 /**
- * Shared utility functions for the functional pipeline
+ * Improved shared utility functions for the functional pipeline
  * 
  * This file contains common utility functions used by
  * both functional operations and axis navigation operations.
@@ -108,7 +108,7 @@ export function findDescendants(node: XNode, predicate: (node: XNode) => boolean
 }
 
 /**
- * Process the results of a functional operation
+ * Improved process results function
  * If there are multiple results, wrap them in a container
  * If there is a single result, return it directly
  * If there are no results, return an empty container
@@ -123,24 +123,50 @@ export function processResults(
   matches: XNode[],
   fragmentRoot?: string | XNode
 ): XNode {
+  // Create a container node regardless of match count
+  const resultsNode = createResultNode(context, fragmentRoot);
+  
   if (matches.length > 0) {
-    if (matches.length === 1) {
-      // Single match - create a deep clone
-      return cloneNode(matches[0], true);
-    } else {
-      // Multiple matches - create parent with cloned matches
-      const resultsNode = createResultNode(context, fragmentRoot);
+    // Check if we are dealing with a collection of elements with the same name
+    // This helps structure the output better for JSON conversion
+    const allSameName = matches.every(node => node.name === matches[0].name);
+    
+    if (allSameName) {
+      // If all nodes have the same name, group them under that name
+      // This produces nicer JSON like { "results": { "title": [...] } }
       
-      // Add cloned nodes as children
+      // Add the nodes as children to the results node
       matches.forEach(node => {
         const clonedNode = cloneNode(node, true);
         addChild(resultsNode, clonedNode);
       });
       
-      return resultsNode;
+    } else {
+      // Mixed element names or other cases
+      matches.forEach(node => {
+        const clonedNode = cloneNode(node, true);
+        addChild(resultsNode, clonedNode);
+      });
     }
-  } else {
-    // No matches - create empty results node
-    return createResultNode(context, fragmentRoot);
   }
+  
+  return resultsNode;
+}
+
+/**
+ * Group matching nodes by name for better JSON representation
+ * @param nodes Array of nodes to group
+ * @returns Object with node names as keys and arrays of nodes as values
+ */
+export function groupNodesByName(nodes: XNode[]): Record<string, XNode[]> {
+  const groups: Record<string, XNode[]> = {};
+  
+  nodes.forEach(node => {
+    if (!groups[node.name]) {
+      groups[node.name] = [];
+    }
+    groups[node.name].push(node);
+  });
+  
+  return groups;
 }

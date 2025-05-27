@@ -36,7 +36,7 @@ export const useAPIStore = defineStore('api', {
         fromType,
         content,
         configForApi,
-        pipelineStore.steps,
+        pipelineStore.steps,  // This is correctly using the pipeline steps
         this.jsonFormat
       );
     },

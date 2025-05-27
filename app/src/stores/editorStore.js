@@ -3,6 +3,7 @@ import { defineStore } from 'pinia';
 import XJXService from '../services/xjxService';
 import { useConfigStore } from './configStore';
 import { useTransformStore } from './transformStore';
+import { usePipelineStore } from './pipelineStore';  // Add import for pipeline store
 
 export const useEditorStore = defineStore('editor', {
   state: () => ({
@@ -20,6 +21,7 @@ export const useEditorStore = defineStore('editor', {
     async convertXmlToJson() {
       const configStore = useConfigStore();
       const transformStore = useTransformStore();
+      const pipelineStore = usePipelineStore();  // Get pipeline store
       
       this.isProcessing = true;
       this.error = null;
@@ -31,7 +33,8 @@ export const useEditorStore = defineStore('editor', {
         const result = XJXService.convertXmlToJson(
           this.xml, 
           config, 
-          transformStore.transforms
+          transformStore.transforms,
+          pipelineStore.steps  // Pass pipeline steps to service
         );
         
         this.json = result;
@@ -51,6 +54,7 @@ export const useEditorStore = defineStore('editor', {
     async convertXmlToStandardJson() {
       const configStore = useConfigStore();
       const transformStore = useTransformStore();
+      const pipelineStore = usePipelineStore();  // Get pipeline store
       
       this.isProcessing = true;
       this.error = null;
@@ -63,7 +67,8 @@ export const useEditorStore = defineStore('editor', {
         const result = XJXService.convertXmlToJson(
           this.xml, 
           config,
-          transformStore.transforms
+          transformStore.transforms,
+          pipelineStore.steps  // Pass pipeline steps to service
         );
         
         this.json = result;
@@ -84,6 +89,7 @@ export const useEditorStore = defineStore('editor', {
     async convertJsonToXml() {
       const configStore = useConfigStore();
       const transformStore = useTransformStore();
+      const pipelineStore = usePipelineStore();  // Get pipeline store
       
       this.isProcessing = true;
       this.error = null;
@@ -100,7 +106,8 @@ export const useEditorStore = defineStore('editor', {
         const result = XJXService.convertJsonToXml(
           jsonObj, 
           configStore.config, 
-          transformStore.transforms
+          transformStore.transforms,
+          pipelineStore.steps  // Pass pipeline steps to service
         );
         
         this.xml = result;

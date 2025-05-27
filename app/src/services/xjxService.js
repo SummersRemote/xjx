@@ -119,10 +119,11 @@ class XJXService {
    * Convert XML to JSON (using unified JSON converter)
    * @param {string} xml - XML string
    * @param {Object} config - Configuration object
-   * @param {Array} transforms - Array of transform objects
+   * @param {Array} transforms - Array of transform objects (from transformStore)
+   * @param {Array} pipelineSteps - Array of pipeline steps (from pipelineStore)
    * @returns {Object} Resulting JSON
    */
-  convertXmlToJson(xml, config, transforms) {
+  convertXmlToJson(xml, config, transforms, pipelineSteps = []) {
     // Create a new instance for each conversion
     const xjx = new XJX();
 
@@ -136,7 +137,12 @@ class XJXService {
     // Start the conversion chain with fluent API
     builder = builder.fromXml(xml);
 
-    // Apply transforms if provided
+    // Apply pipeline steps if provided
+    if (pipelineSteps && pipelineSteps.length > 0) {
+      builder = this._applyPipelineSteps(builder, pipelineSteps);
+    }
+
+    // Apply transforms if provided (legacy support)
     if (transforms && transforms.length > 0) {
       const transformFunctions = this._createTransformers(transforms);
 
@@ -157,10 +163,11 @@ class XJXService {
    * Auto-detects whether input is XJX JSON or standard JSON
    * @param {Object} json - JSON object
    * @param {Object} config - Configuration object
-   * @param {Array} transforms - Array of transform objects
+   * @param {Array} transforms - Array of transform objects (from transformStore)
+   * @param {Array} pipelineSteps - Array of pipeline steps (from pipelineStore)
    * @returns {string} Resulting XML
    */
-  convertJsonToXml(json, config, transforms) {
+  convertJsonToXml(json, config, transforms, pipelineSteps = []) {
     // Create a new instance for each conversion
     const xjx = new XJX();
 
@@ -174,7 +181,12 @@ class XJXService {
     // Start the conversion chain with the unified JSON method
     builder = builder.fromJson(json);
 
-    // Apply transforms if provided
+    // Apply pipeline steps if provided
+    if (pipelineSteps && pipelineSteps.length > 0) {
+      builder = this._applyPipelineSteps(builder, pipelineSteps);
+    }
+
+    // Apply transforms if provided (legacy support)
     if (transforms && transforms.length > 0) {
       const transformFunctions = this._createTransformers(transforms);
 
@@ -190,7 +202,337 @@ class XJXService {
     return builder.toXmlString();
   }
 
-   /**
+  /**
+   * Apply a series of pipeline steps to the XJX builder
+   * @param {XJX} builder - XJX builder instance
+   * @param {Array} steps - Pipeline steps
+   * @returns {XJX} Updated builder with steps applied
+   * @private
+   */
+  _applyPipelineSteps(builder, steps) {
+    if (!steps || steps.length === 0) return builder;
+
+    // Process each step in order
+    return steps.reduce((currentBuilder, step) => {
+      switch (step.type) {
+        case 'select':
+          return this._applySelectStep(currentBuilder, step.options);
+        case 'filter':
+          return this._applyFilterStep(currentBuilder, step.options);
+        case 'map':
+          return this._applyMapStep(currentBuilder, step.options);
+        case 'reduce':
+          // Note: reduce is a terminal operation and should be last
+          return this._applyReduceStep(currentBuilder, step.options);
+        case 'children':
+          return this._applyChildrenStep(currentBuilder, step.options);
+        case 'descendants':
+          return this._applyDescendantsStep(currentBuilder, step.options);
+        case 'root':
+          return this._applyRootStep(currentBuilder, step.options);
+        case 'transform':
+          return this._applyTransformStep(currentBuilder, step.options);
+        default:
+          console.warn(`Unknown pipeline step type: ${step.type}`);
+          return currentBuilder;
+      }
+    }, builder);
+  }
+
+  /**
+   * Apply select step
+   * @param {XJX} builder - XJX builder
+   * @param {Object} options - Step options
+   * @returns {XJX} Updated builder
+   * @private
+   */
+  _applySelectStep(builder, options) {
+    const { predicate, fragmentRoot } = options || {};
+    if (!predicate) return builder;
+
+    try {
+      // Create predicate function from string
+      const predicateFunc = this._createFunction(predicate);
+
+      // Apply with or without fragmentRoot
+      if (fragmentRoot) {
+        return builder.select(predicateFunc, fragmentRoot);
+      }
+      return builder.select(predicateFunc);
+    } catch (err) {
+      console.error('Error applying select step:', err);
+      return builder;
+    }
+  }
+
+  /**
+   * Apply filter step
+   * @param {XJX} builder - XJX builder
+   * @param {Object} options - Step options
+   * @returns {XJX} Updated builder
+   * @private
+   */
+  _applyFilterStep(builder, options) {
+    const { predicate, fragmentRoot } = options || {};
+    if (!predicate) return builder;
+
+    try {
+      // Create predicate function from string
+      const predicateFunc = this._createFunction(predicate);
+
+      // Apply with or without fragmentRoot
+      if (fragmentRoot) {
+        return builder.filter(predicateFunc, fragmentRoot);
+      }
+      return builder.filter(predicateFunc);
+    } catch (err) {
+      console.error('Error applying filter step:', err);
+      return builder;
+    }
+  }
+
+  /**
+   * Apply map step
+   * @param {XJX} builder - XJX builder
+   * @param {Object} options - Step options
+   * @returns {XJX} Updated builder
+   * @private
+   */
+  _applyMapStep(builder, options) {
+    const { mapper, fragmentRoot } = options || {};
+    if (!mapper) return builder;
+
+    try {
+      // Create mapper function from string
+      const mapperFunc = this._createFunction(mapper);
+
+      // Apply with or without fragmentRoot
+      if (fragmentRoot) {
+        return builder.map(mapperFunc, fragmentRoot);
+      }
+      return builder.map(mapperFunc);
+    } catch (err) {
+      console.error('Error applying map step:', err);
+      return builder;
+    }
+  }
+
+  /**
+   * Apply reduce step
+   * @param {XJX} builder - XJX builder
+   * @param {Object} options - Step options
+   * @returns {XJX} Updated builder
+   * @private
+   */
+  _applyReduceStep(builder, options) {
+    const { reducer, initialValue, fragmentRoot } = options || {};
+    if (!reducer) return builder;
+
+    try {
+      // Create reducer function from string
+      const reducerFunc = this._createFunction(reducer);
+
+      // Parse initial value (could be string, number, boolean, array, object)
+      let parsedInitialValue;
+      try {
+        parsedInitialValue = JSON.parse(initialValue);
+      } catch (e) {
+        // If not valid JSON, use as is (string)
+        parsedInitialValue = initialValue;
+      }
+
+      // Apply with or without fragmentRoot
+      if (fragmentRoot) {
+        return builder.reduce(reducerFunc, parsedInitialValue, fragmentRoot);
+      }
+      return builder.reduce(reducerFunc, parsedInitialValue);
+    } catch (err) {
+      console.error('Error applying reduce step:', err);
+      return builder;
+    }
+  }
+
+  /**
+   * Apply children step
+   * @param {XJX} builder - XJX builder
+   * @param {Object} options - Step options
+   * @returns {XJX} Updated builder
+   * @private
+   */
+  _applyChildrenStep(builder, options) {
+    const { predicate, fragmentRoot } = options || {};
+
+    try {
+      // If predicate is empty or 'node => true', call without predicate
+      if (!predicate || predicate === 'node => true') {
+        if (fragmentRoot) {
+          return builder.children(undefined, fragmentRoot);
+        }
+        return builder.children();
+      }
+
+      // Create predicate function from string
+      const predicateFunc = this._createFunction(predicate);
+
+      // Apply with or without fragmentRoot
+      if (fragmentRoot) {
+        return builder.children(predicateFunc, fragmentRoot);
+      }
+      return builder.children(predicateFunc);
+    } catch (err) {
+      console.error('Error applying children step:', err);
+      return builder;
+    }
+  }
+
+  /**
+   * Apply descendants step
+   * @param {XJX} builder - XJX builder
+   * @param {Object} options - Step options
+   * @returns {XJX} Updated builder
+   * @private
+   */
+  _applyDescendantsStep(builder, options) {
+    const { predicate, fragmentRoot } = options || {};
+
+    try {
+      // If predicate is empty or 'node => true', call without predicate
+      if (!predicate || predicate === 'node => true') {
+        if (fragmentRoot) {
+          return builder.descendants(undefined, fragmentRoot);
+        }
+        return builder.descendants();
+      }
+
+      // Create predicate function from string
+      const predicateFunc = this._createFunction(predicate);
+
+      // Apply with or without fragmentRoot
+      if (fragmentRoot) {
+        return builder.descendants(predicateFunc, fragmentRoot);
+      }
+      return builder.descendants(predicateFunc);
+    } catch (err) {
+      console.error('Error applying descendants step:', err);
+      return builder;
+    }
+  }
+
+  /**
+   * Apply root step
+   * @param {XJX} builder - XJX builder
+   * @param {Object} options - Step options
+   * @returns {XJX} Updated builder
+   * @private
+   */
+  _applyRootStep(builder, options) {
+    const { fragmentRoot } = options || {};
+
+    try {
+      // Apply with or without fragmentRoot
+      if (fragmentRoot) {
+        return builder.root(fragmentRoot);
+      }
+      return builder.root();
+    } catch (err) {
+      console.error('Error applying root step:', err);
+      return builder;
+    }
+  }
+
+  /**
+   * Apply transform step
+   * @param {XJX} builder - XJX builder
+   * @param {Object} options - Step options
+   * @returns {XJX} Updated builder
+   * @private
+   */
+  _applyTransformStep(builder, options) {
+    try {
+      const transformType = options.type;
+      const transformOptions = options.options || {};
+
+      let transformFunction;
+      switch (transformType) {
+        case 'BooleanTransform':
+          transformFunction = toBoolean(transformOptions);
+          break;
+        case 'NumberTransform':
+          transformFunction = toNumber(transformOptions);
+          break;
+        case 'RegexTransform':
+          transformFunction = regex(transformOptions.pattern, transformOptions.replacement, transformOptions);
+          break;
+        default:
+          console.warn(`Unknown transform type: ${transformType}`);
+          return builder;
+      }
+
+      return builder.transform(transformFunction);
+    } catch (err) {
+      console.error('Error applying transform step:', err);
+      return builder;
+    }
+  }
+
+  /**
+   * Create a function from a string
+   * @param {string} functionString - Function string
+   * @returns {Function} Created function
+   * @private
+   */
+  _createFunction(functionString) {
+    try {
+      // Clean up the function string
+      let cleanFunctionString = functionString.trim();
+      
+      // If it doesn't start with function, node =>, or similar, assume it's a function body
+      if (!cleanFunctionString.startsWith('function') && 
+          !cleanFunctionString.startsWith('(') && 
+          !cleanFunctionString.includes('=>')) {
+        cleanFunctionString = `node => ${cleanFunctionString}`;
+      }
+      
+      // Create the function
+      return new Function('return ' + cleanFunctionString)();
+    } catch (err) {
+      console.error('Error creating function from string:', err);
+      // Return a pass-through function as fallback
+      return (x) => x;
+    }
+  }
+
+  /**
+   * Create transformer functions from transform objects
+   * @param {Array} transforms - Array of transform objects
+   * @returns {Array} Array of transform functions
+   * @private
+   */
+  _createTransformers(transforms) {
+    if (!transforms || transforms.length === 0) return [];
+
+    return transforms.map(transform => {
+      const type = transform.type;
+      const options = transform.options || {};
+
+      switch (type) {
+        case 'BooleanTransform':
+          return toBoolean(options);
+        case 'NumberTransform':
+          return toNumber(options);
+        case 'RegexTransform':
+          if (options.pattern) {
+            return regex(options.pattern, options.replacement || '', options);
+          }
+          return null;
+        default:
+          console.warn(`Unknown transform type: ${type}`);
+          return null;
+      }
+    }).filter(Boolean); // Remove null items
+  }
+
+  /**
    * Generate fluent API code string
    * @param {string} fromType - 'xml' or 'json'
    * @param {string|Object} content - Current content
@@ -271,13 +613,7 @@ class XJXService {
       case 'root':
         return this._generateRootCode(step.options);
       case 'transform':
-        // Use the existing transform code generator if it's a transform
-        if (typeof this._generateTransformCode === 'function') {
-          return this._generateTransformCode(step.options);
-        } else {
-          // Fallback if the original method doesn't exist
-          return `transform(/* Options for ${step.options.type} */)`;
-        }
+        return this._generateTransformCode(step.options);
       default:
         return null;
     }
@@ -453,59 +789,34 @@ class XJXService {
   }
 
   /**
-   * Get default options for a specific transformer type
-   * @param {string} type - Transformer type
-   * @returns {Object} Default options
+   * Generate code for transform operation
+   * @param {Object} options - Transform options
+   * @returns {string} Transform code
+   * @private
    */
-  getDefaultOptions(type) {
-    // Common transform options shared by all transform types
-    const commonOptions = {
-      values: true,
-      attributes: true,
-      intent: 'parse'
-    };
+  _generateTransformCode(options) {
+    const transformType = options?.type;
+    const transformOptions = options?.options || {};
     
-    switch (type) {
+    if (!transformType) {
+      return 'transform(/* Unknown transform */)';
+    }
+    
+    switch (transformType) {
       case 'BooleanTransform':
-        return {
-          ...commonOptions,
-          // Parse mode options
-          trueValues: ['true', 'yes', '1', 'on'],
-          falseValues: ['false', 'no', '0', 'off'],
-          ignoreCase: true,
-          // Serialize mode options
-          trueString: 'true',
-          falseString: 'false'
-        };
-        
+        return `transform(toBoolean(${JSON.stringify(transformOptions)}))`;
       case 'NumberTransform':
-        return {
-          ...commonOptions,
-          // Parse mode options
-          integers: true,
-          decimals: true,
-          scientific: true,
-          decimalSeparator: '.',
-          thousandsSeparator: ',',
-          // Common options for both modes
-          precision: undefined,
-          // Serialize mode options
-          format: undefined
-        };
-        
+        return `transform(toNumber(${JSON.stringify(transformOptions)}))`;
       case 'RegexTransform':
-        return {
-          ...commonOptions,
-          pattern: '',
-          replacement: '',
-          attributeFilter: undefined
-        };
-        
+        if (transformOptions.pattern) {
+          return `transform(regex(${JSON.stringify(transformOptions.pattern)}, ${JSON.stringify(transformOptions.replacement || '')}, ${JSON.stringify({ ...transformOptions, pattern: undefined, replacement: undefined })}))`;
+        }
+        return `transform(regex("", "", ${JSON.stringify(transformOptions)}))`;
       default:
-        return commonOptions;
+        return `transform(/* ${transformType} */)`;
     }
   }
 }
 
-// Export as a singleton instance if that's how the original service is structured
+// Export as a singleton instance
 export default new XJXService();

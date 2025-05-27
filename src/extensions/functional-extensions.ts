@@ -19,8 +19,10 @@ import {
 } from "./functional-utils";
 
 /**
- * Implementation for selecting nodes from the document
- * @param predicate Function that determines if a node should be selected
+ * Select nodes that match a predicate while preserving document structure.
+ * Keeps nodes that match the predicate and their ancestors to maintain hierarchy.
+ * 
+ * @param predicate Function that determines if a node should be kept
  * @param fragmentRoot Optional container element name or XNode
  * @returns this for chaining
  */
@@ -34,28 +36,107 @@ export function select(
     validate(typeof predicate === 'function', "Predicate must be a function");
     this.validateSource();
     
-    logger.debug('Selecting nodes using predicate function');
+    logger.debug('Selecting document nodes hierarchically');
     
-    // Find all matching nodes in the document
-    const matches = findMatchingNodes(this.xnode as XNode, predicate);
+    // Clone the current document to avoid modifying the original
+    const rootNode = cloneNode(this.xnode as XNode, true);
     
-    logger.debug(`Found ${matches.length} matching nodes`);
+    // Track whether any node matches the predicate
+    let hasMatches = false;
     
-    // Process results and set as current node
-    this.xnode = processResults(this, matches, fragmentRoot);
+    // Track which nodes should be kept (to preserve ancestors of matching nodes)
+    const nodesToKeep = new WeakSet<XNode>();
     
-    logger.debug('Selection completed successfully');
+    // First pass: Identify all nodes that match the predicate and their ancestors
+    const markMatchingNodes = (node: XNode): boolean => {
+      let nodeMatches = false;
+      
+      // Check if this node matches the predicate
+      try {
+        nodeMatches = predicate(node);
+      } catch (err) {
+        logger.warn(`Error evaluating predicate on node: ${node.name}`, { error: err });
+        nodeMatches = false;
+      }
+      
+      // If this node matches, mark it and all its ancestors for preservation
+      if (nodeMatches) {
+        hasMatches = true;
+        
+        // Mark this node
+        nodesToKeep.add(node);
+        
+        // Mark all ancestors
+        let current = node.parent;
+        while (current) {
+          nodesToKeep.add(current);
+          current = current.parent;
+        }
+      }
+      
+      // Process children
+      if (node.children) {
+        for (const child of node.children) {
+          const childMatches = markMatchingNodes(child);
+          
+          // If any child matches, this node and its ancestors should be kept
+          if (childMatches) {
+            nodeMatches = true;
+            nodesToKeep.add(node);
+            
+            // Mark all ancestors
+            let current = node.parent;
+            while (current) {
+              nodesToKeep.add(current);
+              current = current.parent;
+            }
+          }
+        }
+      }
+      
+      return nodeMatches;
+    };
+    
+    // Second pass: Prune nodes that should not be kept
+    const pruneUnmarkedNodes = (node: XNode): void => {
+      // Remove children that aren't in the nodesToKeep set
+      if (node.children && node.children.length > 0) {
+        // First prune each child's descendants
+        for (const child of node.children) {
+          pruneUnmarkedNodes(child);
+        }
+        
+        // Then filter the children array
+        node.children = node.children.filter(child => nodesToKeep.has(child));
+      }
+    };
+    
+    // Run both passes
+    markMatchingNodes(rootNode);
+    pruneUnmarkedNodes(rootNode);
+    
+    // If no matches found, create an empty results container
+    if (!hasMatches) {
+      logger.debug('No nodes matched the select predicate');
+      this.xnode = createResultNode(this, fragmentRoot);
+    } else {
+      // Otherwise use the filtered tree
+      logger.debug('Successfully selected nodes hierarchically');
+      this.xnode = rootNode;
+    }
   } catch (err) {
     if (err instanceof Error) {
       throw err;
     }
-    throw new Error(`Failed to select nodes: ${String(err)}`);
+    throw new Error(`Failed to select nodes hierarchically: ${String(err)}`);
   }
 }
 
 /**
- * Implementation for filtering the current selection
- * @param predicate Function that determines if a node should be kept
+ * Filter out nodes that match a predicate while preserving document structure.
+ * Removes nodes that match the predicate while keeping other nodes.
+ * 
+ * @param predicate Function that determines if a node should be removed
  * @param fragmentRoot Optional container element name or XNode
  * @returns this for chaining
  */
@@ -69,64 +150,88 @@ export function filter(
     validate(typeof predicate === 'function', "Predicate must be a function");
     this.validateSource();
     
-    logger.debug('Filtering current node selection');
+    logger.debug('Filtering document nodes hierarchically');
     
-    // Get the current fragment root name
-    const currentRoot = this.xnode ? this.xnode.name : '';
-    const configRootName = typeof this.config.fragmentRoot === 'string' ? 
-      this.config.fragmentRoot : 'results';
+    // Clone the current document to avoid modifying the original
+    const rootNode = cloneNode(this.xnode as XNode, true);
     
-    // Check if current root matches the config fragment root
-    const isFragmentRoot = currentRoot === configRootName;
+    // Track whether any node matches the predicate
+    let hasMatches = false;
     
-    // Create result container node
-    const resultsNode = createResultNode(this, fragmentRoot);
+    // Track which nodes should be removed
+    const nodesToRemove = new WeakSet<XNode>();
     
-    if (this.xnode && isFragmentRoot && this.xnode.children) {
-      // Filter children and create clones of matching nodes
-      const filtered = this.xnode.children
-        .filter(node => {
-          try {
-            return predicate(node);
-          } catch (err) {
-            logger.warn(`Error evaluating filter predicate on node: ${node.name}`, { error: err });
-            return false;
+    // First pass: Identify nodes that match the predicate and should be removed
+    const markNodesToRemove = (node: XNode): boolean => {
+      let nodeMatches = false;
+      let allChildrenRemoved = true;
+      
+      // Process children first (bottom-up)
+      if (node.children && node.children.length > 0) {
+        for (const child of node.children) {
+          const childMatches = markNodesToRemove(child);
+          
+          if (childMatches) {
+            // If child matches predicate, mark it for removal
+            nodesToRemove.add(child);
+            hasMatches = true;
+          } else {
+            // At least one child not removed
+            allChildrenRemoved = false;
           }
-        })
-        .map(node => cloneNode(node, true));
-      
-      logger.debug(`Filtered from ${this.xnode.children.length} to ${filtered.length} nodes`);
-      
-      // Add filtered nodes to result container
-      filtered.forEach(node => addChild(resultsNode, node));
-      this.xnode = resultsNode;
-    } else {
-      // Single node - check if it matches
-      let matches = false;
-      
-      try {
-        matches = predicate(this.xnode as XNode);
-      } catch (err) {
-        logger.warn(`Error evaluating filter predicate on node: ${this.xnode?.name}`, { error: err });
-      }
-      
-      if (matches) {
-        // Create a deep clone if it matches
-        this.xnode = cloneNode(this.xnode as XNode, true);
-        logger.debug('Node matched filter criteria');
+        }
       } else {
-        // Create empty results if it doesn't match
-        this.xnode = resultsNode;
-        logger.debug('Node did not match filter criteria, created empty results');
+        // Leaf node, no children to consider
+        allChildrenRemoved = false;
       }
-    }
+      
+      // Now check if this node matches the predicate
+      try {
+        nodeMatches = predicate(node);
+      } catch (err) {
+        logger.warn(`Error evaluating predicate on node: ${node.name}`, { error: err });
+        nodeMatches = false;
+      }
+      
+      // Return true if this node matches or if all its children were removed
+      // Note: We don't mark the node for removal here, just return the match status
+      return nodeMatches || allChildrenRemoved;
+    };
     
-    logger.debug('Filtering completed successfully');
+    // Second pass: Remove the marked nodes
+    const removeMarkedNodes = (node: XNode): void => {
+      // Remove children that are marked for removal
+      if (node.children && node.children.length > 0) {
+        // First recursively process each child's descendants
+        for (const child of node.children) {
+          if (!nodesToRemove.has(child)) {
+            removeMarkedNodes(child);
+          }
+        }
+        
+        // Then filter the children array to remove marked nodes
+        node.children = node.children.filter(child => !nodesToRemove.has(child));
+      }
+    };
+    
+    // Run both passes (note: don't remove the root node)
+    markNodesToRemove(rootNode);
+    removeMarkedNodes(rootNode);
+    
+    // If every node was removed, create an empty results container
+    if (nodesToRemove.has(rootNode) || (rootNode.children && rootNode.children.length === 0)) {
+      logger.debug('All nodes were filtered out');
+      this.xnode = createResultNode(this, fragmentRoot);
+    } else {
+      // Otherwise use the filtered tree
+      logger.debug('Successfully filtered nodes hierarchically');
+      this.xnode = rootNode;
+    }
   } catch (err) {
     if (err instanceof Error) {
       throw err;
     }
-    throw new Error(`Failed to filter nodes: ${String(err)}`);
+    throw new Error(`Failed to filter nodes hierarchically: ${String(err)}`);
   }
 }
 
@@ -266,14 +371,77 @@ export function reduce<T>(
   }
 }
 
+/**
+ * Get a specific node by index from the current selection.
+ * 
+ * @param index Index of the node to get (0-based)
+ * @param unwrap Whether to unwrap the node from its container (default: true)
+ * @returns this for chaining
+ */
+export function get(
+  this: NonTerminalExtensionContext, 
+  index: number = 0,
+  unwrap: boolean = true
+): void {
+  try {
+    // API boundary validation
+    this.validateSource();
+    validate(typeof index === 'number', "Index must be a number");
+    validate(index >= 0, "Index must be non-negative");
+    
+    const currentNode = this.xnode as XNode;
+    
+    // If current node doesn't have children, throw an error
+    if (!currentNode.children || currentNode.children.length === 0) {
+      throw new ValidationError('No children found when calling get()');
+    }
+    
+    // Check if index is in bounds
+    if (index >= currentNode.children.length) {
+      throw new ValidationError(`Index ${index} out of bounds (0-${currentNode.children.length - 1})`);
+    }
+    
+    logger.debug(`Getting node at index ${index}`, {
+      unwrap,
+      childCount: currentNode.children.length
+    });
+    
+    if (unwrap) {
+      // Replace current node with the specified child (deep clone)
+      this.xnode = cloneNode(currentNode.children[index], true);
+      logger.debug('Unwrapped node from container', {
+        nodeName: this.xnode.name
+      });
+    } else {
+      // Create a new container with only the specified child
+      const resultsNode = createResultNode(this);
+      const childClone = cloneNode(currentNode.children[index], true);
+      addChild(resultsNode, childClone);
+      this.xnode = resultsNode;
+      logger.debug('Kept node in container', {
+        containerName: resultsNode.name,
+        childName: childClone.name
+      });
+    }
+  } catch (err) {
+    if (err instanceof Error) {
+      throw err;
+    }
+    throw new Error(`Failed to get node at index: ${String(err)}`);
+  }
+}
+
+
 // Register the core functional extensions with XJX
 XJX.registerNonTerminalExtension("select", select);
 XJX.registerNonTerminalExtension("filter", filter);
 XJX.registerNonTerminalExtension("map", map);
 XJX.registerTerminalExtension("reduce", reduce);
+XJX.registerNonTerminalExtension("get", get);
 
 // Optional: export individual functions for use in tests or other contexts
 export { select as selectNodes };
 export { filter as filterNodes };
 export { map as mapNodes };
 export { reduce as reduceNodes };
+export { get as getNode };

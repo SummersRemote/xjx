@@ -12,7 +12,6 @@ import './extensions/config-extensions';
 import './extensions/to-xnode';
 import './extensions/from-xnode';
 import './extensions/functional-extensions';
-import './extensions/axis-extensions';
 import './extensions/transform-extension';
 
 // Export the main class (for instantiation)
@@ -88,7 +87,6 @@ function ensureExtensionsRegistered() {
     './extensions/to-xnode',
     './extensions/from-xnode',
     './extensions/functional/functional-extensions',
-    './extensions/functional/axis-extensions',
     './extensions/functional/transform-extension'
   ];
 }

@@ -23,8 +23,5 @@ export * from './transform-extension';
 // Functional extensions (core operations)
 export * from './functional-extensions';
 
-// Axis navigation extensions (downward traversal and root navigation)
-export * from './axis-extensions';
-
 // Utilities (for custom extensions)
 export * from './functional-utils';

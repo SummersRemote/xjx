@@ -5,26 +5,14 @@
       <v-col cols="12">
         <v-textarea
           v-model="localOptions.predicate"
-          label="Predicate Function"
-          hint="Function that determines if a node should be selected"
+          label="Select Predicate"
+          hint="Function that determines which nodes to collect"
           persistent-hint
           auto-grow
           rows="3"
           class="font-mono"
           @update:model-value="updateOptions"
         ></v-textarea>
-      </v-col>
-    </v-row>
-    
-    <v-row dense>
-      <v-col cols="12">
-        <v-text-field
-          v-model="localOptions.fragmentRoot"
-          label="Fragment Root (Optional)"
-          hint="Container element name for results"
-          persistent-hint
-          @update:model-value="updateOptions"
-        ></v-text-field>
       </v-col>
     </v-row>
     
@@ -38,9 +26,9 @@
           class="text-caption mt-3"
         >
           <strong>Example predicates:</strong><br>
-          - <code>node => node.name === 'user'</code><br>
-          - <code>node => node.attributes && node.attributes.active === 'true'</code><br>
-          - <code>node => node.children && node.children.length > 0</code>
+          - <code>node => node.name === 'price'</code><br>
+          - <code>node => node.attributes?.id?.startsWith('user')</code><br>
+          - <code>node => node.value && parseInt(node.value) > 100</code>
         </v-alert>
       </v-col>
     </v-row>
@@ -54,8 +42,24 @@
           icon="mdi-code-braces"
           class="text-caption mt-3"
         >
-          The <code>select()</code> operation finds all nodes matching the predicate throughout the document
-          and maintains the document hierarchy (keeping ancestors of matching nodes).
+          The <code>select()</code> operation collects matching nodes into a flat list, without preserving
+          hierarchy. This is useful for extracting specific nodes for processing. The results are 
+          placed in a container element.
+        </v-alert>
+      </v-col>
+    </v-row>
+    
+    <v-row dense>
+      <v-col cols="12">
+        <v-alert
+          type="warning"
+          variant="tonal"
+          density="compact"
+          icon="mdi-alert"
+          class="text-caption mt-3"
+        >
+          Unlike <code>filter()</code>, <code>select()</code> doesn't maintain document hierarchy. It 
+          collects only the matching nodes directly, removing their context in the document.
         </v-alert>
       </v-col>
     </v-row>
@@ -69,8 +73,7 @@ const props = defineProps({
   value: {
     type: Object,
     default: () => ({
-      predicate: 'node => node.name === "example"',
-      fragmentRoot: ''
+      predicate: 'node => node.name === "example"'
     })
   }
 });
@@ -79,8 +82,7 @@ const emit = defineEmits(['update']);
 
 // Create a local reactive copy of the props
 const localOptions = reactive({
-  predicate: props.value.predicate || 'node => node.name === "example"',
-  fragmentRoot: props.value.fragmentRoot || ''
+  predicate: props.value.predicate || 'node => node.name === "example"'
 });
 
 // Emit changes to the parent
@@ -92,7 +94,6 @@ const updateOptions = () => {
 watch(() => props.value, (newValue) => {
   if (newValue) {
     localOptions.predicate = newValue.predicate || 'node => node.name === "example"';
-    localOptions.fragmentRoot = newValue.fragmentRoot || '';
   }
 }, { deep: true });
 </script>

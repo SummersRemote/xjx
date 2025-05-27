@@ -11,8 +11,7 @@ import './extensions/to-json';
 import './extensions/config-extensions';
 import './extensions/to-xnode';
 import './extensions/from-xnode';
-import './extensions/functional-extensions';
-import './extensions/transform-extension';
+import './extensions/functional-api';
 
 // Export the main class (for instantiation)
 export { XJX } from './XJX';
@@ -86,8 +85,7 @@ function ensureExtensionsRegistered() {
     './extensions/config-extensions',
     './extensions/to-xnode',
     './extensions/from-xnode',
-    './extensions/functional/functional-extensions',
-    './extensions/functional/transform-extension'
+    './extensions/functional-api',
   ];
 }
 

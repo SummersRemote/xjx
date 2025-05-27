@@ -30,18 +30,6 @@
     
     <v-row dense>
       <v-col cols="12">
-        <v-text-field
-          v-model="localOptions.fragmentRoot"
-          label="Fragment Root (Optional)"
-          hint="Container element name for results"
-          persistent-hint
-          @update:model-value="updateOptions"
-        ></v-text-field>
-      </v-col>
-    </v-row>
-    
-    <v-row dense>
-      <v-col cols="12">
         <v-alert
           type="info"
           variant="tonal"
@@ -51,8 +39,8 @@
         >
           <strong>Example reducer functions:</strong><br>
           - <code>(acc, node) => acc + 1</code> (Count nodes)<br>
-          - <code>(acc, node) => acc + (parseFloat(node.value) || 0)</code> (Sum values)<br>
-          - <code>(acc, node) => [...acc, node.name]</code> (Collect names in array)
+          - <code>(acc, node) => node.name === 'price' ? acc + parseFloat(node.value || '0') : acc</code> (Sum prices)<br>
+          - <code>(acc, node) => node.name === 'item' ? [...acc, node.attributes?.id] : acc</code> (Collect IDs in array)
         </v-alert>
       </v-col>
     </v-row>
@@ -67,7 +55,7 @@
           class="text-caption mt-3"
         >
           <strong>Note:</strong> The <code>reduce()</code> operation is a terminal operation and ends the processing chain.
-          Make sure to use it as the last operation in your pipeline.
+          It returns the accumulated value directly instead of an XJX instance.
         </v-alert>
       </v-col>
     </v-row>
@@ -100,8 +88,7 @@ const props = defineProps({
     type: Object,
     default: () => ({
       reducer: '(acc, node) => {\n  // Accumulate values\n  return acc + 1;\n}',
-      initialValue: '0',
-      fragmentRoot: ''
+      initialValue: '0'
     })
   }
 });
@@ -111,8 +98,7 @@ const emit = defineEmits(['update']);
 // Create a local reactive copy of the props
 const localOptions = reactive({
   reducer: props.value.reducer || '(acc, node) => {\n  // Accumulate values\n  return acc + 1;\n}',
-  initialValue: props.value.initialValue || '0',
-  fragmentRoot: props.value.fragmentRoot || ''
+  initialValue: props.value.initialValue || '0'
 });
 
 // Emit changes to the parent
@@ -125,7 +111,6 @@ watch(() => props.value, (newValue) => {
   if (newValue) {
     localOptions.reducer = newValue.reducer || '(acc, node) => {\n  // Accumulate values\n  return acc + 1;\n}';
     localOptions.initialValue = newValue.initialValue || '0';
-    localOptions.fragmentRoot = newValue.fragmentRoot || '';
   }
 }, { deep: true });
 </script>

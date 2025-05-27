@@ -2,7 +2,8 @@
 import { 
   toBoolean,
   toNumber,
-  regex
+  regex,
+  compose
  } from "../../../dist/esm/index.js";
 import LoggingService from "./loggingService.js";
 import TransformerService from "./transformerService.js";
@@ -25,8 +26,6 @@ class PipelineService {
     // Process each step in order
     return steps.reduce((currentBuilder, step) => {
       switch (step.type) {
-        case 'select':
-          return this._applySelectStep(currentBuilder, step.options);
         case 'filter':
           return this._applyFilterStep(currentBuilder, step.options);
         case 'map':
@@ -34,6 +33,8 @@ class PipelineService {
         case 'reduce':
           // Note: reduce is a terminal operation and should be last
           return this._applyReduceStep(currentBuilder, step.options);
+        case 'select':
+          return this._applySelectStep(currentBuilder, step.options);
         case 'get':
           return this._applyGetStep(currentBuilder, step.options);
         case 'transform':
@@ -46,32 +47,6 @@ class PipelineService {
   }
 
   /**
-   * Apply select step
-   * @param {XJX} builder - XJX builder
-   * @param {Object} options - Step options
-   * @returns {XJX} Updated builder
-   * @private
-   */
-  _applySelectStep(builder, options) {
-    const { predicate, fragmentRoot } = options || {};
-    if (!predicate) return builder;
-
-    try {
-      // Create predicate function from string
-      const predicateFunc = TransformerService.createFunction(predicate);
-
-      // Apply with or without fragmentRoot
-      if (fragmentRoot) {
-        return builder.select(predicateFunc, fragmentRoot);
-      }
-      return builder.select(predicateFunc);
-    } catch (err) {
-      LoggingService.error('Error applying select step:', err);
-      return builder;
-    }
-  }
-
-  /**
    * Apply filter step
    * @param {XJX} builder - XJX builder
    * @param {Object} options - Step options
@@ -79,17 +54,14 @@ class PipelineService {
    * @private
    */
   _applyFilterStep(builder, options) {
-    const { predicate, fragmentRoot } = options || {};
+    const { predicate } = options || {};
     if (!predicate) return builder;
 
     try {
       // Create predicate function from string
       const predicateFunc = TransformerService.createFunction(predicate);
 
-      // Apply with or without fragmentRoot
-      if (fragmentRoot) {
-        return builder.filter(predicateFunc, fragmentRoot);
-      }
+      // Apply filter operation
       return builder.filter(predicateFunc);
     } catch (err) {
       LoggingService.error('Error applying filter step:', err);
@@ -105,18 +77,15 @@ class PipelineService {
    * @private
    */
   _applyMapStep(builder, options) {
-    const { mapper, fragmentRoot } = options || {};
-    if (!mapper) return builder;
+    const { transformer } = options || {};
+    if (!transformer) return builder;
 
     try {
-      // Create mapper function from string
-      const mapperFunc = TransformerService.createFunction(mapper);
+      // Create transformer function from string
+      const transformerFunc = TransformerService.createFunction(transformer);
 
-      // Apply with or without fragmentRoot
-      if (fragmentRoot) {
-        return builder.map(mapperFunc, fragmentRoot);
-      }
-      return builder.map(mapperFunc);
+      // Apply map operation
+      return builder.map(transformerFunc);
     } catch (err) {
       LoggingService.error('Error applying map step:', err);
       return builder;
@@ -131,7 +100,7 @@ class PipelineService {
    * @private
    */
   _applyReduceStep(builder, options) {
-    const { reducer, initialValue, fragmentRoot } = options || {};
+    const { reducer, initialValue } = options || {};
     if (!reducer) return builder;
 
     try {
@@ -147,13 +116,33 @@ class PipelineService {
         parsedInitialValue = initialValue;
       }
 
-      // Apply with or without fragmentRoot
-      if (fragmentRoot) {
-        return builder.reduce(reducerFunc, parsedInitialValue, fragmentRoot);
-      }
+      // Apply reduce operation (terminal operation)
       return builder.reduce(reducerFunc, parsedInitialValue);
     } catch (err) {
       LoggingService.error('Error applying reduce step:', err);
+      return builder;
+    }
+  }
+
+  /**
+   * Apply select step
+   * @param {XJX} builder - XJX builder
+   * @param {Object} options - Step options
+   * @returns {XJX} Updated builder
+   * @private
+   */
+  _applySelectStep(builder, options) {
+    const { predicate } = options || {};
+    if (!predicate) return builder;
+
+    try {
+      // Create predicate function from string
+      const predicateFunc = TransformerService.createFunction(predicate);
+
+      // Apply select operation
+      return builder.select(predicateFunc);
+    } catch (err) {
+      LoggingService.error('Error applying select step:', err);
       return builder;
     }
   }
@@ -170,7 +159,7 @@ class PipelineService {
     
     try {
       // Use the get function to select a node by index
-      return builder.get(index !== undefined ? index : 0, unwrap !== undefined ? unwrap : true);
+      return builder.get(index !== undefined ? index : 0, unwrap === true);
     } catch (err) {
       LoggingService.error('Error applying get step:', err);
       return builder;
@@ -205,7 +194,35 @@ class PipelineService {
           return builder;
       }
 
-      return builder.transform(transformFunction);
+      // Use map with a selective transform using compose
+      return builder.map(compose(
+        // Filter by attributes if specified
+        node => {
+          // Skip null/undefined
+          if (!node) return null;
+          
+          // Apply to values if specified
+          const applyToValues = transformOptions.values !== false;
+          
+          // Apply to attributes if specified
+          const applyToAttributes = transformOptions.attributes !== false;
+          
+          // Context info for attribute transforms
+          const isAttribute = node.parent && 
+                            node.parent.attributes && 
+                            Object.values(node.parent.attributes).includes(node);
+          
+          // Skip if this is an attribute and we're not transforming attributes
+          if (isAttribute && !applyToAttributes) return null;
+          
+          // Skip if this is a value and we're not transforming values
+          if (!isAttribute && !applyToValues) return null;
+          
+          return node;
+        },
+        // Apply the actual transform
+        transformFunction
+      ));
     } catch (err) {
       LoggingService.error('Error applying transform step:', err);
       return builder;

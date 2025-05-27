@@ -45,6 +45,22 @@
         </v-alert>
       </v-col>
     </v-row>
+    
+    <v-row dense>
+      <v-col cols="12">
+        <v-alert
+          type="info"
+          variant="tonal"
+          density="compact"
+          icon="mdi-lightbulb-outline"
+          class="text-caption mt-3"
+        >
+          <strong>Tip:</strong> Use <code>select()</code> before <code>get()</code> to collect nodes matching
+          a criteria, then pick a specific one:<br>
+          <code>select(node => node.name === 'user').get(0, true)</code>
+        </v-alert>
+      </v-col>
+    </v-row>
   </v-container>
 </template>
 
@@ -56,7 +72,7 @@ const props = defineProps({
     type: Object,
     default: () => ({
       index: 0,
-      unwrap: true
+      unwrap: false
     })
   }
 });
@@ -66,7 +82,7 @@ const emit = defineEmits(['update']);
 // Create a local reactive copy of the props
 const localOptions = reactive({
   index: props.value.index !== undefined ? props.value.index : 0,
-  unwrap: props.value.unwrap !== undefined ? props.value.unwrap : true
+  unwrap: props.value.unwrap !== undefined ? props.value.unwrap : false
 });
 
 // Emit changes to the parent
@@ -78,7 +94,7 @@ const updateOptions = () => {
 watch(() => props.value, (newValue) => {
   if (newValue) {
     localOptions.index = newValue.index !== undefined ? newValue.index : 0;
-    localOptions.unwrap = newValue.unwrap !== undefined ? newValue.unwrap : true;
+    localOptions.unwrap = newValue.unwrap !== undefined ? newValue.unwrap : false;
   }
 }, { deep: true });
 </script>

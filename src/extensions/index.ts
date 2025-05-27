@@ -14,14 +14,8 @@ export * from './to-xml';
 export * from './to-json';
 export * from './to-xnode';
 
+// Functional extensions (core operations)
+export * from './functional-api';
+
 // Configuration extensions
 export * from './config-extensions';
-
-// Transform extension
-export * from './transform-extension';
-
-// Functional extensions (core operations)
-export * from './functional-extensions';
-
-// Utilities (for custom extensions)
-export * from './functional-utils';

@@ -78,14 +78,14 @@ class CodeGenerationService {
    */
   _generateStepCode(step) {
     switch (step.type) {
-      case 'select':
-        return this._generateSelectCode(step.options);
       case 'filter':
         return this._generateFilterCode(step.options);
       case 'map':
         return this._generateMapCode(step.options);
       case 'reduce':
         return this._generateReduceCode(step.options);
+      case 'select':
+        return this._generateSelectCode(step.options);
       case 'get':
         return this._generateGetCode(step.options);
       case 'transform':
@@ -97,41 +97,16 @@ class CodeGenerationService {
   }
 
   /**
-   * Generate code for select operation
-   * @param {Object} options - Select options
-   * @returns {string} Select code
-   * @private
-   */
-  _generateSelectCode(options) {
-    const { predicate, fragmentRoot } = options || {};
-    if (!predicate) return 'select(() => true)';
-    
-    let code = `select(${predicate})`;
-    
-    if (fragmentRoot) {
-      code = `select(${predicate}, "${fragmentRoot}")`;
-    }
-    
-    return code;
-  }
-
-  /**
    * Generate code for filter operation
    * @param {Object} options - Filter options
    * @returns {string} Filter code
    * @private
    */
   _generateFilterCode(options) {
-    const { predicate, fragmentRoot } = options || {};
+    const { predicate } = options || {};
     if (!predicate) return 'filter(() => true)';
     
-    let code = `filter(${predicate})`;
-    
-    if (fragmentRoot) {
-      code = `filter(${predicate}, "${fragmentRoot}")`;
-    }
-    
-    return code;
+    return `filter(${predicate})`;
   }
 
   /**
@@ -141,16 +116,10 @@ class CodeGenerationService {
    * @private
    */
   _generateMapCode(options) {
-    const { mapper, fragmentRoot } = options || {};
-    if (!mapper) return 'map(node => node)';
+    const { transformer } = options || {};
+    if (!transformer) return 'map(node => node)';
     
-    let code = `map(${mapper})`;
-    
-    if (fragmentRoot) {
-      code = `map(${mapper}, "${fragmentRoot}")`;
-    }
-    
-    return code;
+    return `map(${transformer})`;
   }
 
   /**
@@ -160,7 +129,7 @@ class CodeGenerationService {
    * @private
    */
   _generateReduceCode(options) {
-    const { reducer, initialValue, fragmentRoot } = options || {};
+    const { reducer, initialValue } = options || {};
     if (!reducer) return 'reduce((acc, node) => acc + 1, 0)';
     
     let initialValueCode = initialValue || '0';
@@ -188,13 +157,20 @@ class CodeGenerationService {
       initialValueCode = `"${initialValueCode}"`;
     }
     
-    let code = `reduce(${reducer}, ${initialValueCode})`;
+    return `reduce(${reducer}, ${initialValueCode})`;
+  }
+
+  /**
+   * Generate code for select operation
+   * @param {Object} options - Select options
+   * @returns {string} Select code
+   * @private
+   */
+  _generateSelectCode(options) {
+    const { predicate } = options || {};
+    if (!predicate) return 'select(() => true)';
     
-    if (fragmentRoot) {
-      code = `reduce(${reducer}, ${initialValueCode}, "${fragmentRoot}")`;
-    }
-    
-    return code;
+    return `select(${predicate})`;
   }
 
   /**
@@ -208,7 +184,7 @@ class CodeGenerationService {
     
     // Default values if not provided
     const indexValue = index !== undefined ? index : 0;
-    const unwrapValue = unwrap !== undefined ? unwrap : true;
+    const unwrapValue = unwrap !== undefined ? unwrap : false;
     
     // Generate the code for the get function
     return `get(${indexValue}, ${unwrapValue})`;
@@ -225,21 +201,73 @@ class CodeGenerationService {
     const transformOptions = options?.options || {};
     
     if (!transformType) {
-      return 'transform(/* Unknown transform */)';
+      return 'map(/* Unknown transform */)';
     }
     
+    // For transforms, we now use map with compose to handle selective transforms
     switch (transformType) {
       case 'BooleanTransform':
-        return `transform(toBoolean(${JSON.stringify(transformOptions)}))`;
+        return `map(compose(
+  node => {
+    // Skip null/undefined
+    if (!node) return null;
+    
+    // Apply based on options
+    const applyToValues = ${transformOptions.values !== false};
+    const applyToAttributes = ${transformOptions.attributes !== false};
+    const isAttribute = node.parent && node.parent.attributes && Object.values(node.parent.attributes).includes(node);
+    
+    // Skip if conditions don't match
+    if (isAttribute && !applyToAttributes) return null;
+    if (!isAttribute && !applyToValues) return null;
+    
+    return node;
+  },
+  toBoolean(${JSON.stringify(transformOptions)})
+))`;
       case 'NumberTransform':
-        return `transform(toNumber(${JSON.stringify(transformOptions)}))`;
+        return `map(compose(
+  node => {
+    // Skip null/undefined
+    if (!node) return null;
+    
+    // Apply based on options
+    const applyToValues = ${transformOptions.values !== false};
+    const applyToAttributes = ${transformOptions.attributes !== false};
+    const isAttribute = node.parent && node.parent.attributes && Object.values(node.parent.attributes).includes(node);
+    
+    // Skip if conditions don't match
+    if (isAttribute && !applyToAttributes) return null;
+    if (!isAttribute && !applyToValues) return null;
+    
+    return node;
+  },
+  toNumber(${JSON.stringify(transformOptions)})
+))`;
       case 'RegexTransform':
         if (transformOptions.pattern) {
-          return `transform(regex(${JSON.stringify(transformOptions.pattern)}, ${JSON.stringify(transformOptions.replacement || '')}, ${JSON.stringify({ ...transformOptions, pattern: undefined, replacement: undefined })}))`;
+          return `map(compose(
+  node => {
+    // Skip null/undefined
+    if (!node) return null;
+    
+    // Apply based on options
+    const applyToValues = ${transformOptions.values !== false};
+    const applyToAttributes = ${transformOptions.attributes !== false};
+    const isAttribute = node.parent && node.parent.attributes && Object.values(node.parent.attributes).includes(node);
+    
+    // Skip if conditions don't match
+    if (isAttribute && !applyToAttributes) return null;
+    if (!isAttribute && !applyToValues) return null;
+    
+    return node;
+  },
+  regex(${JSON.stringify(transformOptions.pattern)}, ${JSON.stringify(transformOptions.replacement || '')}, ${JSON.stringify({ ...transformOptions, pattern: undefined, replacement: undefined })})
+))`;
         }
-        return `transform(regex("", "", ${JSON.stringify(transformOptions)}))`;
+        return `map(regex("", "", ${JSON.stringify(transformOptions)}))`;
       default:
-        return `transform(/* ${transformType} */)`;
+        return `map(/* ${transformType} */)`;
     }
   }
 }

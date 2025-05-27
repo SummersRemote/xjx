@@ -6,15 +6,15 @@ export const usePipelineStore = defineStore('pipeline', {
   state: () => ({
     steps: [], // Array of operation steps
     availableOperations: {
-      // Functional operations
-      'select': { type: 'select', name: 'Select Nodes', category: 'functional', description: 'Find nodes matching a predicate while preserving hierarchy' },
-      'filter': { type: 'filter', name: 'Filter Selection', category: 'functional', description: 'Remove nodes matching a predicate while maintaining hierarchy' },
-      'map': { type: 'map', name: 'Map Nodes', category: 'functional', description: 'Transform each node in the selection' },
-      'reduce': { type: 'reduce', name: 'Reduce Nodes', category: 'functional', description: 'Aggregate nodes into a single value' },
-      'get': { type: 'get', name: 'Get Node by Index', category: 'functional', description: 'Select a specific node by index from the current selection' },
+      // Core Functional Operations
+      'filter': { type: 'filter', name: 'Filter Nodes', category: 'functional', description: 'Keep nodes matching predicate (maintains hierarchy)' },
+      'map': { type: 'map', name: 'Transform Nodes', category: 'functional', description: 'Apply transformation to every node' },
+      'reduce': { type: 'reduce', name: 'Aggregate Nodes', category: 'functional', description: 'Calculate a single value from all nodes' },
+      'select': { type: 'select', name: 'Select Nodes', category: 'functional', description: 'Collect matching nodes (without hierarchy)' },
+      'get': { type: 'get', name: 'Get Node by Index', category: 'functional', description: 'Select a specific node by index' },
       
-      // Transform operations
-      'transform': { type: 'transform', name: 'Transform Values', category: 'transform', description: 'Apply value transformations (boolean, number, regex)' }
+      // Transform Operations
+      'transform': { type: 'transform', name: 'Apply Transform', category: 'transform', description: 'Apply value transformations (boolean, number, regex)' }
     }
   }),
   actions: {
@@ -89,37 +89,33 @@ export const usePipelineStore = defineStore('pipeline', {
     getDefaultOptions(type) {
       // Return default options based on operation type
       switch (type) {
-        case 'select':
-          return { 
-            predicate: 'node => node.name === "example"', 
-            fragmentRoot: '' 
-          };
         case 'filter':
           return { 
-            predicate: 'node => node.name === "example"', 
-            fragmentRoot: '' 
+            predicate: 'node => node.name === "example"'
           };
         case 'map':
           return { 
-            mapper: 'node => {\n  // Transform the node\n  return node;\n}', 
-            fragmentRoot: '' 
+            transformer: 'node => {\n  // Transform the node\n  return node;\n}'
           };
         case 'reduce':
           return { 
             reducer: '(acc, node) => {\n  // Accumulate values\n  return acc + 1;\n}', 
-            initialValue: '0', 
-            fragmentRoot: '' 
+            initialValue: '0'
+          };
+        case 'select':
+          return {
+            predicate: 'node => node.name === "example"'
           };
         case 'get':
           return { 
             index: 0,
-            unwrap: true 
+            unwrap: false
           };
         case 'transform':
           // For transforms, reuse the existing structure from transformStore
           return { 
             type: 'BooleanTransform', 
-            options: XJXService.getAvailableTransformers().BooleanTransform 
+            options: XJXService.getDefaultOptions('BooleanTransform')
           };
         default:
           return {};

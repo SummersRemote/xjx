@@ -4,8 +4,8 @@
     <v-row dense>
       <v-col cols="12">
         <v-textarea
-          v-model="localOptions.mapper"
-          label="Mapper Function"
+          v-model="localOptions.transformer"
+          label="Transformer Function"
           hint="Function that transforms each node"
           persistent-hint
           auto-grow
@@ -18,18 +18,6 @@
     
     <v-row dense>
       <v-col cols="12">
-        <v-text-field
-          v-model="localOptions.fragmentRoot"
-          label="Fragment Root (Optional)"
-          hint="Container element name for results"
-          persistent-hint
-          @update:model-value="updateOptions"
-        ></v-text-field>
-      </v-col>
-    </v-row>
-    
-    <v-row dense>
-      <v-col cols="12">
         <v-alert
           type="info"
           variant="tonal"
@@ -37,10 +25,10 @@
           icon="mdi-information-outline"
           class="text-caption mt-3"
         >
-          <strong>Example mapper functions:</strong><br>
-          - <code>node => { node.value = node.value.toUpperCase(); return node; }</code><br>
-          - <code>node => { node.attributes = { ...node.attributes, processed: 'true' }; return node; }</code><br>
-          - <code>node => { node.name = 'mapped-' + node.name; return node; }</code>
+          <strong>Example transformers:</strong><br>
+          - <code>node => node.name === 'price' ? {...node, value: parseFloat(node.value)} : node</code><br>
+          - <code>node => node.name === 'available' ? {...node, value: node.value === 'true'} : node</code><br>
+          - <code>node => node.name === 'comment' ? null : node</code> (remove comments)
         </v-alert>
       </v-col>
     </v-row>
@@ -54,8 +42,27 @@
           icon="mdi-code-braces"
           class="text-caption mt-3"
         >
-          The <code>map()</code> operation transforms each node in the current selection using the mapper function.
-          Your function should return the transformed node.
+          The <code>map()</code> operation transforms every node in the document. Return the modified node,
+          or return <code>null</code> to remove the node from the document.
+        </v-alert>
+      </v-col>
+    </v-row>
+    
+    <v-row dense>
+      <v-col cols="12">
+        <v-alert
+          type="info"
+          variant="tonal"
+          density="compact"
+          icon="mdi-function"
+          class="text-caption mt-3"
+        >
+          <strong>Using compose:</strong><br>
+          You can use <code>compose()</code> to combine multiple transformations:<br>
+          <code>compose(</code><br>
+          <code>&nbsp;&nbsp;node => node.name === 'price' ? node : null,</code><br>
+          <code>&nbsp;&nbsp;toNumber({precision: 2})</code><br>
+          <code>)</code>
         </v-alert>
       </v-col>
     </v-row>
@@ -69,8 +76,7 @@ const props = defineProps({
   value: {
     type: Object,
     default: () => ({
-      mapper: 'node => {\n  // Transform the node\n  return node;\n}',
-      fragmentRoot: ''
+      transformer: 'node => {\n  // Transform the node\n  return node;\n}'
     })
   }
 });
@@ -79,8 +85,7 @@ const emit = defineEmits(['update']);
 
 // Create a local reactive copy of the props
 const localOptions = reactive({
-  mapper: props.value.mapper || 'node => {\n  // Transform the node\n  return node;\n}',
-  fragmentRoot: props.value.fragmentRoot || ''
+  transformer: props.value.transformer || 'node => {\n  // Transform the node\n  return node;\n}'
 });
 
 // Emit changes to the parent
@@ -91,8 +96,7 @@ const updateOptions = () => {
 // Watch for prop changes
 watch(() => props.value, (newValue) => {
   if (newValue) {
-    localOptions.mapper = newValue.mapper || 'node => {\n  // Transform the node\n  return node;\n}';
-    localOptions.fragmentRoot = newValue.fragmentRoot || '';
+    localOptions.transformer = newValue.transformer || 'node => {\n  // Transform the node\n  return node;\n}';
   }
 }, { deep: true });
 </script>

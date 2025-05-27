@@ -2,7 +2,7 @@
 <template>
   <v-card>
     <v-card-title class="d-flex align-center">
-      Operation Pipeline
+      Functional Pipeline
       <v-spacer></v-spacer>
       <v-btn 
         color="error" 
@@ -83,6 +83,66 @@
           </v-list-item>
         </v-list>
       </div>
+      
+      <!-- Composition Examples -->
+      <v-row class="mt-4" v-if="showCompositionHelp">
+        <v-col cols="12">
+          <v-card variant="outlined">
+            <v-card-title class="text-subtitle-1">
+              Function Composition Examples
+              <v-spacer></v-spacer>
+              <v-btn
+                icon="mdi-close"
+                size="small"
+                variant="text"
+                @click="showCompositionHelp = false"
+              ></v-btn>
+            </v-card-title>
+            <v-card-text class="text-caption">
+              <p><strong>Using compose() with map:</strong></p>
+              <pre class="code-example">map(compose(
+  // Select only price nodes
+  node => node.name === 'price' ? node : null,
+  // Convert to number with 2 decimal places
+  toNumber({ precision: 2 }),
+  // Apply discount
+  node => {
+    if (!node) return null;
+    node.value = node.value * 0.9; // 10% discount
+    return node;
+  }
+))</pre>
+              <p><strong>Using compose() with transforms:</strong></p>
+              <pre class="code-example">map(compose(
+  // Select only boolean fields
+  node => node.name === 'active' || node.name === 'available' ? node : null,
+  // Convert to boolean
+  toBoolean()
+))</pre>
+              <p><strong>Removing specific nodes:</strong></p>
+              <pre class="code-example">map(node => {
+  // Remove all comment nodes
+  if (node.name === 'comment') return null;
+  return node;
+})</pre>
+            </v-card-text>
+          </v-card>
+        </v-col>
+      </v-row>
+      
+      <!-- Function Composition Helper Button -->
+      <v-row class="mt-2" v-if="!showCompositionHelp">
+        <v-col cols="12" class="text-center">
+          <v-btn
+            variant="text"
+            prepend-icon="mdi-function"
+            @click="showCompositionHelp = true"
+            size="small"
+          >
+            Show Function Composition Examples
+          </v-btn>
+        </v-col>
+      </v-row>
     </v-card-text>
   </v-card>
 </template>
@@ -99,6 +159,7 @@ const apiStore = useAPIStore();
 const { steps } = storeToRefs(pipelineStore);
 
 const selectedOperation = ref(null);
+const showCompositionHelp = ref(false);
 
 // Check if the selected operation is valid (not a header or divider)
 const isValidOperation = computed(() => {
@@ -114,7 +175,7 @@ const operationItems = computed(() => {
   const items = [];
   
   // Functional operations group
-  items.push({ header: 'Functional Operations' });
+  items.push({ header: 'Core Operations' });
   
   // Add regular items for functional operations
   Object.entries(pipelineStore.availableOperations)
@@ -122,21 +183,9 @@ const operationItems = computed(() => {
     .forEach(([value, op]) => {
       items.push({ 
         text: op.name, 
-        value: value 
-      });
-    });
-  
-  // Axis operations group
-  items.push({ divider: true });
-  items.push({ header: 'Axis Navigation' });
-  
-  // Add regular items for axis operations
-  Object.entries(pipelineStore.availableOperations)
-    .filter(([_, op]) => op.category === 'axis')
-    .forEach(([value, op]) => {
-      items.push({ 
-        text: op.name, 
-        value: value 
+        value: value,
+        title: op.name,
+        subtitle: op.description
       });
     });
   
@@ -150,7 +199,9 @@ const operationItems = computed(() => {
     .forEach(([value, op]) => {
       items.push({ 
         text: op.name, 
-        value: value 
+        value: value,
+        title: op.name,
+        subtitle: op.description
       });
     });
   
@@ -197,5 +248,15 @@ const clearPipeline = () => {
 <style scoped>
 .pipeline-list {
   border: 1px solid #e0e0e0;
+}
+
+.code-example {
+  background-color: #f5f5f5;
+  padding: 10px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  overflow-x: auto;
+  white-space: pre-wrap;
 }
 </style>

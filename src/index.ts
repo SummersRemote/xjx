@@ -9,6 +9,7 @@ import './extensions/from-json';
 import './extensions/to-xml';
 import './extensions/to-json';
 import './extensions/config-extensions';
+import './extensions/root-extensions';
 import './extensions/to-xnode';
 import './extensions/from-xnode';
 import './extensions/functional-api';
@@ -86,6 +87,8 @@ function ensureExtensionsRegistered() {
     './extensions/to-xnode',
     './extensions/from-xnode',
     './extensions/functional-api',
+    './extensions/root-extensions',
+
   ];
 }
 

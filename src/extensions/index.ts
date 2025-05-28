@@ -19,3 +19,6 @@ export * from './functional-api';
 
 // Configuration extensions
 export * from './config-extensions';
+
+// Root extensions
+export * from './root-extensions';

@@ -64,7 +64,7 @@ export function withConfig(this: NonTerminalExtensionContext, config: Partial<Co
 /**
  * Implementation for setting the log level
  */
-export function setLogLevel(this: NonTerminalExtensionContext, level: LogLevel | string): void {
+export function withLogLevel(this: NonTerminalExtensionContext, level: LogLevel | string): void {
   try {
     // API boundary validation
     validate(level !== undefined && level !== null, "Log level must be provided");
@@ -114,4 +114,4 @@ export function setLogLevel(this: NonTerminalExtensionContext, level: LogLevel |
 
 // Register the extensions with XJX
 XJX.registerNonTerminalExtension("withConfig", withConfig);
-XJX.registerNonTerminalExtension("setLogLevel", setLogLevel);
+XJX.registerNonTerminalExtension("withLogLevel", withLogLevel);

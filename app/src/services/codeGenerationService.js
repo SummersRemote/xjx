@@ -1,4 +1,4 @@
-// services/codeGenerationService.js
+// services/codeGenerationService.js - Updated for non-terminal hoist
 import LoggingService from "./loggingService.js";
 
 /**
@@ -86,12 +86,12 @@ class CodeGenerationService {
         return this._generateReduceCode(step.options);
       case 'select':
         return this._generateSelectCode(step.options);
-      case 'get':
-        return this._generateGetCode(step.options);
       case 'slice':
         return this._generateSliceCode(step.options);
       case 'unwrap':
         return this._generateUnwrapCode();
+      case 'hoist':
+        return this._generateHoistCode(step.options);
       case 'transform':
         return this._generateTransformCode(step.options);
       default:
@@ -221,6 +221,24 @@ class CodeGenerationService {
    */
   _generateUnwrapCode() {
     return 'unwrap()';
+  }
+
+  /**
+   * Generate code for hoist operation
+   * @param {Object} options - Hoist options
+   * @returns {string} Hoist code
+   * @private
+   */
+  _generateHoistCode(options) {
+    const { containerName } = options || {};
+    
+    // If containerName is provided and not the default, include it
+    if (containerName && containerName !== 'values') {
+      return `hoist("${containerName}")`;
+    }
+    
+    // Otherwise use the default
+    return 'hoist()';
   }
 
   /**

@@ -1,4 +1,4 @@
-// stores/pipelineStore.js
+// stores/pipelineStore.js - Updated for non-terminal hoist
 import { defineStore } from 'pinia';
 import XJXService from '../services/xjxService';
 
@@ -13,6 +13,7 @@ export const usePipelineStore = defineStore('pipeline', {
       'select': { type: 'select', name: 'Select Nodes', category: 'functional', description: 'Collect matching nodes (without hierarchy)' },
       'slice': { type: 'slice', name: 'Slice Nodes', category: 'functional', description: 'Select nodes by position (like array slicing)' },
       'unwrap': { type: 'unwrap', name: 'Unwrap Container', category: 'functional', description: 'Remove container and promote children' },
+      'hoist': { type: 'hoist', name: 'Hoist Values', category: 'functional', description: 'Extract values directly into a simplified structure' },
       
       // Transform Operations
       'transform': { type: 'transform', name: 'Apply Transform', category: 'transform', description: 'Apply value transformations (boolean, number, regex)' }
@@ -115,6 +116,10 @@ export const usePipelineStore = defineStore('pipeline', {
           };
         case 'unwrap':
           return {}; // No options needed for unwrap
+        case 'hoist':
+          return {
+            containerName: 'values'
+          };
         case 'transform':
           // For transforms, reuse the existing structure from transformStore
           return { 

@@ -65,6 +65,7 @@ import MapConfig from './configs/MapConfig.vue';
 import ReduceConfig from './configs/ReduceConfig.vue';
 import SliceConfig from './configs/SliceConfig.vue';
 import UnwrapConfig from './configs/UnwrapConfig.vue';
+import HoistConfig from './configs/HoistConfig.vue';
 import TransformConfig from './configs/TransformConfig.vue';
 
 const props = defineProps({
@@ -131,6 +132,7 @@ const configComponent = computed(() => {
     case 'reduce': return ReduceConfig;
     case 'slice': return SliceConfig;
     case 'unwrap': return UnwrapConfig;
+    case 'hoist': return HoistConfig;
     case 'transform': return TransformConfig;
     default: return null;
   }

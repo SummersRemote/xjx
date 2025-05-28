@@ -1,4 +1,4 @@
-// services/pipelineService.js
+// services/pipelineService.js - Updated for non-terminal hoist
 import { 
   toBoolean,
   toNumber,
@@ -35,12 +35,12 @@ class PipelineService {
           return this._applyReduceStep(currentBuilder, step.options);
         case 'select':
           return this._applySelectStep(currentBuilder, step.options);
-        case 'get':
-          return this._applyGetStep(currentBuilder, step.options);
         case 'slice':
           return this._applySliceStep(currentBuilder, step.options);
         case 'unwrap':
           return this._applyUnwrapStep(currentBuilder);
+        case 'hoist':
+          return this._applyHoistStep(currentBuilder, step.options);
         case 'transform':
           return this._applyTransformStep(currentBuilder, step.options);
         default:
@@ -182,6 +182,26 @@ class PipelineService {
       return builder.unwrap();
     } catch (err) {
       LoggingService.error('Error applying unwrap step:', err);
+      return builder;
+    }
+  }
+
+  /**
+   * Apply hoist step
+   * @param {XJX} builder - XJX builder
+   * @param {Object} options - Step options
+   * @returns {XJX} Updated builder
+   * @private
+   */
+  _applyHoistStep(builder, options) {
+    try {
+      // Get container name from options
+      const { containerName } = options || {};
+      
+      // Use the hoist function (now non-terminal)
+      return builder.hoist(containerName);
+    } catch (err) {
+      LoggingService.error('Error applying hoist step:', err);
       return builder;
     }
   }

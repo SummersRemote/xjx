@@ -1,54 +1,45 @@
 /**
- * Core converter interfaces and types
+ * Core converter interfaces and shared utilities
  */
 import { Configuration } from './config';
+import { XNode } from './xnode';
+import { ValidationError } from './error';
 
 /**
- * Basic converter interface
+ * Node processing callback function
+ */
+export type NodeCallback = (node: XNode) => void;
+
+/**
+ * Converter interface - consistent across all converters
  */
 export interface Converter<TInput, TOutput, TOptions = any> {
-  /**
-   * Convert from input to output format
-   * @param input Input to convert
-   * @param options Optional conversion options
-   * @returns Converted output
-   */
-  convert(input: TInput, options?: TOptions): TOutput;
+  convert(
+    input: TInput, 
+    config: Configuration, 
+    options?: TOptions,
+    beforeFn?: NodeCallback,
+    afterFn?: NodeCallback
+  ): TOutput;
 }
 
 /**
- * Create a converter with configuration
- * @param config Configuration for the converter
- * @param convertFn Implementation function
- * @returns Converter implementation
+ * Validation function for API boundaries
+ * @param condition Condition to check
+ * @param message Error message if condition fails
  */
-export function createConverter<TInput, TOutput, TOptions = any>(
-  config: Configuration,
-  convertFn: (input: TInput, config: Configuration, options?: TOptions) => TOutput
-): Converter<TInput, TOutput, TOptions> {
-  return {
-    convert(input: TInput, options?: TOptions): TOutput {
-      return convertFn(input, config, options);
-    }
-  };
-}
-
-/**
- * Input validation function
- * @param input Input to validate
- * @param message Error message if validation fails
- * @param validator Optional custom validator function
- */
-export function validateInput<T>(
-  input: T, 
-  message: string,
-  validator?: (value: T) => boolean
-): void {
-  const isValid = validator ? validator(input) : input !== null && input !== undefined;
-  if (!isValid) {
-    throw new Error(message);
+export function validateInput(condition: boolean, message: string): void {
+  if (!condition) {
+    throw new ValidationError(message);
   }
 }
+
+/**
+ * JSON value types for converter options
+ */
+export type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
+export interface JsonObject { [key: string]: JsonValue }
+export type JsonArray = JsonValue[];
 
 /**
  * Options for JSON conversion
@@ -60,94 +51,185 @@ export interface JsonOptions {
   highFidelity?: boolean;
   
   /**
-   * Override attribute strategy
-   */
-  attributeStrategy?: 'merge' | 'prefix' | 'property';
-  
-  /**
-   * Override text strategy
-   */
-  textStrategy?: 'direct' | 'property';
-  
-  /**
-   * Override namespace strategy
-   */
-  namespaceStrategy?: 'prefix' | 'property';
-  
-  /**
-   * Override array strategy
-   */
-  arrayStrategy?: 'multiple' | 'always' | 'never';
-  
-  /**
-   * Override empty element strategy
-   */
-  emptyElementStrategy?: 'object' | 'null' | 'string';
-  
-  /**
-   * Override mixed content strategy
-   */
-  mixedContentStrategy?: 'preserve' | 'prioritize-text' | 'prioritize-elements';
-
-  /**
    * Override formatting options
    */
   formatting?: Partial<Configuration['formatting']>;
 }
 
 /**
- * Context for JSON processing
+ * Parse element name with optional prefix
+ * @param name Full element name (may include prefix)
+ * @param preservePrefixedNames Whether to preserve prefixed names
+ * @returns Object with prefix and localName
  */
-export interface JsonProcessingContext {
-  /**
-   * Current configuration
-   */
-  config: Configuration;
-  
-  /**
-   * Namespace map for resolving namespaces
-   */
-  namespaceMap: Record<string, string>;
-  
-  /**
-   * Parent node (for fromJson direction)
-   */
-  parentNode?: any;
-  
-  /**
-   * Current path in the document
-   */
-  path: string[];
-  
-  /**
-   * Current processing depth
-   */
-  depth: number;
+export function parseElementName(
+  name: string, 
+  preservePrefixedNames: boolean
+): { prefix?: string; localName: string } {
+  if (preservePrefixedNames && name.includes(':')) {
+    const parts = name.split(':');
+    return {
+      prefix: parts[0],
+      localName: parts[1]
+    };
+  }
+  return { localName: name };
 }
 
 /**
- * JSON value types
+ * Get the appropriate element name based on configuration
+ * @param name Original name
+ * @param prefix Optional namespace prefix
+ * @param preservePrefixedNames Whether to preserve prefixed names
+ * @returns Processed element name
  */
-export type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
-export interface JsonObject { [key: string]: JsonValue }
-export type JsonArray = JsonValue[];
+export function getElementName(
+  name: string, 
+  prefix: string | undefined, 
+  preservePrefixedNames: boolean
+): string {
+  if (preservePrefixedNames && prefix) {
+    return `${prefix}:${name}`;
+  }
+  return name;
+}
 
 /**
- * Format detection result
+ * Get the appropriate attribute name based on configuration
+ * @param originalName Original attribute name (may include prefix)
+ * @param preservePrefixedNames Whether to preserve prefixed names
+ * @returns Processed attribute name
  */
-export interface FormatDetectionResult {
-  /**
-   * Whether the JSON is in high-fidelity format
-   */
-  isHighFidelity: boolean;
+export function getAttributeName(
+  originalName: string, 
+  preservePrefixedNames: boolean
+): string {
+  if (preservePrefixedNames) {
+    return originalName;
+  }
   
-  /**
-   * Whether the JSON is an array
-   */
-  isArray: boolean;
+  // Strip prefix if preservePrefixedNames is false
+  if (originalName.includes(':')) {
+    const parts = originalName.split(':');
+    return parts[parts.length - 1]; // Return the local name part
+  }
   
-  /**
-   * Root element name (if object)
-   */
-  rootName?: string;
+  return originalName;
+}
+
+/**
+ * Process attributes consistently across converters
+ * @param element Source element with attributes
+ * @param config Configuration
+ * @returns Processed attributes object
+ */
+export function processAttributes(
+  element: Element,
+  config: Configuration
+): Record<string, any> | undefined {
+  if (!element.attributes || element.attributes.length === 0 || !config.preserveAttributes) {
+    return undefined;
+  }
+
+  const attributes: Record<string, any> = {};
+  
+  for (let i = 0; i < element.attributes.length; i++) {
+    const attr = element.attributes[i];
+
+    // Skip namespace declarations
+    if (attr.name === "xmlns" || attr.name.startsWith("xmlns:")) continue;
+
+    const attrName = getAttributeName(attr.name, config.preservePrefixedNames);
+    attributes[attrName] = attr.value;
+  }
+
+  return Object.keys(attributes).length > 0 ? attributes : undefined;
+}
+
+/**
+ * Check if text has non-whitespace content
+ * @param text Text to check
+ * @returns True if has meaningful content
+ */
+export function hasTextContent(text: string): boolean {
+  return text.trim().length > 0;
+}
+
+/**
+ * Process namespace declarations consistently
+ * @param element DOM element
+ * @param currentMap Current namespace map
+ * @returns Updated namespace declarations and map
+ */
+export function processNamespaceDeclarations(
+  element: Element,
+  currentMap: Record<string, string>
+): { declarations: Record<string, string>; namespaceMap: Record<string, string> } {
+  const declarations: Record<string, string> = {};
+  const namespaceMap = { ...currentMap };
+  
+  for (let i = 0; i < element.attributes.length; i++) {
+    const attr = element.attributes[i];
+
+    if (attr.name === "xmlns") {
+      // Default namespace
+      declarations[""] = attr.value;
+      namespaceMap[""] = attr.value;
+    } else if (attr.name.startsWith("xmlns:")) {
+      // Prefixed namespace
+      const prefix = attr.name.substring(6);
+      declarations[prefix] = attr.value;
+      namespaceMap[prefix] = attr.value;
+    }
+  }
+  
+  return { declarations, namespaceMap };
+}
+
+/**
+ * Apply node callbacks consistently
+ * @param node Node to process
+ * @param beforeFn Optional before callback
+ * @param afterFn Optional after callback
+ */
+export function applyNodeCallbacks(
+  node: XNode,
+  beforeFn?: NodeCallback,
+  afterFn?: NodeCallback
+): void {
+  try {
+    if (beforeFn) {
+      beforeFn(node);
+    }
+  } catch (err) {
+    console.warn(`Error in beforeFn callback: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  try {
+    if (afterFn) {
+      afterFn(node);
+    }
+  } catch (err) {
+    console.warn(`Error in afterFn callback: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+/**
+ * Process attribute object from JSON
+ * @param attrs Attributes object from JSON
+ * @param config Configuration
+ * @returns Processed attributes object
+ */
+export function processAttributeObject(
+  attrs: JsonObject,
+  config: Configuration
+): Record<string, any> {
+  const result: Record<string, any> = {};
+
+  Object.entries(attrs).forEach(([key, value]) => {
+    const finalAttrName = getAttributeName(key, config.preservePrefixedNames);
+    result[finalAttrName] = value;
+  });
+
+  return result;
 }

@@ -1,195 +1,178 @@
+/**
+ * XNode to JSON HiFi converter implementation
+ */
 import { Configuration } from '../core/config';
 import { NodeType } from '../core/dom';
 import { logger, ProcessingError } from '../core/error';
 import { XNode } from '../core/xnode';
-import { validateInput, Converter, JsonOptions, JsonValue, JsonObject, JsonArray } from '../core/converter';
-import { createConverter } from '../core/converter';
+import { 
+  Converter, 
+  NodeCallback, 
+  JsonOptions, 
+  JsonValue, 
+  JsonObject, 
+  JsonArray,
+  getElementName,
+  applyNodeCallbacks
+} from '../core/converter';
 import { removeEmptyElements } from '../core/json-utils';
 
 /**
- * Create an XNode to JSON HiFi converter
- * @param config Configuration for the converter
- * @returns Converter implementation
+ * XNode to JSON HiFi converter
  */
-export function createXNodeToJsonHiFiConverter(config: Configuration): Converter<XNode, JsonValue, JsonOptions> {
-  return createConverter(config, (node: XNode, config: Configuration, options?: JsonOptions) => {
-    // Validate input
-    validateInput(node, "Node must be an XNode instance", 
-                  input => input !== null && typeof input === 'object');
+export const xnodeToJsonHiFiConverter: Converter<XNode, JsonValue, JsonOptions> = {
+  convert(
+    node: XNode, 
+    config: Configuration, 
+    options?: JsonOptions,
+    beforeFn?: NodeCallback,
+    afterFn?: NodeCallback
+  ): JsonValue {
+    logger.debug('Starting XNode to JSON HiFi conversion', {
+      nodeName: node.name,
+      nodeType: node.type,
+      hasCallbacks: !!(beforeFn || afterFn)
+    });
 
-    try {
-      logger.debug('Starting XNode to JSON HiFi conversion', {
-        nodeName: node.name,
-        nodeType: node.type
-      });
+    // Apply before callback
+    applyNodeCallbacks(node, beforeFn);
 
-      // Create converter instance
-      const converter = new XNodeToJsonHiFiConverterImpl(config);
-      
-      // Convert to HiFi format
-      const result = converter.convert(node, options);
-      
-      // Apply remove empty elements strategy if configured
-      if (config.strategies.emptyElementStrategy === 'remove') {
-        const processedResult = removeEmptyElements(result, config);
-        return processedResult === undefined ? {} : processedResult;
-      }
-      
-      return result;
-    } catch (err) {
-      throw new ProcessingError(`Failed to convert XNode to JSON HiFi: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  });
-}
+    let result: JsonValue;
 
-/**
- * Implementation of XNode to JSON HiFi converter
- */
-class XNodeToJsonHiFiConverterImpl implements Converter<XNode, JsonValue, JsonOptions> {
-  private readonly config: Configuration;
-  
-  /**
-   * Create a new converter
-   * @param config Base configuration
-   */
-  constructor(config: Configuration) {
-    this.config = config;
-  }
-  
-  /**
-   * Convert XNode to JSON HiFi
-   * @param node XNode to convert
-   * @param options Conversion options
-   * @returns JSON representation in HiFi format
-   */
-  convert(node: XNode, options?: JsonOptions): JsonValue {
     // Process based on node type
     if (node.type !== NodeType.ELEMENT_NODE) {
       // Handle non-element nodes
-      return this.processSpecialNode(node);
-    }
-    
-    // Process element node
-    return this.processElementNode(node);
-  }
-  
-  /**
-   * Process special node types (text, CDATA, comment, PI)
-   * @param node Node to process
-   * @returns HiFi representation
-   */
-  private processSpecialNode(node: XNode): JsonValue {
-    const { properties } = this.config;
-    
-    switch (node.type) {
-      case NodeType.TEXT_NODE:
-        if (this.config.preserveTextNodes) {
-          // MERGED: Use properties.value for text nodes
-          return { [properties.value]: node.value };
-        }
-        break;
-        
-      case NodeType.CDATA_SECTION_NODE:
-        if (this.config.preserveCDATA) {
-          return { [properties.cdata]: node.value };
-        }
-        break;
-        
-      case NodeType.COMMENT_NODE:
-        if (this.config.preserveComments) {
-          return { [properties.comment]: node.value };
-        }
-        break;
-        
-      case NodeType.PROCESSING_INSTRUCTION_NODE:
-        if (this.config.preserveProcessingInstr && node.attributes?.target) {
-          const piObj: JsonObject = {
-            [properties.target]: node.attributes.target
-          };
-          
-          if (node.value !== undefined) {
-            // MERGED: Use properties.value for PI data
-            piObj[properties.value] = node.value;
-          }
-          
-          return { [properties.processingInstr]: piObj };
-        }
-        break;
-    }
-    
-    // Default for unknown or filtered node types
-    return null;
-  }
-  
-  /**
-   * Process element node
-   * @param node Element node to process
-   * @returns HiFi representation
-   */
-  private processElementNode(node: XNode): JsonValue {
-    const result: JsonObject = {};
-    const nodeObj: JsonObject = {};
-    const { properties } = this.config;
-    
-    // Add namespace and prefix if present
-    if (node.namespace && this.config.preserveNamespaces) {
-      nodeObj[properties.namespace] = node.namespace;
+      result = processSpecialNode(node, config);
+    } else {
+      // Process element node
+      result = processElementNode(node, config, beforeFn, afterFn);
     }
 
-    if (node.prefix && this.config.preserveNamespaces) {
-      nodeObj[properties.prefix] = node.prefix;
+    // Apply after callback
+    applyNodeCallbacks(node, undefined, afterFn);
+
+    // Apply remove empty elements strategy if configured
+    if (config.strategies.emptyElementStrategy === 'remove') {
+      const processedResult = removeEmptyElements(result, config);
+      return processedResult === undefined ? {} : processedResult;
     }
 
-    // Process attributes
-    if (node.attributes && Object.keys(node.attributes).length > 0 && this.config.preserveAttributes) {
-      nodeObj[properties.attribute] = this.processAttributes(node);
-    }
-
-    // Process namespace declarations
-    if (node.namespaceDeclarations && Object.keys(node.namespaceDeclarations).length > 0 && 
-        this.config.preserveNamespaces) {
-      nodeObj.namespaceDeclarations = { ...node.namespaceDeclarations };
-      
-      // Flag if this is a default namespace
-      if (node.isDefaultNamespace) {
-        nodeObj.isDefaultNamespace = true;
-      }
-    }
-
-    // Process value or children
-    if (node.value !== undefined && this.config.preserveTextNodes) {
-      // MERGED: Use properties.value for element value
-      nodeObj[properties.value] = node.value;
-    } else if (node.children && node.children.length > 0) {
-      // Process children
-      const children = this.processChildren(node.children);
-      if (children.length > 0) {
-        nodeObj[properties.children] = children;
-      }
-    }
-    
-    // Add metadata if present
-    if (node.metadata && Object.keys(node.metadata).length > 0) {
-      nodeObj.metadata = { ...node.metadata };
-    }
-    
-    // Create root object with node name - handle prefixed names if configured
-    const elementName = this.config.preservePrefixedNames && node.prefix ? 
-      `${node.prefix}:${node.name}` : node.name;
-    
-    result[elementName] = nodeObj;
-    
     return result;
   }
-  
- /**
- * Process attributes
- * @param node Node with attributes
- * @returns Attributes in HiFi format
+};
+
+/**
+ * Process special node types (text, CDATA, comment, PI)
  */
-private processAttributes(node: XNode): JsonArray {
+function processSpecialNode(node: XNode, config: Configuration): JsonValue {
+  const { properties } = config;
+  
+  switch (node.type) {
+    case NodeType.TEXT_NODE:
+      if (config.preserveTextNodes) {
+        return { [properties.value]: node.value };
+      }
+      break;
+      
+    case NodeType.CDATA_SECTION_NODE:
+      if (config.preserveCDATA) {
+        return { [properties.cdata]: node.value };
+      }
+      break;
+      
+    case NodeType.COMMENT_NODE:
+      if (config.preserveComments) {
+        return { [properties.comment]: node.value };
+      }
+      break;
+      
+    case NodeType.PROCESSING_INSTRUCTION_NODE:
+      if (config.preserveProcessingInstr && node.attributes?.target) {
+        const piObj: JsonObject = {
+          [properties.target]: node.attributes.target
+        };
+        
+        if (node.value !== undefined) {
+          piObj[properties.value] = node.value;
+        }
+        
+        return { [properties.processingInstr]: piObj };
+      }
+      break;
+  }
+  
+  // Default for unknown or filtered node types
+  return null;
+}
+
+/**
+ * Process element node
+ */
+function processElementNode(
+  node: XNode, 
+  config: Configuration,
+  beforeFn?: NodeCallback,
+  afterFn?: NodeCallback
+): JsonValue {
+  const result: JsonObject = {};
+  const nodeObj: JsonObject = {};
+  const { properties } = config;
+  
+  // Add namespace and prefix if present
+  if (node.namespace && config.preserveNamespaces) {
+    nodeObj[properties.namespace] = node.namespace;
+  }
+
+  if (node.prefix && config.preserveNamespaces) {
+    nodeObj[properties.prefix] = node.prefix;
+  }
+
+  // Process attributes
+  if (node.attributes && Object.keys(node.attributes).length > 0 && config.preserveAttributes) {
+    nodeObj[properties.attribute] = processAttributes(node, config);
+  }
+
+  // Process namespace declarations
+  if (node.namespaceDeclarations && Object.keys(node.namespaceDeclarations).length > 0 && 
+      config.preserveNamespaces) {
+    nodeObj.namespaceDeclarations = { ...node.namespaceDeclarations };
+    
+    // Flag if this is a default namespace
+    if (node.isDefaultNamespace) {
+      nodeObj.isDefaultNamespace = true;
+    }
+  }
+
+  // Process value or children
+  if (node.value !== undefined && config.preserveTextNodes) {
+    nodeObj[properties.value] = node.value;
+  } else if (node.children && node.children.length > 0) {
+    // Process children
+    const children = processChildren(node.children, config, beforeFn, afterFn);
+    if (children.length > 0) {
+      nodeObj[properties.children] = children;
+    }
+  }
+  
+  // Add metadata if present
+  if (node.metadata && Object.keys(node.metadata).length > 0) {
+    nodeObj.metadata = { ...node.metadata };
+  }
+  
+  // Create root object with node name - handle prefixed names if configured
+  const elementName = getElementName(node.name, node.prefix, config.preservePrefixedNames);
+  
+  result[elementName] = nodeObj;
+  
+  return result;
+}
+
+/**
+ * Process attributes
+ */
+function processAttributes(node: XNode, config: Configuration): JsonArray {
   const attrs: JsonArray = [];
-  const { properties } = this.config;
+  const { properties } = config;
 
   // Process regular attributes
   for (const [name, value] of Object.entries(node.attributes || {})) {
@@ -204,11 +187,11 @@ private processAttributes(node: XNode): JsonArray {
     let finalAttrName = name;
     
     // Handle attributes with namespaces/prefixes
-    if (name.includes(':') && this.config.preserveNamespaces) {
+    if (name.includes(':') && config.preserveNamespaces) {
       const [prefix, localName] = name.split(':');
       
       // Determine the attribute name to use based on preservePrefixedNames
-      finalAttrName = this.config.preservePrefixedNames ? name : localName;
+      finalAttrName = config.preservePrefixedNames ? name : localName;
       
       // Find namespace URI for this prefix if available
       let namespaceURI = null;
@@ -218,7 +201,6 @@ private processAttributes(node: XNode): JsonArray {
       
       // Create attribute with namespace info
       const attrValue: JsonObject = { 
-        // MERGED: Use properties.value for attribute values
         [properties.value]: value,
         [properties.prefix]: prefix
       };
@@ -231,13 +213,12 @@ private processAttributes(node: XNode): JsonArray {
       attrObj[finalAttrName] = attrValue;
     } else {
       // Regular attribute or prefixed attribute without namespace preservation
-      if (name.includes(':') && !this.config.preservePrefixedNames) {
+      if (name.includes(':') && !config.preservePrefixedNames) {
         // Strip prefix if preservePrefixedNames is false
         const parts = name.split(':');
         finalAttrName = parts[parts.length - 1];
       }
       
-      // MERGED: Use properties.value for attribute values
       attrObj[finalAttrName] = { [properties.value]: value };
     }
     
@@ -246,62 +227,76 @@ private processAttributes(node: XNode): JsonArray {
 
   return attrs;
 }
+
+/**
+ * Process child nodes
+ */
+function processChildren(
+  children: XNode[], 
+  config: Configuration,
+  beforeFn?: NodeCallback,
+  afterFn?: NodeCallback
+): JsonArray {
+  const result: JsonArray = [];
   
-  /**
-   * Process child nodes
-   * @param children Child nodes
-   * @returns Children in HiFi format
-   */
-  private processChildren(children: XNode[]): JsonArray {
-    const result: JsonArray = [];
-    
-    // Process each child in order to preserve mixed content
-    for (const child of children) {
-      const processedChild = this.processChild(child);
-      if (processedChild !== null) {
-        result.push(processedChild);
-      }
+  // Process each child in order to preserve mixed content
+  for (const child of children) {
+    const processedChild = processChild(child, config, beforeFn, afterFn);
+    if (processedChild !== null) {
+      result.push(processedChild);
     }
-    
-    return result;
+  }
+  
+  return result;
+}
+
+/**
+ * Process individual child node
+ */
+function processChild(
+  child: XNode, 
+  config: Configuration,
+  beforeFn?: NodeCallback,
+  afterFn?: NodeCallback
+): JsonValue {
+  // Apply before callback
+  applyNodeCallbacks(child, beforeFn);
+
+  let result: JsonValue = null;
+
+  switch (child.type) {
+    case NodeType.TEXT_NODE:
+      if (config.preserveTextNodes) {
+        result = processSpecialNode(child, config);
+      }
+      break;
+      
+    case NodeType.CDATA_SECTION_NODE:
+      if (config.preserveCDATA) {
+        result = processSpecialNode(child, config);
+      }
+      break;
+      
+    case NodeType.COMMENT_NODE:
+      if (config.preserveComments) {
+        result = processSpecialNode(child, config);
+      }
+      break;
+      
+    case NodeType.PROCESSING_INSTRUCTION_NODE:
+      if (config.preserveProcessingInstr) {
+        result = processSpecialNode(child, config);
+      }
+      break;
+      
+    case NodeType.ELEMENT_NODE:
+      // Recursively process element nodes
+      result = processElementNode(child, config, beforeFn, afterFn);
+      break;
   }
 
-  /**
-   * Process individual child node
-   * @param child Child node
-   * @returns Processed child node or null if filtered
-   */
-  private processChild(child: XNode): JsonValue {
-    switch (child.type) {
-      case NodeType.TEXT_NODE:
-        if (this.config.preserveTextNodes) {
-          return this.processSpecialNode(child);
-        }
-        break;
-        
-      case NodeType.CDATA_SECTION_NODE:
-        if (this.config.preserveCDATA) {
-          return this.processSpecialNode(child);
-        }
-        break;
-        
-      case NodeType.COMMENT_NODE:
-        if (this.config.preserveComments) {
-          return this.processSpecialNode(child);
-        }
-        break;
-        
-      case NodeType.PROCESSING_INSTRUCTION_NODE:
-        if (this.config.preserveProcessingInstr) {
-          return this.processSpecialNode(child);
-        }
-        break;
-        
-      case NodeType.ELEMENT_NODE:
-        // Recursively process element nodes
-        return this.processElementNode(child);
-    }
-    
-    return null;
-  }
+  // Apply after callback
+  applyNodeCallbacks(child, undefined, afterFn);
+
+  return result;
 }

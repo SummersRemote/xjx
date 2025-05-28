@@ -6,12 +6,12 @@
  * - map: Tree-walking transformation of every node
  * - reduce: Aggregate values from all nodes
  * - select: Collect matching nodes without hierarchy
- * - get: Retrieve a specific node by index
  */
 import { XJX } from "../XJX";
-import { XNode, createElement, cloneNode, addChild } from "../core/xnode";
-import { logger, validate, ValidationError } from "../core/error";
+import { XNode, addChild } from "../core/xnode";
+import { logger } from "../core/error";
 import { NonTerminalExtensionContext, TerminalExtensionContext } from "../core/extension";
+import { validateInput } from "../core/converter";
 import {
   createResultsContainer,
   filterNodeHierarchy,
@@ -33,7 +33,7 @@ export function filter(
 ): void {
   try {
     // API boundary validation
-    validate(typeof predicate === "function", "Predicate must be a function");
+    validateInput(typeof predicate === "function", "Predicate must be a function");
     this.validateSource();
 
     logger.debug("Filtering document nodes hierarchically");
@@ -79,7 +79,7 @@ export function map(
 ): void {
   try {
     // API boundary validation
-    validate(typeof transformer === "function", "Transformer must be a function");
+    validateInput(typeof transformer === "function", "Transformer must be a function");
     this.validateSource();
 
     logger.debug("Mapping document nodes");
@@ -127,7 +127,7 @@ export function reduce<T>(
 ): T {
   try {
     // API boundary validation
-    validate(typeof reducer === "function", "Reducer must be a function");
+    validateInput(typeof reducer === "function", "Reducer must be a function");
     this.validateSource();
 
     logger.debug("Reducing document nodes");
@@ -150,28 +150,6 @@ export function reduce<T>(
 }
 
 /**
- * Combine multiple functions into a single function
- * Functions are applied in sequence from left to right
- *
- * @param functions Functions to compose
- * @returns A new function that applies the composition
- */
-export function compose<T>(...functions: Array<(value: T) => T>): (value: T) => T {
-  return (value: T): T => {
-    return functions.reduce((result, func) => {
-      try {
-        return func(result);
-      } catch (err) {
-        logger.warn('Error in composed function', { 
-          error: err instanceof Error ? err.message : String(err)
-        });
-        return result; // Return previous result on error
-      }
-    }, value);
-  };
-}
-
-/**
  * Collect nodes that match a predicate without maintaining hierarchy
  *
  * @param predicate Function that determines if a node should be included
@@ -183,7 +161,7 @@ export function select(
 ): void {
   try {
     // API boundary validation
-    validate(typeof predicate === "function", "Predicate must be a function");
+    validateInput(typeof predicate === "function", "Predicate must be a function");
     this.validateSource();
 
     logger.debug("Selecting document nodes");
@@ -225,6 +203,3 @@ XJX.registerNonTerminalExtension("filter", filter);
 XJX.registerNonTerminalExtension("map", map);
 XJX.registerTerminalExtension("reduce", reduce);
 XJX.registerNonTerminalExtension("select", select);
-
-// Export compose as a global utility
-// export { compose };

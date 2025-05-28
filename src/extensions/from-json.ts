@@ -1,55 +1,12 @@
-import { XJX } from '../XJX';
-import { createJsonHiFiToXNodeConverter } from '../converters/json-hifi-to-xnode-converter';
-import { createJsonToXNodeConverter } from '../converters/json-std-to-xnode-converter';
-import { FORMAT } from '../core/transform';
-import { logger, ProcessingError, validate } from '../core/error';
-import { NonTerminalExtensionContext } from '../core/extension';
-import { JsonOptions, JsonValue, JsonObject } from '../core/converter';
-
 /**
- * Detect if JSON is in high-fidelity HiFi format
- * @param json JSON to analyze
- * @param config Configuration containing property names to check for
- * @returns True if the JSON appears to be in high-fidelity HiFi format
+ * Extension implementation for fromJson method
  */
-function isHighFidelityFormat(json: JsonValue, context: NonTerminalExtensionContext): boolean {
-  // Must be an object
-  if (typeof json !== 'object' || json === null || Array.isArray(json)) {
-    return false;
-  }
-  
-  const jsonObj = json as JsonObject;
-  const rootKeys = Object.keys(jsonObj);
-  
-  // Must have at least one root key
-  if (rootKeys.length === 0) {
-    return false;
-  }
-  
-  // Get the root element object
-  const rootKey = rootKeys[0];
-  const rootObj = jsonObj[rootKey];
-  
-  // Root element must be an object
-  if (typeof rootObj !== 'object' || rootObj === null || Array.isArray(rootObj)) {
-    return false;
-  }
-  
-  const rootElementObj = rootObj as JsonObject;
-  const { properties } = context.config;
-  
-  // Check for HiFi-specific properties
-  const hasHiFiProperties = 
-    rootElementObj[properties.value] !== undefined ||
-    rootElementObj[properties.children] !== undefined ||
-    rootElementObj[properties.attribute] !== undefined ||
-    rootElementObj[properties.namespace] !== undefined ||
-    rootElementObj[properties.prefix] !== undefined ||
-    rootElementObj.namespaceDeclarations !== undefined;
-    
-  return hasHiFiProperties;
-}
-
+import { XJX } from '../XJX';
+import { jsonHiFiToXNodeConverter } from '../converters/json-hifi-to-xnode-converter';
+import { jsonToXNodeConverter } from '../converters/json-std-to-xnode-converter';
+import { logger, ProcessingError } from '../core/error';
+import { NonTerminalExtensionContext } from '../core/extension';
+import { JsonOptions, JsonValue, validateInput, NodeCallback } from '../core/converter';
 
 /**
  * Implementation for auto-detecting JSON format
@@ -57,18 +14,21 @@ function isHighFidelityFormat(json: JsonValue, context: NonTerminalExtensionCont
 export function fromJson(
   this: NonTerminalExtensionContext, 
   json: JsonValue, 
-  options?: JsonOptions
+  options?: JsonOptions,
+  beforeFn?: NodeCallback,
+  afterFn?: NodeCallback
 ): void {
   try {
-    // Validate input
-    validate(json !== null && typeof json === 'object', "JSON source must be an object or array");
+    // API boundary validation
+    validateInput(json !== null && typeof json === 'object', "JSON source must be an object or array");
     
-    // ✅ SIMPLE: Just check the configuration!
+    // Determine format based on configuration or options
     const useHighFidelity = options?.highFidelity ?? this.config.strategies.highFidelity;
     
     logger.debug('Using JSON format based on configuration', {
       sourceType: Array.isArray(json) ? 'array' : 'object',
-      highFidelity: useHighFidelity
+      highFidelity: useHighFidelity,
+      hasCallbacks: !!(beforeFn || afterFn)
     });
     
     // Create effective options
@@ -77,15 +37,12 @@ export function fromJson(
       highFidelity: useHighFidelity
     };
     
+    // Convert using appropriate converter
     if (useHighFidelity) {
-      const converter = createJsonHiFiToXNodeConverter(this.config);
-      this.xnode = converter.convert(json, effectiveOptions);
+      this.xnode = jsonHiFiToXNodeConverter.convert(json, this.config, effectiveOptions, beforeFn, afterFn);
     } else {
-      const converter = createJsonToXNodeConverter(this.config);
-      this.xnode = converter.convert(json, effectiveOptions);
+      this.xnode = jsonToXNodeConverter.convert(json, this.config, effectiveOptions, beforeFn, afterFn);
     }
-    
-    this.sourceFormat = FORMAT.JSON;
     
     logger.debug('Successfully set JSON source', {
       rootNodeName: this.xnode?.name,

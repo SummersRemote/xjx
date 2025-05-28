@@ -1,15 +1,13 @@
 /**
  * Simplified transform system for XJX
  * 
- * Transforms are just functions that take a value and return a value.
- * This makes them easy to create, compose, and use in the functional pipeline.
+ * Transforms are functions that take a value and return a value.
+ * Simple, composable, and easy to use in the functional pipeline.
  */
 import { XNode } from './xnode';
-import { Configuration } from './config';
 
 /**
  * Context information passed to transforms
- * Contains metadata about the transformation process
  */
 export interface TransformContext {
   /**
@@ -62,7 +60,6 @@ export enum TransformIntent {
 
 /**
  * Options for customizing transform behavior
- * Simplified to focus on core options, removing redundant filters
  */
 export interface TransformOptions {
   /**
@@ -77,8 +74,6 @@ export interface TransformOptions {
   
   /**
    * Direction of transformation (default: TransformIntent.PARSE)
-   * - PARSE: Convert strings to typed values
-   * - SERIALIZE: Convert typed values to strings
    */
   intent?: TransformIntent;
 }
@@ -122,7 +117,6 @@ export function createTransform(
     intent = TransformIntent.PARSE
   } = options;
   
-  // Return the transform function with proper error handling
   return (value: any, context?: TransformContext): any => {
     try {
       // Create a merged context with our options and passed context
@@ -138,157 +132,4 @@ export function createTransform(
       return value;
     }
   };
-}
-
-/**
- * Create a matcher function from a string, RegExp, or function
- */
-function createMatcher(pattern: string | RegExp | ((input: string) => boolean)): (input: string) => boolean {
-  if (typeof pattern === 'function') {
-    return pattern;
-  } else if (pattern instanceof RegExp) {
-    return (input: string) => pattern.test(input);
-  } else {
-    return (input: string) => input === pattern;
-  }
-}
-
-// Legacy exports to maintain compatibility with existing code
-// These will be gradually phased out
-
-/**
- * Standard formats (kept for backward compatibility in converters)
- */
-export enum FORMAT {
-  XML = 'xml',
-  JSON = 'json'
-}
-
-/**
- * Legacy transform target enum
- */
-export enum TransformTarget {
-  Value = 'value',
-  Attribute = 'attribute',
-  Element = 'element',
-  Text = 'text',
-  CDATA = 'cdata',
-  Comment = 'comment',
-  ProcessingInstruction = 'processingInstruction',
-  Namespace = 'namespace'
-}
-
-/**
- * Legacy transform result interface
- */
-export interface TransformResult<T> {
-  value: T;
-  remove?: boolean;
-}
-
-/**
- * Create a transform result (legacy)
- */
-export function createTransformResult<T>(value: T, remove: boolean = false): TransformResult<T> {
-  return { value, remove };
-}
-
-/**
- * Legacy context for transforms
- */
-export interface LegacyTransformContext {
-  nodeName: string;
-  nodeType: number;
-  path: string;
-  config: Configuration;
-  targetFormat: FORMAT;
-  parent?: LegacyTransformContext;
-  namespace?: string;
-  prefix?: string;
-  isAttribute?: boolean;
-  attributeName?: string;
-  isText?: boolean;
-  isCDATA?: boolean;
-  isComment?: boolean;
-  isProcessingInstruction?: boolean;
-}
-
-/**
- * Create a root transformation context (legacy)
- */
-export function createRootContext(
-  targetFormat: FORMAT,
-  rootNode: XNode,
-  config: Configuration
-): LegacyTransformContext {
-  return {
-    nodeName: rootNode.name,
-    nodeType: rootNode.type,
-    path: rootNode.name,
-    namespace: rootNode.namespace,
-    prefix: rootNode.prefix,
-    config: config,
-    targetFormat
-  };
-}
-
-/**
- * Legacy transform interface
- */
-export interface LegacyTransform {
-  targets: TransformTarget[];
-  transform(value: any, context: LegacyTransformContext): TransformResult<any>;
-}
-
-/**
- * Get context target type (legacy)
- */
-export function getContextTargetType(context: LegacyTransformContext): TransformTarget {
-  if (context.isAttribute) {
-    return TransformTarget.Attribute;
-  }
-  
-  if (context.isText) {
-    return TransformTarget.Text;
-  }
-  
-  return TransformTarget.Element;
-}
-
-/**
- * Apply transforms (legacy)
- */
-export function applyTransforms<T>(
-  value: T,
-  context: LegacyTransformContext,
-  transforms: LegacyTransform[],
-  targetType: TransformTarget
-): TransformResult<T> {
-  // Filter applicable transforms
-  const applicableTransforms = transforms.filter(t => 
-    t.targets.includes(targetType)
-  );
-  
-  // No applicable transforms? Return original value
-  if (applicableTransforms.length === 0) {
-    return { value };
-  }
-  
-  // Apply each transform in sequence
-  let result: TransformResult<any> = { value };
-  
-  for (const transform of applicableTransforms) {
-    try {
-      result = transform.transform(result.value, context);
-      
-      // If a transform says to remove, we're done
-      if (result.remove) {
-        return result;
-      }
-    } catch (err) {
-      console.warn(`Transform error: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
-  
-  return result;
 }

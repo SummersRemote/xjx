@@ -2,7 +2,7 @@
  * Extension system for the XJX library
  */
 import { Configuration } from './config';
-import { Transform, FORMAT } from './transform';
+import { Transform } from './transform';
 import { XNode } from './xnode';
 
 /**
@@ -19,7 +19,6 @@ export interface XJXContext {
 export interface TerminalExtensionContext extends XJXContext {
   // These properties are available in the builder context
   xnode: XNode | null;
-  sourceFormat: FORMAT | null;
   transforms: Transform[];
   
   // Common utility methods required by terminal extensions
@@ -35,7 +34,6 @@ export interface TerminalExtensionContext extends XJXContext {
 export interface NonTerminalExtensionContext extends XJXContext {
   // Properties that can be modified by extensions
   xnode: XNode | null;
-  sourceFormat: FORMAT | null;
   transforms: Transform[];
   
   // Utility methods

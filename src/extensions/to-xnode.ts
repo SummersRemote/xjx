@@ -3,7 +3,6 @@
  */
 import { XJX } from "../XJX";
 import { transformXNode } from "../converters/xnode-transformer";
-import { FORMAT } from "../core/transform";
 import { logger } from "../core/error";
 import { XNode, cloneNode } from "../core/xnode";
 import { TerminalExtensionContext } from "../core/extension";
@@ -17,7 +16,6 @@ export function toXnode(this: TerminalExtensionContext): XNode[] {
     this.validateSource();
     
     logger.debug('Starting toXnode conversion', {
-      sourceFormat: this.sourceFormat,
       hasTransforms: this.transforms.length > 0
     });
     
@@ -30,8 +28,7 @@ export function toXnode(this: TerminalExtensionContext): XNode[] {
       nodeToConvert = transformXNode(clonedNode, this.transforms, this.config);
       
       logger.debug('Applied transforms to XNode', {
-        transformCount: this.transforms.length,
-        targetFormat: FORMAT.XML
+        transformCount: this.transforms.length
       });
     }
     

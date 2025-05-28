@@ -1,28 +1,25 @@
+/**
+ * Extension implementation for JSON output methods
+ */
 import { XJX } from '../XJX';
-import { createXNodeToJsonHiFiConverter } from '../converters/xnode-to-json-hifi-converter';
-import { createXNodeToJsonConverter } from '../converters/xnode-to-json-std-converter';
+import { xnodeToJsonHiFiConverter } from '../converters/xnode-to-json-hifi-converter';
+import { xnodeToJsonConverter } from '../converters/xnode-to-json-std-converter';
 import { transformXNode } from '../converters/xnode-transformer';
-import { FORMAT } from '../core/transform';
 import { logger } from '../core/error';
 import { XNode } from '../core/xnode';
 import { JsonOptions, JsonValue } from '../core/converter';
 import { TerminalExtensionContext } from '../core/extension';
 
 /**
- * Implementation for converting to JSON using custom converters
+ * Implementation for converting to JSON using converters
  */
-export function toJsonWithConverter(this: TerminalExtensionContext, options?: JsonOptions): JsonValue {
+export function toJson(this: TerminalExtensionContext, options?: JsonOptions): JsonValue {
   try {
     // Source validation is handled by the registration mechanism
     
-
-logger.debug("Config", options)
-
-
     const useHighFidelity = options?.highFidelity === true || this.config.strategies.highFidelity === true;
   
-    logger.debug('Starting toJsonWithConverter conversion', {
-      sourceFormat: this.sourceFormat,
+    logger.debug('Starting JSON conversion', {
       hasTransforms: this.transforms.length > 0,
       highFidelity: useHighFidelity
     });
@@ -34,8 +31,7 @@ logger.debug("Config", options)
       nodeToConvert = transformXNode(nodeToConvert, this.transforms, this.config);
       
       logger.debug('Applied transforms to XNode', {
-        transformCount: this.transforms.length,
-        targetFormat: FORMAT.JSON
+        transformCount: this.transforms.length
       });
     }
     
@@ -44,8 +40,7 @@ logger.debug("Config", options)
     
     if (useHighFidelity) {
       // Use XNode to JSON HiFi converter for high-fidelity format
-      const converter = createXNodeToJsonHiFiConverter(this.config);
-      result = converter.convert(nodeToConvert, options);
+      result = xnodeToJsonHiFiConverter.convert(nodeToConvert, this.config, options);
       
       logger.debug('Used XNode to JSON HiFi converter for high-fidelity JSON', {
         resultType: typeof result,
@@ -53,8 +48,7 @@ logger.debug("Config", options)
       });
     } else {
       // Use standard XNode to JSON converter
-      const converter = createXNodeToJsonConverter(this.config);
-      result = converter.convert(nodeToConvert, options);
+      result = xnodeToJsonConverter.convert(nodeToConvert, this.config, options);
       
       logger.debug('Used XNode to standard JSON converter', {
         resultType: typeof result,
@@ -67,24 +61,24 @@ logger.debug("Config", options)
     if (err instanceof Error) {
       throw err;
     }
-    throw new Error(`Failed to convert to JSON using custom converter: ${String(err)}`);
+    throw new Error(`Failed to convert to JSON: ${String(err)}`);
   }
 }
 
 /**
- * Implementation for converting to JSON string using custom converters
+ * Implementation for converting to JSON string
  */
-export function toJsonStringWithConverter(
+export function toJsonString(
   this: TerminalExtensionContext, 
   options?: JsonOptions & { indent?: number }
 ): string {
   try {
     // Source validation is handled by the registration mechanism
     
-    logger.debug('Starting toJsonStringWithConverter conversion');
+    logger.debug('Starting JSON string conversion');
     
-    // First get the JSON using the custom converter method
-    const jsonValue = toJsonWithConverter.call(this, options);
+    // First get the JSON using the converter method
+    const jsonValue = toJson.call(this, options);
     
     // Use the indent value from options or config or default
     const indent = options?.indent ?? this.config.formatting.indent ?? 2;
@@ -92,7 +86,7 @@ export function toJsonStringWithConverter(
     // Stringify the JSON
     const result = JSON.stringify(jsonValue, null, indent);
     
-    logger.debug('Successfully converted to JSON string using custom converter', {
+    logger.debug('Successfully converted to JSON string', {
       resultLength: result.length,
       indent
     });
@@ -102,10 +96,10 @@ export function toJsonStringWithConverter(
     if (err instanceof Error) {
       throw err;
     }
-    throw new Error(`Failed to convert to JSON string using custom converter: ${String(err)}`);
+    throw new Error(`Failed to convert to JSON string: ${String(err)}`);
   }
 }
 
 // Register the extensions with XJX
-XJX.registerTerminalExtension("toJson", toJsonWithConverter);
-XJX.registerTerminalExtension("toJsonString", toJsonStringWithConverter);
+XJX.registerTerminalExtension("toJson", toJson);
+XJX.registerTerminalExtension("toJsonString", toJsonString);

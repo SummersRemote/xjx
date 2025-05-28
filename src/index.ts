@@ -30,8 +30,7 @@ export {
   TransformOptions,
   TransformIntent,
   compose,
-  createTransform,
-  FORMAT
+  createTransform
 } from './core/transform';
 
 // Export error handling
@@ -88,7 +87,6 @@ function ensureExtensionsRegistered() {
     './extensions/from-xnode',
     './extensions/functional-api',
     './extensions/root-extensions',
-
   ];
 }
 

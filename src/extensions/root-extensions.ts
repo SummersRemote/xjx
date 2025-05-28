@@ -1,12 +1,11 @@
 /**
  * Extension implementation for root manipulation
- * File: src/extensions/root-extensions.ts
  */
 import { XJX } from "../XJX";
 import { XNode, createElement, addChild, cloneNode, createTextNode } from "../core/xnode";
-import { logger, validate } from "../core/error";
+import { logger } from "../core/error";
 import { NonTerminalExtensionContext } from "../core/extension";
-import { FORMAT } from "../core/transform";
+import { validateInput } from "../core/converter";
 
 /**
  * Replace the current root element with a new one
@@ -19,8 +18,8 @@ export function withRoot(
   root: string | XNode
 ): void {
   try {
-    // Validate that root is either a string or an XNode
-    validate(
+    // API boundary validation
+    validateInput(
       typeof root === "string" || (root !== null && typeof root === "object" && typeof (root as XNode).name === "string"),
       "Root must be either a string (element name) or an XNode object"
     );
@@ -37,15 +36,8 @@ export function withRoot(
       logger.debug(`Using provided XNode as root: ${newRoot.name}`);
     }
     
-    // Note: withRoot does not preserve children - use withRoot for that
-    
     // Set the new root as the current node
     this.xnode = newRoot;
-    
-    // If source format is not set yet, default to XML
-    if (!this.sourceFormat) {
-      this.sourceFormat = FORMAT.XML;
-    }
     
     logger.debug(`Successfully set new root element: ${newRoot.name}`);
   } catch (err) {

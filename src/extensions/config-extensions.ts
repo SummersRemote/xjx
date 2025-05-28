@@ -3,8 +3,9 @@
  */
 import { XJX } from "../XJX";
 import { Configuration, createConfig } from "../core/config";
-import { logger, LogLevel, validate } from "../core/error";
+import { logger, LogLevel } from "../core/error";
 import { NonTerminalExtensionContext } from "../core/extension";
+import { validateInput } from "../core/converter";
 
 /**
  * Implementation for setting configuration options
@@ -12,7 +13,7 @@ import { NonTerminalExtensionContext } from "../core/extension";
 export function withConfig(this: NonTerminalExtensionContext, config: Partial<Configuration>): void {
   try {
     // API boundary validation
-    validate(config !== null && typeof config === 'object', "Configuration must be an object");
+    validateInput(config !== null && typeof config === 'object', "Configuration must be an object");
     
     // Skip if empty config object
     if (Object.keys(config).length === 0) {
@@ -67,7 +68,7 @@ export function withConfig(this: NonTerminalExtensionContext, config: Partial<Co
 export function withLogLevel(this: NonTerminalExtensionContext, level: LogLevel | string): void {
   try {
     // API boundary validation
-    validate(level !== undefined && level !== null, "Log level must be provided");
+    validateInput(level !== undefined && level !== null, "Log level must be provided");
     
     // Handle string input for level
     let logLevel: LogLevel;

@@ -2,9 +2,8 @@
  * Extension implementation for XML output methods
  */
 import { XJX } from "../XJX";
-import { createXNodeToXmlConverter, createXNodeToXmlStringConverter, XmlSerializationOptions } from "../converters/xnode-to-xml-converter";
+import { xnodeToXmlConverter, xnodeToXmlStringConverter, XmlSerializationOptions } from "../converters/xnode-to-xml-converter";
 import { transformXNode } from "../converters/xnode-transformer";
-import { FORMAT } from "../core/transform";
 import { logger } from "../core/error";
 import { XNode } from "../core/xnode";
 import { TerminalExtensionContext } from "../core/extension";
@@ -16,8 +15,7 @@ export function toXml(this: TerminalExtensionContext): Document {
   try {
     // Source validation is handled by the registration mechanism
     
-    logger.debug('Starting toXml conversion', {
-      sourceFormat: this.sourceFormat,
+    logger.debug('Starting XML DOM conversion', {
       hasTransforms: this.transforms.length > 0
     });
     
@@ -28,14 +26,12 @@ export function toXml(this: TerminalExtensionContext): Document {
       nodeToConvert = transformXNode(nodeToConvert, this.transforms, this.config);
       
       logger.debug('Applied transforms to XNode', {
-        transformCount: this.transforms.length,
-        targetFormat: FORMAT.XML
+        transformCount: this.transforms.length
       });
     }
     
     // Convert XNode to DOM
-    const converter = createXNodeToXmlConverter(this.config);
-    const doc = converter.convert(nodeToConvert);
+    const doc = xnodeToXmlConverter.convert(nodeToConvert, this.config);
     
     logger.debug('Successfully converted XNode to DOM', {
       documentElement: doc.documentElement?.nodeName
@@ -60,7 +56,7 @@ export function toXmlString(
   try {
     // Source validation is handled by the registration mechanism
     
-    logger.debug('Starting toXmlString conversion');
+    logger.debug('Starting XML string conversion');
     
     // Apply transformations if any are registered
     let nodeToConvert = this.xnode as XNode;
@@ -69,14 +65,12 @@ export function toXmlString(
       nodeToConvert = transformXNode(nodeToConvert, this.transforms, this.config);
       
       logger.debug('Applied transforms to XNode', {
-        transformCount: this.transforms.length,
-        targetFormat: FORMAT.XML
+        transformCount: this.transforms.length
       });
     }
     
     // Convert XNode to XML string
-    const converter = createXNodeToXmlStringConverter(this.config);
-    const xmlString = converter.convert(nodeToConvert, options);
+    const xmlString = xnodeToXmlStringConverter.convert(nodeToConvert, this.config, options);
     
     logger.debug('Successfully converted to XML string', {
       xmlLength: xmlString.length

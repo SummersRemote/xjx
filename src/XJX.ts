@@ -1,12 +1,11 @@
 /**
  * XJX - Main class with fluent API
  */
-import { Configuration, createConfig, getDefaultConfig } from "./core/config";
-import { FORMAT, Transform } from "./core/transform";
+import { Configuration, createConfig } from "./core/config";
+import { Transform } from "./core/transform";
 import { XNode, cloneNode } from "./core/xnode";
 import { validate, ValidationError, logger, LogLevel } from "./core/error";
 import { JsonOptions, JsonValue } from "./core/converter";
-import { XmlSerializationOptions } from "./converters/xnode-to-xml-converter";
 import { Extension, TerminalExtensionContext, NonTerminalExtensionContext } from "./core/extension";
 
 /**
@@ -17,7 +16,6 @@ export class XJX implements TerminalExtensionContext, NonTerminalExtensionContex
   public xnode: XNode | null = null;
   public transforms: Transform[] = [];
   public config: Configuration;
-  public sourceFormat: FORMAT | null = null;
   
   /**
    * Create a new XJX instance
@@ -98,8 +96,8 @@ export class XJX implements TerminalExtensionContext, NonTerminalExtensionContex
    * @throws Error if no source has been set
    */
   public validateSource(): void {
-    if (!this.xnode || !this.sourceFormat) {
-      throw new ValidationError('No source set: call fromXml() or fromJson() before transformation');
+    if (!this.xnode) {
+      throw new ValidationError('No source set: call fromXml(), fromJson(), or fromXnode() before transformation');
     }
   }
   

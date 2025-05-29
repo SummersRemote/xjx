@@ -65,7 +65,7 @@ export const useConfigStore = defineStore('config', {
       fragmentRoot: "results",
     },
     
-    logLevel: 'error' // Default log level
+    logLevel: 'ERROR' // Default log level
   }),
   
   actions: {

@@ -1,9 +1,11 @@
 /**
  * Extension implementation for root manipulation
  */
+import { LoggerFactory } from "../core/logger";
+const logger = LoggerFactory.create();
+
 import { XJX } from "../XJX";
 import { XNode, createElement, addChild, cloneNode, createTextNode } from "../core/xnode";
-import { logger } from "../core/error";
 import { NonTerminalExtensionContext } from "../core/extension";
 import { validateInput } from "../core/converter";
 

@@ -1,9 +1,12 @@
 /**
  * Extension implementation for fromXml method
  */
+import { LoggerFactory } from "../core/logger";
+const logger = LoggerFactory.create();
+
 import { XJX } from "../XJX";
 import { xmlToXNodeConverter } from "../converters/xml-to-xnode-converter";
-import { logger, ProcessingError } from "../core/error";
+import { ProcessingError } from "../core/error";
 import { NonTerminalExtensionContext } from "../core/extension";
 import { validateInput, NodeCallback } from "../core/converter";
 

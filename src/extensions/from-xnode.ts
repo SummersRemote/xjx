@@ -1,8 +1,10 @@
 /**
  * Extension implementation for XNode input methods
  */
+import { LoggerFactory } from "../core/logger";
+const logger = LoggerFactory.create();
+
 import { XJX } from "../XJX";
-import { logger } from "../core/error";
 import { XNode, createElement, addChild, cloneNode } from "../core/xnode";
 import { NonTerminalExtensionContext } from "../core/extension";
 import { validateInput, NodeCallback, applyNodeCallbacks } from "../core/converter";

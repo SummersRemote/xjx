@@ -1,10 +1,13 @@
 /**
  * Extension implementation for fromJson method
  */
+import { LoggerFactory } from "../core/logger";
+const logger = LoggerFactory.create();
+
 import { XJX } from '../XJX';
 import { jsonHiFiToXNodeConverter } from '../converters/json-hifi-to-xnode-converter';
 import { jsonToXNodeConverter } from '../converters/json-std-to-xnode-converter';
-import { logger, ProcessingError } from '../core/error';
+import { ProcessingError } from '../core/error';
 import { NonTerminalExtensionContext } from '../core/extension';
 import { JsonOptions, JsonValue, validateInput, NodeCallback } from '../core/converter';
 

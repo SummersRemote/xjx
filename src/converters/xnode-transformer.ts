@@ -3,11 +3,13 @@
  * 
  * Applies transformations to XNode using transform functions.
  */
+import { LoggerFactory } from "../core/logger";
+const logger = LoggerFactory.create();
+
 import { Configuration } from '../core/config';
 import { XNode, cloneNode } from '../core/xnode';
 import { Transform, TransformIntent, TransformContext } from '../core/transform';
 import { NodeType } from '../core/dom';
-import { logger } from '../core/error';
 
 /**
  * Apply transformations to an XNode

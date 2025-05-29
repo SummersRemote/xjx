@@ -1,9 +1,11 @@
 /**
  * Extension implementation for XNode output methods
  */
+import { LoggerFactory } from "../core/logger";
+const logger = LoggerFactory.create();
+
 import { XJX } from "../XJX";
 import { transformXNode } from "../converters/xnode-transformer";
-import { logger } from "../core/error";
 import { XNode, cloneNode } from "../core/xnode";
 import { TerminalExtensionContext } from "../core/extension";
 

@@ -1,8 +1,11 @@
 /**
  * XML utilities for parsing, serializing, and manipulating XML
  */
+import { LoggerFactory } from "./logger";
+const logger = LoggerFactory.create();
+
 import { DOM, NodeType } from './dom';
-import { logger, ProcessingError } from './error';
+import { ProcessingError } from './error';
 
 /**
  * XML parsing utilities

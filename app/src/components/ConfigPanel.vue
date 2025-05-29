@@ -506,11 +506,11 @@ const mixedContentStrategyOptions = [
 ];
 
 const logLevelOptions = [
-  { title: 'Debug', value: 'debug' },
-  { title: 'Info', value: 'info' },
-  { title: 'Warning', value: 'warn' },
-  { title: 'Error', value: 'error' },
-  { title: 'None', value: 'none' }
+  { title: 'Debug', value: 'DEBUG' },
+  { title: 'Info', value: 'INFO' },
+  { title: 'Warning', value: 'WARN' },
+  { title: 'Error', value: 'ERROR' },
+  { title: 'None', value: 'NONE' }
 ];
 
 // Methods

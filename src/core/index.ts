@@ -9,6 +9,9 @@ export * from './common';
 // Error handling
 export * from './error';
 
+// Logging 
+export * from './logger';
+
 // DOM operations
 export * from './dom';
 

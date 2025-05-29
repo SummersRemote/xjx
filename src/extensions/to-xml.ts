@@ -1,10 +1,12 @@
 /**
  * Extension implementation for XML output methods
  */
+import { LoggerFactory } from "../core/logger";
+const logger = LoggerFactory.create();
+
 import { XJX } from "../XJX";
 import { xnodeToXmlConverter, xnodeToXmlStringConverter, XmlSerializationOptions } from "../converters/xnode-to-xml-converter";
 import { transformXNode } from "../converters/xnode-transformer";
-import { logger } from "../core/error";
 import { XNode } from "../core/xnode";
 import { TerminalExtensionContext } from "../core/extension";
 

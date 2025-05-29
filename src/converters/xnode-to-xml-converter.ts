@@ -1,10 +1,13 @@
 /**
  * XNode to XML converter implementation
  */
+import { LoggerFactory } from "../core/logger";
+const logger = LoggerFactory.create();
+
 import { Configuration } from '../core/config';
 import * as xml from '../core/xml-utils';
 import { DOM, NodeType } from '../core/dom';
-import { logger, ProcessingError } from '../core/error';
+import { ProcessingError } from '../core/error';
 import { XNode } from '../core/xnode';
 import { Converter, NodeCallback, applyNodeCallbacks } from '../core/converter';
 

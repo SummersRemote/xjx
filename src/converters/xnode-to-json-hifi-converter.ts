@@ -1,9 +1,12 @@
 /**
  * XNode to JSON HiFi converter implementation
  */
+import { LoggerFactory } from "../core/logger";
+const logger = LoggerFactory.create();
+
 import { Configuration } from '../core/config';
 import { NodeType } from '../core/dom';
-import { logger, ProcessingError } from '../core/error';
+import { ProcessingError } from '../core/error';
 import { XNode } from '../core/xnode';
 import { 
   Converter, 

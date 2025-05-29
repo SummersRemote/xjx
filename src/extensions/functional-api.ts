@@ -7,9 +7,11 @@
  * - reduce: Aggregate values from all nodes
  * - select: Collect matching nodes without hierarchy
  */
+import { LoggerFactory } from "../core/logger";
+const logger = LoggerFactory.create();
+
 import { XJX } from "../XJX";
 import { XNode, addChild } from "../core/xnode";
-import { logger } from "../core/error";
 import { NonTerminalExtensionContext, TerminalExtensionContext } from "../core/extension";
 import { validateInput } from "../core/converter";
 import {

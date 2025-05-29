@@ -1,9 +1,11 @@
 /**
  * Extension implementation for configuration methods
  */
+import { LoggerFactory, LogLevel } from "../core/logger";
+const logger = LoggerFactory.create();
+
 import { XJX } from "../XJX";
 import { Configuration, createConfig } from "../core/config";
-import { logger, LogLevel } from "../core/error";
 import { NonTerminalExtensionContext } from "../core/extension";
 import { validateInput } from "../core/converter";
 
@@ -75,22 +77,22 @@ export function withLogLevel(this: NonTerminalExtensionContext, level: LogLevel 
     
     if (typeof level === 'string') {
       // Convert string to LogLevel enum
-      const normalizedLevel = level.toLowerCase();
+      const normalizedLevel = level.toUpperCase();
       
       switch (normalizedLevel) {
-        case 'debug':
+        case 'DEBUG':
           logLevel = LogLevel.DEBUG;
           break;
-        case 'info':
+        case 'INFO':
           logLevel = LogLevel.INFO;
           break;
-        case 'warn':
+        case 'WARN':
           logLevel = LogLevel.WARN;
           break;
-        case 'error':
+        case 'ERROR':
           logLevel = LogLevel.ERROR;
           break;
-        case 'none':
+        case 'NONE':
           logLevel = LogLevel.NONE;
           break;
         default:
@@ -101,8 +103,8 @@ export function withLogLevel(this: NonTerminalExtensionContext, level: LogLevel 
       logLevel = level;
     }
     
-    // Set log level in the logger
-    logger.setLevel(logLevel);
+   // Set the default log level
+   LoggerFactory.setDefaultLevel(logLevel);
     
     logger.info(`Log level set to ${logLevel}`);
   } catch (err) {

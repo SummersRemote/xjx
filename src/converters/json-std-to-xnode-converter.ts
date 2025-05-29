@@ -1,9 +1,12 @@
 /**
  * JSON Standard to XNode converter implementation
  */
+import { LoggerFactory } from "../core/logger";
+const logger = LoggerFactory.create();
+
 import { Configuration } from "../core/config";
 import { NodeType } from "../core/dom";
-import { logger, ProcessingError, ValidationError } from "../core/error";
+import { ProcessingError, ValidationError } from "../core/error";
 import { XNode, createElement, createTextNode, addChild } from "../core/xnode";
 import { 
   Converter, 

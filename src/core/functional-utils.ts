@@ -4,8 +4,10 @@
  * This file contains shared functions for tree traversal and result handling
  * used by the functional API methods.
  */
+import { LoggerFactory } from "./logger";
+const logger = LoggerFactory.create();
+
 import { XNode, createElement, addChild, cloneNode } from './xnode';
-import { logger } from './error';
 
 /**
  * Create a container node for results

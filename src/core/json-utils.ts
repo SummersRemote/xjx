@@ -1,8 +1,10 @@
 /**
  * JSON utilities and type definitions
  */
+import { LoggerFactory } from "./logger";
+const logger = LoggerFactory.create();
+
 import { getPath, setPath } from './common';
-import { logger } from './error';
 import { Configuration } from './config';
 import { JsonValue, JsonObject, JsonArray } from './converter';
 

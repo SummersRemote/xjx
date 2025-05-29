@@ -1,11 +1,13 @@
 /**
  * Extension implementation for JSON output methods
  */
+import { LoggerFactory } from "../core/logger";
+const logger = LoggerFactory.create();
+
 import { XJX } from '../XJX';
 import { xnodeToJsonHiFiConverter } from '../converters/xnode-to-json-hifi-converter';
 import { xnodeToJsonConverter } from '../converters/xnode-to-json-std-converter';
 import { transformXNode } from '../converters/xnode-transformer';
-import { logger } from '../core/error';
 import { XNode } from '../core/xnode';
 import { JsonOptions, JsonValue } from '../core/converter';
 import { TerminalExtensionContext } from '../core/extension';

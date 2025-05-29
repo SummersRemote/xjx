@@ -216,7 +216,7 @@ export const usePipelineStore = defineStore('pipeline', {
         
         // Create XJX instance with config
         const configStore = useConfigStore();
-        let builder = new XJX().withConfig(configStore.config);
+        let builder = new XJX().withLogLevel(configStore.logLevel).withConfig(configStore.config);
         
         
         // Apply each step in the pipeline

@@ -314,8 +314,28 @@ export const usePipelineStore = defineStore('pipeline', {
       if (transformType && transforms[transformType]) {
         const transformFn = transforms[transformType](transformOptions || {});
         return (node) => {
-          if (!node || !node.value) return node;
-          node.value = transformFn(node.value);
+          if (!node) return node;
+          
+          // Only apply value transforms to element nodes with values
+          if (node.type === 1 && node.value !== undefined) { // ELEMENT_NODE = 1
+            try {
+              const context = {
+                intent: 'parse',
+                path: node.name
+              };
+              
+              const originalValue = node.value;
+              const transformedValue = transformFn(node.value, context);
+              
+              // Only update if the transform actually changed the value
+              if (transformedValue !== originalValue) {
+                node.value = transformedValue;
+              }
+            } catch (err) {
+              console.warn(`Transform error for node ${node.name}:`, err);
+            }
+          }
+          
           return node;
         };
       }

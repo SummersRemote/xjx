@@ -266,10 +266,8 @@ watch(() => props.value, (newValue) => {
 // Watch for transform type changes to update default options
 watch(() => localOptions.transformType, (newType) => {
   if (newType && transformMode.value === 'valueTransform') {
-    localOptions.transformOptions = {
-      ...getDefaultTransformOptions(newType),
-      ...localOptions.transformOptions
-    };
+    // Reset options to defaults for the new type
+    localOptions.transformOptions = getDefaultTransformOptions(newType);
     updateOptions();
   }
 });

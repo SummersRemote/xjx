@@ -1,8 +1,8 @@
 /**
- * Transforms module - Functional transform factories
+ * Node Transforms module - Node transformer factories for use with map()
  *
- * This module provides transform factories for converting data between formats.
- * All transforms are simple functions that can be composed together.
+ * This module provides node transformer factories that work directly with the map() function.
+ * All transforms are node transformers that take an XNode and return a transformed XNode.
  */
 
 // Core transform types and utilities
@@ -14,58 +14,69 @@ export {
   createTransform
 } from '../core/transform';
 
-// Number transform
+// Number node transform
 export {
   toNumber,
-  NumberOptions
+  NumberTransformOptions
 } from './number-transform';
 
-// Boolean transform
+// Boolean node transform
 export {
   toBoolean,
-  BooleanOptions
+  BooleanTransformOptions
 } from './boolean-transform';
 
-// Regex transform
+// Regex node transform
 export {
   regex,
-  RegexOptions
+  RegexTransformOptions
 } from './regex-transform';
 
 /**
- * Quick reference for the functional transform system:
+ * Quick reference for the node transform system:
+ * 
+ * All transforms work directly with map() and transform XNode objects:
  * 
  * ```typescript
- * // Simple usage with defaults
+ * // Transform all boolean-like values
  * xjx.fromXml(xml)
- *    .select(node => node.name === 'price')
- *    .transform(toNumber())
- *    .filter(node => node.value > 100)
- *    .toXml();
+ *    .map(toBoolean())
+ *    .toJson();
  * 
- * // With parameters
+ * // Transform only specific nodes
  * xjx.fromXml(xml)
- *    .select(node => node.name === 'price')
- *    .transform(toNumber({ precision: 2, thousandsSeparator: '.' }))
- *    .toXml();
+ *    .map(toNumber({ nodeNames: ['price', 'total'] }))
+ *    .toJson();
+ * 
+ * // Chain multiple transforms
+ * xjx.fromXml(xml)
+ *    .map(toBoolean({ nodeNames: ['active', 'enabled'] }))
+ *    .map(toNumber({ nodeNames: ['price', 'count'] }))
+ *    .map(regex(/\s+/g, ' '))  // Clean up whitespace
+ *    .toJson();
  * 
  * // Create reusable configured transforms
- * const currencyTransform = toNumber({ precision: 2 });
- * const yesNoBoolean = toBoolean({ trueValues: ['yes'], falseValues: ['no'] });
- * const sanitizePhone = regex(/[^\d]/g, '');
+ * const cleanPhoneNumbers = regex(/[^\d]/g, '');
+ * const parseBoolean = toBoolean({ 
+ *   trueValues: ['yes', '1', 'true'], 
+ *   falseValues: ['no', '0', 'false'] 
+ * });
+ * const parseCurrency = toNumber({ 
+ *   precision: 2,
+ *   nodeNames: ['price', 'total', 'tax'] 
+ * });
  * 
- * // Use them anywhere
- * xjx.transform(currencyTransform);
- * xjx.transform(yesNoBoolean);
- * xjx.transform(sanitizePhone);
- * 
- * // Compose transforms
- * const processPrice = compose(
- *   regex(/[^\d.]/g, ''),  // Remove non-digits
- *   toNumber({ precision: 2 }),
- *   (value) => value * 1.1  // Add 10% markup
- * );
- * 
- * xjx.transform(processPrice);
+ * xjx.fromXml(xml)
+ *    .map(cleanPhoneNumbers)
+ *    .map(parseBoolean)
+ *    .map(parseCurrency)
+ *    .toJson();
  * ```
+ * 
+ * Key differences from legacy transforms:
+ * - Work directly with map(), no wrapper needed
+ * - Transform entire nodes, not just values
+ * - Support node filtering (nodeNames, skipNodes)
+ * - Preserve non-matching nodes unchanged
+ * - Composable and chainable
  */

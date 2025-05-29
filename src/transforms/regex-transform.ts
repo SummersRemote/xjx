@@ -1,13 +1,21 @@
 /**
- * Regex transform - Apply regular expression replacements to string values
+ * Regex node transform - Apply regular expression replacements to string node values
  */
-import { Transform, TransformOptions, TransformIntent, createTransform } from '../core/transform';
+import { XNode } from '../core/xnode';
 
 /**
- * Options for regex transform
+ * Options for regex node transform
  */
-export interface RegexOptions extends TransformOptions {
-  // Only inherits standard TransformOptions
+export interface RegexTransformOptions {
+  /**
+   * Only transform nodes with these names (default: transform all)
+   */
+  nodeNames?: string[];
+  
+  /**
+   * Skip nodes with these names (default: none)
+   */
+  skipNodes?: string[];
 }
 
 /**
@@ -30,38 +38,38 @@ function parseRegexPattern(pattern: string): { source: string, flags: string } |
 }
 
 /**
- * Create a transform that applies a regex replacement
+ * Create a node transformer that applies regex replacement to string values
  * 
  * @example
- * ```
+ * ```typescript
  * // Simple text replacement (global, case-sensitive)
- * xjx.transform(regex('hello', 'hi'));
+ * xjx.fromXml(xml).map(regex('hello', 'hi')).toJson();
  * 
  * // Full regex with flags
- * xjx.transform(regex('/hello/gi', 'hi'));
+ * xjx.fromXml(xml).map(regex('/hello/gi', 'hi')).toJson();
  * 
  * // Using RegExp object
- * xjx.transform(regex(/hello/gi, 'hi'));
+ * xjx.fromXml(xml).map(regex(/hello/gi, 'hi')).toJson();
  * 
- * // SERIALIZE mode: Only apply when serializing
- * xjx.transform(regex(/\d{4}-\d{2}-\d{2}/, 'DATE', { 
- *   intent: TransformIntent.SERIALIZE 
- * }));
+ * // Transform only specific nodes
+ * xjx.fromXml(xml).map(regex(/\d+/, 'NUMBER', { 
+ *   nodeNames: ['description', 'content']
+ * })).toJson();
  * ```
  * 
  * @param pattern Regular expression pattern (string or RegExp)
  * @param replacement Replacement string (can use capture groups)
  * @param options Transform options
- * @returns A regex transform function
+ * @returns A node transformer function for use with map()
  */
 export function regex(
   pattern: RegExp | string, 
   replacement: string,
-  options: RegexOptions = {}
-): Transform {
+  options: RegexTransformOptions = {}
+): (node: XNode) => XNode {
   const {
-    intent = TransformIntent.PARSE,
-    ...restOptions
+    nodeNames,
+    skipNodes = []
   } = options;
   
   // Create RegExp object based on input type
@@ -86,32 +94,26 @@ export function regex(
     throw new Error('Pattern must be a string or RegExp');
   }
   
-  // Include all options in transformOptions, including intent
-  const transformOptions = {
-    ...restOptions,
-    intent
-  };
-  
-  return createTransform((value: any, context?: any) => {
-    // Handle null/undefined
-    if (value == null) {
-      return value;
+  return (node: XNode): XNode => {
+    // Skip if this node should be skipped
+    if (skipNodes.includes(node.name)) {
+      return node;
     }
     
-    // Only transform strings
-    if (typeof value !== 'string') {
-      return value;
+    // Skip if nodeNames is specified and this node isn't included
+    if (nodeNames && !nodeNames.includes(node.name)) {
+      return node;
     }
     
-    // Get the current intent (from context or from options)
-    const currentIntent = context?.intent || intent;
-    
-    // In SERIALIZE mode, only transform if the intent matches
-    if (currentIntent === TransformIntent.SERIALIZE && intent !== TransformIntent.SERIALIZE) {
-      return value;
+    // Skip if node has no value or value is not a string
+    if (node.value === undefined || typeof node.value !== 'string') {
+      return node;
     }
     
     // Apply replacement
-    return value.replace(re, replacement);
-  }, transformOptions);
+    const transformedValue = node.value.replace(re, replacement);
+    
+    // Return transformed node
+    return { ...node, value: transformedValue };
+  };
 }

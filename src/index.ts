@@ -68,9 +68,9 @@ export {
   regex,
   
   // Options interfaces
-  NumberOptions,
-  BooleanOptions,
-  RegexOptions,
+  NumberTransformOptions,
+  BooleanTransformOptions,
+  RegexTransformOptions,
 } from './transforms';
 
 // Manual registration verification - this function does nothing at runtime

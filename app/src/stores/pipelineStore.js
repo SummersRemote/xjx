@@ -1,42 +1,160 @@
-// stores/pipelineStore.js - Updated for non-terminal hoist
+// stores/pipelineStore.js - Simplified unified pipeline
 import { defineStore } from 'pinia';
-import XJXService from '../services/xjxService';
 
 export const usePipelineStore = defineStore('pipeline', {
   state: () => ({
-    steps: [], // Array of operation steps
+    steps: [
+      // Default pipeline: fromXml -> toJson
+      { id: 1, type: 'fromXml', options: {} },
+      { id: 2, type: 'toJson', options: {} }
+    ],
+    
+    sourceContent: '<root>\n  <example>Hello World</example>\n  <count>42</count>\n  <active>true</active>\n</root>',
+    resultContent: '',
+    
+    // Available operations from the actual XJX library
     availableOperations: {
-      // Core Functional Operations
-      'filter': { type: 'filter', name: 'Filter Nodes', category: 'functional', description: 'Keep nodes matching predicate (maintains hierarchy)' },
-      'map': { type: 'map', name: 'Transform Nodes', category: 'functional', description: 'Apply transformation to every node' },
-      'reduce': { type: 'reduce', name: 'Reduce/Aggregate Nodes', category: 'functional', description: 'Calculate a single value from all nodes' },
-      'select': { type: 'select', name: 'Select Nodes', category: 'functional', description: 'Collect matching nodes (without hierarchy)' },
-      'slice': { type: 'slice', name: 'Slice Nodes', category: 'functional', description: 'Select nodes by position (like array slicing)' },
-      'unwrap': { type: 'unwrap', name: 'Unwrap Container', category: 'functional', description: 'Remove container and promote children' },
-      'hoist': { type: 'hoist', name: 'Hoist Values', category: 'functional', description: 'Extract values directly into a simplified structure' },
+      // Source operations
+      fromXml: { 
+        type: 'fromXml', 
+        name: 'From XML', 
+        category: 'source', 
+        description: 'Parse XML string as source',
+        terminal: false
+      },
+      fromJson: { 
+        type: 'fromJson', 
+        name: 'From JSON', 
+        category: 'source', 
+        description: 'Parse JSON object as source',
+        terminal: false
+      },
+      fromXnode: { 
+        type: 'fromXnode', 
+        name: 'From XNode', 
+        category: 'source', 
+        description: 'Use XNode array as source',
+        terminal: false
+      },
       
-      // Transform Operations
-      'transform': { type: 'transform', name: 'Apply Transform', category: 'transform', description: 'Apply value transformations (boolean, number, regex)' }
-    }
-  }),
-  actions: {
-    /**
-     * Add a new step to the pipeline
-     * @param {string} type - Operation type
-     * @param {Object} options - Operation options
-     */
-    addStep(type, options = {}) {
-      this.steps.push({
-        id: Date.now(),
-        type: type,
-        options: options
-      });
+      // Functional operations
+      filter: { 
+        type: 'filter', 
+        name: 'Filter', 
+        category: 'functional', 
+        description: 'Keep nodes matching predicate (maintains hierarchy)',
+        terminal: false
+      },
+      map: { 
+        type: 'map', 
+        name: 'Map/Transform', 
+        category: 'functional', 
+        description: 'Transform every node in the document',
+        terminal: false
+      },
+      select: { 
+        type: 'select', 
+        name: 'Select', 
+        category: 'functional', 
+        description: 'Collect matching nodes (flattened)',
+        terminal: false
+      },
+      reduce: { 
+        type: 'reduce', 
+        name: 'Reduce', 
+        category: 'functional', 
+        description: 'Aggregate to single value (terminal)',
+        terminal: true
+      },
+      
+      // Output operations  
+      toXml: { 
+        type: 'toXml', 
+        name: 'To XML DOM', 
+        category: 'output', 
+        description: 'Convert to XML DOM Document',
+        terminal: true
+      },
+      toXmlString: { 
+        type: 'toXmlString', 
+        name: 'To XML String', 
+        category: 'output', 
+        description: 'Convert to formatted XML string',
+        terminal: true
+      },
+      toJson: { 
+        type: 'toJson', 
+        name: 'To JSON', 
+        category: 'output', 
+        description: 'Convert to JSON object',
+        terminal: true
+      },
+      toJsonString: { 
+        type: 'toJsonString', 
+        name: 'To JSON String', 
+        category: 'output', 
+        description: 'Convert to formatted JSON string',
+        terminal: true
+      },
+      toXnode: { 
+        type: 'toXnode', 
+        name: 'To XNode', 
+        category: 'output', 
+        description: 'Convert to XNode array (allows further processing)',
+        terminal: false  // Can continue processing
+      }
     },
     
-    /**
-     * Remove a step from the pipeline
-     * @param {number} id - Step ID
-     */
+    isProcessing: false,
+    error: null
+  }),
+  
+  getters: {
+    hasSourceOperation() {
+      return this.steps.some(step => this.availableOperations[step.type]?.category === 'source');
+    },
+    
+    hasOutputOperation() {
+      return this.steps.some(step => 
+        this.availableOperations[step.type]?.category === 'output' ||
+        this.availableOperations[step.type]?.terminal === true
+      );
+    },
+    
+    isValidPipeline() {
+      return this.hasSourceOperation && this.hasOutputOperation;
+    },
+    
+    sourceOperations() {
+      return Object.entries(this.availableOperations)
+        .filter(([_, op]) => op.category === 'source')
+        .map(([key, op]) => ({ ...op, value: key }));
+    },
+    
+    functionalOperations() {
+      return Object.entries(this.availableOperations)
+        .filter(([_, op]) => op.category === 'functional')
+        .map(([key, op]) => ({ ...op, value: key }));
+    },
+    
+    outputOperations() {
+      return Object.entries(this.availableOperations)
+        .filter(([_, op]) => op.category === 'output')
+        .map(([key, op]) => ({ ...op, value: key }));
+    }
+  },
+  
+  actions: {
+    addStep(type, options = {}) {
+      const newStep = {
+        id: Date.now(),
+        type: type,
+        options: { ...this.getDefaultOptions(type), ...options }
+      };
+      
+      this.steps.push(newStep);
+    },
+    
     removeStep(id) {
       const index = this.steps.findIndex(s => s.id === id);
       if (index >= 0) {
@@ -44,91 +162,338 @@ export const usePipelineStore = defineStore('pipeline', {
       }
     },
     
-    /**
-     * Update a step's options
-     * @param {number} id - Step ID
-     * @param {Object} options - New options
-     */
     updateStep(id, options) {
-      const index = this.steps.findIndex(s => s.id === id);
-      if (index >= 0) {
-        this.steps[index].options = options;
+      const step = this.steps.find(s => s.id === id);
+      if (step) {
+        step.options = { ...step.options, ...options };
       }
     },
     
-    /**
-     * Move a step up or down in the pipeline
-     * @param {number} id - Step ID
-     * @param {string} direction - 'up' or 'down'
-     */
     moveStep(id, direction) {
       const index = this.steps.findIndex(s => s.id === id);
       if (index < 0) return;
       
       if (direction === 'up' && index > 0) {
-        const temp = this.steps[index];
-        this.steps[index] = this.steps[index - 1];
-        this.steps[index - 1] = temp;
+        [this.steps[index], this.steps[index - 1]] = [this.steps[index - 1], this.steps[index]];
       } else if (direction === 'down' && index < this.steps.length - 1) {
-        const temp = this.steps[index];
-        this.steps[index] = this.steps[index + 1];
-        this.steps[index + 1] = temp;
+        [this.steps[index], this.steps[index + 1]] = [this.steps[index + 1], this.steps[index]];
       }
     },
     
-    /**
-     * Clear all steps from the pipeline
-     */
     clearSteps() {
-      this.steps = [];
+      this.steps = [
+        { id: Date.now(), type: 'fromXml', options: {} },
+        { id: Date.now() + 1, type: 'toJson', options: {} }
+      ];
     },
     
-    /**
-     * Get default options for a specific operation type
-     * @param {string} type - Operation type
-     * @returns {Object} Default options
-     */
-    getDefaultOptions(type) {
-      // Return default options based on operation type
+    swapSourceResult() {
+      const temp = this.sourceContent;
+      this.sourceContent = this.resultContent;
+      this.resultContent = temp;
+    },
+    
+    updateSourceContent(content) {
+      this.sourceContent = content;
+    },
+    
+    updateResultContent(content) {
+      this.resultContent = content;
+    },
+    
+    async executePipeline() {
+      if (!this.isValidPipeline) {
+        throw new Error('Pipeline must have both source and output operations');
+      }
+      
+      this.isProcessing = true;
+      this.error = null;
+      
+      try {
+        // Import XJX library
+        const { XJX, toNumber, toBoolean, regex, compose } = await import("../../../dist/esm/index.js");
+        
+        // Create XJX instance with config
+        const configStore = useConfigStore();
+        let builder = new XJX().withConfig(configStore.config);
+        
+        // Apply each step in the pipeline
+        for (const step of this.steps) {
+          builder = this.applyStep(builder, step, { toNumber, toBoolean, regex, compose });
+        }
+        
+        // Execute the final operation to get result
+        const result = await this.executeTerminalOperation(builder);
+        
+        // Update result content based on the result type
+        if (typeof result === 'string') {
+          this.resultContent = result;
+        } else if (typeof result === 'object') {
+          this.resultContent = JSON.stringify(result, null, 2);
+        } else {
+          this.resultContent = String(result);
+        }
+        
+      } catch (err) {
+        this.error = err.message;
+        console.error('Pipeline execution error:', err);
+      } finally {
+        this.isProcessing = false;
+      }
+    },
+    
+    applyStep(builder, step, transforms) {
+      const { type, options } = step;
+      
       switch (type) {
-        case 'filter':
-          return { 
-            predicate: 'node => node.name === "example"'
+        case 'fromXml': {
+          const beforeFn = options.beforeFn ? this.createFunction(options.beforeFn) : undefined;
+          const afterFn = options.afterFn ? this.createFunction(options.afterFn) : undefined;
+          return builder.fromXml(this.sourceContent, beforeFn, afterFn);
+        }
+          
+        case 'fromJson': {
+          try {
+            const jsonSource = JSON.parse(this.sourceContent);
+            const beforeFn = options.beforeFn ? this.createFunction(options.beforeFn) : undefined;
+            const afterFn = options.afterFn ? this.createFunction(options.afterFn) : undefined;
+            return builder.fromJson(jsonSource, undefined, beforeFn, afterFn);
+          } catch (err) {
+            throw new Error('Invalid JSON in source content');
+          }
+        }
+          
+        case 'fromXnode': {
+          // For demo purposes, we'll convert current source to XNode first
+          const beforeFn = options.beforeFn ? this.createFunction(options.beforeFn) : undefined;
+          const afterFn = options.afterFn ? this.createFunction(options.afterFn) : undefined;
+          return builder.fromXml(this.sourceContent, beforeFn, afterFn);
+        }
+          
+        case 'filter': {
+          const filterPredicate = this.createFunction(options.predicate || 'node => true');
+          return builder.filter(filterPredicate);
+        }
+          
+        case 'map': {
+          const mapTransformer = this.createMapTransformer(options, transforms);
+          return builder.map(mapTransformer);
+        }
+          
+        case 'select': {
+          const selectPredicate = this.createFunction(options.predicate || 'node => true');
+          return builder.select(selectPredicate);
+        }
+          
+        case 'reduce': {
+          const reducer = this.createFunction(options.reducer || '(acc, node) => acc + 1');
+          const initialValue = this.parseInitialValue(options.initialValue || '0');
+          return builder.reduce(reducer, initialValue);
+        }
+          
+        case 'toXml':
+        case 'toXmlString':
+        case 'toJson':
+        case 'toJsonString':
+        case 'toXnode':
+          // These are handled by executeTerminalOperation
+          return builder;
+          
+        default:
+          throw new Error(`Unknown operation type: ${type}`);
+      }
+    },
+    
+    createMapTransformer(options, transforms) {
+      const { transformType, transformOptions, customTransformer } = options;
+      
+      if (customTransformer) {
+        return this.createFunction(customTransformer);
+      }
+      
+      if (transformType && transforms[transformType]) {
+        const transformFn = transforms[transformType](transformOptions || {});
+        return (node) => {
+          if (!node || !node.value) return node;
+          node.value = transformFn(node.value);
+          return node;
+        };
+      }
+      
+      return node => node; // Identity transform
+    },
+    
+    async executeTerminalOperation(builder) {
+      // Find the last terminal operation in the pipeline
+      const terminalStep = [...this.steps].reverse().find(step => 
+        this.availableOperations[step.type]?.terminal === true ||
+        this.availableOperations[step.type]?.category === 'output'
+      );
+      
+      if (!terminalStep) {
+        throw new Error('No terminal operation found');
+      }
+      
+      switch (terminalStep.type) {
+        case 'toXml':
+          return '[XML DOM Document]'; // Can't display DOM directly
+        case 'toXmlString':
+          return builder.toXmlString();
+        case 'toJson':
+          return builder.toJson();
+        case 'toJsonString':
+          return builder.toJsonString();
+        case 'toXnode': {
+          const nodes = builder.toXnode();
+          return `[${nodes.length} XNode(s)]`; // Can't display XNodes directly
+        }
+        case 'reduce':
+          // Reduce was already applied in applyStep
+          return builder;
+        default:
+          throw new Error(`Unknown terminal operation: ${terminalStep.type}`);
+      }
+    },
+    
+    createFunction(functionString) {
+      try {
+        let cleanFunctionString = functionString.trim();
+        
+        if (!cleanFunctionString.startsWith('function') && 
+            !cleanFunctionString.startsWith('(') && 
+            !cleanFunctionString.includes('=>')) {
+          cleanFunctionString = `node => ${cleanFunctionString}`;
+        }
+        
+        return new Function('return ' + cleanFunctionString)();
+      } catch (err) {
+        console.error('Error creating function from string:', err);
+        return () => true; // Fallback
+      }
+    },
+    
+    parseInitialValue(value) {
+      try {
+        return JSON.parse(value);
+      } catch (e) {
+        return value; // Return as string if not valid JSON
+      }
+    },
+    
+    getDefaultOptions(type) {
+      switch (type) {
+        case 'fromXml':
+        case 'fromJson':
+        case 'fromXnode':
+          return {
+            beforeFn: '',
+            afterFn: ''
           };
+          
+        case 'filter':
+        case 'select':
+          return { predicate: 'node => node.name === "example"' };
+          
         case 'map':
           return { 
-            transformer: 'node => {\n  // Transform the node\n  return node;\n}'
+            transformType: null,
+            transformOptions: {},
+            customTransformer: 'node => node'
           };
+          
         case 'reduce':
           return { 
-            reducer: '(acc, node) => {\n  // Accumulate values\n  return acc + 1;\n}', 
+            reducer: '(acc, node) => acc + 1', 
             initialValue: '0'
           };
-        case 'select':
-          return {
-            predicate: 'node => node.name === "example"'
-          };
-        case 'slice':
-          return {
-            start: 0,
-            end: undefined,
-            step: 1
-          };
-        case 'unwrap':
-          return {}; // No options needed for unwrap
-        case 'hoist':
-          return {
-            containerName: 'values'
-          };
-        case 'transform':
-          // For transforms, reuse the existing structure from transformStore
-          return { 
-            type: 'BooleanTransform', 
-            options: XJXService.getDefaultOptions('BooleanTransform')
-          };
+          
         default:
           return {};
+      }
+    },
+    
+    generateFluentAPI() {
+      if (!this.isValidPipeline) {
+        return '// Invalid pipeline: missing source or output operation';
+      }
+      
+      let code = `import { XJX, toNumber, toBoolean, regex, compose } from 'xjx';\n\n`;
+      code += `const config = /* your configuration */;\n`;
+      code += `const source = /* your source content */;\n`;
+      
+      // Add callback function declarations if any step uses them
+      const hasCallbacks = this.steps.some(step => 
+        (step.options.beforeFn && step.options.beforeFn.trim()) || 
+        (step.options.afterFn && step.options.afterFn.trim())
+      );
+      
+      if (hasCallbacks) {
+        const beforeFnSteps = this.steps.filter(step => step.options.beforeFn && step.options.beforeFn.trim());
+        const afterFnSteps = this.steps.filter(step => step.options.afterFn && step.options.afterFn.trim());
+        
+        if (beforeFnSteps.length > 0) {
+          code += `const beforeFn = ${beforeFnSteps[0].options.beforeFn};\n`;
+        }
+        
+        if (afterFnSteps.length > 0) {
+          code += `const afterFn = ${afterFnSteps[0].options.afterFn};\n`;
+        }
+        
+        code += '\n';
+      }
+      
+      code += `const result = new XJX()\n  .withConfig(config)`;
+      
+      for (const step of this.steps) {
+        code += this.generateStepCode(step);
+      }
+      
+      code += ';';
+      return code;
+    },
+    
+    generateStepCode(step) {
+      const { type, options } = step;
+      
+      switch (type) {
+        case 'fromXml':
+        case 'fromJson':
+        case 'fromXnode': {
+          const callbacks = [];
+          if (options.beforeFn) callbacks.push(`beforeFn`);
+          if (options.afterFn) callbacks.push(`afterFn`);
+          
+          const callbacksStr = callbacks.length > 0 ? `, ${callbacks.join(', ')}` : '';
+          return `\n  .${type}(source${callbacksStr})`;
+        }
+          
+        case 'filter':
+        case 'select':
+          return `\n  .${type}(${options.predicate || 'node => true'})`;
+          
+        case 'map':
+          if (options.transformType) {
+            return `\n  .map(${options.transformType}(${JSON.stringify(options.transformOptions || {})}))`;
+          } else {
+            return `\n  .map(${options.customTransformer || 'node => node'})`;
+          }
+          
+        case 'reduce':
+          return `\n  .reduce(${options.reducer || '(acc, node) => acc + 1'}, ${options.initialValue || '0'})`;
+          
+        case 'toXml':
+        case 'toXmlString':
+        case 'toJson':
+        case 'toJsonString':
+        case 'toXnode':
+          return `\n  .${type}()`;
+          
+        default:
+          return `\n  ./* unknown: ${type} */`;
       }
     }
   }
 });
+
+// Import config store to avoid circular dependency
+import { useConfigStore } from './configStore';

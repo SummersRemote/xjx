@@ -35,24 +35,25 @@
 
     <!-- Navigation Drawer -->
     <v-navigation-drawer v-model="drawer" width="420" class="config-drawer">
-      <ConfigPanel @showApi="showApiDialog" @showConfig="showConfigDialog" />
+      <ConfigPanel @showConfig="showConfigDialog" @showApi="showApiDialog" />
     </v-navigation-drawer>
 
     <!-- Main Content -->
     <v-main>
       <v-container fluid>
+        <!-- Source & Result Editors -->
         <v-row>
           <v-col cols="12">
-            <EditorPanel />
+            <UnifiedEditorPanel />
           </v-col>
         </v-row>
         
-<v-row>
-  <v-col cols="12">
-    <PipelineManager />
-  </v-col>
-</v-row>
-
+        <!-- Pipeline Manager -->
+        <v-row>
+          <v-col cols="12">
+            <UnifiedPipelineManager />
+          </v-col>
+        </v-row>
       </v-container>
     </v-main>
 
@@ -70,10 +71,10 @@
 
 <script setup>
 import { ref } from 'vue';
-import EditorPanel from '@/components/EditorPanel.vue';
+import UnifiedEditorPanel from '@/components/UnifiedEditorPanel.vue';
+import UnifiedPipelineManager from '@/components/UnifiedPipelineManager.vue';
 import ConfigPanel from '@/components/ConfigPanel.vue';
 import ConfigViewer from '@/components/ConfigViewer.vue';
-import PipelineManager from '@/components/PipelineManager.vue'; // Updated import
 import APIViewer from '@/components/APIViewer.vue';
 
 // References for dialogs

@@ -1,4 +1,4 @@
-// main.js
+// main.js - Simplified Vue app setup
 import { createApp } from 'vue';
 import App from './App.vue';
 import { createPinia } from 'pinia';

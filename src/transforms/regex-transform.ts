@@ -96,12 +96,12 @@ export function regex(
   
   return (node: XNode): XNode => {
     // Skip if this node should be skipped
-    if (skipNodes.includes(node.name)) {
+    if (skipNodes && skipNodes.length > 0 && skipNodes.includes(node.name)) {
       return node;
     }
     
-    // Skip if nodeNames is specified and this node isn't included
-    if (nodeNames && !nodeNames.includes(node.name)) {
+    // Skip if nodeNames is specified with items and this node isn't included
+    if (nodeNames && nodeNames.length > 0 && !nodeNames.includes(node.name)) {
       return node;
     }
     

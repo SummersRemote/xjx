@@ -75,7 +75,7 @@ export function filter(
  */
 export function map(
   this: NonTerminalExtensionContext,
-  transformer: (node: XNode) => XNode | null
+  transformer: (node: XNode) => XNode | null | undefined | void  // Allow undefined/void
 ): void {
   try {
     // API boundary validation
@@ -87,8 +87,41 @@ export function map(
     // Get the current document root
     const rootNode = this.xnode as XNode;
 
-    // Apply transformer to get a new document
-    const mappedRoot = mapNodeTree(rootNode, transformer);
+    // Create a wrapper that handles undefined returns gracefully
+    const consistentTransformer = (node: XNode): XNode | null => {
+      try {
+        const result = transformer(node);
+        
+        // NEW: Handle undefined returns gracefully (keep original node)
+        if (result === undefined) {
+          // Undefined return - keep original (consistent with beforeFn/afterFn)
+          return node;
+        }
+        
+        // Existing logic for null and valid nodes
+        if (result === null) {
+          return null; // Explicit removal
+        }
+        
+        if (result && typeof result === 'object' && typeof result.name === 'string') {
+          return result as XNode; // Valid transformation
+        }
+        
+        // NEW: Handle invalid return types gracefully
+        if (result !== undefined && result !== null) {
+          logger.warn(`Transformer returned invalid type for ${node.name}: ${typeof result}, keeping original`);
+          return node;
+        }
+        
+        return node; // Fallback
+      } catch (error) {
+        logger.warn(`Error in transformer for node ${node.name}:`, error);
+        return node; // Keep original on error
+      }
+    };
+
+    // Apply the consistent transformer
+    const mappedRoot = mapNodeTree(rootNode, consistentTransformer);
 
     if (mappedRoot) {
       // Update the document with transformed results
@@ -97,7 +130,7 @@ export function map(
         rootName: mappedRoot.name
       });
     } else {
-      // Create an empty results container if transformer removed all nodes
+      // This shouldn't happen with our consistent transformer, but handle it
       this.xnode = createResultsContainer(
         typeof this.config.fragmentRoot === 'string' 
           ? this.config.fragmentRoot 

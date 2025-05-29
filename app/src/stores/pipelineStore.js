@@ -210,45 +210,25 @@ export const usePipelineStore = defineStore('pipeline', {
       this.error = null;
       
       try {
-        console.log('🚀 Starting pipeline execution...');
         
         // Import XJX library
         const { XJX, toNumber, toBoolean, regex, compose } = await import("../../../dist/esm/index.js");
-        
-        console.log('📦 Imported XJX library:', { 
-          XJX: !!XJX,
-          toNumber: typeof toNumber,
-          toBoolean: typeof toBoolean,
-          regex: typeof regex,
-          compose: typeof compose
-        });
         
         // Create XJX instance with config
         const configStore = useConfigStore();
         let builder = new XJX().withConfig(configStore.config);
         
-        console.log('🏗️ Created XJX builder with config');
         
         // Apply each step in the pipeline
         for (const [index, step] of this.steps.entries()) {
-          console.log(`🔧 Applying step ${index + 1}:`, step.type, step.options);
           
-          try {
             builder = this.applyStep(builder, step, { toNumber, toBoolean, regex, compose });
-            console.log(`✅ Step ${index + 1} applied successfully`);
-          } catch (stepError) {
-            console.error(`❌ Error in step ${index + 1}:`, stepError);
-            throw stepError;
-          }
+
         }
-        
-        console.log('🎯 Executing terminal operation...');
-        
+           
         // Execute the final operation to get result
         const result = await this.executeTerminalOperation(builder);
-        
-        console.log('📊 Pipeline result:', typeof result, result);
-        
+               
         // Update result content based on the result type
         if (typeof result === 'string') {
           this.resultContent = result;
@@ -258,10 +238,8 @@ export const usePipelineStore = defineStore('pipeline', {
           this.resultContent = String(result);
         }
         
-        console.log('✅ Pipeline execution completed successfully');
         
       } catch (err) {
-        console.error('💥 Pipeline execution error:', err);
         this.error = err.message;
       } finally {
         this.isProcessing = false;
@@ -270,14 +248,11 @@ export const usePipelineStore = defineStore('pipeline', {
     
     applyStep(builder, step, transforms) {
       const { type, options } = step;
-      
-      console.log(`🔧 Applying step: ${type}`, { options, availableTransforms: Object.keys(transforms) });
-      
+            
       switch (type) {
         case 'fromXml': {
           const beforeFn = options.beforeFn ? this.createFunction(options.beforeFn) : undefined;
           const afterFn = options.afterFn ? this.createFunction(options.afterFn) : undefined;
-          console.log('📄 fromXml with callbacks:', { beforeFn: !!beforeFn, afterFn: !!afterFn });
           return builder.fromXml(this.sourceContent, beforeFn, afterFn);
         }
           
@@ -286,7 +261,6 @@ export const usePipelineStore = defineStore('pipeline', {
             const jsonSource = JSON.parse(this.sourceContent);
             const beforeFn = options.beforeFn ? this.createFunction(options.beforeFn) : undefined;
             const afterFn = options.afterFn ? this.createFunction(options.afterFn) : undefined;
-            console.log('📄 fromJson with callbacks:', { beforeFn: !!beforeFn, afterFn: !!afterFn });
             return builder.fromJson(jsonSource, undefined, beforeFn, afterFn);
           } catch (err) {
             throw new Error('Invalid JSON in source content');
@@ -297,32 +271,27 @@ export const usePipelineStore = defineStore('pipeline', {
           // For demo purposes, we'll convert current source to XNode first
           const beforeFn = options.beforeFn ? this.createFunction(options.beforeFn) : undefined;
           const afterFn = options.afterFn ? this.createFunction(options.afterFn) : undefined;
-          console.log('📄 fromXnode with callbacks:', { beforeFn: !!beforeFn, afterFn: !!afterFn });
           return builder.fromXml(this.sourceContent, beforeFn, afterFn);
         }
           
         case 'filter': {
           const filterPredicate = this.createFunction(options.predicate || 'node => true');
-          console.log('🔍 filter with predicate:', options.predicate);
           return builder.filter(filterPredicate);
         }
           
         case 'map': {
           const mapTransformer = this.createMapTransformer(options, transforms);
-          console.log('🗺️ map with transformer:', typeof mapTransformer);
           return builder.map(mapTransformer);
         }
           
         case 'select': {
           const selectPredicate = this.createFunction(options.predicate || 'node => true');
-          console.log('🎯 select with predicate:', options.predicate);
           return builder.select(selectPredicate);
         }
           
         case 'reduce': {
           const reducer = this.createFunction(options.reducer || '(acc, node) => acc + 1');
           const initialValue = this.parseInitialValue(options.initialValue || '0');
-          console.log('🔢 reduce with reducer:', options.reducer, 'initial:', initialValue);
           return builder.reduce(reducer, initialValue);
         }
           
@@ -332,7 +301,6 @@ export const usePipelineStore = defineStore('pipeline', {
         case 'toJsonString':
         case 'toXnode':
           // These are handled by executeTerminalOperation
-          console.log('📤 terminal operation:', type);
           return builder;
           
         default:
@@ -343,35 +311,19 @@ export const usePipelineStore = defineStore('pipeline', {
     createMapTransformer(options, transforms) {
       const { transformType, transformOptions, customTransformer } = options;
       
-      console.log('🛠️ Creating map transformer:', {
-        transformType,
-        transformOptions,
-        customTransformer: customTransformer ? 'present' : 'empty',
-        availableTransforms: Object.keys(transforms)
-      });
-      
       // Use custom transformer if provided
       if (customTransformer && customTransformer.trim()) {
-        console.log('✏️ Using custom transformer');
         return this.createFunction(customTransformer);
       }
       
       // Use node transform if specified
       if (transformType && transforms[transformType]) {
-        console.log('🎛️ Using node transform:', transformType, 'with options:', transformOptions);
-        
-        try {
-          // Call the transform factory with options
+
           const transformer = transforms[transformType](transformOptions || {});
-          console.log('✅ Node transformer created:', typeof transformer);
           return transformer;
-        } catch (error) {
-          console.error('❌ Error creating node transformer:', error);
-          throw error;
-        }
+
       }
       
-      console.log('🔄 Using identity transformer');
       // Default identity transformer
       return node => node;
     },
@@ -387,7 +339,6 @@ export const usePipelineStore = defineStore('pipeline', {
         throw new Error('No terminal operation found');
       }
       
-      console.log('🎯 Executing terminal operation:', terminalStep.type);
       
       switch (terminalStep.type) {
         case 'toXml':

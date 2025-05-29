@@ -45,7 +45,7 @@
         </div>
         
         <!-- Pipeline Summary -->
-        <v-card variant="outlined" class="mt-4">
+        <!-- <v-card variant="outlined" class="mt-4">
           <v-card-title class="text-subtitle-1">
             Pipeline Summary
           </v-card-title>
@@ -62,10 +62,10 @@
               </v-chip>
             </v-chip-group>
           </v-card-text>
-        </v-card>
+        </v-card> -->
         
         <!-- Usage Instructions -->
-        <v-card variant="outlined" class="mt-4">
+        <!-- <v-card variant="outlined" class="mt-4">
           <v-card-title class="text-subtitle-1">
             Usage Instructions
           </v-card-title>
@@ -82,10 +82,10 @@
               <li>Execute the code to get your transformed result</li>
             </ol>
           </v-card-text>
-        </v-card>
+        </v-card> -->
       </v-card-text>
       
-      <v-card-actions>
+      <!-- <v-card-actions>
         <v-spacer></v-spacer>
         <v-btn
           color="primary"
@@ -101,7 +101,7 @@
         >
           Close
         </v-btn>
-      </v-card-actions>
+      </v-card-actions> -->
     </v-card>
   </v-dialog>
   

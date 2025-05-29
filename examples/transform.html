@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XJX Transform Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .code {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+        }
+        .result {
+            background: #e8f5e8;
+            padding: 10px;
+            border-radius: 3px;
+            margin-top: 10px;
+        }
+        .error {
+            background: #ffe8e8;
+            padding: 10px;
+            border-radius: 3px;
+            margin-top: 10px;
+            color: red;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>XJX Transform Test</h1>
+    <p>Testing value transforms with the XJX library</p>
+    
+    <!-- Test 1: Basic Transform Test -->
+    <div class="test-section">
+        <h3>Test 1: Direct Transform Function Test</h3>
+        <div class="code" id="test1-code">// Testing toBoolean transform directly</div>
+        <button onclick="runTest1()">Run Test 1</button>
+        <div id="test1-result"></div>
+    </div>
+
+    <!-- Test 2: Map with Transform -->
+    <div class="test-section">
+        <h3>Test 2: Map with Transform (Original Issue)</h3>
+        <div class="code" id="test2-code">// Testing map(toBoolean()) with XML</div>
+        <button onclick="runTest2()">Run Test 2</button>
+        <div id="test2-result"></div>
+    </div>
+
+    <!-- Test 3: Manual Node Transformer -->
+    <div class="test-section">
+        <h3>Test 3: Manual Node Transformer</h3>
+        <div class="code" id="test3-code">// Testing manual node transformer</div>
+        <button onclick="runTest3()">Run Test 3</button>
+        <div id="test3-result"></div>
+    </div>
+
+    <!-- Test 4: All Node Values -->
+    <div class="test-section">
+        <h3>Test 4: Transform All Node Values</h3>
+        <div class="code" id="test4-code">// Testing transform on all nodes with values</div>
+        <button onclick="runTest4()">Run Test 4</button>
+        <div id="test4-result"></div>
+    </div>
+
+    <script type="module">
+        // Import XJX library
+        import { XJX, toBoolean, toNumber } from '../../../dist/esm/index.js';
+        
+        const xmlSource = `<root>
+  <example>Hello World</example>
+  <count>42</count>
+  <active>true</active>
+</root>`;
+
+        window.runTest1 = function() {
+            document.getElementById('test1-code').textContent = `
+// Test the toBoolean transform function directly
+const transform = toBoolean({
+    trueValues: ["true", "yes", "1", "on"],
+    falseValues: ["false", "no", "0", "off"],
+    ignoreCase: true
+});
+
+console.log('Transform "true":', transform("true"));
+console.log('Transform "false":', transform("false"));
+console.log('Transform "42":', transform("42"));
+            `;
+            
+            try {
+                const transform = toBoolean({
+                    trueValues: ["true", "yes", "1", "on"],
+                    falseValues: ["false", "no", "0", "off"],
+                    ignoreCase: true
+                });
+                
+                const results = {
+                    'true': transform("true"),
+                    'false': transform("false"),
+                    '42': transform("42")
+                };
+                
+                document.getElementById('test1-result').innerHTML = 
+                    '<div class="result">Results: ' + JSON.stringify(results, null, 2) + '</div>';
+            } catch (error) {
+                document.getElementById('test1-result').innerHTML = 
+                    '<div class="error">Error: ' + error.message + '</div>';
+            }
+        };
+
+        window.runTest2 = function() {
+            document.getElementById('test2-code').textContent = `
+// Test the new node transformer (should work now!)
+const result = new XJX()
+    .fromXml(source)
+    .map(toBoolean({
+        trueValues: ["true", "yes", "1", "on"],
+        falseValues: ["false", "no", "0", "off"],
+        ignoreCase: true
+    }))
+    .toJson();
+            `;
+            
+            try {
+                const result = new XJX()
+                    .fromXml(xmlSource)
+                    .map(toBoolean({
+                        trueValues: ["true", "yes", "1", "on"],
+                        falseValues: ["false", "no", "0", "off"],
+                        ignoreCase: true
+                    }))
+                    .toJson();
+                
+                document.getElementById('test2-result').innerHTML = 
+                    '<div class="result">Result: ' + JSON.stringify(result, null, 2) + '</div>';
+            } catch (error) {
+                document.getElementById('test2-result').innerHTML = 
+                    '<div class="error">Error: ' + error.message + '</div>';
+            }
+        };
+
+        window.runTest3 = function() {
+            document.getElementById('test3-code').textContent = `
+// Manual node transformer that applies toBoolean to node values
+const boolTransform = toBoolean({
+    trueValues: ["true", "yes", "1", "on"],
+    falseValues: ["false", "no", "0", "off"],
+    ignoreCase: true
+});
+
+const nodeTransformer = (node) => {
+    console.log('Processing node:', node.name, 'value:', node.value);
+    if (node.value !== undefined) {
+        const transformedValue = boolTransform(node.value);
+        console.log('Transformed', node.value, 'to', transformedValue);
+        return { ...node, value: transformedValue };
+    }
+    return node;
+};
+
+const result = new XJX()
+    .fromXml(source)
+    .map(nodeTransformer)
+    .toJson();
+            `;
+            
+            try {
+                const boolTransform = toBoolean({
+                    trueValues: ["true", "yes", "1", "on"],
+                    falseValues: ["false", "no", "0", "off"],
+                    ignoreCase: true
+                });
+
+                const nodeTransformer = (node) => {
+                    console.log('Processing node:', node.name, 'value:', node.value);
+                    if (node.value !== undefined) {
+                        const transformedValue = boolTransform(node.value);
+                        console.log('Transformed', node.value, 'to', transformedValue);
+                        return { ...node, value: transformedValue };
+                    }
+                    return node;
+                };
+
+                const result = new XJX()
+                    .fromXml(xmlSource)
+                    .map(nodeTransformer)
+                    .toJson();
+                
+                document.getElementById('test3-result').innerHTML = 
+                    '<div class="result">Result: ' + JSON.stringify(result, null, 2) + '</div>';
+            } catch (error) {
+                document.getElementById('test3-result').innerHTML = 
+                    '<div class="error">Error: ' + error.message + '</div>';
+            }
+        };
+
+        window.runTest4 = function() {
+            document.getElementById('test4-code').textContent = `
+// Transform only nodes that have string values that match boolean patterns
+const boolTransform = toBoolean({
+    trueValues: ["true", "yes", "1", "on"],
+    falseValues: ["false", "no", "0", "off"],
+    ignoreCase: true
+});
+
+const smartTransformer = (node) => {
+    if (node.value !== undefined && typeof node.value === 'string') {
+        const originalValue = node.value;
+        const transformedValue = boolTransform(node.value);
+        
+        // Only use transformed value if it actually changed to a boolean
+        if (typeof transformedValue === 'boolean') {
+            console.log('Transformed', originalValue, 'to', transformedValue);
+            return { ...node, value: transformedValue };
+        }
+    }
+    return node;
+};
+
+const result = new XJX()
+    .fromXml(source)
+    .map(smartTransformer)
+    .toJson();
+            `;
+            
+            try {
+                const boolTransform = toBoolean({
+                    trueValues: ["true", "yes", "1", "on"],
+                    falseValues: ["false", "no", "0", "off"],
+                    ignoreCase: true
+                });
+
+                const smartTransformer = (node) => {
+                    if (node.value !== undefined && typeof node.value === 'string') {
+                        const originalValue = node.value;
+                        const transformedValue = boolTransform(node.value);
+                        
+                        // Only use transformed value if it actually changed to a boolean
+                        if (typeof transformedValue === 'boolean') {
+                            console.log('Transformed', originalValue, 'to', transformedValue);
+                            return { ...node, value: transformedValue };
+                        }
+                    }
+                    return node;
+                };
+
+                const result = new XJX()
+                    .fromXml(xmlSource)
+                    .map(smartTransformer)
+                    .toJson();
+                
+                document.getElementById('test4-result').innerHTML = 
+                    '<div class="result">Result: ' + JSON.stringify(result, null, 2) + '</div>';
+            } catch (error) {
+                document.getElementById('test4-result').innerHTML = 
+                    '<div class="error">Error: ' + error.message + '</div>';
+            }
+        };
+
+        // Display the XML source
+        document.getElementById('test1-code').textContent = 'XML Source:\n' + xmlSource + '\n\n// Click "Run Test" buttons to test transforms';
+        document.getElementById('test2-code').textContent = 'XML Source:\n' + xmlSource + '\n\n// Click "Run Test" buttons to test transforms';
+        document.getElementById('test3-code').textContent = 'XML Source:\n' + xmlSource + '\n\n// Click "Run Test" buttons to test transforms';
+        document.getElementById('test4-code').textContent = 'XML Source:\n' + xmlSource + '\n\n// Click "Run Test" buttons to test transforms';
+    </script>
+</body>
+</html>

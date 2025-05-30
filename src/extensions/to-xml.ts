@@ -1,5 +1,5 @@
 /**
- * Extension implementation for XML output methods
+ * Extension implementation for XML output methods - Updated for new hook system
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
@@ -8,20 +8,20 @@ import { XJX } from "../XJX";
 import { xnodeToXmlConverter, xnodeToXmlStringConverter } from "../converters/xnode-to-xml-converter";
 import { transformXNode } from "../converters/xnode-transformer";
 import { XNode } from "../core/xnode";
-import { TransformHooks } from "../core/converter";
+import { OutputHooks, applyOutputHooks } from "../core/converter";
 import { TerminalExtensionContext } from "../core/extension";
 
 /**
- * Implementation for converting to XML DOM
+ * Implementation for converting to XML DOM with new hook system
  */
-export function toXml(this: TerminalExtensionContext, options?: TransformHooks): Document {
+export function toXml(this: TerminalExtensionContext, hooks?: OutputHooks<Document>): Document {
   try {
     // Source validation is handled by the registration mechanism
     this.validateSource();
     
     logger.debug('Starting XML DOM conversion', {
       hasTransforms: this.transforms.length > 0,
-      hasTransformHooks: !!(options && (options.beforeTransform || options.transform || options.afterTransform))
+      hasOutputHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
     });
     
     // Apply transformations if any are registered
@@ -35,8 +35,14 @@ export function toXml(this: TerminalExtensionContext, options?: TransformHooks):
       });
     }
     
-    // Convert XNode to DOM with transform hooks
-    const doc = xnodeToXmlConverter.convert(nodeToConvert, this.config, options);
+    // Convert XNode to DOM
+    let doc = xnodeToXmlConverter.convert(nodeToConvert, this.config);
+    
+    // Apply output hooks
+    if (hooks) {
+      const { xnode: processedXNode, output: processedOutput } = applyOutputHooks(nodeToConvert, doc, hooks);
+      doc = processedOutput;
+    }
     
     logger.debug('Successfully converted XNode to DOM', {
       documentElement: doc.documentElement?.nodeName
@@ -52,15 +58,15 @@ export function toXml(this: TerminalExtensionContext, options?: TransformHooks):
 }
 
 /**
- * Implementation for converting to XML string
+ * Implementation for converting to XML string with new hook system
  */
-export function toXmlString(this: TerminalExtensionContext, options?: TransformHooks): string {
+export function toXmlString(this: TerminalExtensionContext, hooks?: OutputHooks<string>): string {
   try {
     // Source validation is handled by the registration mechanism
     this.validateSource();
     
     logger.debug('Starting XML string conversion', {
-      hasTransformHooks: !!(options && (options.beforeTransform || options.transform || options.afterTransform))
+      hasOutputHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
     });
     
     // Apply transformations if any are registered
@@ -74,8 +80,14 @@ export function toXmlString(this: TerminalExtensionContext, options?: TransformH
       });
     }
     
-    // Convert XNode to XML string with transform hooks
-    const xmlString = xnodeToXmlStringConverter.convert(nodeToConvert, this.config, options);
+    // Convert XNode to XML string
+    let xmlString = xnodeToXmlStringConverter.convert(nodeToConvert, this.config);
+    
+    // Apply output hooks
+    if (hooks) {
+      const { xnode: processedXNode, output: processedOutput } = applyOutputHooks(nodeToConvert, xmlString, hooks);
+      xmlString = processedOutput;
+    }
     
     logger.debug('Successfully converted to XML string', {
       xmlLength: xmlString.length

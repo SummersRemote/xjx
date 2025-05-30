@@ -1,23 +1,23 @@
 /**
- * Extension implementation for fromJson method
+ * Extension implementation for fromJson method - Updated for new hook system
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
 
 import { XJX } from '../XJX';
 import { jsonHiFiToXNodeConverter } from '../converters/json-hifi-to-xnode-converter';
-import { jsonToXNodeConverter } from '../converters/json-std-to-xnode-converter';
+import { convertJsonWithHooks } from '../converters/json-std-to-xnode-converter';
 import { ProcessingError } from '../core/error';
 import { NonTerminalExtensionContext } from '../core/extension';
-import { TransformHooks, JsonValue, validateInput } from '../core/converter';
+import { SourceHooks, JsonValue, validateInput, applySourceHooks } from '../core/converter';
 
 /**
- * Implementation for setting JSON source
+ * Implementation for setting JSON source with new hook system
  */
 export function fromJson(
   this: NonTerminalExtensionContext, 
   json: JsonValue,
-  options?: TransformHooks
+  hooks?: SourceHooks<JsonValue>
 ): void {
   try {
     // API boundary validation
@@ -29,14 +29,17 @@ export function fromJson(
     logger.debug('Setting JSON source for transformation', {
       sourceType: Array.isArray(json) ? 'array' : 'object',
       highFidelity: useHighFidelity,
-      hasTransformHooks: !!(options && (options.beforeTransform || options.transform || options.afterTransform))
+      hasSourceHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
     });
     
-    // Convert using appropriate converter with transform hooks
+    // Convert using appropriate converter with source hooks
     if (useHighFidelity) {
-      this.xnode = jsonHiFiToXNodeConverter.convert(json, this.config, options);
+      // For high-fidelity, we need to apply hooks manually since we don't have a convertJsonHiFiWithHooks function
+      const xnode = jsonHiFiToXNodeConverter.convert(json, this.config);
+      const { source: processedSource, xnode: processedXNode } = applySourceHooks(json, xnode, hooks);
+      this.xnode = processedXNode;
     } else {
-      this.xnode = jsonToXNodeConverter.convert(json, this.config, options);
+      this.xnode = convertJsonWithHooks(json, this.config, hooks);
     }
     
     logger.debug('Successfully set JSON source', {

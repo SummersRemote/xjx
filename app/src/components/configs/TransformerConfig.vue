@@ -1,4 +1,4 @@
-<!-- components/configs/TransformerConfig.vue -->
+<!-- components/configs/TransformerConfig.vue - Updated for new hook system -->
 <template>
   <v-container>
     <v-row dense>
@@ -217,7 +217,7 @@
           icon="mdi-information-outline"
           class="text-caption mt-3"
         >
-          <strong>{{ alertTitle }}:</strong><br>
+          <strong>{{ contextLabel }} Transformers:</strong><br>
           - <em>Boolean Transform</em>: Convert string values to true/false<br>
           - <em>Number Transform</em>: Convert string values to numbers<br>
           - <em>Regex Transform</em>: Apply regex find/replace to string values<br>
@@ -253,9 +253,7 @@
           class="text-caption mt-3"
         >
           <strong>{{ customExampleTitle }}:</strong><br>
-          - <code>node => node.name === 'price' ? {...node, value: parseFloat(node.value)} : node</code><br>
-          - <code>node => node.name === 'comment' ? null : node</code> (remove comments)<br>
-          - <code>node => ({...node, value: node.value?.toString().toUpperCase()})</code> (uppercase values)
+          <div v-html="customExamples"></div>
         </v-alert>
       </v-col>
     </v-row>
@@ -277,30 +275,82 @@ const props = defineProps({
   context: {
     type: String,
     default: 'transformer',
-    validator: (value) => ['transformer', 'callback'].includes(value)
+    validator: (value) => ['transformer', 'source', 'xnode', 'output'].includes(value)
   }
 });
 
 const emit = defineEmits(['update']);
 
-// Computed labels based on context
-const customLabel = computed(() => 
-  props.context === 'callback' ? 'Custom Callback Function' : 'Custom Transformer Function'
-);
+// Computed labels and examples based on context
+const contextLabel = computed(() => {
+  switch (props.context) {
+    case 'source': return 'Source Hook';
+    case 'xnode': return 'XNode Hook';
+    case 'output': return 'Output Hook';
+    case 'transformer':
+    default: return 'Node';
+  }
+});
 
-const customHint = computed(() => 
-  props.context === 'callback' 
-    ? 'Function that processes each node: (node) => processedNode' 
-    : 'Function that transforms each node: (node) => transformedNode'
-);
+const customLabel = computed(() => {
+  switch (props.context) {
+    case 'source': return 'Custom Source Processor';
+    case 'xnode': return 'Custom XNode Processor';
+    case 'output': return 'Custom Output Processor';
+    case 'transformer':
+    default: return 'Custom Transformer Function';
+  }
+});
 
-const alertTitle = computed(() => 
-  props.context === 'callback' ? 'Callback Transformers' : 'Node Transformers'
-);
+const customHint = computed(() => {
+  switch (props.context) {
+    case 'source': return 'Function that processes raw source: (source) => processedSource';
+    case 'xnode': return 'Function that processes XNode: (xnode) => processedXNode';
+    case 'output': return 'Function that processes output: (output) => processedOutput';
+    case 'transformer':
+    default: return 'Function that transforms each node: (node) => transformedNode';
+  }
+});
 
-const customExampleTitle = computed(() => 
-  props.context === 'callback' ? 'Example callback functions' : 'Example transformer functions'
-);
+const customExampleTitle = computed(() => {
+  switch (props.context) {
+    case 'source': return 'Example source processors';
+    case 'xnode': return 'Example XNode processors';
+    case 'output': return 'Example output processors';
+    case 'transformer':
+    default: return 'Example transformer functions';
+  }
+});
+
+const customExamples = computed(() => {
+  switch (props.context) {
+    case 'source':
+      return `
+        - <code>source => source.replace(/&amp;/g, '&')</code> (XML preprocessing)<br>
+        - <code>source => JSON.parse(source)</code> (string to object)<br>
+        - <code>source => ({ ...source, validated: true })</code> (add validation flag)
+      `;
+    case 'xnode':
+      return `
+        - <code>xnode => ({ ...xnode, metadata: { processed: new Date() } })</code><br>
+        - <code>xnode => xnode.name === 'root' ? { ...xnode, name: 'document' } : xnode</code><br>
+        - <code>xnode => ({ ...xnode, attributes: { ...xnode.attributes, version: '1.0' } })</code>
+      `;
+    case 'output':
+      return `
+        - <code>output => ({ api_version: '2.0', data: output })</code> (wrap output)<br>
+        - <code>output => JSON.stringify(output, null, 4)</code> (custom formatting)<br>
+        - <code>output => output.replace(/\\n/g, '\\r\\n')</code> (line ending conversion)
+      `;
+    case 'transformer':
+    default:
+      return `
+        - <code>node => node.name === 'price' ? {...node, value: parseFloat(node.value)} : node</code><br>
+        - <code>node => node.name === 'comment' ? null : node</code> (remove comments)<br>
+        - <code>node => ({...node, value: node.value?.toString().toUpperCase()})</code> (uppercase values)
+      `;
+  }
+});
 
 // Create a local reactive copy of the props
 const localOptions = reactive({
@@ -329,7 +379,7 @@ const transformMode = computed({
       localOptions.transformType = null;
       localOptions.transformOptions = {};
       if (!localOptions.customTransformer.trim()) {
-        localOptions.customTransformer = 'node => node';
+        localOptions.customTransformer = getDefaultCustomTransformer();
       }
     } else {
       localOptions.transformType = value;
@@ -339,6 +389,17 @@ const transformMode = computed({
     updateOptions();
   }
 });
+
+// Get default custom transformer based on context
+const getDefaultCustomTransformer = () => {
+  switch (props.context) {
+    case 'source': return 'source => source';
+    case 'xnode': return 'xnode => xnode';
+    case 'output': return 'output => output';
+    case 'transformer':
+    default: return 'node => node';
+  }
+};
 
 // Update transform mode
 const updateTransformMode = (mode) => {

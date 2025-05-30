@@ -1,29 +1,23 @@
-<!-- components/configs/SourceConfig.vue -->
+<!-- components/configs/SourceConfig.vue - Updated for new hook system -->
 <template>
   <v-container>
     <!-- Before Transform Hook Configuration -->
     <v-row dense>
       <v-col cols="12">
-        <div class="text-subtitle-2 mb-2">Before Transform Hook</div>
-        <TransformerConfig
-          :value="localOptions.beforeTransform"
-          context="callback"
-          @update="updateBeforeTransform"
-        />
-      </v-col>
-    </v-row>
-    
-    <v-divider class="my-4"></v-divider>
-    
-    <!-- Main Transform Hook Configuration -->
-    <v-row dense>
-      <v-col cols="12">
-        <div class="text-subtitle-2 mb-2">Main Transform Hook</div>
-        <TransformerConfig
-          :value="localOptions.transform"
-          context="callback"
-          @update="updateTransform"
-        />
+        <div class="text-subtitle-2 mb-2">
+          <v-icon icon="mdi-play" size="small" class="me-1"></v-icon>
+          Before Transform Hook
+        </div>
+        <v-card variant="outlined" class="pa-3">
+          <div class="text-caption text-medium-emphasis mb-2">
+            Applied to raw source before parsing
+          </div>
+          <TransformerConfig
+            :value="localOptions.beforeTransform"
+            context="source"
+            @update="updateBeforeTransform"
+          />
+        </v-card>
       </v-col>
     </v-row>
     
@@ -32,12 +26,20 @@
     <!-- After Transform Hook Configuration -->
     <v-row dense>
       <v-col cols="12">
-        <div class="text-subtitle-2 mb-2">After Transform Hook</div>
-        <TransformerConfig
-          :value="localOptions.afterTransform"
-          context="callback"
-          @update="updateAfterTransform"
-        />
+        <div class="text-subtitle-2 mb-2">
+          <v-icon icon="mdi-check" size="small" class="me-1"></v-icon>
+          After Transform Hook
+        </div>
+        <v-card variant="outlined" class="pa-3">
+          <div class="text-caption text-medium-emphasis mb-2">
+            Applied to parsed XNode structure
+          </div>
+          <TransformerConfig
+            :value="localOptions.afterTransform"
+            context="xnode"
+            @update="updateAfterTransform"
+          />
+        </v-card>
       </v-col>
     </v-row>
     
@@ -50,13 +52,14 @@
           icon="mdi-information-outline"
           class="text-caption mt-3"
         >
-          <strong>Source Operations with Transform Hooks:</strong><br>
+          <strong>Source Operations with Hooks:</strong><br>
           - <em>fromXml</em>: Parse XML string into XNode structure<br>
           - <em>fromJson</em>: Parse JSON object into XNode structure<br>
           - <em>fromXnode</em>: Use existing XNode array as source<br>
           <br>
-          <strong>Transform Hooks Lifecycle:</strong><br>
-          Applied to each individual node during parsing/conversion process.
+          <strong>Hook Timing:</strong><br>
+          <span class="text-primary">Before Transform</span>: Applied to raw source (string/object) before parsing<br>
+          <span class="text-success">After Transform</span>: Applied to parsed XNode after conversion
         </v-alert>
       </v-col>
     </v-row>
@@ -64,18 +67,17 @@
     <v-row dense>
       <v-col cols="12">
         <v-alert
-          type="info"
+          type="success"
           variant="tonal"
           density="compact"
-          icon="mdi-code-braces"
+          icon="mdi-lightbulb-outline"
           class="text-caption mt-3"
         >
-          <strong>Transform Hook Processing Order:</strong><br>
-          1. <em>Before Transform</em>: Applied to each node before main processing<br>
-          2. <em>Main Transform</em>: Applied during the main conversion process<br>
-          3. <em>After Transform</em>: Applied to each node after main processing<br>
+          <strong>Common Use Cases:</strong><br>
+          - <em>Before Transform</em>: Source validation, preprocessing, format conversion<br>
+          - <em>After Transform</em>: Add metadata, inject timestamps, modify structure<br>
           <br>
-          All hooks are optional and use the same transformer functions as map() operations.
+          <strong>Example:</strong> beforeTransform validates XML, afterTransform adds processing timestamp
         </v-alert>
       </v-col>
     </v-row>
@@ -91,11 +93,6 @@ const props = defineProps({
     type: Object,
     default: () => ({
       beforeTransform: {
-        transformType: null,
-        transformOptions: {},
-        customTransformer: ''
-      },
-      transform: {
         transformType: null,
         transformOptions: {},
         customTransformer: ''
@@ -118,11 +115,6 @@ const localOptions = reactive({
     transformOptions: { ...props.value.beforeTransform?.transformOptions } || {},
     customTransformer: props.value.beforeTransform?.customTransformer || ''
   },
-  transform: { 
-    transformType: props.value.transform?.transformType || null,
-    transformOptions: { ...props.value.transform?.transformOptions } || {},
-    customTransformer: props.value.transform?.customTransformer || ''
-  },
   afterTransform: { 
     transformType: props.value.afterTransform?.transformType || null,
     transformOptions: { ...props.value.afterTransform?.transformOptions } || {},
@@ -133,12 +125,6 @@ const localOptions = reactive({
 // Update before transform hook
 const updateBeforeTransform = (options) => {
   localOptions.beforeTransform = { ...options };
-  updateOptions();
-};
-
-// Update main transform hook
-const updateTransform = (options) => {
-  localOptions.transform = { ...options };
   updateOptions();
 };
 
@@ -161,11 +147,6 @@ watch(() => props.value, (newValue) => {
         transformType: newValue.beforeTransform?.transformType || null,
         transformOptions: { ...newValue.beforeTransform?.transformOptions } || {},
         customTransformer: newValue.beforeTransform?.customTransformer || ''
-      },
-      transform: { 
-        transformType: newValue.transform?.transformType || null,
-        transformOptions: { ...newValue.transform?.transformOptions } || {},
-        customTransformer: newValue.transform?.customTransformer || ''
       },
       afterTransform: { 
         transformType: newValue.afterTransform?.transformType || null,

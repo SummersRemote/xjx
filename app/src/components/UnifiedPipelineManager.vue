@@ -1,10 +1,23 @@
-<!-- components/UnifiedPipelineManager.vue -->
+<!-- components/UnifiedPipelineManager.vue - Updated for new hook system -->
 <template>
   <v-card>
     <v-card-title class="d-flex align-center">
       <v-icon icon="mdi-pipe" class="me-2"></v-icon>
       Fluent API Pipeline
       <v-spacer></v-spacer>
+      
+      <!-- Pipeline Hooks Toggle -->
+      <v-btn
+        :color="enablePipelineHooks ? 'primary' : 'grey'"
+        variant="outlined"
+        density="comfortable"
+        @click="togglePipelineHooks"
+        class="me-2"
+      >
+        <v-icon :icon="enablePipelineHooks ? 'mdi-hook' : 'mdi-hook-off'" class="me-1"></v-icon>
+        Pipeline Hooks
+      </v-btn>
+      
       <v-btn 
         color="error" 
         variant="text" 
@@ -14,6 +27,57 @@
         Reset
       </v-btn>
     </v-card-title>
+    
+    <!-- Pipeline Hooks Configuration -->
+    <v-expand-transition>
+      <v-card-text v-show="enablePipelineHooks" class="pt-0">
+        <v-card variant="outlined" color="primary" class="mb-4">
+          <v-card-title class="text-subtitle-1">
+            <v-icon icon="mdi-cog" class="me-1"></v-icon>
+            Pipeline Hooks Configuration
+          </v-card-title>
+          <v-card-text>
+            <v-row dense>
+              <v-col cols="12" sm="4">
+                <v-switch
+                  v-model="pipelineHookOptions.logSteps"
+                  label="Log Steps"
+                  density="compact"
+                  hide-details
+                  @update:model-value="updatePipelineHooks"
+                ></v-switch>
+              </v-col>
+              <v-col cols="12" sm="4">
+                <v-switch
+                  v-model="pipelineHookOptions.logTiming"
+                  label="Log Timing"
+                  density="compact"
+                  hide-details
+                  @update:model-value="updatePipelineHooks"
+                ></v-switch>
+              </v-col>
+              <v-col cols="12" sm="4">
+                <v-switch
+                  v-model="pipelineHookOptions.logMemory"
+                  label="Log Memory"
+                  density="compact"
+                  hide-details
+                  @update:model-value="updatePipelineHooks"
+                ></v-switch>
+              </v-col>
+            </v-row>
+            <v-alert
+              type="info"
+              variant="text"
+              density="compact"
+              class="mt-2"
+            >
+              Pipeline hooks provide cross-cutting concerns like logging, timing, and monitoring across all operations.
+            </v-alert>
+          </v-card-text>
+        </v-card>
+      </v-card-text>
+    </v-expand-transition>
     
     <v-card-text>
       <!-- Add Operation Controls -->
@@ -34,7 +98,18 @@
               <v-divider v-else-if="item.raw.divider" class="my-2"></v-divider>
               <v-list-item v-else v-bind="props">
                 <template v-slot:subtitle>
-                  {{ item.raw.subtitle }}
+                  <div class="d-flex align-center">
+                    {{ item.raw.subtitle }}
+                    <v-spacer></v-spacer>
+                    <v-chip
+                      v-if="item.raw.hookTypes && item.raw.hookTypes.length > 0"
+                      size="x-small"
+                      color="info"
+                      class="ml-2"
+                    >
+                      {{ item.raw.hookTypes.length }} hook{{ item.raw.hookTypes.length > 1 ? 's' : '' }}
+                    </v-chip>
+                  </div>
                 </template>
               </v-list-item>
             </template>
@@ -96,6 +171,20 @@
                 {{ getCategoryLabel(step.type) }}
               </v-chip>
               <strong>{{ getOperationName(step.type) }}</strong>
+              
+              <!-- Hook Indicators -->
+              <div class="ml-2" v-if="getHookTypes(step.type).length > 0">
+                <v-chip
+                  v-for="hookType in getHookTypes(step.type)"
+                  :key="hookType"
+                  size="x-small"
+                  variant="outlined"
+                  :color="getHookTypeColor(hookType)"
+                  class="me-1"
+                >
+                  {{ getHookTypeLabel(hookType) }}
+                </v-chip>
+              </div>
             </v-list-item-title>
 
             <v-list-item-subtitle>
@@ -176,7 +265,9 @@ const {
   isValidPipeline,
   sourceOperations,
   functionalOperations,
-  outputOperations
+  outputOperations,
+  enablePipelineHooks,
+  pipelineHookOptions
 } = storeToRefs(pipelineStore);
 
 const selectedOperation = ref(null);
@@ -200,7 +291,8 @@ const operationItems = computed(() => {
       text: op.name,
       value: op.value,
       title: op.name,
-      subtitle: op.description
+      subtitle: op.description,
+      hookTypes: op.hookTypes || []
     });
   });
   
@@ -212,7 +304,8 @@ const operationItems = computed(() => {
       text: op.name,
       value: op.value,
       title: op.name,
-      subtitle: op.description
+      subtitle: op.description,
+      hookTypes: op.hookTypes || []
     });
   });
   
@@ -224,7 +317,8 @@ const operationItems = computed(() => {
       text: op.name,
       value: op.value,
       title: op.name,
-      subtitle: op.description
+      subtitle: op.description,
+      hookTypes: op.hookTypes || []
     });
   });
   
@@ -238,6 +332,26 @@ const getOperationName = (type) => {
 
 const getOperationDescription = (type) => {
   return availableOperations.value[type]?.description || '';
+};
+
+const getHookTypes = (type) => {
+  return availableOperations.value[type]?.hookTypes || [];
+};
+
+const getHookTypeLabel = (hookType) => {
+  switch (hookType) {
+    case 'beforeTransform': return 'before';
+    case 'afterTransform': return 'after';
+    default: return hookType;
+  }
+};
+
+const getHookTypeColor = (hookType) => {
+  switch (hookType) {
+    case 'beforeTransform': return 'primary';
+    case 'afterTransform': return 'success';
+    default: return 'info';
+  }
 };
 
 const getCategoryColor = (type) => {
@@ -312,6 +426,14 @@ const moveStep = (id, direction) => {
 const resetPipeline = () => {
   pipelineStore.clearSteps();
 };
+
+const togglePipelineHooks = () => {
+  pipelineStore.enablePipelineHooks = !pipelineStore.enablePipelineHooks;
+};
+
+const updatePipelineHooks = () => {
+  pipelineStore.updatePipelineHooks(pipelineHookOptions.value);
+};
 </script>
 
 <style scoped>
@@ -325,18 +447,5 @@ const resetPipeline = () => {
 
 .pipeline-step:hover {
   background-color: rgba(0, 0, 0, 0.04);
-}
-
-.api-code {
-  background-color: #f5f5f5;
-  padding: 1rem;
-  border-radius: 4px;
-  white-space: pre-wrap;
-  font-family: 'Courier New', Courier, monospace;
-  font-size: 12px;
-  line-height: 1.4;
-  border: 1px solid #e0e0e0;
-  max-height: 400px;
-  overflow-y: auto;
 }
 </style>

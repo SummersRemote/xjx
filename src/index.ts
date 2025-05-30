@@ -1,5 +1,5 @@
 /**
- * XJX Library - XML/JSON transformation with fluent API
+ * XJX Library - XML/JSON transformation with fluent API and new hook system
  */
 
 // IMPORTANT: Register all extensions by importing their files
@@ -55,12 +55,21 @@ export {
   NonTerminalExtensionContext,
 } from "./core/extension";
 
-// Export converter types - NEW: TransformHooks interface
+// Export converter types and NEW HOOK INTERFACES
 export {
-  TransformHooks,
+  Converter,
   JsonValue,
   JsonObject,
   JsonArray,
+  // NEW: Hook system interfaces
+  SourceHooks,
+  OutputHooks,
+  NodeHooks,
+  PipelineHooks,
+  // NEW: Hook utility functions
+  applySourceHooks,
+  applyOutputHooks,
+  applyNodeHooks,
 } from "./core/converter";
 
 // Export transform functions and creators

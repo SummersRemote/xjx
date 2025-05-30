@@ -1,5 +1,5 @@
 /**
- * JSON HiFi to XNode converter implementation
+ * JSON HiFi to XNode converter implementation - FIXED
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
@@ -90,9 +90,6 @@ function processElement(
     element.prefix = prefix;
   }
   
-  // Apply transform hooks
-  element = applyTransformHooks(element, hooks);
-  
   const { properties } = config;
   
   // Process namespace information
@@ -140,6 +137,9 @@ function processElement(
   if (obj.metadata && typeof obj.metadata === 'object' && !Array.isArray(obj.metadata)) {
     element.metadata = { ...obj.metadata as Record<string, any> };
   }
+  
+  // FIXED: Apply transform hooks AFTER the element is fully populated
+  element = applyTransformHooks(element, hooks);
   
   return element;
 }
@@ -211,6 +211,7 @@ function processChildren(
       // Text node
       if (childObj[properties.value] !== undefined && config.preserveTextNodes) {
         let textNode = createTextNode(String(childObj[properties.value]));
+        // Apply hooks to text nodes after creation with content
         textNode = applyTransformHooks(textNode, hooks);
         addChild(parent, textNode);
         return;
@@ -219,6 +220,7 @@ function processChildren(
       // CDATA node
       if (childObj[properties.cdata] !== undefined && config.preserveCDATA) {
         let cdataNode = createCDATANode(String(childObj[properties.cdata]));
+        // Apply hooks to CDATA nodes after creation with content
         cdataNode = applyTransformHooks(cdataNode, hooks);
         addChild(parent, cdataNode);
         return;
@@ -227,6 +229,7 @@ function processChildren(
       // Comment node
       if (childObj[properties.comment] !== undefined && config.preserveComments) {
         let commentNode = createCommentNode(String(childObj[properties.comment]));
+        // Apply hooks to comment nodes after creation with content
         commentNode = applyTransformHooks(commentNode, hooks);
         addChild(parent, commentNode);
         return;
@@ -242,6 +245,7 @@ function processChildren(
           
           if (target) {
             let piNode = createProcessingInstructionNode(String(target), String(value));
+            // Apply hooks to PI nodes after creation with content
             piNode = applyTransformHooks(piNode, hooks);
             addChild(parent, piNode);
             return;
@@ -264,6 +268,7 @@ function processChildren(
     // If we get here, try to convert as raw text
     if (config.preserveTextNodes) {
       let textNode = createTextNode(String(child));
+      // Apply hooks to text nodes after creation with content
       textNode = applyTransformHooks(textNode, hooks);
       addChild(parent, textNode);
     }

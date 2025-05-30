@@ -1,22 +1,22 @@
 /**
- * Extension implementation for fromXml method
+ * Extension implementation for fromXml method - Updated for new hook system
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
 
 import { XJX } from "../XJX";
-import { xmlToXNodeConverter } from "../converters/xml-to-xnode-converter";
+import { convertXmlWithHooks } from "../converters/xml-to-xnode-converter";
 import { ProcessingError } from "../core/error";
 import { NonTerminalExtensionContext } from "../core/extension";
-import { validateInput, TransformHooks } from "../core/converter";
+import { validateInput, SourceHooks } from "../core/converter";
 
 /**
- * Implementation for setting XML source
+ * Implementation for setting XML source with new hook system
  */
 export function fromXml(
   this: NonTerminalExtensionContext, 
   xml: string,
-  options?: TransformHooks
+  hooks?: SourceHooks<string>
 ): void {
   try {
     // API boundary validation
@@ -25,12 +25,12 @@ export function fromXml(
     
     logger.debug('Setting XML source for transformation', {
       sourceLength: xml.length,
-      hasTransformHooks: !!(options && (options.beforeTransform || options.transform || options.afterTransform))
+      hasSourceHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
     });
     
-    // Convert XML to XNode using the converter with transform hooks
+    // Convert XML to XNode using the new hooks system
     try {
-      this.xnode = xmlToXNodeConverter.convert(xml, this.config, options);
+      this.xnode = convertXmlWithHooks(xml, this.config, hooks);
     } catch (err) {
       // Specific error handling for XML conversion failures
       throw new ProcessingError("Failed to parse XML source", xml);

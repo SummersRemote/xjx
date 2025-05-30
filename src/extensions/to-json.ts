@@ -1,5 +1,5 @@
 /**
- * Extension implementation for JSON output methods
+ * Extension implementation for JSON output methods - Updated for new hook system
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
@@ -9,13 +9,13 @@ import { xnodeToJsonHiFiConverter } from '../converters/xnode-to-json-hifi-conve
 import { xnodeToJsonConverter } from '../converters/xnode-to-json-std-converter';
 import { transformXNode } from '../converters/xnode-transformer';
 import { XNode } from '../core/xnode';
-import { JsonValue, TransformHooks } from '../core/converter';
+import { JsonValue, OutputHooks, applyOutputHooks } from '../core/converter';
 import { TerminalExtensionContext } from '../core/extension';
 
 /**
- * Implementation for converting to JSON
+ * Implementation for converting to JSON with new hook system
  */
-export function toJson(this: TerminalExtensionContext, options?: TransformHooks): JsonValue {
+export function toJson(this: TerminalExtensionContext, hooks?: OutputHooks<JsonValue>): JsonValue {
   try {
     // Source validation is handled by the registration mechanism
     this.validateSource();
@@ -26,7 +26,7 @@ export function toJson(this: TerminalExtensionContext, options?: TransformHooks)
     logger.debug('Starting JSON conversion', {
       hasTransforms: this.transforms.length > 0,
       highFidelity: useHighFidelity,
-      hasTransformHooks: !!(options && (options.beforeTransform || options.transform || options.afterTransform))
+      hasOutputHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
     });
     
     // Apply transformations if any are registered
@@ -45,7 +45,7 @@ export function toJson(this: TerminalExtensionContext, options?: TransformHooks)
     
     if (useHighFidelity) {
       // Use XNode to JSON HiFi converter
-      result = xnodeToJsonHiFiConverter.convert(nodeToConvert, this.config, options);
+      result = xnodeToJsonHiFiConverter.convert(nodeToConvert, this.config);
       
       logger.debug('Used XNode to JSON HiFi converter for high-fidelity JSON', {
         resultType: typeof result,
@@ -53,12 +53,18 @@ export function toJson(this: TerminalExtensionContext, options?: TransformHooks)
       });
     } else {
       // Use standard XNode to JSON converter
-      result = xnodeToJsonConverter.convert(nodeToConvert, this.config, options);
+      result = xnodeToJsonConverter.convert(nodeToConvert, this.config);
       
       logger.debug('Used XNode to standard JSON converter', {
         resultType: typeof result,
         isArray: Array.isArray(result)
       });
+    }
+    
+    // Apply output hooks
+    if (hooks) {
+      const { xnode: processedXNode, output: processedOutput } = applyOutputHooks(nodeToConvert, result, hooks);
+      result = processedOutput;
     }
     
     return result;
@@ -71,23 +77,49 @@ export function toJson(this: TerminalExtensionContext, options?: TransformHooks)
 }
 
 /**
- * Implementation for converting to JSON string
+ * Implementation for converting to JSON string with new hook system
  */
-export function toJsonString(this: TerminalExtensionContext, options?: TransformHooks): string {
+export function toJsonString(this: TerminalExtensionContext, hooks?: OutputHooks<string>): string {
   try {
     // Source validation is handled by the registration mechanism
     this.validateSource();
     
     logger.debug('Starting JSON string conversion');
     
+    // Apply transformations if any are registered
+    let nodeToConvert = this.xnode as XNode;
+    
+    if (this.transforms && this.transforms.length > 0) {
+      nodeToConvert = transformXNode(nodeToConvert, this.transforms, this.config);
+      
+      logger.debug('Applied transforms to XNode', {
+        transformCount: this.transforms.length
+      });
+    }
+    
+    // Use high-fidelity setting from config
+    const useHighFidelity = this.config.strategies.highFidelity;
+    
     // First get the JSON using the converter method
-    const jsonValue = toJson.call(this, options);
+    let jsonValue: JsonValue;
+    
+    if (useHighFidelity) {
+      jsonValue = xnodeToJsonHiFiConverter.convert(nodeToConvert, this.config);
+    } else {
+      jsonValue = xnodeToJsonConverter.convert(nodeToConvert, this.config);
+    }
     
     // Use the indent value from config only
     const indent = this.config.formatting.indent;
     
     // Stringify the JSON
-    const result = JSON.stringify(jsonValue, null, indent);
+    let result = JSON.stringify(jsonValue, null, indent);
+    
+    // Apply output hooks
+    if (hooks) {
+      const { xnode: processedXNode, output: processedOutput } = applyOutputHooks(nodeToConvert, result, hooks);
+      result = processedOutput;
+    }
     
     logger.debug('Successfully converted to JSON string', {
       resultLength: result.length,

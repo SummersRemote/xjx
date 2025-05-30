@@ -1,51 +1,79 @@
 /**
- * Core converter interfaces and shared utilities
+ * Core converter interfaces and shared utilities - REFACTORED
  */
 import { Configuration } from './config';
 import { XNode } from './xnode';
 import { ValidationError } from './error';
 
 /**
- * Unified transform hooks for consistent node processing
+ * Source operation hooks (for fromXml, fromJson, fromXnode)
  */
-export interface TransformHooks {
+export interface SourceHooks<TInput> {
   /**
-   * Applied to each node before main processing
+   * Applied before parsing source - receives raw input, can preprocess
+   */
+  beforeTransform?: (source: TInput) => TInput | void | undefined;
+  
+  /**
+   * Applied after parsing - receives parsed XNode, can add metadata
+   */
+  afterTransform?: (xnode: XNode) => XNode | void | undefined;
+}
+
+/**
+ * Output operation hooks (for toXml, toJson, toXnode)
+ */
+export interface OutputHooks<TOutput> {
+  /**
+   * Applied before conversion - receives XNode, can modify structure
+   */
+  beforeTransform?: (xnode: XNode) => XNode | void | undefined;
+  
+  /**
+   * Applied after conversion - receives final output, can wrap/enrich
+   */
+  afterTransform?: (output: TOutput) => TOutput | void | undefined;
+}
+
+/**
+ * Node operation hooks (for map and node transformations)
+ */
+export interface NodeHooks {
+  /**
+   * Applied before node transformation
    */
   beforeTransform?: (node: XNode) => XNode | void | undefined;
   
   /**
-   * Main transformation applied to each node
-   */
-  transform?: (node: XNode) => XNode | void | undefined;
-  
-  /**
-   * Applied to each node after main processing
+   * Applied after node transformation
    */
   afterTransform?: (node: XNode) => XNode | void | undefined;
 }
 
 /**
- * Legacy node callback for backwards compatibility in internal code
- * @deprecated Use TransformHooks instead
+ * Pipeline-level hooks for cross-cutting concerns
  */
-export type NodeCallback = (node: XNode) => XNode | void | undefined;
+export interface PipelineHooks {
+  /**
+   * Called before each pipeline step
+   */
+  beforeStep?: (stepName: string, input: any) => void;
+  
+  /**
+   * Called after each pipeline step
+   */
+  afterStep?: (stepName: string, output: any) => void;
+}
 
 /**
- * Converter interface - simplified without options
+ * Converter interface - simplified without hooks in convert method
  */
 export interface Converter<TInput, TOutput> {
-  convert(
-    input: TInput, 
-    config: Configuration, 
-    hooks?: TransformHooks
-  ): TOutput;
+  convert(input: TInput, config: Configuration): TOutput;
 }
 
 /**
  * Validation function for API boundaries
- * @param condition Condition to check
- * @param message Error message if condition fails
  */
 export function validateInput(condition: boolean, message: string): void {
   if (!condition) {
@@ -61,10 +89,125 @@ export interface JsonObject { [key: string]: JsonValue }
 export type JsonArray = JsonValue[];
 
 /**
+ * Apply source hooks during source operations
+ */
+export function applySourceHooks<TInput>(
+  source: TInput,
+  xnode: XNode,
+  hooks?: SourceHooks<TInput>
+): { source: TInput; xnode: XNode } {
+  let processedSource = source;
+  let processedXNode = xnode;
+
+  if (hooks) {
+    // Apply beforeTransform to source
+    if (hooks.beforeTransform) {
+      try {
+        const beforeResult = hooks.beforeTransform(processedSource);
+        if (beforeResult !== undefined && beforeResult !== null) {
+          processedSource = beforeResult;
+        }
+      } catch (err) {
+        console.warn(`Error in source beforeTransform: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
+    // Apply afterTransform to XNode
+    if (hooks.afterTransform) {
+      try {
+        const afterResult = hooks.afterTransform(processedXNode);
+        if (afterResult && typeof afterResult === 'object' && typeof afterResult.name === 'string') {
+          processedXNode = afterResult;
+        }
+      } catch (err) {
+        console.warn(`Error in source afterTransform: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+  }
+
+  return { source: processedSource, xnode: processedXNode };
+}
+
+/**
+ * Apply output hooks during output operations
+ */
+export function applyOutputHooks<TOutput>(
+  xnode: XNode,
+  output: TOutput,
+  hooks?: OutputHooks<TOutput>
+): { xnode: XNode; output: TOutput } {
+  let processedXNode = xnode;
+  let processedOutput = output;
+
+  if (hooks) {
+    // Apply beforeTransform to XNode
+    if (hooks.beforeTransform) {
+      try {
+        const beforeResult = hooks.beforeTransform(processedXNode);
+        if (beforeResult && typeof beforeResult === 'object' && typeof beforeResult.name === 'string') {
+          processedXNode = beforeResult;
+        }
+      } catch (err) {
+        console.warn(`Error in output beforeTransform: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
+    // Apply afterTransform to output
+    if (hooks.afterTransform) {
+      try {
+        const afterResult = hooks.afterTransform(processedOutput);
+        if (afterResult !== undefined && afterResult !== null) {
+          processedOutput = afterResult;
+        }
+      } catch (err) {
+        console.warn(`Error in output afterTransform: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+  }
+
+  return { xnode: processedXNode, output: processedOutput };
+}
+
+/**
+ * Apply node hooks during node transformations
+ */
+export function applyNodeHooks(
+  node: XNode,
+  hooks?: NodeHooks
+): XNode {
+  let processedNode = node;
+
+  if (hooks) {
+    // Apply beforeTransform
+    if (hooks.beforeTransform) {
+      try {
+        const beforeResult = hooks.beforeTransform(processedNode);
+        if (beforeResult && typeof beforeResult === 'object' && typeof beforeResult.name === 'string') {
+          processedNode = beforeResult;
+        }
+      } catch (err) {
+        console.warn(`Error in node beforeTransform: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
+    // Apply afterTransform
+    if (hooks.afterTransform) {
+      try {
+        const afterResult = hooks.afterTransform(processedNode);
+        if (afterResult && typeof afterResult === 'object' && typeof afterResult.name === 'string') {
+          processedNode = afterResult;
+        }
+      } catch (err) {
+        console.warn(`Error in node afterTransform: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+  }
+
+  return processedNode;
+}
+
+/**
  * Parse element name with optional prefix
- * @param name Full element name (may include prefix)
- * @param preservePrefixedNames Whether to preserve prefixed names
- * @returns Object with prefix and localName
  */
 export function parseElementName(
   name: string, 
@@ -82,10 +225,6 @@ export function parseElementName(
 
 /**
  * Get the appropriate element name based on configuration
- * @param name Original name
- * @param prefix Optional namespace prefix
- * @param preservePrefixedNames Whether to preserve prefixed names
- * @returns Processed element name
  */
 export function getElementName(
   name: string, 
@@ -100,9 +239,6 @@ export function getElementName(
 
 /**
  * Get the appropriate attribute name based on configuration
- * @param originalName Original attribute name (may include prefix)
- * @param preservePrefixedNames Whether to preserve prefixed names
- * @returns Processed attribute name
  */
 export function getAttributeName(
   originalName: string, 
@@ -112,10 +248,9 @@ export function getAttributeName(
     return originalName;
   }
   
-  // Strip prefix if preservePrefixedNames is false
   if (originalName.includes(':')) {
     const parts = originalName.split(':');
-    return parts[parts.length - 1]; // Return the local name part
+    return parts[parts.length - 1];
   }
   
   return originalName;
@@ -123,9 +258,6 @@ export function getAttributeName(
 
 /**
  * Process attributes consistently across converters
- * @param element Source element with attributes
- * @param config Configuration
- * @returns Processed attributes object
  */
 export function processAttributes(
   element: Element,
@@ -140,7 +272,6 @@ export function processAttributes(
   for (let i = 0; i < element.attributes.length; i++) {
     const attr = element.attributes[i];
 
-    // Skip namespace declarations
     if (attr.name === "xmlns" || attr.name.startsWith("xmlns:")) continue;
 
     const attrName = getAttributeName(attr.name, config.preservePrefixedNames);
@@ -152,8 +283,6 @@ export function processAttributes(
 
 /**
  * Check if text has non-whitespace content
- * @param text Text to check
- * @returns True if has meaningful content
  */
 export function hasTextContent(text: string): boolean {
   return text.trim().length > 0;
@@ -161,9 +290,6 @@ export function hasTextContent(text: string): boolean {
 
 /**
  * Process namespace declarations consistently
- * @param element DOM element
- * @param currentMap Current namespace map
- * @returns Updated namespace declarations and map
  */
 export function processNamespaceDeclarations(
   element: Element,
@@ -176,11 +302,9 @@ export function processNamespaceDeclarations(
     const attr = element.attributes[i];
 
     if (attr.name === "xmlns") {
-      // Default namespace
       declarations[""] = attr.value;
       namespaceMap[""] = attr.value;
     } else if (attr.name.startsWith("xmlns:")) {
-      // Prefixed namespace
       const prefix = attr.name.substring(6);
       declarations[prefix] = attr.value;
       namespaceMap[prefix] = attr.value;
@@ -191,78 +315,7 @@ export function processNamespaceDeclarations(
 }
 
 /**
- * Apply transform hooks to a node consistently
- * @param node Node to process
- * @param hooks Transform hooks to apply
- * @returns Processed node (may be the original or a new one)
- */
-export function applyTransformHooks(
-  node: XNode,
-  hooks?: TransformHooks
-): XNode {
-  if (!hooks) return node;
-  
-  let processedNode = node;
-
-  // Apply beforeTransform
-  if (hooks.beforeTransform) {
-    try {
-      const beforeResult = hooks.beforeTransform(processedNode);
-      if (beforeResult && typeof beforeResult === 'object' && typeof beforeResult.name === 'string') {
-        processedNode = beforeResult;
-      }
-    } catch (err) {
-      console.warn(`Error in beforeTransform: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
-
-  // Apply transform
-  if (hooks.transform) {
-    try {
-      const transformResult = hooks.transform(processedNode);
-      if (transformResult && typeof transformResult === 'object' && typeof transformResult.name === 'string') {
-        processedNode = transformResult;
-      }
-    } catch (err) {
-      console.warn(`Error in transform: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
-
-  // Apply afterTransform
-  if (hooks.afterTransform) {
-    try {
-      const afterResult = hooks.afterTransform(processedNode);
-      if (afterResult && typeof afterResult === 'object' && typeof afterResult.name === 'string') {
-        processedNode = afterResult;
-      }
-    } catch (err) {
-      console.warn(`Error in afterTransform: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
-
-  return processedNode;
-}
-
-/**
- * Legacy function for backwards compatibility in converters
- * @deprecated Use applyTransformHooks instead
- */
-export function applyNodeCallbacks(
-  node: XNode,
-  beforeFn?: NodeCallback,
-  afterFn?: NodeCallback
-): XNode {
-  return applyTransformHooks(node, {
-    beforeTransform: beforeFn,
-    afterTransform: afterFn
-  });
-}
-
-/**
  * Process attribute object from JSON
- * @param attrs Attributes object from JSON
- * @param config Configuration
- * @returns Processed attributes object
  */
 export function processAttributeObject(
   attrs: JsonObject,

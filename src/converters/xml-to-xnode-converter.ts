@@ -1,5 +1,5 @@
 /**
- * XML to XNode converter implementation
+ * XML to XNode converter implementation - Updated for new hook system
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
@@ -18,12 +18,12 @@ import {
   addChild 
 } from '../core/xnode';
 import { 
-  Converter, 
-  TransformHooks,
+  Converter,
+  SourceHooks,
+  applySourceHooks,
   processAttributes,
   processNamespaceDeclarations,
-  hasTextContent,
-  applyTransformHooks
+  hasTextContent
 } from '../core/converter';
 
 /**
@@ -38,11 +38,7 @@ interface ConversionContext {
  * XML to XNode converter
  */
 export const xmlToXNodeConverter: Converter<string, XNode> = {
-  convert(
-    xml: string, 
-    config: Configuration, 
-    hooks?: TransformHooks
-  ): XNode {
+  convert(xml: string, config: Configuration): XNode {
     // Parse XML string to DOM
     const doc = xmlUtils.parseXml(xml);
     
@@ -54,9 +50,30 @@ export const xmlToXNodeConverter: Converter<string, XNode> = {
     const context: ConversionContext = { namespaceMap: {} };
     
     // Convert DOM element to XNode
-    return convertElementToXNode(doc.documentElement, config, context, hooks);
+    return convertElementToXNode(doc.documentElement, config, context);
   }
 };
+
+/**
+ * Convert XML with source hooks support
+ * @param xml XML string
+ * @param config Configuration
+ * @param hooks Source hooks
+ * @returns Converted XNode with hooks applied
+ */
+export function convertXmlWithHooks(
+  xml: string,
+  config: Configuration,
+  hooks?: SourceHooks<string>
+): XNode {
+  // Convert XML to XNode
+  const xnode = xmlToXNodeConverter.convert(xml, config);
+  
+  // Apply source hooks
+  const { source: processedSource, xnode: processedXNode } = applySourceHooks(xml, xnode, hooks);
+  
+  return processedXNode;
+}
 
 /**
  * Convert DOM element to XNode
@@ -64,8 +81,7 @@ export const xmlToXNodeConverter: Converter<string, XNode> = {
 function convertElementToXNode(
   element: Element, 
   config: Configuration, 
-  context: ConversionContext,
-  hooks?: TransformHooks
+  context: ConversionContext
 ): XNode {
   // Create base node
   let xnode = createElement(
@@ -76,9 +92,6 @@ function convertElementToXNode(
   
   // Set parent reference
   xnode.parent = context.parentNode;
-
-  // Apply transform hooks
-  xnode = applyTransformHooks(xnode, hooks);
 
   // Process namespace information if preserving namespaces
   if (config.preserveNamespaces) {
@@ -105,7 +118,7 @@ function convertElementToXNode(
 
   // Process child nodes
   if (element.childNodes.length > 0) {
-    processChildren(element, xnode, config, context, hooks);
+    processChildren(element, xnode, config, context);
   }
 
   logger.debug('Converted DOM element to XNode', { 
@@ -161,8 +174,7 @@ function processChildren(
   element: Element,
   parentNode: XNode,
   config: Configuration,
-  context: ConversionContext,
-  hooks?: TransformHooks
+  context: ConversionContext
 ): void {
   // Detect mixed content
   const hasMixed = hasMixedContent(element);
@@ -192,22 +204,20 @@ function processChildren(
     switch (child.nodeType) {
       case NodeType.TEXT_NODE:
         if (config.preserveTextNodes) {
-          processTextNode(child, parentNode, config, hasMixed, hooks);
+          processTextNode(child, parentNode, config, hasMixed);
         }
         break;
 
       case NodeType.CDATA_SECTION_NODE:
         if (config.preserveCDATA) {
-          let cdataNode = createCDATANode(child.nodeValue || "");
-          cdataNode = applyTransformHooks(cdataNode, hooks);
+          const cdataNode = createCDATANode(child.nodeValue || "");
           addChild(parentNode, cdataNode);
         }
         break;
 
       case NodeType.COMMENT_NODE:
         if (config.preserveComments) {
-          let commentNode = createCommentNode(child.nodeValue || "");
-          commentNode = applyTransformHooks(commentNode, hooks);
+          const commentNode = createCommentNode(child.nodeValue || "");
           addChild(parentNode, commentNode);
         }
         break;
@@ -215,8 +225,7 @@ function processChildren(
       case NodeType.PROCESSING_INSTRUCTION_NODE:
         if (config.preserveProcessingInstr) {
           const pi = child as ProcessingInstruction;
-          let piNode = createProcessingInstructionNode(pi.target, pi.data || "");
-          piNode = applyTransformHooks(piNode, hooks);
+          const piNode = createProcessingInstructionNode(pi.target, pi.data || "");
           addChild(parentNode, piNode);
         }
         break;
@@ -226,8 +235,7 @@ function processChildren(
         const childXNode = convertElementToXNode(
           child as Element, 
           config, 
-          { ...context, parentNode },
-          hooks
+          { ...context, parentNode }
         );
         addChild(parentNode, childXNode);
         break;
@@ -242,8 +250,7 @@ function processTextNode(
   node: Node,
   parentNode: XNode,
   config: Configuration,
-  hasMixed: boolean,
-  hooks?: TransformHooks
+  hasMixed: boolean
 ): void {
   const text = node.nodeValue || "";
   const hasContent = hasTextContent(text);
@@ -253,8 +260,7 @@ function processTextNode(
 
     if ((normalizedText && config.preserveTextNodes) || 
         (config.preserveWhitespace && hasMixed && config.preserveTextNodes)) {
-      let textNode = createTextNode(normalizedText || text);
-      textNode = applyTransformHooks(textNode, hooks);
+      const textNode = createTextNode(normalizedText || text);
       addChild(parentNode, textNode);
     }
   }

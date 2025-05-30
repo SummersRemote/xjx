@@ -1,5 +1,5 @@
 /**
- * JSON Standard to XNode converter implementation
+ * JSON Standard to XNode converter implementation - Updated for new hook system
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
@@ -10,52 +10,67 @@ import { ProcessingError, ValidationError } from "../core/error";
 import { XNode, createElement, createTextNode, addChild } from "../core/xnode";
 import { 
   Converter, 
-  TransformHooks,
+  SourceHooks,
+  applySourceHooks,
   JsonValue,
   JsonObject,
   JsonArray,
   parseElementName,
   getAttributeName,
-  processAttributeObject,
-  applyTransformHooks
+  processAttributeObject
 } from "../core/converter";
 
 /**
  * JSON Standard to XNode converter
  */
 export const jsonToXNodeConverter: Converter<JsonValue, XNode> = {
-  convert(
-    json: JsonValue, 
-    config: Configuration, 
-    hooks?: TransformHooks
-  ): XNode {
+  convert(json: JsonValue, config: Configuration): XNode {
     logger.debug('Starting JSON to XNode conversion', {
-      sourceType: Array.isArray(json) ? 'array' : typeof json,
-      hasTransformHooks: !!(hooks && (hooks.beforeTransform || hooks.transform || hooks.afterTransform))
+      sourceType: Array.isArray(json) ? 'array' : typeof json
     });
 
     // Handle array input (create a wrapper element)
     if (Array.isArray(json)) {
-      return convertJsonArray(json, config, hooks);
+      return convertJsonArray(json, config);
     }
 
     // Handle object input
     if (typeof json === 'object' && json !== null) {
-      return convertJsonObject(json as JsonObject, config, hooks);
+      return convertJsonObject(json as JsonObject, config);
     }
 
     // Handle primitive values
-    return convertJsonPrimitive(json, config, hooks);
+    return convertJsonPrimitive(json, config);
   }
 };
+
+/**
+ * Convert JSON with source hooks support
+ * @param json JSON value
+ * @param config Configuration
+ * @param hooks Source hooks
+ * @returns Converted XNode with hooks applied
+ */
+export function convertJsonWithHooks(
+  json: JsonValue,
+  config: Configuration,
+  hooks?: SourceHooks<JsonValue>
+): XNode {
+  // Convert JSON to XNode
+  const xnode = jsonToXNodeConverter.convert(json, config);
+  
+  // Apply source hooks
+  const { source: processedSource, xnode: processedXNode } = applySourceHooks(json, xnode, hooks);
+  
+  return processedXNode;
+}
 
 /**
  * Convert a JSON object to XNode
  */
 function convertJsonObject(
   obj: JsonObject, 
-  config: Configuration,
-  hooks?: TransformHooks
+  config: Configuration
 ): XNode {
   // Get the root element name
   const rootName = Object.keys(obj)[0];
@@ -72,14 +87,11 @@ function convertJsonObject(
     rootNode.prefix = prefix;
   }
 
-  // Apply transform hooks
-  rootNode = applyTransformHooks(rootNode, hooks);
-
   // Get the value for this property
   const value = obj[rootName];
 
   // Process the value
-  processJsonValue(rootNode, value, config, hooks);
+  processJsonValue(rootNode, value, config);
 
   return rootNode;
 }
@@ -89,21 +101,17 @@ function convertJsonObject(
  */
 function convertJsonArray(
   array: JsonArray, 
-  config: Configuration,
-  hooks?: TransformHooks
+  config: Configuration
 ): XNode {
   // Create a root array element
   let rootNode = createElement("array");
-  
-  // Apply transform hooks
-  rootNode = applyTransformHooks(rootNode, hooks);
 
   // Get the item name for array items
   const itemName = config.arrays.defaultItemName;
 
   // Process array items
   array.forEach((item) => {
-    processArrayItem(rootNode, item, itemName, config, hooks);
+    processArrayItem(rootNode, item, itemName, config);
   });
 
   return rootNode;
@@ -114,12 +122,9 @@ function convertJsonArray(
  */
 function convertJsonPrimitive(
   value: JsonValue, 
-  config: Configuration,
-  hooks?: TransformHooks
+  config: Configuration
 ): XNode {
   let rootNode = createElement("value");
-  
-  rootNode = applyTransformHooks(rootNode, hooks);
 
   if (value !== undefined && value !== null) {
     rootNode.value = value;
@@ -134,15 +139,14 @@ function convertJsonPrimitive(
 function processJsonValue(
   element: XNode,
   value: JsonValue,
-  config: Configuration,
-  hooks?: TransformHooks
+  config: Configuration
 ): void {
   if (value === null) {
     processNullValue(element, config);
   } else if (typeof value === 'object' && !Array.isArray(value)) {
-    processObjectValue(element, value as JsonObject, config, hooks);
+    processObjectValue(element, value as JsonObject, config);
   } else if (Array.isArray(value)) {
-    processArrayValue(element, value as JsonArray, config, hooks);
+    processArrayValue(element, value as JsonArray, config);
   } else {
     element.value = value;
   }
@@ -172,8 +176,7 @@ function processNullValue(element: XNode, config: Configuration): void {
 function processObjectValue(
   element: XNode,
   obj: JsonObject,
-  config: Configuration,
-  hooks?: TransformHooks
+  config: Configuration
 ): void {
   const { properties, prefixes } = config;
   const { attributeStrategy, textStrategy } = config.strategies;
@@ -250,8 +253,7 @@ function processObjectValue(
     if (Object.keys(remainingProperties).length === 0 || textStrategy === "direct") {
       element.value = textContent;
     } else {
-      let textNode = createTextNode(String(textContent));
-      textNode = applyTransformHooks(textNode, hooks);
+      const textNode = createTextNode(String(textContent));
       addChild(element, textNode);
     }
   }
@@ -265,9 +267,7 @@ function processObjectValue(
       childElement.prefix = prefix;
     }
 
-    childElement = applyTransformHooks(childElement, hooks);
-    processJsonValue(childElement, value, config, hooks);
-    
+    processJsonValue(childElement, value, config);
     addChild(element, childElement);
   });
 }
@@ -278,15 +278,14 @@ function processObjectValue(
 function processArrayValue(
   element: XNode,
   array: JsonArray,
-  config: Configuration,
-  hooks?: TransformHooks
+  config: Configuration
 ): void {
   // Determine the name to use for child elements
   let itemName = config.arrays.itemNames[element.name] || config.arrays.defaultItemName;
 
   // Process each item in the array
   array.forEach((item) => {
-    processArrayItem(element, item, itemName, config, hooks);
+    processArrayItem(element, item, itemName, config);
   });
 }
 
@@ -297,13 +296,11 @@ function processArrayItem(
   parent: XNode,
   item: JsonValue,
   itemName: string,
-  config: Configuration,
-  hooks?: TransformHooks
+  config: Configuration
 ): void {
   if (item === null) {
     if (config.strategies.emptyElementStrategy !== "object") {
       let childElement = createElement(itemName);
-      childElement = applyTransformHooks(childElement, hooks);
       processNullValue(childElement, config);
       addChild(parent, childElement);
     }
@@ -324,26 +321,22 @@ function processArrayItem(
         childElement.prefix = prefix;
       }
 
-      childElement = applyTransformHooks(childElement, hooks);
-      processJsonValue(childElement, obj[key], config, hooks);
+      processJsonValue(childElement, obj[key], config);
       addChild(parent, childElement);
     } else {
       // Multiple properties, use the default name
       let childElement = createElement(itemName);
-      childElement = applyTransformHooks(childElement, hooks);
-      processJsonValue(childElement, obj, config, hooks);
+      processJsonValue(childElement, obj, config);
       addChild(parent, childElement);
     }
   } else if (Array.isArray(item)) {
     // Nested array
     let childElement = createElement(itemName);
-    childElement = applyTransformHooks(childElement, hooks);
-    processArrayValue(childElement, item as JsonArray, config, hooks);
+    processArrayValue(childElement, item as JsonArray, config);
     addChild(parent, childElement);
   } else {
     // Primitive value
     let childElement = createElement(itemName);
-    childElement = applyTransformHooks(childElement, hooks);
     childElement.value = item;
     addChild(parent, childElement);
   }

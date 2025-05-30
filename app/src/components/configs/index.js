@@ -9,6 +9,8 @@ import SliceConfig from './SliceConfig.vue';
 import UnwrapConfig from './UnwrapConfig.vue';
 import HoistConfig from './HoistConfig.vue';
 import TransformConfig from './TransformConfig.vue';
+import TransformerConfig from './TransformerConfig.vue';
+import SourceConfig from './SourceConfig.vue';
 
 export {
   SelectConfig,
@@ -18,5 +20,7 @@ export {
   SliceConfig,
   UnwrapConfig,
   HoistConfig,
-  TransformConfig
+  TransformConfig,
+  TransformerConfig,
+  SourceConfig
 };

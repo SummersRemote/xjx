@@ -32,7 +32,7 @@ export function toXml(this: TerminalExtensionContext): Document {
       });
     }
     
-    // Convert XNode to DOM
+    // Convert XNode to DOM (no callbacks needed for output operations)
     const doc = xnodeToXmlConverter.convert(nodeToConvert, this.config);
     
     logger.debug('Successfully converted XNode to DOM', {
@@ -71,7 +71,7 @@ export function toXmlString(
       });
     }
     
-    // Convert XNode to XML string
+    // Convert XNode to XML string (no callbacks needed for output operations)
     const xmlString = xnodeToXmlStringConverter.convert(nodeToConvert, this.config, options);
     
     logger.debug('Successfully converted to XML string', {

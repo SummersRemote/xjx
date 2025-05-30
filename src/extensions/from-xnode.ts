@@ -32,10 +32,10 @@ export function fromXnode(
       });
       
       // Create a wrapper element to contain all nodes
-      const wrapper = createElement('xnodes');
+      let wrapper = createElement('xnodes');
       
-      // Apply before callback to wrapper
-      applyNodeCallbacks(wrapper, beforeFn);
+      // Apply before callback to wrapper and use returned node
+      wrapper = applyNodeCallbacks(wrapper, beforeFn);
       
       // Add each input node as a child (clone to avoid mutation)
       input.forEach((node, index) => {
@@ -45,16 +45,16 @@ export function fromXnode(
         );
         
         // Clone the node to avoid mutating the original input
-        const clonedNode = cloneNode(node, true);
+        let clonedNode = cloneNode(node, true);
         
-        // Apply callbacks to each cloned node
-        applyNodeCallbacks(clonedNode, beforeFn, afterFn);
+        // Apply callbacks to each cloned node and use returned node
+        clonedNode = applyNodeCallbacks(clonedNode, beforeFn, afterFn);
         
         addChild(wrapper, clonedNode);
       });
       
-      // Apply after callback to wrapper
-      applyNodeCallbacks(wrapper, undefined, afterFn);
+      // Apply after callback to wrapper and use returned node
+      wrapper = applyNodeCallbacks(wrapper, undefined, afterFn);
       
       this.xnode = wrapper;
       
@@ -76,10 +76,12 @@ export function fromXnode(
       });
       
       // Clone the node to avoid mutating the original input
-      this.xnode = cloneNode(input, true);
+      let clonedNode = cloneNode(input, true);
       
-      // Apply callbacks to the cloned node
-      applyNodeCallbacks(this.xnode, beforeFn, afterFn);
+      // Apply callbacks to the cloned node and use returned node
+      clonedNode = applyNodeCallbacks(clonedNode, beforeFn, afterFn);
+      
+      this.xnode = clonedNode;
       
       logger.debug('Successfully set single XNode source', {
         rootNodeName: this.xnode.name,

@@ -37,22 +37,22 @@ export const xnodeToJsonHiFiConverter: Converter<XNode, JsonValue, JsonOptions> 
       hasCallbacks: !!(beforeFn || afterFn)
     });
 
-    // Apply before callback
-    applyNodeCallbacks(node, beforeFn);
+    // Apply before callback and use returned node
+    const processedNode = applyNodeCallbacks(node, beforeFn);
 
     let result: JsonValue;
 
     // Process based on node type
-    if (node.type !== NodeType.ELEMENT_NODE) {
+    if (processedNode.type !== NodeType.ELEMENT_NODE) {
       // Handle non-element nodes
-      result = processSpecialNode(node, config);
+      result = processSpecialNode(processedNode, config);
     } else {
       // Process element node
-      result = processElementNode(node, config, beforeFn, afterFn);
+      result = processElementNode(processedNode, config, beforeFn, afterFn);
     }
 
     // Apply after callback
-    applyNodeCallbacks(node, undefined, afterFn);
+    applyNodeCallbacks(processedNode, undefined, afterFn);
 
     // Apply remove empty elements strategy if configured
     if (config.strategies.emptyElementStrategy === 'remove') {
@@ -262,44 +262,44 @@ function processChild(
   beforeFn?: NodeCallback,
   afterFn?: NodeCallback
 ): JsonValue {
-  // Apply before callback
-  applyNodeCallbacks(child, beforeFn);
+  // Apply before callback and use returned node
+  const processedChild = applyNodeCallbacks(child, beforeFn);
 
   let result: JsonValue = null;
 
-  switch (child.type) {
+  switch (processedChild.type) {
     case NodeType.TEXT_NODE:
       if (config.preserveTextNodes) {
-        result = processSpecialNode(child, config);
+        result = processSpecialNode(processedChild, config);
       }
       break;
       
     case NodeType.CDATA_SECTION_NODE:
       if (config.preserveCDATA) {
-        result = processSpecialNode(child, config);
+        result = processSpecialNode(processedChild, config);
       }
       break;
       
     case NodeType.COMMENT_NODE:
       if (config.preserveComments) {
-        result = processSpecialNode(child, config);
+        result = processSpecialNode(processedChild, config);
       }
       break;
       
     case NodeType.PROCESSING_INSTRUCTION_NODE:
       if (config.preserveProcessingInstr) {
-        result = processSpecialNode(child, config);
+        result = processSpecialNode(processedChild, config);
       }
       break;
       
     case NodeType.ELEMENT_NODE:
       // Recursively process element nodes
-      result = processElementNode(child, config, beforeFn, afterFn);
+      result = processElementNode(processedChild, config, beforeFn, afterFn);
       break;
   }
 
   // Apply after callback
-  applyNodeCallbacks(child, undefined, afterFn);
+  applyNodeCallbacks(processedChild, undefined, afterFn);
 
   return result;
 }

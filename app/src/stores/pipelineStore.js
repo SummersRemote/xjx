@@ -1,4 +1,4 @@
-// stores/pipelineStore.js - Debug version to identify the issue
+// stores/pipelineStore.js - Updated with transformer callbacks
 import { defineStore } from 'pinia';
 
 export const usePipelineStore = defineStore('pipeline', {
@@ -251,16 +251,16 @@ export const usePipelineStore = defineStore('pipeline', {
             
       switch (type) {
         case 'fromXml': {
-          const beforeFn = options.beforeFn ? this.createFunction(options.beforeFn) : undefined;
-          const afterFn = options.afterFn ? this.createFunction(options.afterFn) : undefined;
+          const beforeFn = this.createTransformerCallback(options.beforeCallback, transforms);
+          const afterFn = this.createTransformerCallback(options.afterCallback, transforms);
           return builder.fromXml(this.sourceContent, beforeFn, afterFn);
         }
           
         case 'fromJson': {
           try {
             const jsonSource = JSON.parse(this.sourceContent);
-            const beforeFn = options.beforeFn ? this.createFunction(options.beforeFn) : undefined;
-            const afterFn = options.afterFn ? this.createFunction(options.afterFn) : undefined;
+            const beforeFn = this.createTransformerCallback(options.beforeCallback, transforms);
+            const afterFn = this.createTransformerCallback(options.afterCallback, transforms);
             return builder.fromJson(jsonSource, undefined, beforeFn, afterFn);
           } catch (err) {
             throw new Error('Invalid JSON in source content');
@@ -269,8 +269,8 @@ export const usePipelineStore = defineStore('pipeline', {
           
         case 'fromXnode': {
           // For demo purposes, we'll convert current source to XNode first
-          const beforeFn = options.beforeFn ? this.createFunction(options.beforeFn) : undefined;
-          const afterFn = options.afterFn ? this.createFunction(options.afterFn) : undefined;
+          const beforeFn = this.createTransformerCallback(options.beforeCallback, transforms);
+          const afterFn = this.createTransformerCallback(options.afterCallback, transforms);
           return builder.fromXml(this.sourceContent, beforeFn, afterFn);
         }
           
@@ -280,7 +280,7 @@ export const usePipelineStore = defineStore('pipeline', {
         }
           
         case 'map': {
-          const mapTransformer = this.createMapTransformer(options, transforms);
+          const mapTransformer = this.createTransformer(options, transforms);
           return builder.map(mapTransformer);
         }
           
@@ -308,7 +308,26 @@ export const usePipelineStore = defineStore('pipeline', {
       }
     },
     
-    createMapTransformer(options, transforms) {
+    createTransformerCallback(callbackConfig, transforms) {
+      if (!callbackConfig) return undefined;
+      
+      const { transformType, transformOptions, customTransformer } = callbackConfig;
+      
+      // Use custom transformer if provided
+      if (customTransformer && customTransformer.trim()) {
+        return this.createFunction(customTransformer);
+      }
+      
+      // Use node transform if specified
+      if (transformType && transforms[transformType]) {
+        return transforms[transformType](transformOptions || {});
+      }
+      
+      // No transformer specified
+      return undefined;
+    },
+    
+    createTransformer(options, transforms) {
       const { transformType, transformOptions, customTransformer } = options;
       
       // Use custom transformer if provided
@@ -318,10 +337,7 @@ export const usePipelineStore = defineStore('pipeline', {
       
       // Use node transform if specified
       if (transformType && transforms[transformType]) {
-
-          const transformer = transforms[transformType](transformOptions || {});
-          return transformer;
-
+        return transforms[transformType](transformOptions || {});
       }
       
       // Default identity transformer
@@ -338,7 +354,6 @@ export const usePipelineStore = defineStore('pipeline', {
       if (!terminalStep) {
         throw new Error('No terminal operation found');
       }
-      
       
       switch (terminalStep.type) {
         case 'toXml':
@@ -392,8 +407,16 @@ export const usePipelineStore = defineStore('pipeline', {
         case 'fromJson':
         case 'fromXnode':
           return {
-            beforeFn: '',
-            afterFn: ''
+            beforeCallback: {
+              transformType: null,
+              transformOptions: {},
+              customTransformer: ''
+            },
+            afterCallback: {
+              transformType: null,
+              transformOptions: {},
+              customTransformer: ''
+            }
           };
           
         case 'filter':
@@ -425,27 +448,12 @@ export const usePipelineStore = defineStore('pipeline', {
       
       let code = `import { XJX, toNumber, toBoolean, regex, compose } from 'xjx';\n\n`;
       code += `const config = /* your configuration */;\n`;
-      code += `const source = /* your source content */;\n`;
+      code += `const source = /* your source content */;\n\n`;
       
-      // Add callback function declarations if any step uses them
-      const hasCallbacks = this.steps.some(step => 
-        (step.options.beforeFn && step.options.beforeFn.trim()) || 
-        (step.options.afterFn && step.options.afterFn.trim())
-      );
-      
-      if (hasCallbacks) {
-        const beforeFnSteps = this.steps.filter(step => step.options.beforeFn && step.options.beforeFn.trim());
-        const afterFnSteps = this.steps.filter(step => step.options.afterFn && step.options.afterFn.trim());
-        
-        if (beforeFnSteps.length > 0) {
-          code += `const beforeFn = ${beforeFnSteps[0].options.beforeFn};\n`;
-        }
-        
-        if (afterFnSteps.length > 0) {
-          code += `const afterFn = ${afterFnSteps[0].options.afterFn};\n`;
-        }
-        
-        code += '\n';
+      // Add transformer function declarations if any step uses them
+      const transformerDeclarations = this.generateTransformerDeclarations();
+      if (transformerDeclarations) {
+        code += transformerDeclarations + '\n';
       }
       
       code += `const result = new XJX()\n  .withConfig(config)`;
@@ -458,6 +466,62 @@ export const usePipelineStore = defineStore('pipeline', {
       return code;
     },
     
+    generateTransformerDeclarations() {
+      const declarations = [];
+      
+      // Check all steps for transformer usage
+      this.steps.forEach(step => {
+        const { options } = step;
+        
+        // Check source callbacks
+        if (options.beforeCallback?.transformType) {
+          const decl = this.generateTransformerDeclaration('beforeFn', options.beforeCallback);
+          if (decl && !declarations.includes(decl)) {
+            declarations.push(decl);
+          }
+        }
+        
+        if (options.afterCallback?.transformType) {
+          const decl = this.generateTransformerDeclaration('afterFn', options.afterCallback);
+          if (decl && !declarations.includes(decl)) {
+            declarations.push(decl);
+          }
+        }
+        
+        // Check map transformers
+        if (options.transformType) {
+          const decl = this.generateTransformerDeclaration('transformer', options);
+          if (decl && !declarations.includes(decl)) {
+            declarations.push(decl);
+          }
+        }
+      });
+      
+      return declarations.length > 0 ? declarations.join('\n') : '';
+    },
+    
+    generateTransformerDeclaration(varName, config) {
+      const { transformType, transformOptions } = config;
+      
+      if (!transformType) return '';
+      
+      // Clean up the options object for display
+      const cleanOptions = { ...transformOptions };
+      Object.keys(cleanOptions).forEach(key => {
+        if (cleanOptions[key] === undefined || cleanOptions[key] === '') {
+          delete cleanOptions[key];
+        }
+      });
+      
+      const optionsStr = Object.keys(cleanOptions).length > 0 
+        ? JSON.stringify(cleanOptions) 
+        : '';
+      
+      return optionsStr 
+        ? `const ${varName} = ${transformType}(${optionsStr});`
+        : `const ${varName} = ${transformType}();`;
+    },
+    
     generateStepCode(step) {
       const { type, options } = step;
       
@@ -466,8 +530,18 @@ export const usePipelineStore = defineStore('pipeline', {
         case 'fromJson':
         case 'fromXnode': {
           const callbacks = [];
-          if (options.beforeFn) callbacks.push(`beforeFn`);
-          if (options.afterFn) callbacks.push(`afterFn`);
+          
+          if (options.beforeCallback?.transformType) {
+            callbacks.push('beforeFn');
+          } else if (options.beforeCallback?.customTransformer?.trim()) {
+            callbacks.push(`${options.beforeCallback.customTransformer}`);
+          }
+          
+          if (options.afterCallback?.transformType) {
+            callbacks.push('afterFn');
+          } else if (options.afterCallback?.customTransformer?.trim()) {
+            callbacks.push(`${options.afterCallback.customTransformer}`);
+          }
           
           const callbacksStr = callbacks.length > 0 ? `, ${callbacks.join(', ')}` : '';
           return `\n  .${type}(source${callbacksStr})`;
@@ -479,22 +553,7 @@ export const usePipelineStore = defineStore('pipeline', {
           
         case 'map': {
           if (options.transformType) {
-            // Clean up the options object for display
-            const cleanOptions = { ...options.transformOptions };
-            // Remove undefined/empty values
-            Object.keys(cleanOptions).forEach(key => {
-              if (cleanOptions[key] === undefined || cleanOptions[key] === '') {
-                delete cleanOptions[key];
-              }
-            });
-            
-            const optionsStr = Object.keys(cleanOptions).length > 0 
-              ? JSON.stringify(cleanOptions) 
-              : '';
-              
-            return optionsStr 
-              ? `\n  .map(${options.transformType}(${optionsStr}))`
-              : `\n  .map(${options.transformType}())`;
+            return `\n  .map(transformer)`;
           } else if (options.customTransformer && options.customTransformer.trim()) {
             return `\n  .map(${options.customTransformer})`;
           } else {

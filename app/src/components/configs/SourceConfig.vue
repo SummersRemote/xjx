@@ -1,49 +1,31 @@
 <!-- components/configs/SourceConfig.vue -->
 <template>
   <v-container>
+    <!-- Before Callback Configuration -->
     <v-row dense>
       <v-col cols="12">
-        <v-switch
-          v-model="enableCallbacks"
-          label="Enable Callback Functions"
-          hide-details
-          density="compact"
-          @update:model-value="updateCallbacks"
-        ></v-switch>
+        <div class="text-subtitle-2 mb-2">Before Callback</div>
+        <TransformerConfig
+          :value="localOptions.beforeCallback"
+          context="callback"
+          @update="updateBeforeCallback"
+        />
       </v-col>
     </v-row>
     
-    <div v-if="enableCallbacks">
-      <v-row dense class="mt-2">
-        <v-col cols="12">
-          <v-textarea
-            v-model="localOptions.beforeFn"
-            label="Before Function (optional)"
-            hint="Function called before processing each node"
-            persistent-hint
-            auto-grow
-            rows="3"
-            class="font-mono"
-            @update:model-value="updateOptions"
-          ></v-textarea>
-        </v-col>
-      </v-row>
-      
-      <v-row dense>
-        <v-col cols="12">
-          <v-textarea
-            v-model="localOptions.afterFn"
-            label="After Function (optional)"
-            hint="Function called after processing each node"
-            persistent-hint
-            auto-grow
-            rows="3"
-            class="font-mono"
-            @update:model-value="updateOptions"
-          ></v-textarea>
-        </v-col>
-      </v-row>
-    </div>
+    <v-divider class="my-4"></v-divider>
+    
+    <!-- After Callback Configuration -->
+    <v-row dense>
+      <v-col cols="12">
+        <div class="text-subtitle-2 mb-2">After Callback</div>
+        <TransformerConfig
+          :value="localOptions.afterCallback"
+          context="callback"
+          @update="updateAfterCallback"
+        />
+      </v-col>
+    </v-row>
     
     <v-row dense>
       <v-col cols="12">
@@ -60,12 +42,12 @@
           - <em>fromXnode</em>: Use existing XNode array as source<br>
           <br>
           <strong>Callback Functions:</strong><br>
-          Optional functions that are called during node processing for debugging or custom handling.
+          Optional transformer functions called during node processing. Same transformers work as both callbacks and in map() operations.
         </v-alert>
       </v-col>
     </v-row>
     
-    <v-row dense v-if="enableCallbacks">
+    <v-row dense>
       <v-col cols="12">
         <v-alert
           type="info"
@@ -74,10 +56,11 @@
           icon="mdi-code-braces"
           class="text-caption mt-3"
         >
-          <strong>Example callback functions:</strong><br>
-          - <code>node => console.log('Processing:', node.name)</code><br>
-          - <code>node => { if (node.name === 'debug') debugger; }</code><br>
-          - <code>node => node.metadata = { processed: new Date() }</code>
+          <strong>Callback Processing:</strong><br>
+          - <em>Before Callback</em>: Applied to each node before processing<br>
+          - <em>After Callback</em>: Applied to each node after processing<br>
+          - Both use the same transformer functions as map() operations<br>
+          - Return new node or void/undefined to keep original
         </v-alert>
       </v-col>
     </v-row>
@@ -85,14 +68,23 @@
 </template>
 
 <script setup>
-import { reactive, ref, watch } from 'vue';
+import { reactive, watch } from 'vue';
+import TransformerConfig from './TransformerConfig.vue';
 
 const props = defineProps({
   value: {
     type: Object,
     default: () => ({
-      beforeFn: '',
-      afterFn: ''
+      beforeCallback: {
+        transformType: null,
+        transformOptions: {},
+        customTransformer: ''
+      },
+      afterCallback: {
+        transformType: null,
+        transformOptions: {},
+        customTransformer: ''
+      }
     })
   }
 });
@@ -101,28 +93,28 @@ const emit = defineEmits(['update']);
 
 // Create a local reactive copy of the props
 const localOptions = reactive({
-  beforeFn: props.value.beforeFn || '',
-  afterFn: props.value.afterFn || ''
+  beforeCallback: { 
+    transformType: props.value.beforeCallback?.transformType || null,
+    transformOptions: { ...props.value.beforeCallback?.transformOptions } || {},
+    customTransformer: props.value.beforeCallback?.customTransformer || ''
+  },
+  afterCallback: { 
+    transformType: props.value.afterCallback?.transformType || null,
+    transformOptions: { ...props.value.afterCallback?.transformOptions } || {},
+    customTransformer: props.value.afterCallback?.customTransformer || ''
+  }
 });
 
-// Separate toggle state for callbacks
-const enableCallbacks = ref(!!(props.value.beforeFn || props.value.afterFn));
+// Update before callback
+const updateBeforeCallback = (options) => {
+  localOptions.beforeCallback = { ...options };
+  updateOptions();
+};
 
-// Update callbacks state
-const updateCallbacks = (enabled) => {
-  enableCallbacks.value = enabled;
-  if (!enabled) {
-    // When disabling, clear both callback functions
-    localOptions.beforeFn = '';
-    localOptions.afterFn = '';
-    updateOptions();
-  } else {
-    // When enabling, set a default example if both are empty
-    if (!localOptions.beforeFn.trim() && !localOptions.afterFn.trim()) {
-      localOptions.beforeFn = 'node => console.log("Processing:", node.name)';
-    }
-    updateOptions();
-  }
+// Update after callback
+const updateAfterCallback = (options) => {
+  localOptions.afterCallback = { ...options };
+  updateOptions();
 };
 
 // Emit changes to the parent
@@ -134,25 +126,24 @@ const updateOptions = () => {
 watch(() => props.value, (newValue) => {
   if (newValue) {
     Object.assign(localOptions, {
-      beforeFn: newValue.beforeFn || '',
-      afterFn: newValue.afterFn || ''
+      beforeCallback: { 
+        transformType: newValue.beforeCallback?.transformType || null,
+        transformOptions: { ...newValue.beforeCallback?.transformOptions } || {},
+        customTransformer: newValue.beforeCallback?.customTransformer || ''
+      },
+      afterCallback: { 
+        transformType: newValue.afterCallback?.transformType || null,
+        transformOptions: { ...newValue.afterCallback?.transformOptions } || {},
+        customTransformer: newValue.afterCallback?.customTransformer || ''
+      }
     });
-    // Update toggle state based on whether any callbacks are present
-    enableCallbacks.value = !!(newValue.beforeFn || newValue.afterFn);
-  }
-}, { deep: true });
-
-// Watch for manual changes to callback functions
-watch(localOptions, () => {
-  // If both callbacks are manually cleared, disable the toggle
-  if (!localOptions.beforeFn.trim() && !localOptions.afterFn.trim()) {
-    enableCallbacks.value = false;
   }
 }, { deep: true });
 </script>
 
 <style scoped>
-.font-mono {
-  font-family: 'Courier New', Courier, monospace;
+.text-subtitle-2 {
+  font-weight: 600;
+  color: #1976D2;
 }
 </style>

@@ -38,21 +38,21 @@ export const xnodeToJsonConverter: Converter<XNode, JsonValue, JsonOptions> = {
       hasCallbacks: !!(beforeFn || afterFn)
     });
 
-    // Apply before callback
-    applyNodeCallbacks(node, beforeFn);
+    // Apply before callback and use returned node
+    const processedNode = applyNodeCallbacks(node, beforeFn);
 
     let result: JsonValue;
 
     // Handle non-element nodes
-    if (node.type !== NodeType.ELEMENT_NODE) {
-      result = processNonElementNode(node, config);
+    if (processedNode.type !== NodeType.ELEMENT_NODE) {
+      result = processNonElementNode(processedNode, config);
     } else {
       // Process element node
-      result = processElementNode(node, config, beforeFn, afterFn);
+      result = processElementNode(processedNode, config, beforeFn, afterFn);
     }
 
     // Apply after callback
-    applyNodeCallbacks(node, undefined, afterFn);
+    applyNodeCallbacks(processedNode, undefined, afterFn);
 
     // Apply remove empty elements strategy if configured
     if (config.strategies.emptyElementStrategy === 'remove') {
@@ -347,14 +347,14 @@ function processChildElements(
     if (shouldBeArray) {
       // Create an array of values
       const values: JsonArray = nodes.map(node => {
-        // Apply callbacks to each child node
-        applyNodeCallbacks(node, beforeFn);
+        // Apply callbacks to each child node and use returned node
+        const processedChild = applyNodeCallbacks(node, beforeFn);
         
         // Convert the node and extract its value
-        const converted = xnodeToJsonConverter.convert(node, config, undefined, beforeFn, afterFn) as JsonObject;
-        const nodeName = getElementName(node.name, node.prefix, config.preservePrefixedNames);
+        const converted = xnodeToJsonConverter.convert(processedChild, config, undefined, beforeFn, afterFn) as JsonObject;
+        const nodeName = getElementName(processedChild.name, processedChild.prefix, config.preservePrefixedNames);
         
-        applyNodeCallbacks(node, undefined, afterFn);
+        applyNodeCallbacks(processedChild, undefined, afterFn);
         return converted[nodeName];
       });
       
@@ -362,12 +362,12 @@ function processChildElements(
     } else {
       // Just use the last node (or only node)
       const node = nodes[nodes.length - 1];
-      applyNodeCallbacks(node, beforeFn);
+      const processedChild = applyNodeCallbacks(node, beforeFn);
       
-      const converted = xnodeToJsonConverter.convert(node, config, undefined, beforeFn, afterFn) as JsonObject;
-      const nodeName = getElementName(node.name, node.prefix, config.preservePrefixedNames);
+      const converted = xnodeToJsonConverter.convert(processedChild, config, undefined, beforeFn, afterFn) as JsonObject;
+      const nodeName = getElementName(processedChild.name, processedChild.prefix, config.preservePrefixedNames);
       
-      applyNodeCallbacks(node, undefined, afterFn);
+      applyNodeCallbacks(processedChild, undefined, afterFn);
       result[name] = converted[nodeName];
     }
   });

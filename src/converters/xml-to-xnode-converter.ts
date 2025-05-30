@@ -71,7 +71,7 @@ function convertElementToXNode(
   afterFn?: NodeCallback
 ): XNode {
   // Create base node
-  const xnode = createElement(
+  let xnode = createElement(
     element.localName ||
     element.nodeName.split(":").pop() ||
     element.nodeName
@@ -80,8 +80,8 @@ function convertElementToXNode(
   // Set parent reference
   xnode.parent = context.parentNode;
 
-  // Apply before callback
-  applyNodeCallbacks(xnode, beforeFn);
+  // Apply before callback and use returned node
+  xnode = applyNodeCallbacks(xnode, beforeFn);
 
   // Process namespace information if preserving namespaces
   if (config.preserveNamespaces) {
@@ -111,8 +111,8 @@ function convertElementToXNode(
     processChildren(element, xnode, config, context, beforeFn, afterFn);
   }
 
-  // Apply after callback
-  applyNodeCallbacks(xnode, undefined, afterFn);
+  // Apply after callback and use returned node
+  xnode = applyNodeCallbacks(xnode, undefined, afterFn);
 
   logger.debug('Converted DOM element to XNode', { 
     elementName: element.nodeName, 
@@ -205,16 +205,16 @@ function processChildren(
 
       case NodeType.CDATA_SECTION_NODE:
         if (config.preserveCDATA) {
-          const cdataNode = createCDATANode(child.nodeValue || "");
-          applyNodeCallbacks(cdataNode, beforeFn, afterFn);
+          let cdataNode = createCDATANode(child.nodeValue || "");
+          cdataNode = applyNodeCallbacks(cdataNode, beforeFn, afterFn);
           addChild(parentNode, cdataNode);
         }
         break;
 
       case NodeType.COMMENT_NODE:
         if (config.preserveComments) {
-          const commentNode = createCommentNode(child.nodeValue || "");
-          applyNodeCallbacks(commentNode, beforeFn, afterFn);
+          let commentNode = createCommentNode(child.nodeValue || "");
+          commentNode = applyNodeCallbacks(commentNode, beforeFn, afterFn);
           addChild(parentNode, commentNode);
         }
         break;
@@ -222,8 +222,8 @@ function processChildren(
       case NodeType.PROCESSING_INSTRUCTION_NODE:
         if (config.preserveProcessingInstr) {
           const pi = child as ProcessingInstruction;
-          const piNode = createProcessingInstructionNode(pi.target, pi.data || "");
-          applyNodeCallbacks(piNode, beforeFn, afterFn);
+          let piNode = createProcessingInstructionNode(pi.target, pi.data || "");
+          piNode = applyNodeCallbacks(piNode, beforeFn, afterFn);
           addChild(parentNode, piNode);
         }
         break;
@@ -262,8 +262,8 @@ function processTextNode(
 
     if ((normalizedText && config.preserveTextNodes) || 
         (config.preserveWhitespace && hasMixed && config.preserveTextNodes)) {
-      const textNode = createTextNode(normalizedText || text);
-      applyNodeCallbacks(textNode, beforeFn, afterFn);
+      let textNode = createTextNode(normalizedText || text);
+      textNode = applyNodeCallbacks(textNode, beforeFn, afterFn);
       addChild(parentNode, textNode);
     }
   }

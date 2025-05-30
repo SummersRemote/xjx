@@ -44,8 +44,8 @@ export const xnodeToXmlConverter: Converter<XNode, Document, XmlSerializationOpt
         nodeType: node.type 
       });
       
-      // Apply before callback
-      applyNodeCallbacks(node, beforeFn);
+      // Apply before callback and use returned node
+      const processedNode = applyNodeCallbacks(node, beforeFn);
       
       // Create context with empty namespace map
       const context: XNodeToXmlContext = { namespaceMap: {} };
@@ -54,7 +54,7 @@ export const xnodeToXmlConverter: Converter<XNode, Document, XmlSerializationOpt
       const doc = DOM.createDocument();
       
       // Convert XNode to DOM
-      const element = convertXNodeToDom(node, doc, config, context, beforeFn, afterFn);
+      const element = convertXNodeToDom(processedNode, doc, config, context, beforeFn, afterFn);
       
       // Handle the root element
       if (doc.documentElement && doc.documentElement.nodeName === "temp") {
@@ -64,7 +64,7 @@ export const xnodeToXmlConverter: Converter<XNode, Document, XmlSerializationOpt
       }
       
       // Apply after callback
-      applyNodeCallbacks(node, undefined, afterFn);
+      applyNodeCallbacks(processedNode, undefined, afterFn);
       
       logger.debug('Successfully created DOM document', {
         documentElement: doc.documentElement?.nodeName
@@ -142,47 +142,47 @@ function convertXNodeToDom(
 ): Element {
   let element: Element;
   
-  // Apply before callback
-  applyNodeCallbacks(node, beforeFn);
+  // Apply before callback and use returned node
+  const processedNode = applyNodeCallbacks(node, beforeFn);
   
   // Create element with namespace if provided in the XNode
-  if (node.namespace) {
-    const qualifiedName = xml.createQualifiedName(node.prefix, node.name);
-    element = DOM.createElementNS(doc, node.namespace, qualifiedName);
+  if (processedNode.namespace) {
+    const qualifiedName = xml.createQualifiedName(processedNode.prefix, processedNode.name);
+    element = DOM.createElementNS(doc, processedNode.namespace, qualifiedName);
   } else {
-    element = DOM.createElement(doc, node.name);
+    element = DOM.createElement(doc, processedNode.name);
   }
   
   // Add namespace declarations if present in XNode
-  if (node.namespaceDeclarations) {
-    xml.addNamespaceDeclarations(element, node.namespaceDeclarations);
+  if (processedNode.namespaceDeclarations) {
+    xml.addNamespaceDeclarations(element, processedNode.namespaceDeclarations);
     
     // Update namespace map
-    Object.entries(node.namespaceDeclarations).forEach(([prefix, uri]) => {
+    Object.entries(processedNode.namespaceDeclarations).forEach(([prefix, uri]) => {
       context.namespaceMap[prefix] = uri;
     });
   }
   
   // Add attributes if present in XNode
-  if (node.attributes) {
-    addAttributes(element, node, context.namespaceMap);
+  if (processedNode.attributes) {
+    addAttributes(element, processedNode, context.namespaceMap);
   }
   
   // Add content
   // Simple node with only text content
-  if (node.value !== undefined && (!node.children || node.children.length === 0)) {
-    element.textContent = xml.safeXmlText(String(node.value));
+  if (processedNode.value !== undefined && (!processedNode.children || processedNode.children.length === 0)) {
+    element.textContent = xml.safeXmlText(String(processedNode.value));
   }
   // Node with children
-  else if (node.children && node.children.length > 0) {
-    addChildNodes(element, node.children, doc, config, context, beforeFn, afterFn);
+  else if (processedNode.children && processedNode.children.length > 0) {
+    addChildNodes(element, processedNode.children, doc, config, context, beforeFn, afterFn);
   }
   
   // Apply after callback
-  applyNodeCallbacks(node, undefined, afterFn);
+  applyNodeCallbacks(processedNode, undefined, afterFn);
   
   logger.debug('Converted XNode to DOM element', {
-    nodeName: node.name,
+    nodeName: processedNode.name,
     elementName: element.nodeName,
     childCount: element.childNodes.length
   });
@@ -248,35 +248,35 @@ function addChildNodes(
   afterFn?: NodeCallback
 ): void {
   for (const child of children) {
-    // Apply callbacks to child
-    applyNodeCallbacks(child, beforeFn);
+    // Apply callbacks to child and use returned node
+    const processedChild = applyNodeCallbacks(child, beforeFn);
     
-    switch (child.type) {
+    switch (processedChild.type) {
       case NodeType.TEXT_NODE:
         element.appendChild(
-          DOM.createTextNode(doc, xml.safeXmlText(String(child.value)))
+          DOM.createTextNode(doc, xml.safeXmlText(String(processedChild.value)))
         );
         break;
         
       case NodeType.CDATA_SECTION_NODE:
         element.appendChild(
-          DOM.createCDATASection(doc, String(child.value))
+          DOM.createCDATASection(doc, String(processedChild.value))
         );
         break;
         
       case NodeType.COMMENT_NODE:
         element.appendChild(
-          DOM.createComment(doc, String(child.value))
+          DOM.createComment(doc, String(processedChild.value))
         );
         break;
         
       case NodeType.PROCESSING_INSTRUCTION_NODE:
-        if (child.attributes?.target) {
+        if (processedChild.attributes?.target) {
           element.appendChild(
             DOM.createProcessingInstruction(
               doc,
-              child.attributes.target,
-              String(child.value || "")
+              processedChild.attributes.target,
+              String(processedChild.value || "")
             )
           );
         }
@@ -285,12 +285,12 @@ function addChildNodes(
       case NodeType.ELEMENT_NODE:
         // Recursively process child element
         element.appendChild(
-          convertXNodeToDom(child, doc, config, { ...context }, beforeFn, afterFn)
+          convertXNodeToDom(processedChild, doc, config, { ...context }, beforeFn, afterFn)
         );
         break;
     }
     
     // Apply after callback to child
-    applyNodeCallbacks(child, undefined, afterFn);
+    applyNodeCallbacks(processedChild, undefined, afterFn);
   }
 }

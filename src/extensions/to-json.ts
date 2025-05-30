@@ -41,7 +41,7 @@ export function toJson(this: TerminalExtensionContext, options?: JsonOptions): J
     let result: JsonValue;
     
     if (useHighFidelity) {
-      // Use XNode to JSON HiFi converter for high-fidelity format
+      // Use XNode to JSON HiFi converter for high-fidelity format (no callbacks needed for output)
       result = xnodeToJsonHiFiConverter.convert(nodeToConvert, this.config, options);
       
       logger.debug('Used XNode to JSON HiFi converter for high-fidelity JSON', {
@@ -49,7 +49,7 @@ export function toJson(this: TerminalExtensionContext, options?: JsonOptions): J
         isArray: Array.isArray(result)
       });
     } else {
-      // Use standard XNode to JSON converter
+      // Use standard XNode to JSON converter (no callbacks needed for output)
       result = xnodeToJsonConverter.convert(nodeToConvert, this.config, options);
       
       logger.debug('Used XNode to standard JSON converter', {

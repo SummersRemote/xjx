@@ -6,9 +6,10 @@ import { XNode } from './xnode';
 import { ValidationError } from './error';
 
 /**
- * Node processing callback function
+ * Node processing callback function - consistent with transform signature
+ * Returns new node, void, or undefined (void/undefined = no change)
  */
-export type NodeCallback = (node: XNode) => void;
+export type NodeCallback = (node: XNode) => XNode | void | undefined;
 
 /**
  * Converter interface - consistent across all converters
@@ -187,19 +188,26 @@ export function processNamespaceDeclarations(
 }
 
 /**
- * Apply node callbacks consistently
+ * Apply node callbacks consistently - functional approach
  * @param node Node to process
  * @param beforeFn Optional before callback
  * @param afterFn Optional after callback
+ * @returns Processed node (may be the original or a new one)
  */
 export function applyNodeCallbacks(
   node: XNode,
   beforeFn?: NodeCallback,
   afterFn?: NodeCallback
-): void {
+): XNode {
+  let processedNode = node;
+
   try {
     if (beforeFn) {
-      beforeFn(node);
+      const beforeResult = beforeFn(processedNode);
+      // If callback returns a node, use it; otherwise keep the original
+      if (beforeResult && typeof beforeResult === 'object' && typeof beforeResult.name === 'string') {
+        processedNode = beforeResult;
+      }
     }
   } catch (err) {
     console.warn(`Error in beforeFn callback: ${err instanceof Error ? err.message : String(err)}`);
@@ -207,11 +215,17 @@ export function applyNodeCallbacks(
 
   try {
     if (afterFn) {
-      afterFn(node);
+      const afterResult = afterFn(processedNode);
+      // If callback returns a node, use it; otherwise keep the current
+      if (afterResult && typeof afterResult === 'object' && typeof afterResult.name === 'string') {
+        processedNode = afterResult;
+      }
     }
   } catch (err) {
     console.warn(`Error in afterFn callback: ${err instanceof Error ? err.message : String(err)}`);
   }
+
+  return processedNode;
 }
 
 /**

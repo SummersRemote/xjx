@@ -82,7 +82,7 @@ function processElement(
   const { prefix, localName } = parseElementName(name, config.preservePrefixedNames);
   
   // Create the element
-  const element = createElement(localName);
+  let element = createElement(localName);
   
   // Set parent reference if provided
   if (parent) {
@@ -94,8 +94,8 @@ function processElement(
     element.prefix = prefix;
   }
   
-  // Apply before callback
-  applyNodeCallbacks(element, beforeFn);
+  // Apply before callback and use returned node
+  element = applyNodeCallbacks(element, beforeFn);
   
   const { properties } = config;
   
@@ -145,8 +145,8 @@ function processElement(
     element.metadata = { ...obj.metadata as Record<string, any> };
   }
   
-  // Apply after callback
-  applyNodeCallbacks(element, undefined, afterFn);
+  // Apply after callback and use returned node
+  element = applyNodeCallbacks(element, undefined, afterFn);
   
   return element;
 }
@@ -218,24 +218,24 @@ function processChildren(
       
       // Text node
       if (childObj[properties.value] !== undefined && config.preserveTextNodes) {
-        const textNode = createTextNode(String(childObj[properties.value]));
-        applyNodeCallbacks(textNode, beforeFn, afterFn);
+        let textNode = createTextNode(String(childObj[properties.value]));
+        textNode = applyNodeCallbacks(textNode, beforeFn, afterFn);
         addChild(parent, textNode);
         return;
       }
       
       // CDATA node
       if (childObj[properties.cdata] !== undefined && config.preserveCDATA) {
-        const cdataNode = createCDATANode(String(childObj[properties.cdata]));
-        applyNodeCallbacks(cdataNode, beforeFn, afterFn);
+        let cdataNode = createCDATANode(String(childObj[properties.cdata]));
+        cdataNode = applyNodeCallbacks(cdataNode, beforeFn, afterFn);
         addChild(parent, cdataNode);
         return;
       }
       
       // Comment node
       if (childObj[properties.comment] !== undefined && config.preserveComments) {
-        const commentNode = createCommentNode(String(childObj[properties.comment]));
-        applyNodeCallbacks(commentNode, beforeFn, afterFn);
+        let commentNode = createCommentNode(String(childObj[properties.comment]));
+        commentNode = applyNodeCallbacks(commentNode, beforeFn, afterFn);
         addChild(parent, commentNode);
         return;
       }
@@ -249,8 +249,8 @@ function processChildren(
           const value = piProps[properties.value] || '';
           
           if (target) {
-            const piNode = createProcessingInstructionNode(String(target), String(value));
-            applyNodeCallbacks(piNode, beforeFn, afterFn);
+            let piNode = createProcessingInstructionNode(String(target), String(value));
+            piNode = applyNodeCallbacks(piNode, beforeFn, afterFn);
             addChild(parent, piNode);
             return;
           }
@@ -271,8 +271,8 @@ function processChildren(
     
     // If we get here, try to convert as raw text
     if (config.preserveTextNodes) {
-      const textNode = createTextNode(String(child));
-      applyNodeCallbacks(textNode, beforeFn, afterFn);
+      let textNode = createTextNode(String(child));
+      textNode = applyNodeCallbacks(textNode, beforeFn, afterFn);
       addChild(parent, textNode);
     }
   });

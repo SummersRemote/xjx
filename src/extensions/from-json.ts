@@ -40,7 +40,7 @@ export function fromJson(
       highFidelity: useHighFidelity
     };
     
-    // Convert using appropriate converter
+    // Convert using appropriate converter with functional callbacks
     if (useHighFidelity) {
       this.xnode = jsonHiFiToXNodeConverter.convert(json, this.config, effectiveOptions, beforeFn, afterFn);
     } else {

@@ -29,7 +29,7 @@ export function fromXml(
       hasCallbacks: !!(beforeFn || afterFn)
     });
     
-    // Convert XML to XNode using the converter
+    // Convert XML to XNode using the converter with functional callbacks
     try {
       this.xnode = xmlToXNodeConverter.convert(xml, this.config, undefined, beforeFn, afterFn);
     } catch (err) {

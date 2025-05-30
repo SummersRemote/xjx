@@ -71,13 +71,13 @@ function convertJsonObject(
   const { prefix, localName } = parseElementName(rootName, config.preservePrefixedNames);
   
   // Create the root element
-  const rootNode = createElement(localName);
+  let rootNode = createElement(localName);
   if (prefix) {
     rootNode.prefix = prefix;
   }
 
-  // Apply before callback
-  applyNodeCallbacks(rootNode, beforeFn);
+  // Apply before callback and use returned node
+  rootNode = applyNodeCallbacks(rootNode, beforeFn);
 
   // Get the value for this property
   const value = obj[rootName];
@@ -85,8 +85,8 @@ function convertJsonObject(
   // Process the value
   processJsonValue(rootNode, value, config, beforeFn, afterFn);
 
-  // Apply after callback
-  applyNodeCallbacks(rootNode, undefined, afterFn);
+  // Apply after callback and use returned node
+  rootNode = applyNodeCallbacks(rootNode, undefined, afterFn);
 
   return rootNode;
 }
@@ -101,10 +101,10 @@ function convertJsonArray(
   afterFn?: NodeCallback
 ): XNode {
   // Create a root array element
-  const rootNode = createElement("array");
+  let rootNode = createElement("array");
   
-  // Apply callbacks
-  applyNodeCallbacks(rootNode, beforeFn);
+  // Apply callbacks and use returned node
+  rootNode = applyNodeCallbacks(rootNode, beforeFn);
 
   // Get the item name for array items
   const itemName = config.arrays.defaultItemName;
@@ -114,7 +114,7 @@ function convertJsonArray(
     processArrayItem(rootNode, item, itemName, config, beforeFn, afterFn);
   });
 
-  applyNodeCallbacks(rootNode, undefined, afterFn);
+  rootNode = applyNodeCallbacks(rootNode, undefined, afterFn);
   return rootNode;
 }
 
@@ -127,15 +127,15 @@ function convertJsonPrimitive(
   beforeFn?: NodeCallback,
   afterFn?: NodeCallback
 ): XNode {
-  const rootNode = createElement("value");
+  let rootNode = createElement("value");
   
-  applyNodeCallbacks(rootNode, beforeFn);
+  rootNode = applyNodeCallbacks(rootNode, beforeFn);
 
   if (value !== undefined && value !== null) {
     rootNode.value = value;
   }
 
-  applyNodeCallbacks(rootNode, undefined, afterFn);
+  rootNode = applyNodeCallbacks(rootNode, undefined, afterFn);
   return rootNode;
 }
 
@@ -263,8 +263,8 @@ function processObjectValue(
     if (Object.keys(remainingProperties).length === 0 || textStrategy === "direct") {
       element.value = textContent;
     } else {
-      const textNode = createTextNode(String(textContent));
-      applyNodeCallbacks(textNode, beforeFn, afterFn);
+      let textNode = createTextNode(String(textContent));
+      textNode = applyNodeCallbacks(textNode, beforeFn, afterFn);
       addChild(element, textNode);
     }
   }
@@ -273,14 +273,14 @@ function processObjectValue(
   Object.entries(remainingProperties).forEach(([key, value]) => {
     const { prefix, localName } = parseElementName(key, config.preservePrefixedNames);
     
-    const childElement = createElement(localName);
+    let childElement = createElement(localName);
     if (prefix) {
       childElement.prefix = prefix;
     }
 
-    applyNodeCallbacks(childElement, beforeFn);
+    childElement = applyNodeCallbacks(childElement, beforeFn);
     processJsonValue(childElement, value, config, beforeFn, afterFn);
-    applyNodeCallbacks(childElement, undefined, afterFn);
+    childElement = applyNodeCallbacks(childElement, undefined, afterFn);
     
     addChild(element, childElement);
   });
@@ -318,10 +318,10 @@ function processArrayItem(
 ): void {
   if (item === null) {
     if (config.strategies.emptyElementStrategy !== "object") {
-      const childElement = createElement(itemName);
-      applyNodeCallbacks(childElement, beforeFn);
+      let childElement = createElement(itemName);
+      childElement = applyNodeCallbacks(childElement, beforeFn);
       processNullValue(childElement, config);
-      applyNodeCallbacks(childElement, undefined, afterFn);
+      childElement = applyNodeCallbacks(childElement, undefined, afterFn);
       addChild(parent, childElement);
     }
     return;
@@ -336,36 +336,36 @@ function processArrayItem(
       const key = keys[0];
       const { prefix, localName } = parseElementName(key, config.preservePrefixedNames);
 
-      const childElement = createElement(localName);
+      let childElement = createElement(localName);
       if (prefix) {
         childElement.prefix = prefix;
       }
 
-      applyNodeCallbacks(childElement, beforeFn);
+      childElement = applyNodeCallbacks(childElement, beforeFn);
       processJsonValue(childElement, obj[key], config, beforeFn, afterFn);
-      applyNodeCallbacks(childElement, undefined, afterFn);
+      childElement = applyNodeCallbacks(childElement, undefined, afterFn);
       addChild(parent, childElement);
     } else {
       // Multiple properties, use the default name
-      const childElement = createElement(itemName);
-      applyNodeCallbacks(childElement, beforeFn);
+      let childElement = createElement(itemName);
+      childElement = applyNodeCallbacks(childElement, beforeFn);
       processJsonValue(childElement, obj, config, beforeFn, afterFn);
-      applyNodeCallbacks(childElement, undefined, afterFn);
+      childElement = applyNodeCallbacks(childElement, undefined, afterFn);
       addChild(parent, childElement);
     }
   } else if (Array.isArray(item)) {
     // Nested array
-    const childElement = createElement(itemName);
-    applyNodeCallbacks(childElement, beforeFn);
+    let childElement = createElement(itemName);
+    childElement = applyNodeCallbacks(childElement, beforeFn);
     processArrayValue(childElement, item as JsonArray, config, beforeFn, afterFn);
-    applyNodeCallbacks(childElement, undefined, afterFn);
+    childElement = applyNodeCallbacks(childElement, undefined, afterFn);
     addChild(parent, childElement);
   } else {
     // Primitive value
-    const childElement = createElement(itemName);
-    applyNodeCallbacks(childElement, beforeFn);
+    let childElement = createElement(itemName);
+    childElement = applyNodeCallbacks(childElement, beforeFn);
     childElement.value = item;
-    applyNodeCallbacks(childElement, undefined, afterFn);
+    childElement = applyNodeCallbacks(childElement, undefined, afterFn);
     addChild(parent, childElement);
   }
 }

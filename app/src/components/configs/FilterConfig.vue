@@ -1,6 +1,28 @@
-<!-- components/configs/FilterConfig.vue -->
+<!-- components/configs/FilterConfig.vue - Updated with collapsible help -->
 <template>
   <v-container>
+    <!-- Help Section -->
+    <v-expansion-panels variant="accordion" class="mb-4">
+      <v-expansion-panel>
+        <v-expansion-panel-title class="text-caption">
+          <v-icon icon="mdi-help-circle" size="small" class="me-2"></v-icon>
+          Help
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <v-alert type="info" variant="text" density="compact">
+            <strong>Filter Operation:</strong><br>
+            The <code>filter()</code> operation keeps nodes matching the predicate and preserves
+            document hierarchy. Ancestors of matching nodes are kept to maintain structure.<br>
+            <br>
+            <strong>Example predicates:</strong><br>
+            - <code>node => node.name === 'user'</code> (keep users)<br>
+            - <code>node => node.attributes?.active !== 'false'</code> (keep active elements)<br>
+            - <code>node => node.name !== 'comment'</code> (remove comments)
+          </v-alert>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+    </v-expansion-panels>
+
     <v-row dense>
       <v-col cols="12">
         <v-textarea
@@ -10,41 +32,11 @@
           persistent-hint
           auto-grow
           rows="3"
+          density="compact"
+          variant="outlined"
           class="font-mono"
           @update:model-value="updateOptions"
         ></v-textarea>
-      </v-col>
-    </v-row>
-    
-    <v-row dense>
-      <v-col cols="12">
-        <v-alert
-          type="info"
-          variant="tonal"
-          density="compact"
-          icon="mdi-information-outline"
-          class="text-caption mt-3"
-        >
-          <strong>Example predicates:</strong><br>
-          - <code>node => node.name === 'user'</code> (keep users)<br>
-          - <code>node => node.attributes?.active !== 'false'</code> (keep active elements)<br>
-          - <code>node => node.name !== 'comment'</code> (remove comments)
-        </v-alert>
-      </v-col>
-    </v-row>
-    
-    <v-row dense>
-      <v-col cols="12">
-        <v-alert
-          type="info"
-          variant="tonal"
-          density="compact"
-          icon="mdi-code-braces"
-          class="text-caption mt-3"
-        >
-          The <code>filter()</code> operation keeps nodes matching the predicate and preserves
-          document hierarchy. Ancestors of matching nodes are kept to maintain structure.
-        </v-alert>
       </v-col>
     </v-row>
   </v-container>

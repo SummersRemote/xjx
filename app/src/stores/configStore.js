@@ -1,4 +1,4 @@
-// stores/configStore.js - Simplified configuration store
+// stores/configStore.js - Updated with info log level default
 import { defineStore } from 'pinia';
 
 export const useConfigStore = defineStore('config', {
@@ -65,7 +65,7 @@ export const useConfigStore = defineStore('config', {
       fragmentRoot: "results",
     },
     
-    logLevel: 'ERROR' // Default log level
+    logLevel: 'INFO' // Changed from ERROR to INFO
   }),
   
   actions: {

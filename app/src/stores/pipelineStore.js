@@ -1,20 +1,21 @@
-// stores/pipelineStore.js - Complete implementation with multi-transform support
+// stores/pipelineStore.js - Updated with XJX logger and improved hooks
 import { defineStore } from 'pinia';
 
 export const usePipelineStore = defineStore('pipeline', {
   state: () => ({
-    steps: [
-      // Default pipeline: fromXml -> toJson
-      { id: 1, type: 'fromXml', options: {} },
-      { id: 2, type: 'toJson', options: {} }
-    ],
+    // Fixed source and output operations with defaults
+    sourceOperation: { type: 'fromXml', options: {} },
+    outputOperation: { type: 'toJson', options: {} },
+    
+    // Dynamic functional operations between source and output
+    functionalSteps: [],
     
     sourceContent: '<root>\n  <example>Hello World</example>\n  <count>42</count>\n  <active>true</active>\n</root>',
     resultContent: '',
     
-    // Available operations with new hook support info
+    // Available operations with hook support info
     availableOperations: {
-      // Source operations (support SourceHooks: before/after)
+      // Source operations
       fromXml: { 
         type: 'fromXml', 
         name: 'From XML', 
@@ -45,36 +46,36 @@ export const usePipelineStore = defineStore('pipeline', {
         type: 'filter', 
         name: 'Filter', 
         category: 'functional', 
-        description: 'Keep nodes matching predicate (maintains hierarchy)',
+        description: 'Keep nodes matching predicate',
         terminal: false,
-        hookTypes: [] // No hooks for predicates
+        hookTypes: []
       },
       map: { 
         type: 'map', 
         name: 'Map/Transform', 
         category: 'functional', 
-        description: 'Transform every node with primary transform + optional hooks',
+        description: 'Transform every node',
         terminal: false,
-        hookTypes: ['transform', 'beforeTransform', 'afterTransform'] // Primary transform + hooks
+        hookTypes: ['transform', 'beforeTransform', 'afterTransform']
       },
       select: { 
         type: 'select', 
         name: 'Select', 
         category: 'functional', 
-        description: 'Collect matching nodes (flattened)',
+        description: 'Collect matching nodes',
         terminal: false,
-        hookTypes: [] // No hooks for predicates
+        hookTypes: []
       },
       reduce: { 
         type: 'reduce', 
         name: 'Reduce', 
         category: 'functional', 
-        description: 'Aggregate to single value (simple, no hooks)',
+        description: 'Aggregate to single value',
         terminal: true,
-        hookTypes: [] // No hooks - keep simple
+        hookTypes: []
       },
       
-      // Output operations (support OutputHooks: before/after)
+      // Output operations
       toXml: { 
         type: 'toXml', 
         name: 'To XML DOM', 
@@ -87,7 +88,7 @@ export const usePipelineStore = defineStore('pipeline', {
         type: 'toXmlString', 
         name: 'To XML String', 
         category: 'output', 
-        description: 'Convert to formatted XML string',
+        description: 'Convert to XML string',
         terminal: true,
         hookTypes: ['beforeTransform', 'afterTransform']
       },
@@ -103,7 +104,7 @@ export const usePipelineStore = defineStore('pipeline', {
         type: 'toJsonString', 
         name: 'To JSON String', 
         category: 'output', 
-        description: 'Convert to formatted JSON string',
+        description: 'Convert to JSON string',
         terminal: true,
         hookTypes: ['beforeTransform', 'afterTransform']
       },
@@ -111,7 +112,7 @@ export const usePipelineStore = defineStore('pipeline', {
         type: 'toXnode', 
         name: 'To XNode', 
         category: 'output', 
-        description: 'Convert to XNode array (allows further processing)',
+        description: 'Convert to XNode array',
         terminal: false,
         hookTypes: ['beforeTransform', 'afterTransform']
       }
@@ -120,29 +121,17 @@ export const usePipelineStore = defineStore('pipeline', {
     isProcessing: false,
     error: null,
     
-    // Pipeline-level hooks for logging/monitoring
+    // Pipeline-level hooks - removed logMemory
     enablePipelineHooks: false,
     pipelineHookOptions: {
       logSteps: false,
-      logTiming: false,
-      logMemory: false
+      logTiming: false
     }
   }),
   
   getters: {
-    hasSourceOperation() {
-      return this.steps.some(step => this.availableOperations[step.type]?.category === 'source');
-    },
-    
-    hasOutputOperation() {
-      return this.steps.some(step => 
-        this.availableOperations[step.type]?.category === 'output' ||
-        this.availableOperations[step.type]?.terminal === true
-      );
-    },
-    
     isValidPipeline() {
-      return this.hasSourceOperation && this.hasOutputOperation;
+      return this.sourceOperation.type && this.outputOperation.type;
     },
     
     sourceOperations() {
@@ -161,50 +150,80 @@ export const usePipelineStore = defineStore('pipeline', {
       return Object.entries(this.availableOperations)
         .filter(([_, op]) => op.category === 'output')
         .map(([key, op]) => ({ ...op, value: key }));
+    },
+    
+    // Combine all operations for the pipeline execution
+    allSteps() {
+      return [
+        { id: 'source', ...this.sourceOperation },
+        ...this.functionalSteps,
+        { id: 'output', ...this.outputOperation }
+      ];
     }
   },
   
   actions: {
-    addStep(type, options = {}) {
+    updateSourceOperation(type, options = {}) {
+      this.sourceOperation = {
+        type,
+        options: { ...this.getDefaultOptions(type), ...options }
+      };
+    },
+    
+    updateOutputOperation(type, options = {}) {
+      this.outputOperation = {
+        type,
+        options: { ...this.getDefaultOptions(type), ...options }
+      };
+    },
+    
+    addFunctionalStep(type, position = -1, options = {}) {
       const newStep = {
         id: Date.now(),
         type: type,
         options: { ...this.getDefaultOptions(type), ...options }
       };
       
-      this.steps.push(newStep);
+      if (position === -1) {
+        this.functionalSteps.push(newStep);
+      } else {
+        this.functionalSteps.splice(position, 0, newStep);
+      }
+      
+      return newStep.id;
     },
     
-    removeStep(id) {
-      const index = this.steps.findIndex(s => s.id === id);
+    removeFunctionalStep(id) {
+      const index = this.functionalSteps.findIndex(s => s.id === id);
       if (index >= 0) {
-        this.steps.splice(index, 1);
+        this.functionalSteps.splice(index, 1);
       }
     },
     
-    updateStep(id, options) {
-      const step = this.steps.find(s => s.id === id);
+    updateFunctionalStep(id, options) {
+      const step = this.functionalSteps.find(s => s.id === id);
       if (step) {
         step.options = { ...step.options, ...options };
       }
     },
     
-    moveStep(id, direction) {
-      const index = this.steps.findIndex(s => s.id === id);
+    moveFunctionalStep(id, direction) {
+      const index = this.functionalSteps.findIndex(s => s.id === id);
       if (index < 0) return;
       
       if (direction === 'up' && index > 0) {
-        [this.steps[index], this.steps[index - 1]] = [this.steps[index - 1], this.steps[index]];
-      } else if (direction === 'down' && index < this.steps.length - 1) {
-        [this.steps[index], this.steps[index + 1]] = [this.steps[index + 1], this.steps[index]];
+        [this.functionalSteps[index], this.functionalSteps[index - 1]] = 
+        [this.functionalSteps[index - 1], this.functionalSteps[index]];
+      } else if (direction === 'down' && index < this.functionalSteps.length - 1) {
+        [this.functionalSteps[index], this.functionalSteps[index + 1]] = 
+        [this.functionalSteps[index + 1], this.functionalSteps[index]];
       }
     },
     
-    clearSteps() {
-      this.steps = [
-        { id: Date.now(), type: 'fromXml', options: {} },
-        { id: Date.now() + 1, type: 'toJson', options: {} }
-      ];
+    resetPipeline() {
+      this.sourceOperation = { type: 'fromXml', options: {} };
+      this.outputOperation = { type: 'toJson', options: {} };
+      this.functionalSteps = [];
     },
     
     swapSourceResult() {
@@ -253,7 +272,7 @@ export const usePipelineStore = defineStore('pipeline', {
         }
         
         // Apply each step in the pipeline
-        for (const [index, step] of this.steps.entries()) {
+        for (const step of this.allSteps) {
           builder = this.applyStep(builder, step, { toNumber, toBoolean, regex });
         }
            
@@ -277,32 +296,68 @@ export const usePipelineStore = defineStore('pipeline', {
     },
     
     createPipelineHooks() {
+      let logger;
+      
+      // Compose hooks based on selected options
       const hooks = {};
       
-      if (this.pipelineHookOptions.logSteps) {
-        hooks.beforeStep = (stepName, input) => {
-          console.log(`🚀 [PIPELINE] Starting step: ${stepName}`);
-          console.log(`📥 [PIPELINE] Input type: ${Array.isArray(input) ? 'array' : typeof input}`);
-        };
-        
-        hooks.afterStep = (stepName, output) => {
-          console.log(`✅ [PIPELINE] Completed step: ${stepName}`);
-          console.log(`📤 [PIPELINE] Output type: ${Array.isArray(output) ? 'array' : typeof output}`);
-        };
+      // Determine if we need to import logger
+      if (this.pipelineHookOptions.logSteps || this.pipelineHookOptions.logTiming) {
+        // Import will happen in the hook functions
       }
       
-      if (this.pipelineHookOptions.logTiming) {
-        const originalBefore = hooks.beforeStep;
-        const originalAfter = hooks.afterStep;
-        
-        hooks.beforeStep = (stepName, input) => {
-          console.time(`⏱️  ${stepName}`);
-          if (originalBefore) originalBefore(stepName, input);
+      if (this.pipelineHookOptions.logSteps && this.pipelineHookOptions.logTiming) {
+        // Both logging and timing enabled - compose them
+        hooks.beforeStep = async (stepName, input) => {
+          if (!logger) {
+            const { LoggerFactory } = await import("../../../dist/esm/index.js");
+            logger = LoggerFactory.create('Pipeline');
+          }
+          console.time(`Step: ${stepName}`);
+          logger.info(`Starting step: ${stepName}`, {
+            inputType: Array.isArray(input) ? 'array' : typeof input
+          });
         };
         
-        hooks.afterStep = (stepName, output) => {
-          console.timeEnd(`⏱️  ${stepName}`);
-          if (originalAfter) originalAfter(stepName, output);
+        hooks.afterStep = async (stepName, output) => {
+          if (!logger) {
+            const { LoggerFactory } = await import("../../../dist/esm/index.js");
+            logger = LoggerFactory.create('Pipeline');
+          }
+          console.timeEnd(`Step: ${stepName}`);
+          logger.info(`Completed step: ${stepName}`, {
+            outputType: Array.isArray(output) ? 'array' : typeof output
+          });
+        };
+      } else if (this.pipelineHookOptions.logSteps) {
+        // Only step logging
+        hooks.beforeStep = async (stepName, input) => {
+          if (!logger) {
+            const { LoggerFactory } = await import("../../../dist/esm/index.js");
+            logger = LoggerFactory.create('Pipeline');
+          }
+          logger.info(`Starting step: ${stepName}`, {
+            inputType: Array.isArray(input) ? 'array' : typeof input
+          });
+        };
+        
+        hooks.afterStep = async (stepName, output) => {
+          if (!logger) {
+            const { LoggerFactory } = await import("../../../dist/esm/index.js");
+            logger = LoggerFactory.create('Pipeline');
+          }
+          logger.info(`Completed step: ${stepName}`, {
+            outputType: Array.isArray(output) ? 'array' : typeof output
+          });
+        };
+      } else if (this.pipelineHookOptions.logTiming) {
+        // Only timing
+        hooks.beforeStep = (stepName) => {
+          console.time(`Step: ${stepName}`);
+        };
+        
+        hooks.afterStep = (stepName) => {
+          console.timeEnd(`Step: ${stepName}`);
         };
       }
       
@@ -339,14 +394,12 @@ export const usePipelineStore = defineStore('pipeline', {
         }
           
         case 'map': {
-          // NEW: map(transform, hooks) - transform is primary, hooks are optional
           const mainTransform = this.createTransformerFromConfig(options.transform, transforms);
           const nodeHooks = this.createNodeHooks(options);
           
           if (mainTransform) {
             return builder.map(mainTransform, nodeHooks);
           } else {
-            // Fallback identity transform if no main transform specified
             return builder.map(node => node, nodeHooks);
           }
         }
@@ -367,7 +420,6 @@ export const usePipelineStore = defineStore('pipeline', {
         case 'toJson':
         case 'toJsonString':
         case 'toXnode': {
-          // These are handled by executeTerminalOperation
           return builder;
         }
           
@@ -381,12 +433,10 @@ export const usePipelineStore = defineStore('pipeline', {
       
       const hooks = {};
       
-      // Create beforeTransform hook
       if (options.beforeTransform && this.hasValidTransform(options.beforeTransform)) {
         hooks.beforeTransform = this.createTransformerFromConfig(options.beforeTransform, {});
       }
       
-      // Create afterTransform hook
       if (options.afterTransform && this.hasValidTransform(options.afterTransform)) {
         hooks.afterTransform = this.createTransformerFromConfig(options.afterTransform, {});
       }
@@ -399,12 +449,10 @@ export const usePipelineStore = defineStore('pipeline', {
       
       const hooks = {};
       
-      // Create beforeTransform hook for map
       if (options.beforeTransform && this.hasValidTransform(options.beforeTransform)) {
         hooks.beforeTransform = this.createTransformerFromConfig(options.beforeTransform, {});
       }
       
-      // Create afterTransform hook for map
       if (options.afterTransform && this.hasValidTransform(options.afterTransform)) {
         hooks.afterTransform = this.createTransformerFromConfig(options.afterTransform, {});
       }
@@ -412,24 +460,19 @@ export const usePipelineStore = defineStore('pipeline', {
       return Object.keys(hooks).length > 0 ? hooks : undefined;
     },
     
-    // UPDATED: Multi-transform support
     createTransformerFromConfig(config, transforms) {
       if (!config) return undefined;
       
-      // Handle new multi-transform structure
       if (config.selectedTransforms && Array.isArray(config.selectedTransforms) && config.selectedTransforms.length > 0) {
         return this.createComposedTransformer(config, transforms);
       }
       
-      // Handle legacy single transform structure (for backward compatibility)
       const { transformType, transformOptions, customTransformer } = config;
       
-      // Use custom transformer if provided
       if (customTransformer && customTransformer.trim()) {
         return this.createFunction(customTransformer);
       }
       
-      // Use node transform if specified
       if (transformType && transforms[transformType]) {
         return transforms[transformType](transformOptions || {});
       }
@@ -437,7 +480,6 @@ export const usePipelineStore = defineStore('pipeline', {
       return undefined;
     },
     
-    // NEW: Create composed transformer from multi-transform config
     createComposedTransformer(config, transforms) {
       const { selectedTransforms, transformOrder, globalNodeNames, globalSkipNodes } = config;
       
@@ -445,7 +487,6 @@ export const usePipelineStore = defineStore('pipeline', {
         return undefined;
       }
       
-      // Create individual transform functions
       const transformFunctions = [];
       
       transformOrder.forEach(transformType => {
@@ -498,15 +539,12 @@ export const usePipelineStore = defineStore('pipeline', {
         }
       });
       
-      // Return composed function if we have transforms, undefined otherwise
       if (transformFunctions.length === 0) {
         return undefined;
       } else if (transformFunctions.length === 1) {
         return transformFunctions[0];
       } else {
-        // Create composed transform using a closure that applies transforms in sequence
         return (node) => {
-          // Apply transforms in sequence
           return transformFunctions.reduce((result, transform) => {
             try {
               return transform(result);
@@ -519,20 +557,17 @@ export const usePipelineStore = defineStore('pipeline', {
       }
     },
     
-    // UPDATED: Multi-transform validation
     hasValidTransform(config) {
       if (!config) return false;
       
-      // Handle new multi-transform structure
       if (config.selectedTransforms && Array.isArray(config.selectedTransforms)) {
         if (config.selectedTransforms.length === 0) return false;
         
-        // Check if at least one transform is properly configured
         return config.selectedTransforms.some(transformType => {
           switch (transformType) {
             case 'toBoolean':
             case 'toNumber':
-              return true; // These have defaults
+              return true;
               
             case 'regex':
               return config.transforms?.regex?.pattern && 
@@ -547,25 +582,15 @@ export const usePipelineStore = defineStore('pipeline', {
         });
       }
       
-      // Handle legacy structure
       return !!(config.transformType || (config.customTransformer && config.customTransformer.trim()));
     },
     
     async executeTerminalOperation(builder) {
-      // Find the last terminal operation in the pipeline
-      const terminalStep = [...this.steps].reverse().find(step => 
-        this.availableOperations[step.type]?.terminal === true ||
-        this.availableOperations[step.type]?.category === 'output'
-      );
+      const { type, options } = this.outputOperation;
       
-      if (!terminalStep) {
-        throw new Error('No terminal operation found');
-      }
+      const outputHooks = this.createOutputHooks(options);
       
-      // Create output hooks if configured
-      const outputHooks = this.createOutputHooks(terminalStep.options);
-      
-      switch (terminalStep.type) {
+      switch (type) {
         case 'toXml':
           return '[XML DOM Document]';
         case 'toXmlString':
@@ -581,7 +606,7 @@ export const usePipelineStore = defineStore('pipeline', {
         case 'reduce':
           return builder;
         default:
-          throw new Error(`Unknown terminal operation: ${terminalStep.type}`);
+          throw new Error(`Unknown terminal operation: ${type}`);
       }
     },
     
@@ -590,12 +615,10 @@ export const usePipelineStore = defineStore('pipeline', {
       
       const hooks = {};
       
-      // Create beforeTransform hook
       if (options.beforeTransform && this.hasValidTransform(options.beforeTransform)) {
         hooks.beforeTransform = this.createTransformerFromConfig(options.beforeTransform, {});
       }
       
-      // Create afterTransform hook
       if (options.afterTransform && this.hasValidTransform(options.afterTransform)) {
         hooks.afterTransform = this.createTransformerFromConfig(options.afterTransform, {});
       }
@@ -616,7 +639,7 @@ export const usePipelineStore = defineStore('pipeline', {
         return new Function('return ' + cleanFunctionString)();
       } catch (err) {
         console.error('Error creating function from string:', err);
-        return () => true; // Fallback
+        return () => true;
       }
     },
     
@@ -628,7 +651,6 @@ export const usePipelineStore = defineStore('pipeline', {
       }
     },
     
-    // UPDATED: Multi-transform default options
     getDefaultOptions(type) {
       const operation = this.availableOperations[type];
       
@@ -637,7 +659,6 @@ export const usePipelineStore = defineStore('pipeline', {
       const hookTypes = operation.hookTypes || [];
       const defaultOptions = {};
       
-      // Create default hook structure based on operation type
       if (hookTypes.includes('beforeTransform')) {
         defaultOptions.beforeTransform = this.getDefaultTransformConfig();
       }
@@ -646,7 +667,6 @@ export const usePipelineStore = defineStore('pipeline', {
         defaultOptions.afterTransform = this.getDefaultTransformConfig();
       }
       
-      // Special defaults for specific operation types
       switch (type) {
         case 'filter':
         case 'select':
@@ -654,7 +674,6 @@ export const usePipelineStore = defineStore('pipeline', {
           break;
           
         case 'map':
-          // For map, we also need the main transform with new multi-transform structure
           defaultOptions.transform = this.getDefaultTransformConfig();
           break;
           
@@ -667,7 +686,6 @@ export const usePipelineStore = defineStore('pipeline', {
       return defaultOptions;
     },
     
-    // NEW: Get default transform config structure
     getDefaultTransformConfig() {
       return {
         selectedTransforms: [],
@@ -708,25 +726,22 @@ export const usePipelineStore = defineStore('pipeline', {
       code += `const config = /* your configuration */;\n`;
       code += `const source = /* your source content */;\n\n`;
       
-      // Add pipeline hooks if enabled
       if (this.enablePipelineHooks) {
         code += this.generatePipelineHooksCode() + '\n';
       }
       
-      // Add transformer function declarations
       const transformerDeclarations = this.generateTransformerDeclarations();
       if (transformerDeclarations) {
         code += transformerDeclarations + '\n';
       }
       
-      // Create XJX instance
       if (this.enablePipelineHooks) {
         code += `const result = new XJX(config, pipelineHooks)`;
       } else {
         code += `const result = new XJX(config)`;
       }
       
-      for (const step of this.steps) {
+      for (const step of this.allSteps) {
         code += this.generateStepCode(step);
       }
       
@@ -737,37 +752,42 @@ export const usePipelineStore = defineStore('pipeline', {
     generatePipelineHooksCode() {
       const hooks = [];
       
-      if (this.pipelineHookOptions.logSteps) {
-        hooks.push(`  beforeStep: (stepName, input) => console.log(\`🚀 Starting: \${stepName}\`)`);
-        hooks.push(`  afterStep: (stepName, output) => console.log(\`✅ Completed: \${stepName}\`)`);
+      if (this.pipelineHookOptions.logSteps && this.pipelineHookOptions.logTiming) {
+        hooks.push(`  beforeStep: (stepName, input) => { console.time(\`Step: \${stepName}\`); logger.info(\`Starting: \${stepName}\`); }`);
+        hooks.push(`  afterStep: (stepName, output) => { console.timeEnd(\`Step: \${stepName}\`); logger.info(\`Completed: \${stepName}\`); }`);
+      } else if (this.pipelineHookOptions.logSteps) {
+        hooks.push(`  beforeStep: (stepName, input) => logger.info(\`Starting: \${stepName}\`)`);
+        hooks.push(`  afterStep: (stepName, output) => logger.info(\`Completed: \${stepName}\`)`);
+      } else if (this.pipelineHookOptions.logTiming) {
+        hooks.push(`  beforeStep: (stepName) => console.time(\`Step: \${stepName}\`)`);
+        hooks.push(`  afterStep: (stepName) => console.timeEnd(\`Step: \${stepName}\`)`);
       }
       
-      if (this.pipelineHookOptions.logTiming) {
-        hooks.push(`  beforeStep: (stepName) => console.time(stepName)`);
-        hooks.push(`  afterStep: (stepName) => console.timeEnd(stepName)`);
+      let code = '';
+      if (hooks.length > 0) {
+        if (this.pipelineHookOptions.logSteps) {
+          code += `const { LoggerFactory } = require('xjx');\n`;
+          code += `const logger = LoggerFactory.create('Pipeline');\n`;
+        }
+        code += `const pipelineHooks = {\n${hooks.join(',\n')}\n};\n`;
       }
       
-      return hooks.length > 0 
-        ? `const pipelineHooks = {\n${hooks.join(',\n')}\n};\n`
-        : '';
+      return code;
     },
     
-    // UPDATED: Multi-transform declarations
     generateTransformerDeclarations() {
       const declarations = [];
       const usedNames = new Set();
       
-      this.steps.forEach((step, stepIndex) => {
+      this.allSteps.forEach((step) => {
         const { options } = step;
         
-        // Check for transformers in hooks
         ['beforeTransform', 'transform', 'afterTransform'].forEach(hookName => {
           if (options[hookName] && this.hasValidTransform(options[hookName])) {
             const config = options[hookName];
             
-            // Handle multi-transform structure
             if (config.selectedTransforms && config.transformOrder) {
-              config.transformOrder.forEach((transformType, transformIndex) => {
+              config.transformOrder.forEach((transformType) => {
                 const baseName = `${transformType}Fn`;
                 let varName = baseName;
                 let counter = 1;
@@ -784,7 +804,6 @@ export const usePipelineStore = defineStore('pipeline', {
                 }
               });
               
-              // Generate composed declaration if multiple transforms
               if (config.transformOrder.length > 1) {
                 const composedName = `${hookName}ComposedFn`;
                 let composedVarName = composedName;
@@ -799,29 +818,9 @@ export const usePipelineStore = defineStore('pipeline', {
                 const transformRefs = config.transformOrder.map(type => `${type}Fn`).join(', ');
                 declarations.push(`const ${composedVarName} = compose(${transformRefs});`);
                 
-                // Store for later use
                 config._generatedVarName = composedVarName;
               } else if (config.transformOrder.length === 1) {
-                // Single transform, use it directly
                 config._generatedVarName = `${config.transformOrder[0]}Fn`;
-              }
-            }
-            // Handle legacy structure
-            else {
-              const baseName = `${hookName}Fn`;
-              let varName = baseName;
-              let counter = 1;
-              
-              while (usedNames.has(varName)) {
-                varName = `${baseName}${counter}`;
-                counter++;
-              }
-              usedNames.add(varName);
-              
-              const decl = this.generateTransformerDeclaration(varName, config);
-              if (decl && !declarations.some(d => d.includes(varName))) {
-                declarations.push(decl);
-                config._generatedVarName = varName;
               }
             }
           }
@@ -831,7 +830,6 @@ export const usePipelineStore = defineStore('pipeline', {
       return declarations.length > 0 ? declarations.join('\n') : '';
     },
     
-    // NEW: Generate single transformer declaration
     generateSingleTransformerDeclaration(varName, transformType, config) {
       const transformConfig = config.transforms?.[transformType];
       if (!transformConfig) return '';
@@ -842,7 +840,6 @@ export const usePipelineStore = defineStore('pipeline', {
         case 'toBoolean':
         case 'toNumber':
           cleanOptions = { ...transformConfig };
-          // Add global node filtering
           if (config.globalNodeNames?.length > 0) {
             cleanOptions.nodeNames = config.globalNodeNames;
           }
@@ -878,7 +875,6 @@ export const usePipelineStore = defineStore('pipeline', {
           return '';
       }
       
-      // Clean up undefined values
       Object.keys(cleanOptions).forEach(key => {
         if (cleanOptions[key] === undefined || cleanOptions[key] === '' || 
             (Array.isArray(cleanOptions[key]) && cleanOptions[key].length === 0)) {
@@ -892,28 +888,6 @@ export const usePipelineStore = defineStore('pipeline', {
       return optionsStr ? 
         `const ${varName} = ${transformType}(${optionsStr});` :
         `const ${varName} = ${transformType}();`;
-    },
-    
-    // Legacy transformer declaration (for backward compatibility)
-    generateTransformerDeclaration(varName, config) {
-      const { transformType, transformOptions } = config;
-      
-      if (!transformType) return '';
-      
-      const cleanOptions = { ...transformOptions };
-      Object.keys(cleanOptions).forEach(key => {
-        if (cleanOptions[key] === undefined || cleanOptions[key] === '') {
-          delete cleanOptions[key];
-        }
-      });
-      
-      const optionsStr = Object.keys(cleanOptions).length > 0 
-        ? JSON.stringify(cleanOptions) 
-        : '';
-      
-      return optionsStr 
-        ? `const ${varName} = ${transformType}(${optionsStr});`
-        : `const ${varName} = ${transformType}();`;
     },
     
     generateStepCode(step) {
@@ -976,29 +950,24 @@ export const usePipelineStore = defineStore('pipeline', {
       return hooks.length > 0 ? `{${hooks.join(', ')}}` : '';
     },
     
-    // UPDATED: Multi-transform code generation
     generateTransformCode(config) {
       if (!config) return '';
       
-      // Check if we have a generated variable name (for composed transforms)
       if (config._generatedVarName) {
         return config._generatedVarName;
       }
       
-      // Handle multi-transform structure
       if (config.selectedTransforms && config.transformOrder) {
         if (config.transformOrder.length === 0) {
           return '';
         } else if (config.transformOrder.length === 1) {
           return `${config.transformOrder[0]}Fn`;
         } else {
-          // This should have been handled by _generatedVarName
           const transformRefs = config.transformOrder.map(type => `${type}Fn`).join(', ');
           return `compose(${transformRefs})`;
         }
       }
       
-      // Handle legacy structure
       if (config.transformType) {
         const optionsStr = this.generateOptionsString(config.transformOptions);
         return optionsStr ? `${config.transformType}(${optionsStr})` : `${config.transformType}()`;

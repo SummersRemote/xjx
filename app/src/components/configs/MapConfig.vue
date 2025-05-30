@@ -1,6 +1,33 @@
-<!-- components/configs/MapConfig.vue - Updated for multi-transform support -->
+<!-- components/configs/MapConfig.vue - Updated with collapsible help -->
 <template>
   <v-container>
+    <!-- Help Section -->
+    <v-expansion-panels variant="accordion" class="mb-4">
+      <v-expansion-panel>
+        <v-expansion-panel-title class="text-caption">
+          <v-icon icon="mdi-help-circle" size="small" class="me-2"></v-icon>
+          Help
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <v-alert type="info" variant="text" density="compact">
+            <strong>Map Operation Flow:</strong><br>
+            1. <span class="text-primary">Before Hook</span>: Prepare node for transformation<br>
+            2. <span class="text-warning">Primary Transform Pipeline</span>: Main transformation logic (required)<br>
+            3. <span class="text-success">After Hook</span>: Finalize or validate transformed node<br>
+            <br>
+            <strong>API:</strong> <code>map(primaryTransformPipeline, { beforeTransform?, afterTransform? })</code><br>
+            <br>
+            <strong>Multi-Transform Pipeline Examples:</strong><br>
+            - <em>Currency Processing</em>: <code>regex(/[$,]/g, '') → toNumber({ precision: 2 })</code><br>
+            - <em>Boolean Flags</em>: <code>toBoolean() → custom(node => ({...node, processed: true}))</code><br>
+            - <em>Data Cleanup</em>: <code>regex(/\s+/g, ' ') → toNumber() → toBoolean()</code><br>
+            <br>
+            Multiple transforms are automatically composed using the <code>compose()</code> function.
+          </v-alert>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+    </v-expansion-panels>
+
     <!-- Primary Transform Configuration -->
     <v-row dense>
       <v-col cols="12">
@@ -80,60 +107,6 @@
             @update="updateAfterTransform"
           />
         </v-card>
-      </v-col>
-    </v-row>
-    
-    <v-row dense>
-      <v-col cols="12">
-        <v-alert
-          type="info"
-          variant="tonal"
-          density="compact"
-          icon="mdi-information-outline"
-          class="text-caption mt-3"
-        >
-          <strong>Map Operation Flow:</strong><br>
-          1. <span class="text-primary">Before Hook</span>: Prepare node for transformation<br>
-          2. <span class="text-warning">Primary Transform Pipeline</span>: Main transformation logic (required)<br>
-          3. <span class="text-success">After Hook</span>: Finalize or validate transformed node<br>
-          <br>
-          <strong>API:</strong> <code>map(primaryTransformPipeline, { beforeTransform?, afterTransform? })</code>
-        </v-alert>
-      </v-col>
-    </v-row>
-    
-    <v-row dense>
-      <v-col cols="12">
-        <v-alert
-          type="success"
-          variant="tonal"
-          density="compact"
-          icon="mdi-lightbulb-outline"
-          class="text-caption mt-3"
-        >
-          <strong>Multi-Transform Pipeline Examples:</strong><br>
-          - <em>Currency Processing</em>: <code>regex(/[$,]/g, '') → toNumber({ precision: 2 })</code><br>
-          - <em>Boolean Flags</em>: <code>toBoolean() → custom(node => ({...node, processed: true}))</code><br>
-          - <em>Data Cleanup</em>: <code>regex(/\s+/g, ' ') → toNumber() → toBoolean()</code><br>
-          <br>
-          <strong>Global Node Filtering:</strong> Apply the entire pipeline only to specific nodes or skip certain nodes.
-        </v-alert>
-      </v-col>
-    </v-row>
-    
-    <v-row dense>
-      <v-col cols="12">
-        <v-alert
-          type="info"
-          variant="tonal"
-          density="compact"
-          icon="mdi-api"
-          class="text-caption mt-3"
-        >
-          <strong>Transform Composition:</strong><br>
-          Multiple transforms are automatically composed using the <code>compose()</code> function.
-          Each transform receives the output of the previous transform, allowing for powerful data pipelines.
-        </v-alert>
       </v-col>
     </v-row>
   </v-container>

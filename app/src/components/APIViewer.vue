@@ -1,4 +1,4 @@
-<!-- components/APIViewer.vue - Updated for new hook system -->
+<!-- components/APIViewer.vue - Updated for new pipeline structure -->
 <template>
   <v-dialog
     v-model="dialog"
@@ -35,7 +35,7 @@
         >
           <div class="font-weight-bold">Invalid Pipeline</div>
           <div class="text-caption">
-            Pipeline must start with a source operation and end with an output operation to generate valid code.
+            Pipeline must have both source and output operations to generate valid code.
           </div>
         </v-alert>
         
@@ -46,9 +46,9 @@
           class="mb-4"
           icon="mdi-information"
         >
-          <div class="font-weight-bold">New Hook System</div>
+          <div class="font-weight-bold">XJX Logger Integration</div>
           <div class="text-caption">
-            Generated code uses the new hook system with proper timing. Transform functions now receive fully populated nodes.
+            Generated code uses XJX's LoggerFactory for professional pipeline logging with proper timing.
           </div>
         </v-alert>
         
@@ -60,16 +60,16 @@
         <!-- Usage Instructions -->
         <v-card variant="outlined" class="mt-4">
           <v-card-title class="text-subtitle-1">
-            New Hook System Usage
+            Usage Instructions
           </v-card-title>
           <v-card-text class="text-body-2">
             <ol class="pl-4">
               <li>Install the XJX library: <code>npm install xjx</code></li>
-              <li>Import the new hook system: <code>import { XJX, toNumber, toBoolean, regex } from 'xjx';</code></li>
-              <li>Use the updated API signatures:
+              <li>Import the hook system: <code>import { XJX, toNumber, toBoolean, regex, LoggerFactory } from 'xjx';</code></li>
+              <li>Use the pipeline structure:
                 <ul class="mt-2">
                   <li><strong>Source operations:</strong> <code>fromXml(source, hooks?)</code></li>
-                  <li><strong>Map operations:</strong> <code>map(transform, hooks?)</code></li>
+                  <li><strong>Functional operations:</strong> <code>map(transform, hooks?)</code>, <code>filter(predicate)</code></li>
                   <li><strong>Output operations:</strong> <code>toJson(hooks?)</code></li>
                 </ul>
               </li>
@@ -146,27 +146,12 @@ const dialog = ref(false);
 const copySuccess = ref(false);
 
 const pipelineStore = usePipelineStore();
-const { steps, availableOperations, isValidPipeline } = storeToRefs(pipelineStore);
+const { isValidPipeline } = storeToRefs(pipelineStore);
 
 // Generated fluent API code
 const fluentApiCode = computed(() => {
   return pipelineStore.generateFluentAPI();
 });
-
-// Helper functions
-const getOperationName = (type) => {
-  return availableOperations.value[type]?.name || type;
-};
-
-const getStepColor = (type) => {
-  const category = availableOperations.value[type]?.category;
-  switch (category) {
-    case 'source': return 'blue';
-    case 'functional': return 'purple';  
-    case 'output': return 'green';
-    default: return 'grey';
-  }
-};
 
 const copyAPI = () => {
   navigator.clipboard.writeText(fluentApiCode.value);

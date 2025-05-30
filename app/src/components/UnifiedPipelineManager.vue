@@ -1,4 +1,4 @@
-<!-- components/UnifiedPipelineManager.vue - Updated for new hook system -->
+<!-- components/UnifiedPipelineManager.vue - Redesigned with fixed source/output -->
 <template>
   <v-card>
     <v-card-title class="d-flex align-center">
@@ -10,7 +10,7 @@
       <v-btn
         :color="enablePipelineHooks ? 'primary' : 'grey'"
         variant="outlined"
-        density="comfortable"
+        density="compact"
         @click="togglePipelineHooks"
         class="me-2"
       >
@@ -21,7 +21,7 @@
       <v-btn 
         color="error" 
         variant="text" 
-        density="comfortable" 
+        density="compact" 
         @click="resetPipeline"
       >
         Reset
@@ -38,7 +38,7 @@
           </v-card-title>
           <v-card-text>
             <v-row dense>
-              <v-col cols="12" sm="4">
+              <v-col cols="12" sm="6">
                 <v-switch
                   v-model="pipelineHookOptions.logSteps"
                   label="Log Steps"
@@ -47,19 +47,10 @@
                   @update:model-value="updatePipelineHooks"
                 ></v-switch>
               </v-col>
-              <v-col cols="12" sm="4">
+              <v-col cols="12" sm="6">
                 <v-switch
                   v-model="pipelineHookOptions.logTiming"
                   label="Log Timing"
-                  density="compact"
-                  hide-details
-                  @update:model-value="updatePipelineHooks"
-                ></v-switch>
-              </v-col>
-              <v-col cols="12" sm="4">
-                <v-switch
-                  v-model="pipelineHookOptions.logMemory"
-                  label="Log Memory"
                   density="compact"
                   hide-details
                   @update:model-value="updatePipelineHooks"
@@ -72,7 +63,7 @@
               density="compact"
               class="mt-2"
             >
-              Pipeline hooks provide cross-cutting concerns like logging, timing, and monitoring across all operations.
+              Pipeline hooks provide logging and timing across all operations.
             </v-alert>
           </v-card-text>
         </v-card>
@@ -80,174 +71,252 @@
     </v-expand-transition>
     
     <v-card-text>
-      <!-- Add Operation Controls -->
-      <v-row>
-        <v-col cols="12" sm="8">
-          <v-select
-            v-model="selectedOperation"
-            :items="operationItems"
-            label="Add Operation"
-            density="comfortable"
-            variant="outlined"
-            item-title="text"
-            item-value="value"
-            return-object
-          >
-            <template v-slot:item="{ item, props }">
-              <v-list-subheader v-if="item.raw.header">{{ item.raw.header }}</v-list-subheader>
-              <v-divider v-else-if="item.raw.divider" class="my-2"></v-divider>
-              <v-list-item v-else v-bind="props">
-                <template v-slot:subtitle>
-                  <div class="d-flex align-center">
-                    {{ item.raw.subtitle }}
-                    <v-spacer></v-spacer>
-                    <v-chip
-                      v-if="item.raw.hookTypes && item.raw.hookTypes.length > 0"
-                      size="x-small"
-                      color="info"
-                      class="ml-2"
-                    >
-                      {{ item.raw.hookTypes.length }} hook{{ item.raw.hookTypes.length > 1 ? 's' : '' }}
-                    </v-chip>
-                  </div>
-                </template>
-              </v-list-item>
-            </template>
-          </v-select>
-        </v-col>
-        <v-col cols="12" sm="4">
-          <v-btn
-            color="primary"
-            block
-            @click="addOperation"
-            :disabled="!isValidOperationSelection"
-          >
-            Add Operation
-          </v-btn>
-        </v-col>
-      </v-row>
-      
       <!-- Pipeline Validation Alert -->
       <v-alert
         v-if="!isValidPipeline"
         type="warning"
         variant="tonal"
-        class="mt-4"
+        class="mb-4"
         icon="mdi-alert"
       >
-        <div class="font-weight-bold">Invalid Pipeline</div>
+        <div class="font-weight-bold">Incomplete Pipeline</div>
         <div class="text-caption">
-          Pipeline must start with a source operation (fromXml, fromJson) and end with an output operation (toXml, toJson, etc.)
+          Select both source and output operations to create a valid pipeline.
         </div>
       </v-alert>
       
-      <!-- Pipeline Steps -->
-      <div class="mt-4">
-        <v-list 
-          lines="three"
-          class="pipeline-list bg-grey-lighten-5 rounded"
-        >
-          <v-list-item 
-            v-for="(step, index) in steps" 
-            :key="step.id"
-            class="pipeline-step"
-          >
-            <template v-slot:prepend>
-              <v-avatar
-                :color="getStepColor(step.type)"
+      <!-- Fixed Source Row -->
+      <v-card variant="outlined" class="mb-3" color="blue">
+        <v-card-title class="text-subtitle-1 pa-3 d-flex align-center">
+          <v-chip color="blue" size="small" class="me-2">SOURCE</v-chip>
+          
+          <!-- Source Selection (replaces title text) -->
+          <v-select
+            :model-value="sourceOperation.type"
+            :items="sourceOperations"
+            item-title="name"
+            item-value="value"
+            density="compact"
+            variant="outlined"
+            hide-details
+            style="max-width: 200px"
+            @update:model-value="updateSourceOperation"
+          ></v-select>
+          
+          <v-spacer></v-spacer>
+          
+          <!-- Add Below Menu -->
+          <v-menu>
+            <template v-slot:activator="{ props }">
+              <v-btn
+                icon="mdi-plus"
                 size="small"
-                class="me-3"
-              >
-                <span class="text-caption font-weight-bold">{{ index + 1 }}</span>
-              </v-avatar>
+                variant="text"
+                v-bind="props"
+              ></v-btn>
             </template>
-
-            <v-list-item-title class="d-flex align-center">
-              <v-chip
-                :color="getCategoryColor(step.type)"
-                size="small"
-                class="me-2"
+            <v-list density="compact">
+              <v-list-subheader>Add Below</v-list-subheader>
+              <v-list-item
+                v-for="op in functionalOperations"
+                :key="op.value"
+                @click="addFunctionalStep(op.value, 0)"
               >
-                {{ getCategoryLabel(step.type) }}
-              </v-chip>
-              <strong>{{ getOperationName(step.type) }}</strong>
-              
-              <!-- Hook Indicators -->
-              <div class="ml-2" v-if="getHookTypes(step.type).length > 0">
-                <v-chip
-                  v-for="hookType in getHookTypes(step.type)"
-                  :key="hookType"
-                  size="x-small"
-                  variant="outlined"
-                  :color="getHookTypeColor(hookType)"
-                  class="me-1"
-                >
-                  {{ getHookTypeLabel(hookType) }}
-                </v-chip>
-              </div>
-            </v-list-item-title>
-
-            <v-list-item-subtitle>
-              {{ getOperationDescription(step.type) }}
-            </v-list-item-subtitle>
-
-            <!-- Step Configuration -->
-            <div v-if="hasConfiguration(step.type)" class="mt-2">
-              <v-expansion-panels variant="accordion">
-                <v-expansion-panel>
-                  <v-expansion-panel-title class="text-caption">
-                    Configuration
-                  </v-expansion-panel-title>
-                  <v-expansion-panel-text>
-                    <component 
-                      :is="getConfigComponent(step.type)"
-                      :value="step.options"
-                      @update="updateStepOptions(step.id, $event)"
-                    />
-                  </v-expansion-panel-text>
-                </v-expansion-panel>
-              </v-expansion-panels>
+                <v-list-item-title>{{ op.name }}</v-list-item-title>
+                <v-list-item-subtitle>{{ op.description }}</v-list-item-subtitle>
+              </v-list-item>
+              <v-divider></v-divider>
+              <v-list-item @click="addFunctionalStep('toXnode', 0)">
+                <v-list-item-title>To XNode</v-list-item-title>
+                <v-list-item-subtitle>Convert to XNode array</v-list-item-subtitle>
+              </v-list-item>
+            </v-list>
+          </v-menu>
+        </v-card-title>
+        
+        <v-card-text class="pt-0">
+          <v-expand-transition>
+            <div v-if="sourceOperation.type">
+              <SourceConfig
+                :value="sourceOperation.options"
+                @update="updateSourceOptions"
+              />
             </div>
-
-            <template v-slot:append>
-              <div class="d-flex align-center">
-                <v-btn 
-                  icon="mdi-arrow-up" 
-                  size="small"
-                  variant="text"
-                  class="me-1"
-                  :disabled="index === 0"
-                  @click.stop="moveStep(step.id, 'up')" 
-                ></v-btn>
-                <v-btn 
-                  icon="mdi-arrow-down" 
-                  size="small"
-                  variant="text"
-                  class="me-1"
-                  :disabled="index === steps.length - 1"
-                  @click.stop="moveStep(step.id, 'down')" 
-                ></v-btn>
-                <v-btn 
-                  icon="mdi-delete" 
-                  size="small"
-                  color="error"
-                  variant="text"
-                  @click.stop="removeStep(step.id)"
-                ></v-btn>
-              </div>
-            </template>
+          </v-expand-transition>
+        </v-card-text>
+      </v-card>
+      
+      <!-- Dynamic Functional Steps -->
+      <div v-for="(step, index) in functionalSteps" :key="step.id" class="mb-3">
+        <v-card variant="outlined" color="purple">
+          <v-card-title class="text-subtitle-1 pa-3 d-flex align-center">
+            <v-chip color="purple" size="small" class="me-2">{{ index + 1 }}</v-chip>
+            {{ getOperationName(step.type) }}
+            <v-spacer></v-spacer>
             
-            <v-divider v-if="index < steps.length - 1" class="mt-2"></v-divider>
-          </v-list-item>
-        </v-list>
+            <!-- Step Controls -->
+            <div class="d-flex align-center">
+              <!-- Add Above Menu -->
+              <v-menu>
+                <template v-slot:activator="{ props }">
+                  <v-btn
+                    icon="mdi-plus-circle-outline"
+                    size="small"
+                    variant="text"
+                    v-bind="props"
+                    class="me-1"
+                  ></v-btn>
+                </template>
+                <v-list density="compact">
+                  <v-list-subheader>Add Above</v-list-subheader>
+                  <v-list-item
+                    v-for="op in functionalOperations"
+                    :key="op.value"
+                    @click="addFunctionalStep(op.value, index)"
+                  >
+                    <v-list-item-title>{{ op.name }}</v-list-item-title>
+                  </v-list-item>
+                  <v-divider></v-divider>
+                  <v-list-item @click="addFunctionalStep('toXnode', index)">
+                    <v-list-item-title>To XNode</v-list-item-title>
+                  </v-list-item>
+                </v-list>
+              </v-menu>
+              
+              <!-- Add Below Menu -->
+              <v-menu>
+                <template v-slot:activator="{ props }">
+                  <v-btn
+                    icon="mdi-plus-circle"
+                    size="small"
+                    variant="text"
+                    v-bind="props"
+                    class="me-1"
+                  ></v-btn>
+                </template>
+                <v-list density="compact">
+                  <v-list-subheader>Add Below</v-list-subheader>
+                  <v-list-item
+                    v-for="op in functionalOperations"
+                    :key="op.value"
+                    @click="addFunctionalStep(op.value, index + 1)"
+                  >
+                    <v-list-item-title>{{ op.name }}</v-list-item-title>
+                  </v-list-item>
+                  <v-divider></v-divider>
+                  <v-list-item @click="addFunctionalStep('toXnode', index + 1)">
+                    <v-list-item-title>To XNode</v-list-item-title>
+                  </v-list-item>
+                </v-list>
+              </v-menu>
+              
+              <!-- Move Up -->
+              <v-btn 
+                icon="mdi-arrow-up" 
+                size="small"
+                variant="text"
+                class="me-1"
+                :disabled="index === 0"
+                @click="moveFunctionalStep(step.id, 'up')" 
+              ></v-btn>
+              
+              <!-- Move Down -->
+              <v-btn 
+                icon="mdi-arrow-down" 
+                size="small"
+                variant="text"
+                class="me-1"
+                :disabled="index === functionalSteps.length - 1"
+                @click="moveFunctionalStep(step.id, 'down')" 
+              ></v-btn>
+              
+              <!-- Delete -->
+              <v-btn 
+                icon="mdi-delete" 
+                size="small"
+                color="error"
+                variant="text"
+                @click="removeFunctionalStep(step.id)"
+              ></v-btn>
+            </div>
+          </v-card-title>
+          
+          <v-card-text class="pt-0">
+            <component 
+              :is="getConfigComponent(step.type)"
+              :value="step.options"
+              @update="updateFunctionalStepOptions(step.id, $event)"
+            />
+          </v-card-text>
+        </v-card>
       </div>
-
+      
+      <!-- Fixed Output Row -->
+      <v-card variant="outlined" color="green">
+        <v-card-title class="text-subtitle-1 pa-3 d-flex align-center">
+          <v-chip color="green" size="small" class="me-2">OUTPUT</v-chip>
+          
+          <!-- Output Selection (replaces title text) -->
+          <v-select
+            :model-value="outputOperation.type"
+            :items="outputOperations"
+            item-title="name"
+            item-value="value"
+            density="compact"
+            variant="outlined"
+            hide-details
+            style="max-width: 200px"
+            @update:model-value="updateOutputOperation"
+          ></v-select>
+          
+          <v-spacer></v-spacer>
+          
+          <!-- Add Above Menu -->
+          <v-menu>
+            <template v-slot:activator="{ props }">
+              <v-btn
+                icon="mdi-plus"
+                size="small"
+                variant="text"
+                v-bind="props"
+              ></v-btn>
+            </template>
+            <v-list density="compact">
+              <v-list-subheader>Add Above</v-list-subheader>
+              <v-list-item
+                v-for="op in functionalOperations"
+                :key="op.value"
+                @click="addFunctionalStep(op.value, -1)"
+              >
+                <v-list-item-title>{{ op.name }}</v-list-item-title>
+                <v-list-item-subtitle>{{ op.description }}</v-list-item-subtitle>
+              </v-list-item>
+              <v-divider></v-divider>
+              <v-list-item @click="addFunctionalStep('toXnode', -1)">
+                <v-list-item-title>To XNode</v-list-item-title>
+                <v-list-item-subtitle>Convert to XNode array</v-list-item-subtitle>
+              </v-list-item>
+            </v-list>
+          </v-menu>
+        </v-card-title>
+        
+        <v-card-text class="pt-0">
+          <v-expand-transition>
+            <div v-if="outputOperation.type">
+              <SourceConfig
+                :value="outputOperation.options"
+                @update="updateOutputOptions"
+              />
+            </div>
+          </v-expand-transition>
+        </v-card-text>
+      </v-card>
     </v-card-text>
   </v-card>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import { usePipelineStore } from '../stores/pipelineStore';
 import { storeToRefs } from 'pinia';
 
@@ -260,140 +329,31 @@ import SourceConfig from './configs/SourceConfig.vue';
 
 const pipelineStore = usePipelineStore();
 const { 
-  steps, 
+  sourceOperation,
+  outputOperation,
+  functionalSteps,
   availableOperations,
   isValidPipeline,
-  sourceOperations,
   functionalOperations,
   outputOperations,
   enablePipelineHooks,
   pipelineHookOptions
 } = storeToRefs(pipelineStore);
 
-const selectedOperation = ref(null);
-
-// Check if the selected operation is valid
-const isValidOperationSelection = computed(() => {
-  return selectedOperation.value && 
-         selectedOperation.value.value &&
-         !selectedOperation.value.header && 
-         !selectedOperation.value.divider;
-});
-
-// Create operation items for dropdown grouped by category
-const operationItems = computed(() => {
-  const items = [];
-  
-  // Source operations
-  items.push({ header: 'Source Operations' });
-  sourceOperations.value.forEach(op => {
-    items.push({
-      text: op.name,
-      value: op.value,
-      title: op.name,
-      subtitle: op.description,
-      hookTypes: op.hookTypes || []
-    });
-  });
-  
-  // Functional operations
-  items.push({ divider: true });
-  items.push({ header: 'Functional Operations' });
-  functionalOperations.value.forEach(op => {
-    items.push({
-      text: op.name,
-      value: op.value,
-      title: op.name,
-      subtitle: op.description,
-      hookTypes: op.hookTypes || []
-    });
-  });
-  
-  // Output operations
-  items.push({ divider: true });
-  items.push({ header: 'Output Operations' });
-  outputOperations.value.forEach(op => {
-    items.push({
-      text: op.name,
-      value: op.value,
-      title: op.name,
-      subtitle: op.description,
-      hookTypes: op.hookTypes || []
-    });
-  });
-  
-  return items;
-});
+// Source operations for the fixed source row
+const sourceOperations = [
+  { name: 'From XML', value: 'fromXml' },
+  { name: 'From JSON', value: 'fromJson' },
+  { name: 'From XNode', value: 'fromXnode' }
+];
 
 // Helper functions
 const getOperationName = (type) => {
   return availableOperations.value[type]?.name || type;
 };
 
-const getOperationDescription = (type) => {
-  return availableOperations.value[type]?.description || '';
-};
-
-const getHookTypes = (type) => {
-  return availableOperations.value[type]?.hookTypes || [];
-};
-
-const getHookTypeLabel = (hookType) => {
-  switch (hookType) {
-    case 'beforeTransform': return 'before';
-    case 'afterTransform': return 'after';
-    default: return hookType;
-  }
-};
-
-const getHookTypeColor = (hookType) => {
-  switch (hookType) {
-    case 'beforeTransform': return 'primary';
-    case 'afterTransform': return 'success';
-    default: return 'info';
-  }
-};
-
-const getCategoryColor = (type) => {
-  const category = availableOperations.value[type]?.category;
-  switch (category) {
-    case 'source': return 'blue';
-    case 'functional': return 'purple';
-    case 'output': return 'green';
-    default: return 'grey';
-  }
-};
-
-const getCategoryLabel = (type) => {
-  const category = availableOperations.value[type]?.category;
-  switch (category) {
-    case 'source': return 'SRC';
-    case 'functional': return 'FUNC';
-    case 'output': return 'OUT';
-    default: return 'OP';
-  }
-};
-
-const getStepColor = (type) => {
-  const category = availableOperations.value[type]?.category;
-  switch (category) {
-    case 'source': return 'blue';
-    case 'functional': return 'purple';  
-    case 'output': return 'green';
-    default: return 'grey';
-  }
-};
-
-const hasConfiguration = (type) => {
-  return ['fromXml', 'fromJson', 'fromXnode', 'filter', 'map', 'select', 'reduce'].includes(type);
-};
-
 const getConfigComponent = (type) => {
   switch (type) {
-    case 'fromXml':
-    case 'fromJson':
-    case 'fromXnode':
-      return SourceConfig;
     case 'filter': return FilterConfig;
     case 'map': return MapConfig;
     case 'select': return SelectConfig;
@@ -403,28 +363,40 @@ const getConfigComponent = (type) => {
 };
 
 // Actions
-const addOperation = () => {
-  if (!isValidOperationSelection.value) return;
-  
-  const operationType = selectedOperation.value.value;
-  pipelineStore.addStep(operationType);
-  selectedOperation.value = null;
+const updateSourceOperation = (type) => {
+  pipelineStore.updateSourceOperation(type);
 };
 
-const removeStep = (id) => {
-  pipelineStore.removeStep(id);
+const updateOutputOperation = (type) => {
+  pipelineStore.updateOutputOperation(type);
 };
 
-const updateStepOptions = (id, options) => {
-  pipelineStore.updateStep(id, options);
+const updateSourceOptions = (options) => {
+  pipelineStore.updateSourceOperation(sourceOperation.value.type, options);
 };
 
-const moveStep = (id, direction) => {
-  pipelineStore.moveStep(id, direction);
+const updateOutputOptions = (options) => {
+  pipelineStore.updateOutputOperation(outputOperation.value.type, options);
+};
+
+const addFunctionalStep = (type, position) => {
+  pipelineStore.addFunctionalStep(type, position);
+};
+
+const removeFunctionalStep = (id) => {
+  pipelineStore.removeFunctionalStep(id);
+};
+
+const updateFunctionalStepOptions = (id, options) => {
+  pipelineStore.updateFunctionalStep(id, options);
+};
+
+const moveFunctionalStep = (id, direction) => {
+  pipelineStore.moveFunctionalStep(id, direction);
 };
 
 const resetPipeline = () => {
-  pipelineStore.clearSteps();
+  pipelineStore.resetPipeline();
 };
 
 const togglePipelineHooks = () => {
@@ -437,15 +409,11 @@ const updatePipelineHooks = () => {
 </script>
 
 <style scoped>
-.pipeline-list {
-  border: 1px solid #e0e0e0;
-}
-
-.pipeline-step {
+.v-card {
   border-left: 4px solid transparent;
 }
 
-.pipeline-step:hover {
-  background-color: rgba(0, 0, 0, 0.04);
+.v-card:hover {
+  background-color: rgba(0, 0, 0, 0.02);
 }
 </style>

@@ -1,6 +1,37 @@
-<!-- components/configs/ReduceConfig.vue -->
+<!-- components/configs/ReduceConfig.vue - Updated with collapsible help -->
 <template>
   <v-container>
+    <!-- Help Section -->
+    <v-expansion-panels variant="accordion" class="mb-4">
+      <v-expansion-panel>
+        <v-expansion-panel-title class="text-caption">
+          <v-icon icon="mdi-help-circle" size="small" class="me-2"></v-icon>
+          Help
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <v-alert type="info" variant="text" density="compact">
+            <strong>Reduce Operation:</strong><br>
+            The <code>reduce()</code> operation is a terminal operation and ends the processing chain.
+            It returns the accumulated value directly instead of an XJX instance.<br>
+            <br>
+            <strong>Example reducer functions:</strong><br>
+            - <code>(acc, node) => acc + 1</code> (Count nodes)<br>
+            - <code>(acc, node) => node.name === 'price' ? acc + parseFloat(node.value || '0') : acc</code> (Sum prices)<br>
+            - <code>(acc, node) => node.name === 'item' ? [...acc, node.attributes?.id] : acc</code> (Collect IDs in array)<br>
+            <br>
+            <strong>Initial Value Examples:</strong><br>
+            - <code>0</code> for numeric accumulation<br>
+            - <code>[]</code> for collecting values in an array<br>
+            - <code>{}</code> for building an object<br>
+            - <code>""</code> for string concatenation<br>
+            <br>
+            <strong>API:</strong> <code>reduce(initialValue, options?: TransformHooks)</code><br>
+            The reducer function is passed via <code>options.transform</code> hook for consistency.
+          </v-alert>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+    </v-expansion-panels>
+
     <!-- Initial Value Configuration -->
     <v-row dense>
       <v-col cols="12">
@@ -9,6 +40,8 @@
           label="Initial Value"
           hint="Starting value for the accumulator"
           persistent-hint
+          density="compact"
+          variant="outlined"
           @update:model-value="updateOptions"
         ></v-text-field>
       </v-col>
@@ -26,75 +59,11 @@
           persistent-hint
           auto-grow
           rows="5"
+          density="compact"
+          variant="outlined"
           class="font-mono"
           @update:model-value="updateOptions"
         ></v-textarea>
-      </v-col>
-    </v-row>
-    
-    <v-row dense>
-      <v-col cols="12">
-        <v-alert
-          type="info"
-          variant="tonal"
-          density="compact"
-          icon="mdi-information-outline"
-          class="text-caption mt-3"
-        >
-          <strong>Example reducer functions:</strong><br>
-          - <code>(acc, node) => acc + 1</code> (Count nodes)<br>
-          - <code>(acc, node) => node.name === 'price' ? acc + parseFloat(node.value || '0') : acc</code> (Sum prices)<br>
-          - <code>(acc, node) => node.name === 'item' ? [...acc, node.attributes?.id] : acc</code> (Collect IDs in array)
-        </v-alert>
-      </v-col>
-    </v-row>
-    
-    <v-row dense>
-      <v-col cols="12">
-        <v-alert
-          type="warning"
-          variant="tonal"
-          density="compact"
-          icon="mdi-alert"
-          class="text-caption mt-3"
-        >
-          <strong>Note:</strong> The <code>reduce()</code> operation is a terminal operation and ends the processing chain.
-          It returns the accumulated value directly instead of an XJX instance.
-        </v-alert>
-      </v-col>
-    </v-row>
-    
-    <v-row dense>
-      <v-col cols="12">
-        <v-alert
-          type="info"
-          variant="tonal"
-          density="compact"
-          icon="mdi-code-braces"
-          class="text-caption mt-3"
-        >
-          <strong>Initial Value Examples:</strong><br>
-          - <code>0</code> for numeric accumulation<br>
-          - <code>[]</code> for collecting values in an array<br>
-          - <code>{}</code> for building an object<br>
-          - <code>""</code> for string concatenation
-        </v-alert>
-      </v-col>
-    </v-row>
-    
-    <v-row dense>
-      <v-col cols="12">
-        <v-alert
-          type="info"
-          variant="tonal"
-          density="compact"
-          icon="mdi-api"
-          class="text-caption mt-3"
-        >
-          <strong>Updated API Signature:</strong><br>
-          <code>reduce(initialValue, options?: TransformHooks)</code><br>
-          The reducer function is passed via <code>options.transform</code> hook for consistency.
-        </v-alert>
       </v-col>
     </v-row>
   </v-container>

@@ -1,4 +1,4 @@
-<!-- components/ConfigPanel.vue -->
+<!-- components/ConfigPanel.vue - Updated with compact variants -->
 <template>
   <v-sheet class="pa-4">
     <h5 class="text-h5 mb-4">Configuration</h5>
@@ -35,6 +35,7 @@
           color="primary"
           variant="tonal"
           prepend-icon="mdi-code-tags"
+          density="compact"
           @click="$emit('showApi')"
         >
           View Code
@@ -46,6 +47,7 @@
           color="primary"
           variant="tonal"
           prepend-icon="mdi-eye"
+          density="compact"
           @click="$emit('showConfig')"
         >
           View Config
@@ -155,6 +157,7 @@
       hint="How to represent XML attributes in JSON"
       persistent-hint
       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-select>
@@ -166,6 +169,7 @@
       hint="How to represent text content in JSON"
       persistent-hint
       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-select>
@@ -177,6 +181,7 @@
       hint="How to represent namespaces in JSON"
       persistent-hint
       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-select>
@@ -188,6 +193,7 @@
       hint="How to handle multiple elements with the same name"
       persistent-hint
       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-select>
@@ -199,6 +205,7 @@
       hint="How to handle empty elements in JSON"
       persistent-hint
       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-select>
@@ -210,6 +217,7 @@
       hint="How to handle elements with both text and child elements"
       persistent-hint
       density="compact"
+      variant="outlined"
       class="mb-4"
       @update:model-value="updateConfig"
     ></v-select>
@@ -222,6 +230,7 @@
       hint="Property name for attributes"
       persistent-hint
       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -232,6 +241,7 @@
       hint="Property name for values and text content"
       persistent-hint
       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -242,6 +252,7 @@
       hint="Property name for namespaces"
       persistent-hint
       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -252,6 +263,7 @@
       hint="Property name for namespace prefixes"
       persistent-hint
       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -262,6 +274,7 @@
       hint="Property name for CDATA sections"
       persistent-hint
       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -272,6 +285,7 @@
       hint="Property name for comments"
       persistent-hint
       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -282,6 +296,7 @@
       hint="Property name for processing instructions"
       persistent-hint
       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -292,6 +307,7 @@
       hint="Property name for processing instruction targets"
       persistent-hint
       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -302,6 +318,7 @@
       hint="Property name for child elements"
       persistent-hint
       density="compact"
+      variant="outlined"
       class="mb-4"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -314,6 +331,7 @@
       hint="Prefix for attributes when using prefix strategy"
       persistent-hint
       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -324,6 +342,7 @@
       hint="Prefix for namespaces"
       persistent-hint
       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -334,6 +353,7 @@
       hint="Prefix for comments"
       persistent-hint
       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -344,6 +364,7 @@
       hint="Prefix for CDATA sections"
       persistent-hint
       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -354,6 +375,7 @@
       hint="Prefix for processing instructions"
       persistent-hint
       density="compact"
+      variant="outlined"
       class="mb-4"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -369,6 +391,7 @@
       chips
       closable-chips
       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-combobox>
@@ -379,6 +402,7 @@
       hint="Default name for items when converting JSON arrays to XML"
       persistent-hint
       density="compact"
+      variant="outlined"
       class="mb-4"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -414,6 +438,7 @@
       hint="Number of spaces for each indentation level"
       persistent-hint
       density="compact"
+      variant="outlined"
       class="mb-4"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -426,6 +451,7 @@
       hint="Root element name for functional operations (select, filter, map, reduce)"
       persistent-hint
       density="compact"
+      variant="outlined"
       class="mb-4"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -463,13 +489,6 @@ function itemProps (item) {
     }
   }
 
-// Item props function for preset dropdown
-const presetItemProps = (item) => ({
-  title: item.name,
-  subtitle: item.description,
-  value: item.value
-});
-
 // Select options
 const attributeStrategyOptions = [
   { title: 'Merge', value: 'merge' },
@@ -497,7 +516,7 @@ const emptyElementStrategyOptions = [
   { title: 'Object (Empty object)', value: 'object' },
   { title: 'Null (null value)', value: 'null' },
   { title: 'String (Empty string)', value: 'string' },
-  { title: 'Remove (Remove empty elements)', value: 'remove' }  // Added new remove option
+  { title: 'Remove (Remove empty elements)', value: 'remove' }
 ];
 
 const mixedContentStrategyOptions = [

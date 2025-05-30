@@ -1,4 +1,4 @@
-<!-- components/UnifiedEditorPanel.vue -->
+<!-- components/UnifiedEditorPanel.vue - Execute button removed -->
 <template>
   <!-- Error Alert -->
   <v-alert v-if="error" type="error" variant="tonal" closable class="mt-4">
@@ -18,21 +18,9 @@
         prepend-icon="mdi-swap-horizontal"
         @click="swapContent"
         :disabled="isProcessing"
-        class="me-2"
+        density="compact"
       >
         Swap
-      </v-btn>
-      
-      <!-- Execute Pipeline Button -->
-      <v-btn
-        color="success"
-        variant="elevated"
-        prepend-icon="mdi-play"
-        @click="executePipeline"
-        :loading="isProcessing"
-        :disabled="!isValidPipeline"
-      >
-        Execute Pipeline
       </v-btn>
     </v-card-title>
 
@@ -41,7 +29,7 @@
         <!-- Source Editor -->
         <v-col cols="12" md="6">
           <v-card variant="outlined" class="editor-card">
-            <v-toolbar flat color="primary" dark>
+            <v-toolbar flat color="primary" dark density="compact">
               <v-toolbar-title>Source</v-toolbar-title>
               
               <v-spacer></v-spacer>
@@ -77,7 +65,7 @@
                 variant="plain"
                 hide-details
                 rows="15"
-                density="comfortable"
+                density="compact"
                 class="font-mono pa-2"
                 :readonly="isProcessing"
                 placeholder="Enter your source content here..."
@@ -89,7 +77,7 @@
         <!-- Result Editor -->
         <v-col cols="12" md="6">
           <v-card variant="outlined" class="editor-card">
-            <v-toolbar flat color="success" dark>
+            <v-toolbar flat color="success" dark density="compact">
               <v-toolbar-title>Result</v-toolbar-title>
               
               <v-spacer></v-spacer>
@@ -105,7 +93,7 @@
               </v-chip>
               
               <v-chip 
-                v-else-if="hasSourceOperation && hasOutputOperation"
+                v-else
                 color="success" 
                 size="small"
                 class="me-2"
@@ -128,7 +116,7 @@
                 variant="plain"
                 hide-details
                 rows="15"
-                density="comfortable"
+                density="compact"
                 class="font-mono pa-2"
                 readonly
                 placeholder="Result will appear here after pipeline execution..."
@@ -158,9 +146,7 @@ const {
   resultContent, 
   isProcessing, 
   error,
-  isValidPipeline,
-  hasSourceOperation,
-  hasOutputOperation 
+  isValidPipeline
 } = storeToRefs(pipelineStore);
 
 // Sample data
@@ -221,15 +207,6 @@ const copyToClipboard = (content) => {
 // Swap source and result content
 const swapContent = () => {
   pipelineStore.swapSourceResult();
-};
-
-// Execute the pipeline
-const executePipeline = async () => {
-  try {
-    await pipelineStore.executePipeline();
-  } catch (err) {
-    console.error('Failed to execute pipeline:', err);
-  }
 };
 </script>
 

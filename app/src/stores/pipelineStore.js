@@ -1,4 +1,4 @@
-// stores/pipelineStore.js - Updated for new hook system
+// stores/pipelineStore.js - Updated for new hook system only
 import { defineStore } from 'pinia';
 
 export const usePipelineStore = defineStore('pipeline', {
@@ -55,7 +55,7 @@ export const usePipelineStore = defineStore('pipeline', {
         category: 'functional', 
         description: 'Transform every node with primary transform + optional hooks',
         terminal: false,
-        hookTypes: ['beforeTransform', 'afterTransform'] // Before/after hooks + main transform
+        hookTypes: ['transform', 'beforeTransform', 'afterTransform'] // Primary transform + hooks
       },
       select: { 
         type: 'select', 
@@ -235,7 +235,7 @@ export const usePipelineStore = defineStore('pipeline', {
       
       try {
         // Import XJX library
-        const { XJX, toNumber, toBoolean, regex, compose } = await import("../../../dist/esm/index.js");
+        const { XJX, toNumber, toBoolean, regex } = await import("../../../dist/esm/index.js");
         
         // Create pipeline hooks if enabled
         const pipelineHooks = this.enablePipelineHooks ? this.createPipelineHooks() : undefined;
@@ -254,7 +254,7 @@ export const usePipelineStore = defineStore('pipeline', {
         
         // Apply each step in the pipeline
         for (const [index, step] of this.steps.entries()) {
-          builder = this.applyStep(builder, step, { toNumber, toBoolean, regex, compose });
+          builder = this.applyStep(builder, step, { toNumber, toBoolean, regex });
         }
            
         // Execute the final operation to get result
@@ -314,14 +314,14 @@ export const usePipelineStore = defineStore('pipeline', {
             
       switch (type) {
         case 'fromXml': {
-          const sourceHooks = this.createSourceHooks(options, transforms);
+          const sourceHooks = this.createSourceHooks(options);
           return builder.fromXml(this.sourceContent, sourceHooks);
         }
           
         case 'fromJson': {
           try {
             const jsonSource = JSON.parse(this.sourceContent);
-            const sourceHooks = this.createSourceHooks(options, transforms);
+            const sourceHooks = this.createSourceHooks(options);
             return builder.fromJson(jsonSource, sourceHooks);
           } catch (err) {
             throw new Error('Invalid JSON in source content');
@@ -329,7 +329,7 @@ export const usePipelineStore = defineStore('pipeline', {
         }
           
         case 'fromXnode': {
-          const sourceHooks = this.createSourceHooks(options, transforms);
+          const sourceHooks = this.createSourceHooks(options);
           return builder.fromXml(this.sourceContent, sourceHooks);
         }
           
@@ -341,7 +341,7 @@ export const usePipelineStore = defineStore('pipeline', {
         case 'map': {
           // NEW: map(transform, hooks) - transform is primary, hooks are optional
           const mainTransform = this.createTransformerFromConfig(options.transform, transforms);
-          const nodeHooks = this.createNodeHooks(options, transforms);
+          const nodeHooks = this.createNodeHooks(options);
           
           if (mainTransform) {
             return builder.map(mainTransform, nodeHooks);
@@ -376,40 +376,45 @@ export const usePipelineStore = defineStore('pipeline', {
       }
     },
     
-    createSourceHooks(options, transforms) {
+    createSourceHooks(options) {
       if (!options) return undefined;
       
       const hooks = {};
       
       // Create beforeTransform hook
-      if (options.beforeTransform) {
-        hooks.beforeTransform = this.createTransformerFromConfig(options.beforeTransform, transforms);
+      if (options.beforeTransform && this.hasValidTransform(options.beforeTransform)) {
+        hooks.beforeTransform = this.createTransformerFromConfig(options.beforeTransform, {});
       }
       
       // Create afterTransform hook
-      if (options.afterTransform) {
-        hooks.afterTransform = this.createTransformerFromConfig(options.afterTransform, transforms);
+      if (options.afterTransform && this.hasValidTransform(options.afterTransform)) {
+        hooks.afterTransform = this.createTransformerFromConfig(options.afterTransform, {});
       }
       
       return Object.keys(hooks).length > 0 ? hooks : undefined;
     },
     
-    createNodeHooks(options, transforms) {
+    createNodeHooks(options) {
       if (!options) return undefined;
       
       const hooks = {};
       
       // Create beforeTransform hook for map
-      if (options.beforeTransform) {
-        hooks.beforeTransform = this.createTransformerFromConfig(options.beforeTransform, transforms);
+      if (options.beforeTransform && this.hasValidTransform(options.beforeTransform)) {
+        hooks.beforeTransform = this.createTransformerFromConfig(options.beforeTransform, {});
       }
       
       // Create afterTransform hook for map
-      if (options.afterTransform) {
-        hooks.afterTransform = this.createTransformerFromConfig(options.afterTransform, transforms);
+      if (options.afterTransform && this.hasValidTransform(options.afterTransform)) {
+        hooks.afterTransform = this.createTransformerFromConfig(options.afterTransform, {});
       }
       
       return Object.keys(hooks).length > 0 ? hooks : undefined;
+    },
+    
+    hasValidTransform(config) {
+      if (!config) return false;
+      return !!(config.transformType || (config.customTransformer && config.customTransformer.trim()));
     },
     
     createTransformerFromConfig(config, transforms) {
@@ -442,7 +447,7 @@ export const usePipelineStore = defineStore('pipeline', {
       }
       
       // Create output hooks if configured
-      const outputHooks = this.createSourceHooks(terminalStep.options, {});
+      const outputHooks = this.createOutputHooks(terminalStep.options);
       
       switch (terminalStep.type) {
         case 'toXml':
@@ -462,6 +467,24 @@ export const usePipelineStore = defineStore('pipeline', {
         default:
           throw new Error(`Unknown terminal operation: ${terminalStep.type}`);
       }
+    },
+    
+    createOutputHooks(options) {
+      if (!options) return undefined;
+      
+      const hooks = {};
+      
+      // Create beforeTransform hook
+      if (options.beforeTransform && this.hasValidTransform(options.beforeTransform)) {
+        hooks.beforeTransform = this.createTransformerFromConfig(options.beforeTransform, {});
+      }
+      
+      // Create afterTransform hook
+      if (options.afterTransform && this.hasValidTransform(options.afterTransform)) {
+        hooks.afterTransform = this.createTransformerFromConfig(options.afterTransform, {});
+      }
+      
+      return Object.keys(hooks).length > 0 ? hooks : undefined;
     },
     
     createFunction(functionString) {
@@ -544,7 +567,7 @@ export const usePipelineStore = defineStore('pipeline', {
         return '// Invalid pipeline: missing source or output operation';
       }
       
-      let code = `import { XJX, toNumber, toBoolean, regex, compose } from 'xjx';\n\n`;
+      let code = `import { XJX, toNumber, toBoolean, regex } from 'xjx';\n\n`;
       code += `const config = /* your configuration */;\n`;
       code += `const source = /* your source content */;\n\n`;
       
@@ -600,7 +623,7 @@ export const usePipelineStore = defineStore('pipeline', {
         
         // Check for transformers in hooks
         ['beforeTransform', 'transform', 'afterTransform'].forEach(hookName => {
-          if (options[hookName]?.transformType) {
+          if (options[hookName] && this.hasValidTransform(options[hookName])) {
             const decl = this.generateTransformerDeclaration(`${hookName}Fn`, options[hookName]);
             if (decl && !declarations.includes(decl)) {
               declarations.push(decl);
@@ -682,7 +705,7 @@ export const usePipelineStore = defineStore('pipeline', {
       const hooks = [];
       
       hookNames.forEach(hookName => {
-        if (options[hookName]) {
+        if (options[hookName] && this.hasValidTransform(options[hookName])) {
           const hookCode = this.generateTransformCode(options[hookName]);
           if (hookCode) {
             hooks.push(`${hookName}: ${hookCode}`);

@@ -1,5 +1,5 @@
 /**
- * Extension implementation for XNode input methods
+ * Extension implementation for XNode input methods - Updated for new hook system
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
@@ -7,83 +7,99 @@ const logger = LoggerFactory.create();
 import { XJX } from "../XJX";
 import { XNode, createElement, addChild, cloneNode } from "../core/xnode";
 import { NonTerminalExtensionContext } from "../core/extension";
-import { validateInput, TransformHooks, applyTransformHooks } from "../core/converter";
+import { validateInput, SourceHooks } from "../core/converter";
 
 /**
- * Implementation for setting XNode source
+ * Implementation for setting XNode source with new hook system
  */
 export function fromXnode(
   this: NonTerminalExtensionContext, 
   input: XNode | XNode[],
-  options?: TransformHooks
+  hooks?: SourceHooks<XNode | XNode[]>
 ): void {
   try {
     // API boundary validation
     validateInput(input !== null && input !== undefined, "XNode input cannot be null or undefined");
     
+    let processedInput = input;
+    
+    // Apply beforeTransform hook to raw input
+    if (hooks?.beforeTransform) {
+      try {
+        const beforeResult = hooks.beforeTransform(processedInput);
+        if (beforeResult !== undefined && beforeResult !== null) {
+          processedInput = beforeResult;
+        }
+      } catch (err) {
+        logger.warn(`Error in XNode source beforeTransform: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+    
     // Handle both single XNode and XNode array cases
-    if (Array.isArray(input)) {
-      validateInput(input.length > 0, "XNode array cannot be empty");
+    let resultXNode: XNode;
+    
+    if (Array.isArray(processedInput)) {
+      validateInput(processedInput.length > 0, "XNode array cannot be empty");
       
       logger.debug('Setting XNode array source for transformation', {
-        nodeCount: input.length,
-        hasTransformHooks: !!(options && (options.beforeTransform || options.transform || options.afterTransform))
+        nodeCount: processedInput.length,
+        hasSourceHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
       });
       
       // Create a wrapper element to contain all nodes
-      let wrapper = createElement('xnodes');
-      
-      // Apply transform hooks to wrapper
-      wrapper = applyTransformHooks(wrapper, options);
+      resultXNode = createElement('xnodes');
       
       // Add each input node as a child (clone to avoid mutation)
-      input.forEach((node, index) => {
+      processedInput.forEach((node, index) => {
         validateInput(
           node && typeof node === 'object' && typeof node.name === 'string', 
           `XNode at index ${index} must be a valid XNode object`
         );
         
         // Clone the node to avoid mutating the original input
-        let clonedNode = cloneNode(node, true);
-        
-        // Apply transform hooks to each cloned node
-        clonedNode = applyTransformHooks(clonedNode, options);
-        
-        addChild(wrapper, clonedNode);
+        const clonedNode = cloneNode(node, true);
+        addChild(resultXNode, clonedNode);
       });
       
-      this.xnode = wrapper;
-      
-      logger.debug('Successfully set XNode array source', {
-        nodeCount: input.length,
-        wrapperName: wrapper.name
+      logger.debug('Successfully processed XNode array source', {
+        nodeCount: processedInput.length,
+        wrapperName: resultXNode.name
       });
     } else {
       // Single XNode case
       validateInput(
-        input && typeof input === 'object' && typeof input.name === 'string',
+        processedInput && typeof processedInput === 'object' && typeof processedInput.name === 'string',
         "XNode input must be a valid XNode object"
       );
       
       logger.debug('Setting single XNode source for transformation', {
-        nodeName: input.name,
-        nodeType: input.type,
-        hasTransformHooks: !!(options && (options.beforeTransform || options.transform || options.afterTransform))
+        nodeName: processedInput.name,
+        nodeType: processedInput.type,
+        hasSourceHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
       });
       
       // Clone the node to avoid mutating the original input
-      let clonedNode = cloneNode(input, true);
+      resultXNode = cloneNode(processedInput, true);
       
-      // Apply transform hooks to the cloned node
-      clonedNode = applyTransformHooks(clonedNode, options);
-      
-      this.xnode = clonedNode;
-      
-      logger.debug('Successfully set single XNode source', {
-        rootNodeName: this.xnode.name,
-        rootNodeType: this.xnode.type
+      logger.debug('Successfully processed single XNode source', {
+        rootNodeName: resultXNode.name,
+        rootNodeType: resultXNode.type
       });
     }
+    
+    // Apply afterTransform hook to fully populated XNode
+    if (hooks?.afterTransform) {
+      try {
+        const afterResult = hooks.afterTransform(resultXNode);
+        if (afterResult && typeof afterResult === 'object' && typeof afterResult.name === 'string') {
+          resultXNode = afterResult;
+        }
+      } catch (err) {
+        logger.warn(`Error in XNode source afterTransform: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+    
+    this.xnode = resultXNode;
     
   } catch (err) {
     if (err instanceof Error) {

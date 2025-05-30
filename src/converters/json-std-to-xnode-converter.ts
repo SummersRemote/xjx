@@ -11,7 +11,6 @@ import { XNode, createElement, createTextNode, addChild } from "../core/xnode";
 import { 
   Converter, 
   SourceHooks,
-  applySourceHooks,
   JsonValue,
   JsonObject,
   JsonArray,
@@ -45,7 +44,7 @@ export const jsonToXNodeConverter: Converter<JsonValue, XNode> = {
 };
 
 /**
- * Convert JSON with source hooks support
+ * Convert JSON with source hooks support - FIXED TIMING
  * @param json JSON value
  * @param config Configuration
  * @param hooks Source hooks
@@ -56,11 +55,35 @@ export function convertJsonWithHooks(
   config: Configuration,
   hooks?: SourceHooks<JsonValue>
 ): XNode {
-  // Convert JSON to XNode
-  const xnode = jsonToXNodeConverter.convert(json, config);
+  let processedJson = json;
   
-  // Apply source hooks
-  const { source: processedSource, xnode: processedXNode } = applySourceHooks(json, xnode, hooks);
+  // Apply beforeTransform hook to raw JSON
+  if (hooks?.beforeTransform) {
+    try {
+      const beforeResult = hooks.beforeTransform(processedJson);
+      if (beforeResult !== undefined && beforeResult !== null) {
+        processedJson = beforeResult;
+      }
+    } catch (err) {
+      logger.warn(`Error in JSON source beforeTransform: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  
+  // Convert JSON to XNode (fully populated)
+  const xnode = jsonToXNodeConverter.convert(processedJson, config);
+  
+  // Apply afterTransform hook to fully populated XNode
+  let processedXNode = xnode;
+  if (hooks?.afterTransform) {
+    try {
+      const afterResult = hooks.afterTransform(processedXNode);
+      if (afterResult && typeof afterResult === 'object' && typeof afterResult.name === 'string') {
+        processedXNode = afterResult;
+      }
+    } catch (err) {
+      logger.warn(`Error in JSON source afterTransform: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
   
   return processedXNode;
 }

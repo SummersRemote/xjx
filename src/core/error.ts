@@ -14,7 +14,6 @@ export class XJXError extends Error {
   constructor(message: string, public details?: any) {
     super(message);
     this.name = 'XJXError';
-    // Fix prototype chain for instanceof
     Object.setPrototypeOf(this, XJXError.prototype);
   }
 }

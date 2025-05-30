@@ -1,6 +1,9 @@
 /**
- * Core converter interfaces and shared utilities - REFACTORED
+ * Core converter interfaces and shared utilities - TransformHooks Removed
  */
+import { LoggerFactory } from "../core/logger";
+const logger = LoggerFactory.create();
+
 import { Configuration } from './config';
 import { XNode } from './xnode';
 import { ValidationError } from './error';
@@ -66,7 +69,7 @@ export interface PipelineHooks {
 }
 
 /**
- * Converter interface - simplified without hooks in convert method
+ * Converter interface
  */
 export interface Converter<TInput, TOutput> {
   convert(input: TInput, config: Configuration): TOutput;
@@ -108,7 +111,7 @@ export function applySourceHooks<TInput>(
           processedSource = beforeResult;
         }
       } catch (err) {
-        console.warn(`Error in source beforeTransform: ${err instanceof Error ? err.message : String(err)}`);
+        logger.warn(`Error in source beforeTransform: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
 
@@ -120,7 +123,7 @@ export function applySourceHooks<TInput>(
           processedXNode = afterResult;
         }
       } catch (err) {
-        console.warn(`Error in source afterTransform: ${err instanceof Error ? err.message : String(err)}`);
+        logger.warn(`Error in source afterTransform: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
   }
@@ -148,7 +151,7 @@ export function applyOutputHooks<TOutput>(
           processedXNode = beforeResult;
         }
       } catch (err) {
-        console.warn(`Error in output beforeTransform: ${err instanceof Error ? err.message : String(err)}`);
+        logger.warn(`Error in output beforeTransform: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
 
@@ -160,7 +163,7 @@ export function applyOutputHooks<TOutput>(
           processedOutput = afterResult;
         }
       } catch (err) {
-        console.warn(`Error in output afterTransform: ${err instanceof Error ? err.message : String(err)}`);
+        logger.warn(`Error in output afterTransform: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
   }
@@ -186,7 +189,7 @@ export function applyNodeHooks(
           processedNode = beforeResult;
         }
       } catch (err) {
-        console.warn(`Error in node beforeTransform: ${err instanceof Error ? err.message : String(err)}`);
+        logger.warn(`Error in node beforeTransform: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
 
@@ -198,7 +201,7 @@ export function applyNodeHooks(
           processedNode = afterResult;
         }
       } catch (err) {
-        console.warn(`Error in node afterTransform: ${err instanceof Error ? err.message : String(err)}`);
+        logger.warn(`Error in node afterTransform: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
   }

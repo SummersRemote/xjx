@@ -1,5 +1,5 @@
 /**
- * XNode to JSON Standard converter implementation
+ * XNode to JSON Standard converter implementation - Updated for new hook system
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
@@ -10,13 +10,12 @@ import { ProcessingError } from '../core/error';
 import { XNode, getTextContent } from '../core/xnode';
 import { 
   Converter, 
-  TransformHooks, 
+  OutputHooks,
   JsonValue, 
   JsonObject, 
   JsonArray,
   getElementName,
-  getAttributeName,
-  applyTransformHooks
+  getAttributeName
 } from '../core/converter';
 import { removeEmptyElements } from '../core/json-utils';
 
@@ -26,26 +25,21 @@ import { removeEmptyElements } from '../core/json-utils';
 export const xnodeToJsonConverter: Converter<XNode, JsonValue> = {
   convert(
     node: XNode, 
-    config: Configuration, 
-    hooks?: TransformHooks
+    config: Configuration
   ): JsonValue {
     logger.debug('Starting XNode to JSON conversion', {
       nodeName: node.name,
-      nodeType: node.type,
-      hasTransformHooks: !!(hooks && (hooks.beforeTransform || hooks.transform || hooks.afterTransform))
+      nodeType: node.type
     });
-
-    // Apply transform hooks
-    const processedNode = applyTransformHooks(node, hooks);
 
     let result: JsonValue;
 
     // Handle non-element nodes
-    if (processedNode.type !== NodeType.ELEMENT_NODE) {
-      result = processNonElementNode(processedNode, config);
+    if (node.type !== NodeType.ELEMENT_NODE) {
+      result = processNonElementNode(node, config);
     } else {
       // Process element node
-      result = processElementNode(processedNode, config, hooks);
+      result = processElementNode(node, config);
     }
 
     // Apply remove empty elements strategy if configured
@@ -57,6 +51,46 @@ export const xnodeToJsonConverter: Converter<XNode, JsonValue> = {
     return result;
   }
 };
+
+/**
+ * Convert XNode to JSON with output hooks - FIXED TIMING
+ */
+export function convertXNodeToJsonWithHooks(
+  node: XNode,
+  config: Configuration,
+  hooks?: OutputHooks<JsonValue>
+): JsonValue {
+  let processedXNode = node;
+  
+  // Apply beforeTransform hook to XNode
+  if (hooks?.beforeTransform) {
+    try {
+      const beforeResult = hooks.beforeTransform(processedXNode);
+      if (beforeResult && typeof beforeResult === 'object' && typeof beforeResult.name === 'string') {
+        processedXNode = beforeResult;
+      }
+    } catch (err) {
+      logger.warn(`Error in JSON output beforeTransform: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  
+  // Convert to JSON
+  let result = xnodeToJsonConverter.convert(processedXNode, config);
+  
+  // Apply afterTransform hook to final JSON
+  if (hooks?.afterTransform) {
+    try {
+      const afterResult = hooks.afterTransform(result);
+      if (afterResult !== undefined && afterResult !== null) {
+        result = afterResult;
+      }
+    } catch (err) {
+      logger.warn(`Error in JSON output afterTransform: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  
+  return result;
+}
 
 /**
  * Process a non-element node
@@ -84,8 +118,7 @@ function processNonElementNode(node: XNode, config: Configuration): JsonValue {
  */
 function processElementNode(
   node: XNode, 
-  config: Configuration,
-  hooks?: TransformHooks
+  config: Configuration
 ): JsonValue {
   const result: JsonObject = {};
   
@@ -96,7 +129,7 @@ function processElementNode(
   if (hasOnlyTextContent(node)) {
     result[elementName] = processElementWithTextOnly(node, config);
   } else if (node.children && node.children.length > 0) {
-    result[elementName] = processElementWithChildren(node, config, hooks);
+    result[elementName] = processElementWithChildren(node, config);
   } else {
     // Empty element
     result[elementName] = processEmptyElement(node, config);
@@ -158,8 +191,7 @@ function processElementWithTextOnly(node: XNode, config: Configuration): JsonVal
  */
 function processElementWithChildren(
   node: XNode, 
-  config: Configuration,
-  hooks?: TransformHooks
+  config: Configuration
 ): JsonObject {
   const result: JsonObject = {};
   
@@ -187,7 +219,7 @@ function processElementWithChildren(
           result[config.properties.value] = combinedText;
         }
         // Then add elements normally
-        processChildElements(result, elementNodes, config, hooks);
+        processChildElements(result, elementNodes, config);
         break;
         
       case 'merge':
@@ -206,7 +238,7 @@ function processElementWithChildren(
       const combinedText = textNodes.map(t => t.value).join('');
       result[config.properties.value] = combinedText;
     } else if (elementNodes.length > 0) {
-      processChildElements(result, elementNodes, config, hooks);
+      processChildElements(result, elementNodes, config);
     }
   }
   
@@ -309,8 +341,7 @@ function addAttributes(result: JsonObject, node: XNode, config: Configuration): 
 function processChildElements(
   result: JsonObject, 
   children: XNode[], 
-  config: Configuration,
-  hooks?: TransformHooks
+  config: Configuration
 ): void {
   // Group children by element name
   const childrenByName: Record<string, XNode[]> = {};
@@ -338,12 +369,9 @@ function processChildElements(
     if (shouldBeArray) {
       // Create an array of values
       const values: JsonArray = nodes.map(node => {
-        // Apply transform hooks to each child node
-        const processedChild = applyTransformHooks(node, hooks);
-        
         // Convert the node and extract its value
-        const converted = xnodeToJsonConverter.convert(processedChild, config, hooks) as JsonObject;
-        const nodeName = getElementName(processedChild.name, processedChild.prefix, config.preservePrefixedNames);
+        const converted = xnodeToJsonConverter.convert(node, config) as JsonObject;
+        const nodeName = getElementName(node.name, node.prefix, config.preservePrefixedNames);
         
         return converted[nodeName];
       });
@@ -352,10 +380,9 @@ function processChildElements(
     } else {
       // Just use the last node (or only node)
       const node = nodes[nodes.length - 1];
-      const processedChild = applyTransformHooks(node, hooks);
       
-      const converted = xnodeToJsonConverter.convert(processedChild, config, hooks) as JsonObject;
-      const nodeName = getElementName(processedChild.name, processedChild.prefix, config.preservePrefixedNames);
+      const converted = xnodeToJsonConverter.convert(node, config) as JsonObject;
+      const nodeName = getElementName(node.name, node.prefix, config.preservePrefixedNames);
       
       result[name] = converted[nodeName];
     }

@@ -5,11 +5,11 @@ import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
 
 import { XJX } from '../XJX';
-import { jsonHiFiToXNodeConverter } from '../converters/json-hifi-to-xnode-converter';
+import { convertJsonHiFiWithHooks } from '../converters/json-hifi-to-xnode-converter';
 import { convertJsonWithHooks } from '../converters/json-std-to-xnode-converter';
 import { ProcessingError } from '../core/error';
 import { NonTerminalExtensionContext } from '../core/extension';
-import { SourceHooks, JsonValue, validateInput, applySourceHooks } from '../core/converter';
+import { SourceHooks, JsonValue, validateInput } from '../core/converter';
 
 /**
  * Implementation for setting JSON source with new hook system
@@ -23,7 +23,7 @@ export function fromJson(
     // API boundary validation
     validateInput(json !== null && typeof json === 'object', "JSON source must be an object or array");
     
-    // Determine format based on configuration (no more options parameter)
+    // Determine format based on configuration
     const useHighFidelity = this.config.strategies.highFidelity;
     
     logger.debug('Setting JSON source for transformation', {
@@ -34,10 +34,7 @@ export function fromJson(
     
     // Convert using appropriate converter with source hooks
     if (useHighFidelity) {
-      // For high-fidelity, we need to apply hooks manually since we don't have a convertJsonHiFiWithHooks function
-      const xnode = jsonHiFiToXNodeConverter.convert(json, this.config);
-      const { source: processedSource, xnode: processedXNode } = applySourceHooks(json, xnode, hooks);
-      this.xnode = processedXNode;
+      this.xnode = convertJsonHiFiWithHooks(json, this.config, hooks);
     } else {
       this.xnode = convertJsonWithHooks(json, this.config, hooks);
     }

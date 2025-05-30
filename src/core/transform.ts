@@ -4,6 +4,9 @@
  * Transforms are functions that take a value and return a value.
  * Simple, composable, and easy to use in the functional pipeline.
  */
+import { LoggerFactory } from "../core/logger";
+const logger = LoggerFactory.create();
+
 import { XNode } from './xnode';
 
 /**
@@ -128,7 +131,7 @@ export function createTransform(
       return transformer(value, mergedContext);
     } catch (err) {
       // If transformation fails, return original value
-      console.warn(`Transform error: ${err instanceof Error ? err.message : String(err)}`);
+      logger.warn(`Transform error: ${err instanceof Error ? err.message : String(err)}`);
       return value;
     }
   };

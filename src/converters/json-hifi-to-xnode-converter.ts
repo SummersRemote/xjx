@@ -1,5 +1,5 @@
 /**
- * JSON HiFi to XNode converter implementation - FIXED
+ * JSON HiFi to XNode converter implementation - Updated for new hook system
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
@@ -18,12 +18,11 @@ import {
 } from '../core/xnode';
 import { 
   Converter, 
-  TransformHooks, 
+  SourceHooks,
   JsonValue, 
   JsonObject, 
   JsonArray,
-  parseElementName,
-  applyTransformHooks
+  parseElementName
 } from '../core/converter';
 
 /**
@@ -32,8 +31,7 @@ import {
 export const jsonHiFiToXNodeConverter: Converter<JsonValue, XNode> = {
   convert(
     json: JsonValue, 
-    config: Configuration, 
-    hooks?: TransformHooks
+    config: Configuration
   ): XNode {
     // Verify we have an object
     if (typeof json !== 'object' || json === null || Array.isArray(json)) {
@@ -55,14 +53,58 @@ export const jsonHiFiToXNodeConverter: Converter<JsonValue, XNode> = {
     }
     
     logger.debug('Starting JSON HiFi to XNode conversion', {
-      rootElement: rootName,
-      hasTransformHooks: !!(hooks && (hooks.beforeTransform || hooks.transform || hooks.afterTransform))
+      rootElement: rootName
     });
     
     // Process the root element
-    return processElement(rootName, rootObj as JsonObject, config, hooks);
+    return processElement(rootName, rootObj as JsonObject, config);
   }
 };
+
+/**
+ * Convert JSON HiFi with source hooks support - FIXED TIMING
+ * @param json JSON HiFi value
+ * @param config Configuration
+ * @param hooks Source hooks
+ * @returns Converted XNode with hooks applied
+ */
+export function convertJsonHiFiWithHooks(
+  json: JsonValue,
+  config: Configuration,
+  hooks?: SourceHooks<JsonValue>
+): XNode {
+  let processedJson = json;
+  
+  // Apply beforeTransform hook to raw JSON
+  if (hooks?.beforeTransform) {
+    try {
+      const beforeResult = hooks.beforeTransform(processedJson);
+      if (beforeResult !== undefined && beforeResult !== null) {
+        processedJson = beforeResult;
+      }
+    } catch (err) {
+      logger.warn(`Error in JSON HiFi source beforeTransform: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  
+  // Convert JSON to XNode (fully populated)
+  const xnode = jsonHiFiToXNodeConverter.convert(processedJson, config);
+  
+  // Apply afterTransform hook to fully populated XNode
+  let processedXNode = xnode;
+  if (hooks?.afterTransform) {
+    try {
+      const afterResult = hooks.afterTransform(processedXNode);
+      if (afterResult && typeof afterResult === 'object' && typeof afterResult.name === 'string') {
+        processedXNode = afterResult;
+      }
+    } catch (err) {
+      logger.warn(`Error in JSON HiFi source afterTransform: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  
+  return processedXNode;
+}
 
 /**
  * Process a JSON HiFi element
@@ -71,7 +113,6 @@ function processElement(
   name: string, 
   obj: JsonObject, 
   config: Configuration,
-  hooks?: TransformHooks,
   parent?: XNode
 ): XNode {
   // Parse element name for prefix handling
@@ -130,16 +171,13 @@ function processElement(
   
   // Process children
   if (obj[properties.children] && Array.isArray(obj[properties.children])) {
-    processChildren(element, obj[properties.children] as JsonArray, config, hooks);
+    processChildren(element, obj[properties.children] as JsonArray, config);
   }
   
   // Process metadata if present
   if (obj.metadata && typeof obj.metadata === 'object' && !Array.isArray(obj.metadata)) {
     element.metadata = { ...obj.metadata as Record<string, any> };
   }
-  
-  // FIXED: Apply transform hooks AFTER the element is fully populated
-  element = applyTransformHooks(element, hooks);
   
   return element;
 }
@@ -195,8 +233,7 @@ function processAttributes(element: XNode, attrs: JsonArray, config: Configurati
 function processChildren(
   parent: XNode, 
   children: JsonArray, 
-  config: Configuration,
-  hooks?: TransformHooks
+  config: Configuration
 ): void {
   const { properties } = config;
   
@@ -210,27 +247,21 @@ function processChildren(
       
       // Text node
       if (childObj[properties.value] !== undefined && config.preserveTextNodes) {
-        let textNode = createTextNode(String(childObj[properties.value]));
-        // Apply hooks to text nodes after creation with content
-        textNode = applyTransformHooks(textNode, hooks);
+        const textNode = createTextNode(String(childObj[properties.value]));
         addChild(parent, textNode);
         return;
       }
       
       // CDATA node
       if (childObj[properties.cdata] !== undefined && config.preserveCDATA) {
-        let cdataNode = createCDATANode(String(childObj[properties.cdata]));
-        // Apply hooks to CDATA nodes after creation with content
-        cdataNode = applyTransformHooks(cdataNode, hooks);
+        const cdataNode = createCDATANode(String(childObj[properties.cdata]));
         addChild(parent, cdataNode);
         return;
       }
       
       // Comment node
       if (childObj[properties.comment] !== undefined && config.preserveComments) {
-        let commentNode = createCommentNode(String(childObj[properties.comment]));
-        // Apply hooks to comment nodes after creation with content
-        commentNode = applyTransformHooks(commentNode, hooks);
+        const commentNode = createCommentNode(String(childObj[properties.comment]));
         addChild(parent, commentNode);
         return;
       }
@@ -244,9 +275,7 @@ function processChildren(
           const value = piProps[properties.value] || '';
           
           if (target) {
-            let piNode = createProcessingInstructionNode(String(target), String(value));
-            // Apply hooks to PI nodes after creation with content
-            piNode = applyTransformHooks(piNode, hooks);
+            const piNode = createProcessingInstructionNode(String(target), String(value));
             addChild(parent, piNode);
             return;
           }
@@ -258,7 +287,7 @@ function processChildren(
       if (elementName) {
         const elementObj = childObj[elementName];
         if (typeof elementObj === 'object' && elementObj !== null && !Array.isArray(elementObj)) {
-          const childNode = processElement(elementName, elementObj as JsonObject, config, hooks, parent);
+          const childNode = processElement(elementName, elementObj as JsonObject, config, parent);
           addChild(parent, childNode);
           return;
         }
@@ -267,9 +296,7 @@ function processChildren(
     
     // If we get here, try to convert as raw text
     if (config.preserveTextNodes) {
-      let textNode = createTextNode(String(child));
-      // Apply hooks to text nodes after creation with content
-      textNode = applyTransformHooks(textNode, hooks);
+      const textNode = createTextNode(String(child));
       addChild(parent, textNode);
     }
   });

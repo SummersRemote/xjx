@@ -5,10 +5,15 @@ import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
 
 import { XJX } from "../XJX";
-import { xnodeToXmlConverter, xnodeToXmlStringConverter } from "../converters/xnode-to-xml-converter";
-import { transformXNode } from "../converters/xnode-transformer";
+import { 
+  convertXNodeToXmlWithHooks, 
+  convertXNodeToXmlStringWithHooks,
+  xnodeToXmlConverter,
+  xnodeToXmlStringConverter 
+} from "../converters/xnode-to-xml-converter";
+import { transformXNodeWithHooks } from "../converters/xnode-transformer";
 import { XNode } from "../core/xnode";
-import { OutputHooks, applyOutputHooks } from "../core/converter";
+import { OutputHooks } from "../core/converter";
 import { TerminalExtensionContext } from "../core/extension";
 
 /**
@@ -24,24 +29,35 @@ export function toXml(this: TerminalExtensionContext, hooks?: OutputHooks<Docume
       hasOutputHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
     });
     
-    // Apply transformations if any are registered
+    // Apply legacy transforms if any are registered
     let nodeToConvert = this.xnode as XNode;
     
     if (this.transforms && this.transforms.length > 0) {
-      nodeToConvert = transformXNode(nodeToConvert, this.transforms, this.config);
+      // For legacy transforms, compose them into a single transform
+      const composedTransform = (value: any) => {
+        return this.transforms.reduce((result, transform) => {
+          try {
+            return transform(result);
+          } catch (err) {
+            logger.warn('Error in legacy transform:', err);
+            return result;
+          }
+        }, value);
+      };
       
-      logger.debug('Applied transforms to XNode', {
+      nodeToConvert = transformXNodeWithHooks(nodeToConvert, composedTransform, undefined, this.config);
+      
+      logger.debug('Applied legacy transforms to XNode', {
         transformCount: this.transforms.length
       });
     }
     
-    // Convert XNode to DOM
-    let doc = xnodeToXmlConverter.convert(nodeToConvert, this.config);
-    
-    // Apply output hooks
+    // Convert XNode to DOM with output hooks
+    let doc: Document;
     if (hooks) {
-      const { xnode: processedXNode, output: processedOutput } = applyOutputHooks(nodeToConvert, doc, hooks);
-      doc = processedOutput;
+      doc = convertXNodeToXmlWithHooks(nodeToConvert, this.config, hooks);
+    } else {
+      doc = xnodeToXmlConverter.convert(nodeToConvert, this.config);
     }
     
     logger.debug('Successfully converted XNode to DOM', {
@@ -69,24 +85,35 @@ export function toXmlString(this: TerminalExtensionContext, hooks?: OutputHooks<
       hasOutputHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
     });
     
-    // Apply transformations if any are registered
+    // Apply legacy transforms if any are registered
     let nodeToConvert = this.xnode as XNode;
     
     if (this.transforms && this.transforms.length > 0) {
-      nodeToConvert = transformXNode(nodeToConvert, this.transforms, this.config);
+      // For legacy transforms, compose them into a single transform
+      const composedTransform = (value: any) => {
+        return this.transforms.reduce((result, transform) => {
+          try {
+            return transform(result);
+          } catch (err) {
+            logger.warn('Error in legacy transform:', err);
+            return result;
+          }
+        }, value);
+      };
       
-      logger.debug('Applied transforms to XNode', {
+      nodeToConvert = transformXNodeWithHooks(nodeToConvert, composedTransform, undefined, this.config);
+      
+      logger.debug('Applied legacy transforms to XNode', {
         transformCount: this.transforms.length
       });
     }
     
-    // Convert XNode to XML string
-    let xmlString = xnodeToXmlStringConverter.convert(nodeToConvert, this.config);
-    
-    // Apply output hooks
+    // Convert XNode to XML string with output hooks
+    let xmlString: string;
     if (hooks) {
-      const { xnode: processedXNode, output: processedOutput } = applyOutputHooks(nodeToConvert, xmlString, hooks);
-      xmlString = processedOutput;
+      xmlString = convertXNodeToXmlStringWithHooks(nodeToConvert, this.config, hooks);
+    } else {
+      xmlString = xnodeToXmlStringConverter.convert(nodeToConvert, this.config);
     }
     
     logger.debug('Successfully converted to XML string', {

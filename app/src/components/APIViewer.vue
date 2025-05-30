@@ -1,4 +1,4 @@
-<!-- components/APIViewer.vue -->
+<!-- components/APIViewer.vue - Updated for new hook system -->
 <template>
   <v-dialog
     v-model="dialog"
@@ -39,69 +39,92 @@
           </div>
         </v-alert>
         
+        <!-- Hook System Notice -->
+        <v-alert
+          type="info"
+          variant="tonal"
+          class="mb-4"
+          icon="mdi-information"
+        >
+          <div class="font-weight-bold">New Hook System</div>
+          <div class="text-caption">
+            Generated code uses the new hook system with proper timing. Transform functions now receive fully populated nodes.
+          </div>
+        </v-alert>
+        
         <!-- Generated Code -->
         <div class="api-code">
           <pre>{{ fluentApiCode }}</pre>
         </div>
         
-        <!-- Pipeline Summary -->
-        <!-- <v-card variant="outlined" class="mt-4">
-          <v-card-title class="text-subtitle-1">
-            Pipeline Summary
-          </v-card-title>
-          <v-card-text>
-            <v-chip-group>
-              <v-chip
-                v-for="(step, index) in steps"
-                :key="step.id"
-                :color="getStepColor(step.type)"
-                size="small"
-                class="me-1 mb-1"
-              >
-                {{ index + 1 }}. {{ getOperationName(step.type) }}
-              </v-chip>
-            </v-chip-group>
-          </v-card-text>
-        </v-card> -->
-        
         <!-- Usage Instructions -->
         <v-card variant="outlined" class="mt-4">
           <v-card-title class="text-subtitle-1">
-            Usage Instructions
+            New Hook System Usage
           </v-card-title>
           <v-card-text class="text-body-2">
             <ol class="pl-4">
               <li>Install the XJX library: <code>npm install xjx</code></li>
-              <li>Copy the generated code above into your JavaScript/TypeScript file</li>
-              <li>Replace the placeholder variables with your actual data:
+              <li>Import the new hook system: <code>import { XJX, toNumber, toBoolean, regex } from 'xjx';</code></li>
+              <li>Use the updated API signatures:
                 <ul class="mt-2">
-                  <li><code>config</code> - Your XJX configuration object</li>
-                  <li><code>source</code> - Your source XML/JSON content</li>
+                  <li><strong>Source operations:</strong> <code>fromXml(source, hooks?)</code></li>
+                  <li><strong>Map operations:</strong> <code>map(transform, hooks?)</code></li>
+                  <li><strong>Output operations:</strong> <code>toJson(hooks?)</code></li>
                 </ul>
               </li>
-              <li>Execute the code to get your transformed result</li>
+              <li>Pipeline hooks are configured in the constructor: <code>new XJX(config, pipelineHooks)</code></li>
+              <li>Replace the placeholder variables with your actual data</li>
             </ol>
           </v-card-text>
         </v-card>
+        
+        <!-- Hook Types Reference -->
+        <v-card variant="outlined" class="mt-4">
+          <v-card-title class="text-subtitle-1">
+            Hook Types Reference
+          </v-card-title>
+          <v-card-text class="text-body-2">
+            <div class="mb-3">
+              <strong>SourceHooks&lt;TInput&gt;</strong> - for fromXml, fromJson, fromXnode<br>
+              <code class="text-caption">{ beforeTransform?: (source) => source, afterTransform?: (xnode) => xnode }</code>
+            </div>
+            <div class="mb-3">
+              <strong>NodeHooks</strong> - for map operations<br>
+              <code class="text-caption">{ beforeTransform?: (node) => node, afterTransform?: (node) => node }</code>
+            </div>
+            <div class="mb-3">
+              <strong>OutputHooks&lt;TOutput&gt;</strong> - for toXml, toJson, etc.<br>
+              <code class="text-caption">{ beforeTransform?: (xnode) => xnode, afterTransform?: (output) => output }</code>
+            </div>
+            <div class="mb-3">
+              <strong>PipelineHooks</strong> - for cross-cutting concerns<br>
+              <code class="text-caption">{ beforeStep?: (stepName, input) => void, afterStep?: (stepName, output) => void }</code>
+            </div>
+          </v-card-text>
+        </v-card>
+        
+        <!-- Transform Examples -->
+        <v-card variant="outlined" class="mt-4">
+          <v-card-title class="text-subtitle-1">
+            Transform Examples (Fixed Timing)
+          </v-card-title>
+          <v-card-text class="text-body-2">
+            <div class="mb-2">
+              <strong>Number transforms now work correctly:</strong><br>
+              <code class="text-caption">map(toNumber({ nodeNames: ['price', 'total'] }))</code>
+            </div>
+            <div class="mb-2">
+              <strong>Boolean transforms with proper timing:</strong><br>
+              <code class="text-caption">map(toBoolean({ trueValues: ['yes', '1'] }))</code>
+            </div>
+            <div class="mb-2">
+              <strong>Custom transforms receive populated nodes:</strong><br>
+              <code class="text-caption">map(node => node.value ? {...node, value: parseFloat(node.value)} : node)</code>
+            </div>
+          </v-card-text>
+        </v-card>
       </v-card-text>
-      
-      <!-- <v-card-actions>
-        <v-spacer></v-spacer>
-        <v-btn
-          color="primary"
-          variant="elevated"
-          prepend-icon="mdi-content-copy"
-          @click="copyAPI"
-        >
-          Copy Code
-        </v-btn>
-        <v-btn
-          variant="text"
-          @click="dialog = false"
-        >
-          Close
-        </v-btn>
-      </v-card-actions> -->
     </v-card>
   </v-dialog>
   

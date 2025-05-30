@@ -61,12 +61,12 @@ export {
   JsonValue,
   JsonObject,
   JsonArray,
-  // NEW: Hook system interfaces
+  // NEW: Hook system interfaces - UPDATED
   SourceHooks,
   OutputHooks,
   NodeHooks,
   PipelineHooks,
-  // NEW: Hook utility functions
+  // NEW: Hook utility functions - UPDATED
   applySourceHooks,
   applyOutputHooks,
   applyNodeHooks,

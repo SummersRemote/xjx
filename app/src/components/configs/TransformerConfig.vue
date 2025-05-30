@@ -1,4 +1,4 @@
-<!-- components/configs/TransformerConfig.vue - Updated for new hook system -->
+<!-- components/configs/TransformerConfig.vue - New hook system only -->
 <template>
   <v-container>
     <v-row dense>
@@ -254,6 +254,22 @@
         >
           <strong>{{ customExampleTitle }}:</strong><br>
           <div v-html="customExamples"></div>
+        </v-alert>
+      </v-col>
+    </v-row>
+    
+    <v-row dense v-if="transformMode !== 'none'">
+      <v-col cols="12">
+        <v-alert
+          type="success"
+          variant="tonal"
+          density="compact"
+          icon="mdi-check"
+          class="text-caption mt-3"
+        >
+          <strong>Hook Timing Fixed:</strong><br>
+          Transforms now receive fully populated nodes with values, attributes, and children.
+          No more timing issues with <code>toNumber()</code> and <code>toBoolean()</code>!
         </v-alert>
       </v-col>
     </v-row>

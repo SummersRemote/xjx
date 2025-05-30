@@ -55,7 +55,7 @@ export const xmlToXNodeConverter: Converter<string, XNode> = {
 };
 
 /**
- * Convert XML with source hooks support
+ * Convert XML with source hooks support - FIXED TIMING
  * @param xml XML string
  * @param config Configuration
  * @param hooks Source hooks
@@ -66,11 +66,35 @@ export function convertXmlWithHooks(
   config: Configuration,
   hooks?: SourceHooks<string>
 ): XNode {
-  // Convert XML to XNode
-  const xnode = xmlToXNodeConverter.convert(xml, config);
+  let processedXml = xml;
   
-  // Apply source hooks
-  const { source: processedSource, xnode: processedXNode } = applySourceHooks(xml, xnode, hooks);
+  // Apply beforeTransform hook to raw XML
+  if (hooks?.beforeTransform) {
+    try {
+      const beforeResult = hooks.beforeTransform(processedXml);
+      if (beforeResult !== undefined && beforeResult !== null) {
+        processedXml = beforeResult;
+      }
+    } catch (err) {
+      logger.warn(`Error in XML source beforeTransform: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  
+  // Convert XML to XNode (fully populated)
+  const xnode = xmlToXNodeConverter.convert(processedXml, config);
+  
+  // Apply afterTransform hook to fully populated XNode
+  let processedXNode = xnode;
+  if (hooks?.afterTransform) {
+    try {
+      const afterResult = hooks.afterTransform(processedXNode);
+      if (afterResult && typeof afterResult === 'object' && typeof afterResult.name === 'string') {
+        processedXNode = afterResult;
+      }
+    } catch (err) {
+      logger.warn(`Error in XML source afterTransform: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
   
   return processedXNode;
 }

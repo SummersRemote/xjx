@@ -1,4 +1,4 @@
-<!-- components/configs/MapConfig.vue - Updated for new hook system -->
+<!-- components/configs/MapConfig.vue - Final update for new hook system -->
 <template>
   <v-container>
     <!-- Primary Transform Configuration -->
@@ -108,6 +108,22 @@
           - <em>After Hook</em>: <code>node => node.value > 100 ? {...node, expensive: true} : node</code><br>
           <br>
           Return <code>null</code> from any transform to remove the node from the tree.
+        </v-alert>
+      </v-col>
+    </v-row>
+    
+    <v-row dense>
+      <v-col cols="12">
+        <v-alert
+          type="info"
+          variant="tonal"
+          density="compact"
+          icon="mdi-api"
+          class="text-caption mt-3"
+        >
+          <strong>Hook Timing (Fixed):</strong><br>
+          Transforms now receive fully populated nodes with values, attributes, and children.
+          This ensures <code>toNumber()</code> and <code>toBoolean()</code> work correctly.
         </v-alert>
       </v-col>
     </v-row>

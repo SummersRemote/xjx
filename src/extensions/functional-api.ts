@@ -13,8 +13,9 @@ const logger = LoggerFactory.create();
 import { XJX } from "../XJX";
 import { XNode, addChild, createElement, cloneNode } from "../core/xnode";
 import { NonTerminalExtensionContext, TerminalExtensionContext } from "../core/extension";
-import { validateInput, NodeHooks, applyNodeHooks } from "../core/converter";
+import { validateInput, NodeHooks } from "../core/converter";
 import { Transform } from "../core/transform";
+import { transformXNodeWithHooks } from "../converters/xnode-transformer";
 
 /**
  * Create a container node for results
@@ -126,64 +127,6 @@ function filterNodeHierarchy(
 }
 
 /**
- * Apply a transformer function to every node in the tree with hooks
- */
-function mapNodeTreeWithHooks(
-  node: XNode,
-  transform: Transform,
-  hooks?: NodeHooks
-): XNode | null {
-  try {
-    // Clone the current node
-    let transformedNode = cloneNode(node, false);
-    
-    // Apply beforeTransform hook
-    if (hooks?.beforeTransform) {
-      const beforeResult = hooks.beforeTransform(transformedNode);
-      if (beforeResult && typeof beforeResult === 'object' && typeof beforeResult.name === 'string') {
-        transformedNode = beforeResult;
-      }
-    }
-    
-    // Apply the main transform
-    const mainResult = transform(transformedNode);
-    if (!mainResult) {
-      return null; // Transform removed the node
-    }
-    transformedNode = mainResult;
-    
-    // Apply afterTransform hook
-    if (hooks?.afterTransform) {
-      const afterResult = hooks.afterTransform(transformedNode);
-      if (afterResult && typeof afterResult === 'object' && typeof afterResult.name === 'string') {
-        transformedNode = afterResult;
-      }
-    }
-    
-    // Process children
-    if (node.children && node.children.length > 0) {
-      transformedNode.children = [];
-      
-      for (const child of node.children) {
-        const transformedChild = mapNodeTreeWithHooks(child, transform, hooks);
-        if (transformedChild) {
-          transformedChild.parent = transformedNode;
-          transformedNode.children.push(transformedChild);
-        }
-      }
-    }
-    
-    return transformedNode;
-  } catch (err) {
-    logger.warn(`Error in mapper for node: ${node.name}`, {
-      error: err instanceof Error ? err.message : String(err)
-    });
-    
-    return cloneNode(node, true);
-  }
-}
-
-/**
  * Reduce all nodes in the tree to a single value
  */
 function reduceNodeTree<T>(
@@ -269,7 +212,9 @@ export function map(
     });
 
     const rootNode = this.xnode as XNode;
-    const mappedRoot = mapNodeTreeWithHooks(rootNode, transform, hooks);
+    
+    // Use the integrated transformer with the new hook system
+    const mappedRoot = transformXNodeWithHooks(rootNode, transform, hooks, this.config);
 
     if (mappedRoot) {
       this.xnode = mappedRoot;

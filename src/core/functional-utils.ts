@@ -3,9 +3,6 @@
  * 
  * This file contains shared functions for tree traversal and result handling
  * used by the functional API methods.
- * 
- * Note: Main functional utilities have been moved to functional-api.ts to avoid
- * circular import issues. This file now contains only shared utilities.
  */
 import { LoggerFactory } from "./logger";
 const logger = LoggerFactory.create();

@@ -1,5 +1,5 @@
 /**
- * XNode to XML converter implementation
+ * XNode to XML converter implementation - Updated for new hook system
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
@@ -9,7 +9,7 @@ import * as xml from '../core/xml-utils';
 import { DOM, NodeType } from '../core/dom';
 import { ProcessingError } from '../core/error';
 import { XNode } from '../core/xnode';
-import { Converter, TransformHooks, applyTransformHooks } from '../core/converter';
+import { Converter, OutputHooks } from '../core/converter';
 
 /**
  * Context type for XNode to XML conversion
@@ -24,18 +24,13 @@ interface XNodeToXmlContext {
 export const xnodeToXmlConverter: Converter<XNode, Document> = {
   convert(
     node: XNode, 
-    config: Configuration, 
-    hooks?: TransformHooks
+    config: Configuration
   ): Document {
     try {
       logger.debug('Creating DOM document from XNode', { 
         nodeName: node.name, 
-        nodeType: node.type,
-        hasTransformHooks: !!(hooks && (hooks.beforeTransform || hooks.transform || hooks.afterTransform))
+        nodeType: node.type
       });
-      
-      // Apply transform hooks
-      const processedNode = applyTransformHooks(node, hooks);
       
       // Create context with empty namespace map
       const context: XNodeToXmlContext = { namespaceMap: {} };
@@ -44,7 +39,7 @@ export const xnodeToXmlConverter: Converter<XNode, Document> = {
       const doc = DOM.createDocument();
       
       // Convert XNode to DOM
-      const element = convertXNodeToDom(processedNode, doc, config, context, hooks);
+      const element = convertXNodeToDom(node, doc, config, context);
       
       // Handle the root element
       if (doc.documentElement && doc.documentElement.nodeName === "temp") {
@@ -70,12 +65,11 @@ export const xnodeToXmlConverter: Converter<XNode, Document> = {
 export const xnodeToXmlStringConverter: Converter<XNode, string> = {
   convert(
     node: XNode, 
-    config: Configuration, 
-    hooks?: TransformHooks
+    config: Configuration
   ): string {
     try {
       // First convert XNode to DOM document
-      const doc = xnodeToXmlConverter.convert(node, config, hooks);
+      const doc = xnodeToXmlConverter.convert(node, config);
       
       // Get formatting options from config
       const prettyPrint = config.formatting.pretty;
@@ -110,55 +104,131 @@ export const xnodeToXmlStringConverter: Converter<XNode, string> = {
 };
 
 /**
+ * Convert XNode to XML Document with output hooks - FIXED TIMING
+ */
+export function convertXNodeToXmlWithHooks(
+  node: XNode,
+  config: Configuration,
+  hooks?: OutputHooks<Document>
+): Document {
+  let processedXNode = node;
+  
+  // Apply beforeTransform hook to XNode
+  if (hooks?.beforeTransform) {
+    try {
+      const beforeResult = hooks.beforeTransform(processedXNode);
+      if (beforeResult && typeof beforeResult === 'object' && typeof beforeResult.name === 'string') {
+        processedXNode = beforeResult;
+      }
+    } catch (err) {
+      logger.warn(`Error in XML output beforeTransform: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  
+  // Convert to XML Document
+  let doc = xnodeToXmlConverter.convert(processedXNode, config);
+  
+  // Apply afterTransform hook to final Document
+  if (hooks?.afterTransform) {
+    try {
+      const afterResult = hooks.afterTransform(doc);
+      if (afterResult !== undefined && afterResult !== null) {
+        doc = afterResult;
+      }
+    } catch (err) {
+      logger.warn(`Error in XML output afterTransform: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  
+  return doc;
+}
+
+/**
+ * Convert XNode to XML string with output hooks - FIXED TIMING
+ */
+export function convertXNodeToXmlStringWithHooks(
+  node: XNode,
+  config: Configuration,
+  hooks?: OutputHooks<string>
+): string {
+  let processedXNode = node;
+  
+  // Apply beforeTransform hook to XNode
+  if (hooks?.beforeTransform) {
+    try {
+      const beforeResult = hooks.beforeTransform(processedXNode);
+      if (beforeResult && typeof beforeResult === 'object' && typeof beforeResult.name === 'string') {
+        processedXNode = beforeResult;
+      }
+    } catch (err) {
+      logger.warn(`Error in XML string output beforeTransform: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  
+  // Convert to XML string
+  let xmlString = xnodeToXmlStringConverter.convert(processedXNode, config);
+  
+  // Apply afterTransform hook to final string
+  if (hooks?.afterTransform) {
+    try {
+      const afterResult = hooks.afterTransform(xmlString);
+      if (afterResult !== undefined && afterResult !== null) {
+        xmlString = afterResult;
+      }
+    } catch (err) {
+      logger.warn(`Error in XML string output afterTransform: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  
+  return xmlString;
+}
+
+/**
  * Convert XNode to DOM element
  */
 function convertXNodeToDom(
   node: XNode,
   doc: Document,
   config: Configuration,
-  context: XNodeToXmlContext,
-  hooks?: TransformHooks
+  context: XNodeToXmlContext
 ): Element {
   let element: Element;
   
-  // Apply transform hooks
-  const processedNode = applyTransformHooks(node, hooks);
-  
   // Create element with namespace if provided in the XNode
-  if (processedNode.namespace) {
-    const qualifiedName = xml.createQualifiedName(processedNode.prefix, processedNode.name);
-    element = DOM.createElementNS(doc, processedNode.namespace, qualifiedName);
+  if (node.namespace) {
+    const qualifiedName = xml.createQualifiedName(node.prefix, node.name);
+    element = DOM.createElementNS(doc, node.namespace, qualifiedName);
   } else {
-    element = DOM.createElement(doc, processedNode.name);
+    element = DOM.createElement(doc, node.name);
   }
   
   // Add namespace declarations if present in XNode
-  if (processedNode.namespaceDeclarations) {
-    xml.addNamespaceDeclarations(element, processedNode.namespaceDeclarations);
+  if (node.namespaceDeclarations) {
+    xml.addNamespaceDeclarations(element, node.namespaceDeclarations);
     
     // Update namespace map
-    Object.entries(processedNode.namespaceDeclarations).forEach(([prefix, uri]) => {
+    Object.entries(node.namespaceDeclarations).forEach(([prefix, uri]) => {
       context.namespaceMap[prefix] = uri;
     });
   }
   
   // Add attributes if present in XNode
-  if (processedNode.attributes) {
-    addAttributes(element, processedNode, context.namespaceMap);
+  if (node.attributes) {
+    addAttributes(element, node, context.namespaceMap);
   }
   
   // Add content
   // Simple node with only text content
-  if (processedNode.value !== undefined && (!processedNode.children || processedNode.children.length === 0)) {
-    element.textContent = xml.safeXmlText(String(processedNode.value));
+  if (node.value !== undefined && (!node.children || node.children.length === 0)) {
+    element.textContent = xml.safeXmlText(String(node.value));
   }
   // Node with children
-  else if (processedNode.children && processedNode.children.length > 0) {
-    addChildNodes(element, processedNode.children, doc, config, context, hooks);
+  else if (node.children && node.children.length > 0) {
+    addChildNodes(element, node.children, doc, config, context);
   }
   
   logger.debug('Converted XNode to DOM element', {
-    nodeName: processedNode.name,
+    nodeName: node.name,
     elementName: element.nodeName,
     childCount: element.childNodes.length
   });
@@ -219,39 +289,35 @@ function addChildNodes(
   children: XNode[],
   doc: Document,
   config: Configuration,
-  context: XNodeToXmlContext,
-  hooks?: TransformHooks
+  context: XNodeToXmlContext
 ): void {
   for (const child of children) {
-    // Apply transform hooks to child
-    const processedChild = applyTransformHooks(child, hooks);
-    
-    switch (processedChild.type) {
+    switch (child.type) {
       case NodeType.TEXT_NODE:
         element.appendChild(
-          DOM.createTextNode(doc, xml.safeXmlText(String(processedChild.value)))
+          DOM.createTextNode(doc, xml.safeXmlText(String(child.value)))
         );
         break;
         
       case NodeType.CDATA_SECTION_NODE:
         element.appendChild(
-          DOM.createCDATASection(doc, String(processedChild.value))
+          DOM.createCDATASection(doc, String(child.value))
         );
         break;
         
       case NodeType.COMMENT_NODE:
         element.appendChild(
-          DOM.createComment(doc, String(processedChild.value))
+          DOM.createComment(doc, String(child.value))
         );
         break;
         
       case NodeType.PROCESSING_INSTRUCTION_NODE:
-        if (processedChild.attributes?.target) {
+        if (child.attributes?.target) {
           element.appendChild(
             DOM.createProcessingInstruction(
               doc,
-              processedChild.attributes.target,
-              String(processedChild.value || "")
+              child.attributes.target,
+              String(child.value || "")
             )
           );
         }
@@ -260,7 +326,7 @@ function addChildNodes(
       case NodeType.ELEMENT_NODE:
         // Recursively process child element
         element.appendChild(
-          convertXNodeToDom(processedChild, doc, config, { ...context }, hooks)
+          convertXNodeToDom(child, doc, config, { ...context })
         );
         break;
     }

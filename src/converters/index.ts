@@ -1,5 +1,5 @@
 /**
- * Converters module
+ * Converters module - Updated for new hook system
  * 
  * This module provides converter functions for transforming between XML, JSON, and XNode.
  */
@@ -7,14 +7,34 @@
 export * from '../core/converter';
 
 // XML converters
-export { xmlToXNodeConverter } from './xml-to-xnode-converter';
-export { xnodeToXmlConverter, xnodeToXmlStringConverter } from './xnode-to-xml-converter';
+export { xmlToXNodeConverter, convertXmlWithHooks } from './xml-to-xnode-converter';
+export { 
+  xnodeToXmlConverter, 
+  xnodeToXmlStringConverter,
+  convertXNodeToXmlWithHooks,
+  convertXNodeToXmlStringWithHooks
+} from './xnode-to-xml-converter';
 
-// JSON converters - unified implementation
-export { jsonToXNodeConverter } from './json-std-to-xnode-converter';
-export { xnodeToJsonConverter } from './xnode-to-json-std-converter';
-export { jsonHiFiToXNodeConverter } from './json-hifi-to-xnode-converter';
-export { xnodeToJsonHiFiConverter } from './xnode-to-json-hifi-converter';
+// JSON converters - unified implementation with hooks
+export { 
+  jsonToXNodeConverter,
+  convertJsonWithHooks
+} from './json-std-to-xnode-converter';
+export { 
+  xnodeToJsonConverter,
+  convertXNodeToJsonWithHooks
+} from './xnode-to-json-std-converter';
+export { 
+  jsonHiFiToXNodeConverter,
+  convertJsonHiFiWithHooks
+} from './json-hifi-to-xnode-converter';
+export { 
+  xnodeToJsonHiFiConverter,
+  convertXNodeToJsonHiFiWithHooks
+} from './xnode-to-json-hifi-converter';
 
-// Node transformer
-export { transformXNode } from './xnode-transformer';
+// Node transformer - integrated with new hook system
+export { 
+  transformXNodeWithHooks,
+  transformXNode  // Legacy wrapper
+} from './xnode-transformer';

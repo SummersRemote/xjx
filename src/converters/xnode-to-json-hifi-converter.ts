@@ -1,5 +1,5 @@
 /**
- * XNode to JSON HiFi converter implementation
+ * XNode to JSON HiFi converter implementation - Updated for new hook system
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
@@ -10,12 +10,11 @@ import { ProcessingError } from '../core/error';
 import { XNode } from '../core/xnode';
 import { 
   Converter, 
-  TransformHooks, 
+  OutputHooks,
   JsonValue, 
   JsonObject, 
   JsonArray,
-  getElementName,
-  applyTransformHooks
+  getElementName
 } from '../core/converter';
 import { removeEmptyElements } from '../core/json-utils';
 
@@ -25,27 +24,22 @@ import { removeEmptyElements } from '../core/json-utils';
 export const xnodeToJsonHiFiConverter: Converter<XNode, JsonValue> = {
   convert(
     node: XNode, 
-    config: Configuration, 
-    hooks?: TransformHooks
+    config: Configuration
   ): JsonValue {
     logger.debug('Starting XNode to JSON HiFi conversion', {
       nodeName: node.name,
-      nodeType: node.type,
-      hasTransformHooks: !!(hooks && (hooks.beforeTransform || hooks.transform || hooks.afterTransform))
+      nodeType: node.type
     });
-
-    // Apply transform hooks
-    const processedNode = applyTransformHooks(node, hooks);
 
     let result: JsonValue;
 
     // Process based on node type
-    if (processedNode.type !== NodeType.ELEMENT_NODE) {
+    if (node.type !== NodeType.ELEMENT_NODE) {
       // Handle non-element nodes
-      result = processSpecialNode(processedNode, config);
+      result = processSpecialNode(node, config);
     } else {
       // Process element node
-      result = processElementNode(processedNode, config, hooks);
+      result = processElementNode(node, config);
     }
 
     // Apply remove empty elements strategy if configured
@@ -57,6 +51,46 @@ export const xnodeToJsonHiFiConverter: Converter<XNode, JsonValue> = {
     return result;
   }
 };
+
+/**
+ * Convert XNode to JSON HiFi with output hooks - FIXED TIMING
+ */
+export function convertXNodeToJsonHiFiWithHooks(
+  node: XNode,
+  config: Configuration,
+  hooks?: OutputHooks<JsonValue>
+): JsonValue {
+  let processedXNode = node;
+  
+  // Apply beforeTransform hook to XNode
+  if (hooks?.beforeTransform) {
+    try {
+      const beforeResult = hooks.beforeTransform(processedXNode);
+      if (beforeResult && typeof beforeResult === 'object' && typeof beforeResult.name === 'string') {
+        processedXNode = beforeResult;
+      }
+    } catch (err) {
+      logger.warn(`Error in JSON HiFi output beforeTransform: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  
+  // Convert to JSON HiFi
+  let result = xnodeToJsonHiFiConverter.convert(processedXNode, config);
+  
+  // Apply afterTransform hook to final JSON
+  if (hooks?.afterTransform) {
+    try {
+      const afterResult = hooks.afterTransform(result);
+      if (afterResult !== undefined && afterResult !== null) {
+        result = afterResult;
+      }
+    } catch (err) {
+      logger.warn(`Error in JSON HiFi output afterTransform: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  
+  return result;
+}
 
 /**
  * Process special node types (text, CDATA, comment, PI)
@@ -107,8 +141,7 @@ function processSpecialNode(node: XNode, config: Configuration): JsonValue {
  */
 function processElementNode(
   node: XNode, 
-  config: Configuration,
-  hooks?: TransformHooks
+  config: Configuration
 ): JsonValue {
   const result: JsonObject = {};
   const nodeObj: JsonObject = {};
@@ -144,7 +177,7 @@ function processElementNode(
     nodeObj[properties.value] = node.value;
   } else if (node.children && node.children.length > 0) {
     // Process children
-    const children = processChildren(node.children, config, hooks);
+    const children = processChildren(node.children, config);
     if (children.length > 0) {
       nodeObj[properties.children] = children;
     }
@@ -229,14 +262,13 @@ function processAttributes(node: XNode, config: Configuration): JsonArray {
  */
 function processChildren(
   children: XNode[], 
-  config: Configuration,
-  hooks?: TransformHooks
+  config: Configuration
 ): JsonArray {
   const result: JsonArray = [];
   
   // Process each child in order to preserve mixed content
   for (const child of children) {
-    const processedChild = processChild(child, config, hooks);
+    const processedChild = processChild(child, config);
     if (processedChild !== null) {
       result.push(processedChild);
     }
@@ -250,42 +282,38 @@ function processChildren(
  */
 function processChild(
   child: XNode, 
-  config: Configuration,
-  hooks?: TransformHooks
+  config: Configuration
 ): JsonValue {
-  // Apply transform hooks
-  const processedChild = applyTransformHooks(child, hooks);
-
   let result: JsonValue = null;
 
-  switch (processedChild.type) {
+  switch (child.type) {
     case NodeType.TEXT_NODE:
       if (config.preserveTextNodes) {
-        result = processSpecialNode(processedChild, config);
+        result = processSpecialNode(child, config);
       }
       break;
       
     case NodeType.CDATA_SECTION_NODE:
       if (config.preserveCDATA) {
-        result = processSpecialNode(processedChild, config);
+        result = processSpecialNode(child, config);
       }
       break;
       
     case NodeType.COMMENT_NODE:
       if (config.preserveComments) {
-        result = processSpecialNode(processedChild, config);
+        result = processSpecialNode(child, config);
       }
       break;
       
     case NodeType.PROCESSING_INSTRUCTION_NODE:
       if (config.preserveProcessingInstr) {
-        result = processSpecialNode(processedChild, config);
+        result = processSpecialNode(child, config);
       }
       break;
       
     case NodeType.ELEMENT_NODE:
       // Recursively process element nodes
-      result = processElementNode(processedChild, config, hooks);
+      result = processElementNode(child, config);
       break;
   }
 

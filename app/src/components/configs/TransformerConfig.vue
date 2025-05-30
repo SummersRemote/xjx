@@ -1,34 +1,6 @@
-<!-- components/configs/TransformerConfig.vue - Updated with collapsible help -->
+<!-- components/configs/TransformerConfig.vue - Refactored with help at bottom -->
 <template>
   <v-container>
-    <!-- Help Section -->
-    <v-expansion-panels variant="accordion" class="mb-4">
-      <v-expansion-panel>
-        <v-expansion-panel-title class="text-caption">
-          <v-icon icon="mdi-help-circle" size="small" class="me-2"></v-icon>
-          Help
-        </v-expansion-panel-title>
-        <v-expansion-panel-text>
-          <v-alert type="info" variant="text" density="compact">
-            <strong>Multi-Transform Pipeline:</strong><br>
-            Select one or more transform types to configure a transformation pipeline.
-            Transforms will be applied in the order shown, allowing you to chain operations together.<br>
-            <br>
-            <strong>Transform Composition:</strong><br>
-            Multiple transforms are automatically composed using the <code>compose()</code> function.
-            Each transform receives the output of the previous transform, allowing for powerful data pipelines.<br>
-            <br>
-            <strong>Multi-Transform Examples:</strong><br>
-            - <em>Regex → Number</em>: Clean currency symbols then parse as number<br>
-            - <em>Boolean → Custom</em>: Convert to boolean then add metadata<br>
-            - <em>Number → Custom → Boolean</em>: Parse number, apply business logic, convert to flag<br>
-            <br>
-            <strong>Global Node Filtering:</strong> Apply the entire pipeline only to specific nodes or skip certain nodes.
-          </v-alert>
-        </v-expansion-panel-text>
-      </v-expansion-panel>
-    </v-expansion-panels>
-
     <!-- Transform Selection (Multiple) -->
     <v-row dense>
       <v-col cols="12">
@@ -333,6 +305,34 @@
         </v-alert>
       </v-col>
     </v-row>
+
+    <!-- Help Section - Moved to bottom -->
+    <v-expansion-panels variant="accordion" class="mt-4">
+      <v-expansion-panel>
+        <v-expansion-panel-title class="text-caption">
+          <v-icon icon="mdi-help-circle" size="small" class="me-2"></v-icon>
+          Help
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <v-alert type="info" variant="text" density="compact">
+            <strong>Multi-Transform Pipeline:</strong><br>
+            Select one or more transform types to configure a transformation pipeline.
+            Transforms will be applied in the order shown, allowing you to chain operations together.<br>
+            <br>
+            <strong>Transform Composition:</strong><br>
+            Multiple transforms are automatically composed using the <code>compose()</code> function.
+            Each transform receives the output of the previous transform, allowing for powerful data pipelines.<br>
+            <br>
+            <strong>Multi-Transform Examples:</strong><br>
+            - <em>Regex → Number</em>: Clean currency symbols then parse as number<br>
+            - <em>Boolean → Custom</em>: Convert to boolean then add metadata<br>
+            - <em>Number → Custom → Boolean</em>: Parse number, apply business logic, convert to flag<br>
+            <br>
+            <strong>Global Node Filtering:</strong> Apply the entire pipeline only to specific nodes or skip certain nodes.
+          </v-alert>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+    </v-expansion-panels>
   </v-container>
 </template>
 

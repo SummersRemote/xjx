@@ -143,9 +143,7 @@
       v-model="config.strategies.highFidelity"
       label="High-Fidelity Mode"
       color="primary"
-      hint="Preserve all XML information for perfect round-trip"
-      persistent-hint
-      density="compact"
+       density="compact"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-switch>
@@ -154,9 +152,7 @@
       v-model="config.strategies.attributeStrategy"
       :items="attributeStrategyOptions"
       label="Attribute Strategy"
-      hint="How to represent XML attributes in JSON"
-      persistent-hint
-      density="compact"
+       density="compact"
       variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
@@ -166,9 +162,7 @@
       v-model="config.strategies.textStrategy"
       :items="textStrategyOptions"
       label="Text Strategy"
-      hint="How to represent text content in JSON"
-      persistent-hint
-      density="compact"
+       density="compact"
       variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
@@ -178,9 +172,7 @@
       v-model="config.strategies.namespaceStrategy"
       :items="namespaceStrategyOptions"
       label="Namespace Strategy"
-      hint="How to represent namespaces in JSON"
-      persistent-hint
-      density="compact"
+       density="compact"
       variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
@@ -190,9 +182,7 @@
       v-model="config.strategies.arrayStrategy"
       :items="arrayStrategyOptions"
       label="Array Strategy"
-      hint="How to handle multiple elements with the same name"
-      persistent-hint
-      density="compact"
+       density="compact"
       variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
@@ -202,9 +192,7 @@
       v-model="config.strategies.emptyElementStrategy"
       :items="emptyElementStrategyOptions"
       label="Empty Element Strategy"
-      hint="How to handle empty elements in JSON"
-      persistent-hint
-      density="compact"
+       density="compact"
       variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
@@ -214,9 +202,7 @@
       v-model="config.strategies.mixedContentStrategy"
       :items="mixedContentStrategyOptions"
       label="Mixed Content Strategy"
-      hint="How to handle elements with both text and child elements"
-      persistent-hint
-      density="compact"
+       density="compact"
       variant="outlined"
       class="mb-4"
       @update:model-value="updateConfig"
@@ -227,9 +213,7 @@
     <v-text-field
       v-model="config.properties.attribute"
       label="Attribute Property"
-      hint="Property name for attributes"
-      persistent-hint
-      density="compact"
+       density="compact"
       variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
@@ -238,9 +222,7 @@
     <v-text-field
       v-model="config.properties.value"
       label="Value Property"
-      hint="Property name for values and text content"
-      persistent-hint
-      density="compact"
+       density="compact"
       variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
@@ -249,9 +231,7 @@
     <v-text-field
       v-model="config.properties.namespace"
       label="Namespace Property"
-      hint="Property name for namespaces"
-      persistent-hint
-      density="compact"
+       density="compact"
       variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
@@ -260,9 +240,7 @@
     <v-text-field
       v-model="config.properties.prefix"
       label="Prefix Property"
-      hint="Property name for namespace prefixes"
-      persistent-hint
-      density="compact"
+       density="compact"
       variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
@@ -271,9 +249,7 @@
     <v-text-field
       v-model="config.properties.cdata"
       label="CDATA Property"
-      hint="Property name for CDATA sections"
-      persistent-hint
-      density="compact"
+       density="compact"
       variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
@@ -282,9 +258,7 @@
     <v-text-field
       v-model="config.properties.comment"
       label="Comment Property"
-      hint="Property name for comments"
-      persistent-hint
-      density="compact"
+       density="compact"
       variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
@@ -293,9 +267,7 @@
     <v-text-field
       v-model="config.properties.processingInstr"
       label="Processing Instruction Property"
-      hint="Property name for processing instructions"
-      persistent-hint
-      density="compact"
+       density="compact"
       variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
@@ -304,9 +276,7 @@
     <v-text-field
       v-model="config.properties.target"
       label="Target Property"
-      hint="Property name for processing instruction targets"
-      persistent-hint
-      density="compact"
+       density="compact"
       variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
@@ -315,9 +285,7 @@
     <v-text-field
       v-model="config.properties.children"
       label="Children Property"
-      hint="Property name for child elements"
-      persistent-hint
-      density="compact"
+       density="compact"
       variant="outlined"
       class="mb-4"
       @update:model-value="updateConfig"
@@ -328,9 +296,7 @@
     <v-text-field
       v-model="config.prefixes.attribute"
       label="Attribute Prefix"
-      hint="Prefix for attributes when using prefix strategy"
-      persistent-hint
-      density="compact"
+       density="compact"
       variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
@@ -339,9 +305,7 @@
     <v-text-field
       v-model="config.prefixes.namespace"
       label="Namespace Prefix"
-      hint="Prefix for namespaces"
-      persistent-hint
-      density="compact"
+       density="compact"
       variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
@@ -350,9 +314,7 @@
     <v-text-field
       v-model="config.prefixes.comment"
       label="Comment Prefix"
-      hint="Prefix for comments"
-      persistent-hint
-      density="compact"
+       density="compact"
       variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
@@ -361,9 +323,7 @@
     <v-text-field
       v-model="config.prefixes.cdata"
       label="CDATA Prefix"
-      hint="Prefix for CDATA sections"
-      persistent-hint
-      density="compact"
+       density="compact"
       variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
@@ -372,9 +332,7 @@
     <v-text-field
       v-model="config.prefixes.pi"
       label="Processing Instruction Prefix"
-      hint="Prefix for processing instructions"
-      persistent-hint
-      density="compact"
+       density="compact"
       variant="outlined"
       class="mb-4"
       @update:model-value="updateConfig"
@@ -385,9 +343,7 @@
     <v-combobox
       v-model="config.arrays.forceArrays"
       label="Force Arrays"
-      hint="Element names that should always be treated as arrays"
-      persistent-hint
-      multiple
+       multiple
       chips
       closable-chips
       density="compact"
@@ -399,9 +355,7 @@
     <v-text-field
       v-model="config.arrays.defaultItemName"
       label="Default Item Name"
-      hint="Default name for items when converting JSON arrays to XML"
-      persistent-hint
-      density="compact"
+       density="compact"
       variant="outlined"
       class="mb-4"
       @update:model-value="updateConfig"
@@ -412,9 +366,7 @@
     <v-switch
       v-model="config.formatting.pretty"
       label="Pretty Print"
-      hint="Format output with indentation"
-      persistent-hint
-      density="compact"
+       density="compact"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-switch>
@@ -422,9 +374,7 @@
     <v-switch
       v-model="config.formatting.declaration"
       label="Include XML Declaration"
-      hint="Add XML declaration to the beginning of XML output"
-      persistent-hint
-      density="compact"
+       density="compact"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-switch>
@@ -435,9 +385,7 @@
       type="number"
       min="0"
       max="8"
-      hint="Number of spaces for each indentation level"
-      persistent-hint
-      density="compact"
+       density="compact"
       variant="outlined"
       class="mb-4"
       @update:model-value="updateConfig"
@@ -448,9 +396,7 @@
     <v-text-field
       v-model="config.fragmentRoot"
       label="Fragment Root Name"
-      hint="Root element name for functional operations (select, filter, map, reduce)"
-      persistent-hint
-      density="compact"
+       density="compact"
       variant="outlined"
       class="mb-4"
       @update:model-value="updateConfig"

@@ -1,8 +1,25 @@
-<!-- components/configs/SelectConfig.vue - Updated with collapsible help -->
+<!-- components/configs/SelectConfig.vue - Refactored with help at bottom -->
 <template>
   <v-container>
-    <!-- Help Section -->
-    <v-expansion-panels variant="accordion" class="mb-4">
+    <v-row dense>
+      <v-col cols="12">
+        <v-textarea
+          v-model="localOptions.predicate"
+          label="Select Predicate"
+          hint="Function that determines which nodes to collect"
+          persistent-hint
+          auto-grow
+          rows="3"
+          density="compact"
+          variant="outlined"
+          class="font-mono"
+          @update:model-value="updateOptions"
+        ></v-textarea>
+      </v-col>
+    </v-row>
+
+    <!-- Help Section - Moved to bottom -->
+    <v-expansion-panels variant="accordion" class="mt-4">
       <v-expansion-panel>
         <v-expansion-panel-title class="text-caption">
           <v-icon icon="mdi-help-circle" size="small" class="me-2"></v-icon>
@@ -26,23 +43,6 @@
         </v-expansion-panel-text>
       </v-expansion-panel>
     </v-expansion-panels>
-
-    <v-row dense>
-      <v-col cols="12">
-        <v-textarea
-          v-model="localOptions.predicate"
-          label="Select Predicate"
-          hint="Function that determines which nodes to collect"
-          persistent-hint
-          auto-grow
-          rows="3"
-          density="compact"
-          variant="outlined"
-          class="font-mono"
-          @update:model-value="updateOptions"
-        ></v-textarea>
-      </v-col>
-    </v-row>
   </v-container>
 </template>
 

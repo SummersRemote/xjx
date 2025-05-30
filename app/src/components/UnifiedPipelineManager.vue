@@ -1,10 +1,23 @@
-<!-- components/UnifiedPipelineManager.vue - Redesigned with fixed source/output -->
+<!-- components/UnifiedPipelineManager.vue - Refactored with simplified controls -->
 <template>
   <v-card>
     <v-card-title class="d-flex align-center">
       <v-icon icon="mdi-pipe" class="me-2"></v-icon>
       Fluent API Pipeline
       <v-spacer></v-spacer>
+      
+      <!-- Execute Button -->
+      <v-btn
+        color="success"
+        variant="elevated"
+        prepend-icon="mdi-play"
+        :disabled="!isValidPipeline || isProcessing"
+        :loading="isProcessing"
+        @click="executePipeline"
+        class="me-2"
+      >
+        Execute
+      </v-btn>
       
       <!-- Pipeline Hooks Toggle -->
       <v-btn
@@ -105,33 +118,16 @@
           
           <v-spacer></v-spacer>
           
-          <!-- Add Below Menu -->
-          <v-menu>
-            <template v-slot:activator="{ props }">
-              <v-btn
-                icon="mdi-plus"
-                size="small"
-                variant="text"
-                v-bind="props"
-              ></v-btn>
-            </template>
-            <v-list density="compact">
-              <v-list-subheader>Add Below</v-list-subheader>
-              <v-list-item
-                v-for="op in functionalOperations"
-                :key="op.value"
-                @click="addFunctionalStep(op.value, 0)"
-              >
-                <v-list-item-title>{{ op.name }}</v-list-item-title>
-                <v-list-item-subtitle>{{ op.description }}</v-list-item-subtitle>
-              </v-list-item>
-              <v-divider></v-divider>
-              <v-list-item @click="addFunctionalStep('toXnode', 0)">
-                <v-list-item-title>To XNode</v-list-item-title>
-                <v-list-item-subtitle>Convert to XNode array</v-list-item-subtitle>
-              </v-list-item>
-            </v-list>
-          </v-menu>
+          <!-- Add Below Button -->
+          <v-btn
+            color="primary"
+            variant="outlined"
+            size="small"
+            prepend-icon="mdi-plus"
+            @click="addFunctionalStep('filter', 0)"
+          >
+            Add Below
+          </v-btn>
         </v-card-title>
         
         <v-card-text class="pt-0">
@@ -151,71 +147,51 @@
         <v-card variant="outlined" color="purple">
           <v-card-title class="text-subtitle-1 pa-3 d-flex align-center">
             <v-chip color="purple" size="small" class="me-2">{{ index + 1 }}</v-chip>
-            {{ getOperationName(step.type) }}
+            
+            <!-- Operation Type Selector -->
+            <v-select
+              :model-value="step.type"
+              :items="functionalOperationItems"
+              item-title="name"
+              item-value="value"
+              density="compact"
+              variant="outlined"
+              hide-details
+              style="max-width: 200px"
+              @update:model-value="changeStepType(step.id, $event)"
+            ></v-select>
+            
             <v-spacer></v-spacer>
             
             <!-- Step Controls -->
-            <div class="d-flex align-center">
-              <!-- Add Above Menu -->
-              <v-menu>
-                <template v-slot:activator="{ props }">
-                  <v-btn
-                    icon="mdi-plus-circle-outline"
-                    size="small"
-                    variant="text"
-                    v-bind="props"
-                    class="me-1"
-                  ></v-btn>
-                </template>
-                <v-list density="compact">
-                  <v-list-subheader>Add Above</v-list-subheader>
-                  <v-list-item
-                    v-for="op in functionalOperations"
-                    :key="op.value"
-                    @click="addFunctionalStep(op.value, index)"
-                  >
-                    <v-list-item-title>{{ op.name }}</v-list-item-title>
-                  </v-list-item>
-                  <v-divider></v-divider>
-                  <v-list-item @click="addFunctionalStep('toXnode', index)">
-                    <v-list-item-title>To XNode</v-list-item-title>
-                  </v-list-item>
-                </v-list>
-              </v-menu>
+            <div class="d-flex align-center gap-2">
+              <!-- Add Above Button -->
+              <v-btn
+                color="primary"
+                variant="outlined"
+                size="small"
+                prepend-icon="mdi-plus"
+                @click="addFunctionalStep('filter', index)"
+              >
+                Add Above
+              </v-btn>
               
-              <!-- Add Below Menu -->
-              <v-menu>
-                <template v-slot:activator="{ props }">
-                  <v-btn
-                    icon="mdi-plus-circle"
-                    size="small"
-                    variant="text"
-                    v-bind="props"
-                    class="me-1"
-                  ></v-btn>
-                </template>
-                <v-list density="compact">
-                  <v-list-subheader>Add Below</v-list-subheader>
-                  <v-list-item
-                    v-for="op in functionalOperations"
-                    :key="op.value"
-                    @click="addFunctionalStep(op.value, index + 1)"
-                  >
-                    <v-list-item-title>{{ op.name }}</v-list-item-title>
-                  </v-list-item>
-                  <v-divider></v-divider>
-                  <v-list-item @click="addFunctionalStep('toXnode', index + 1)">
-                    <v-list-item-title>To XNode</v-list-item-title>
-                  </v-list-item>
-                </v-list>
-              </v-menu>
+              <!-- Add Below Button -->
+              <v-btn
+                color="primary"
+                variant="outlined"
+                size="small"
+                prepend-icon="mdi-plus"
+                @click="addFunctionalStep('filter', index + 1)"
+              >
+                Add Below
+              </v-btn>
               
               <!-- Move Up -->
               <v-btn 
                 icon="mdi-arrow-up" 
                 size="small"
                 variant="text"
-                class="me-1"
                 :disabled="index === 0"
                 @click="moveFunctionalStep(step.id, 'up')" 
               ></v-btn>
@@ -225,7 +201,6 @@
                 icon="mdi-arrow-down" 
                 size="small"
                 variant="text"
-                class="me-1"
                 :disabled="index === functionalSteps.length - 1"
                 @click="moveFunctionalStep(step.id, 'down')" 
               ></v-btn>
@@ -271,33 +246,16 @@
           
           <v-spacer></v-spacer>
           
-          <!-- Add Above Menu -->
-          <v-menu>
-            <template v-slot:activator="{ props }">
-              <v-btn
-                icon="mdi-plus"
-                size="small"
-                variant="text"
-                v-bind="props"
-              ></v-btn>
-            </template>
-            <v-list density="compact">
-              <v-list-subheader>Add Above</v-list-subheader>
-              <v-list-item
-                v-for="op in functionalOperations"
-                :key="op.value"
-                @click="addFunctionalStep(op.value, -1)"
-              >
-                <v-list-item-title>{{ op.name }}</v-list-item-title>
-                <v-list-item-subtitle>{{ op.description }}</v-list-item-subtitle>
-              </v-list-item>
-              <v-divider></v-divider>
-              <v-list-item @click="addFunctionalStep('toXnode', -1)">
-                <v-list-item-title>To XNode</v-list-item-title>
-                <v-list-item-subtitle>Convert to XNode array</v-list-item-subtitle>
-              </v-list-item>
-            </v-list>
-          </v-menu>
+          <!-- Add Above Button -->
+          <v-btn
+            color="primary"
+            variant="outlined"
+            size="small"
+            prepend-icon="mdi-plus"
+            @click="addFunctionalStep('filter', functionalSteps.length)"
+          >
+            Add Above
+          </v-btn>
         </v-card-title>
         
         <v-card-text class="pt-0">
@@ -337,7 +295,8 @@ const {
   functionalOperations,
   outputOperations,
   enablePipelineHooks,
-  pipelineHookOptions
+  pipelineHookOptions,
+  isProcessing
 } = storeToRefs(pipelineStore);
 
 // Source operations for the fixed source row
@@ -345,6 +304,12 @@ const sourceOperations = [
   { name: 'From XML', value: 'fromXml' },
   { name: 'From JSON', value: 'fromJson' },
   { name: 'From XNode', value: 'fromXnode' }
+];
+
+// Functional operations with toXnode included
+const functionalOperationItems = [
+  ...functionalOperations.value,
+  { name: 'To XNode', value: 'toXnode', description: 'Convert to XNode array' }
 ];
 
 // Helper functions
@@ -379,6 +344,18 @@ const updateOutputOptions = (options) => {
   pipelineStore.updateOutputOperation(outputOperation.value.type, options);
 };
 
+const changeStepType = (stepId, newType) => {
+  const step = functionalSteps.value.find(s => s.id === stepId);
+  if (step) {
+    // Get default options for the new type
+    const defaultOptions = pipelineStore.getDefaultOptions(newType);
+    pipelineStore.updateFunctionalStep(stepId, { ...defaultOptions, type: newType });
+    
+    // Update the step type
+    step.type = newType;
+  }
+};
+
 const addFunctionalStep = (type, position) => {
   pipelineStore.addFunctionalStep(type, position);
 };
@@ -406,6 +383,14 @@ const togglePipelineHooks = () => {
 const updatePipelineHooks = () => {
   pipelineStore.updatePipelineHooks(pipelineHookOptions.value);
 };
+
+const executePipeline = async () => {
+  try {
+    await pipelineStore.executePipeline();
+  } catch (err) {
+    console.error('Failed to execute pipeline:', err);
+  }
+};
 </script>
 
 <style scoped>
@@ -415,5 +400,9 @@ const updatePipelineHooks = () => {
 
 .v-card:hover {
   background-color: rgba(0, 0, 0, 0.02);
+}
+
+.gap-2 {
+  gap: 8px;
 }
 </style>

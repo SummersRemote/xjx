@@ -1,4 +1,4 @@
-<!-- App.vue - Added floating action button -->
+<!-- App.vue - Removed FAB, execute button moved to pipeline title bar -->
 <template>
   <v-app>
     <!-- App Bar -->
@@ -17,7 +17,7 @@
         color="white"
         variant="text"
         prepend-icon="mdi-file-document-multiple-outline"
-        href="https://github.com/yourusername/xjx-demo"
+        href="https://github.com/summersremote/xjx"
         target="_blank"
         class="me-2"
         density="compact"
@@ -36,7 +36,7 @@
     </v-app-bar>
 
     <!-- Navigation Drawer -->
-    <v-navigation-drawer v-model="drawer" width="420" class="config-drawer">
+    <v-navigation-drawer v-model="drawer" width="375" class="config-drawer">
       <ConfigPanel @showConfig="showConfigDialog" @showApi="showApiDialog" />
     </v-navigation-drawer>
 
@@ -59,18 +59,6 @@
       </v-container>
     </v-main>
 
-    <!-- Floating Execute Button -->
-    <v-btn
-      color="success"
-      size="large"
-      icon="mdi-play"
-      class="execute-fab"
-      :disabled="!isValidPipeline || isProcessing"
-      :loading="isProcessing"
-      @click="executePipeline"
-    >
-    </v-btn>
-
     <!-- Hidden Dialogs -->
     <ConfigViewer ref="configViewer" />
     <APIViewer ref="apiViewer" />
@@ -85,17 +73,11 @@
 
 <script setup>
 import { ref } from 'vue';
-import { usePipelineStore } from '@/stores/pipelineStore';
-import { storeToRefs } from 'pinia';
 import UnifiedEditorPanel from '@/components/UnifiedEditorPanel.vue';
 import UnifiedPipelineManager from '@/components/UnifiedPipelineManager.vue';
 import ConfigPanel from '@/components/ConfigPanel.vue';
 import ConfigViewer from '@/components/ConfigViewer.vue';
 import APIViewer from '@/components/APIViewer.vue';
-
-// Pipeline store for FAB
-const pipelineStore = usePipelineStore();
-const { isValidPipeline, isProcessing } = storeToRefs(pipelineStore);
 
 // References for dialogs
 const configViewer = ref(null);
@@ -111,14 +93,6 @@ const showConfigDialog = () => {
 
 const showApiDialog = () => {
   apiViewer.value?.open();
-};
-
-const executePipeline = async () => {
-  try {
-    await pipelineStore.executePipeline();
-  } catch (err) {
-    console.error('Failed to execute pipeline:', err);
-  }
 };
 </script>
 
@@ -141,13 +115,5 @@ const executePipeline = async () => {
 /* Style select components consistently */
 .v-select.compact-select .v-field__input {
   min-height: 32px !important;
-}
-
-/* Floating Execute Button */
-.execute-fab {
-  position: fixed !important;
-  bottom: 24px;
-  right: 24px;
-  z-index: 1000;
 }
 </style>

@@ -1,4 +1,4 @@
-<!-- components/configs/SourceConfig.vue - Updated with collapsible hooks and help at bottom -->
+<!-- components/configs/SourceConfig.vue - Refactored with collapsible hooks -->
 <template>
   <v-container>
     <!-- Before Transform Hook Configuration -->
@@ -22,7 +22,7 @@
     </v-expansion-panels>
     
     <!-- After Transform Hook Configuration -->
-    <v-expansion-panels variant="accordion" class="mb-3">
+    <v-expansion-panels variant="accordion" class="mb-4">
       <v-expansion-panel>
         <v-expansion-panel-title class="text-caption">
           <v-icon icon="mdi-check" size="small" class="me-2"></v-icon>
@@ -41,7 +41,7 @@
       </v-expansion-panel>
     </v-expansion-panels>
 
-    <!-- Help Section -->
+    <!-- Help Section - Moved to bottom -->
     <v-expansion-panels variant="accordion">
       <v-expansion-panel>
         <v-expansion-panel-title class="text-caption">

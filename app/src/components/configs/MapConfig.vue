@@ -1,33 +1,6 @@
-<!-- components/configs/MapConfig.vue - Updated with collapsible help -->
+<!-- components/configs/MapConfig.vue - Refactored with collapsible hooks and help at bottom -->
 <template>
   <v-container>
-    <!-- Help Section -->
-    <v-expansion-panels variant="accordion" class="mb-4">
-      <v-expansion-panel>
-        <v-expansion-panel-title class="text-caption">
-          <v-icon icon="mdi-help-circle" size="small" class="me-2"></v-icon>
-          Help
-        </v-expansion-panel-title>
-        <v-expansion-panel-text>
-          <v-alert type="info" variant="text" density="compact">
-            <strong>Map Operation Flow:</strong><br>
-            1. <span class="text-primary">Before Hook</span>: Prepare node for transformation<br>
-            2. <span class="text-warning">Primary Transform Pipeline</span>: Main transformation logic (required)<br>
-            3. <span class="text-success">After Hook</span>: Finalize or validate transformed node<br>
-            <br>
-            <strong>API:</strong> <code>map(primaryTransformPipeline, { beforeTransform?, afterTransform? })</code><br>
-            <br>
-            <strong>Multi-Transform Pipeline Examples:</strong><br>
-            - <em>Currency Processing</em>: <code>regex(/[$,]/g, '') → toNumber({ precision: 2 })</code><br>
-            - <em>Boolean Flags</em>: <code>toBoolean() → custom(node => ({...node, processed: true}))</code><br>
-            - <em>Data Cleanup</em>: <code>regex(/\s+/g, ' ') → toNumber() → toBoolean()</code><br>
-            <br>
-            Multiple transforms are automatically composed using the <code>compose()</code> function.
-          </v-alert>
-        </v-expansion-panel-text>
-      </v-expansion-panel>
-    </v-expansion-panels>
-
     <!-- Primary Transform Configuration -->
     <v-row dense>
       <v-col cols="12">
@@ -69,13 +42,13 @@
     <v-divider class="my-4"></v-divider>
     
     <!-- Before Transform Hook Configuration -->
-    <v-row dense>
-      <v-col cols="12">
-        <div class="text-subtitle-2 mb-2">
-          <v-icon icon="mdi-play" size="small" class="me-1"></v-icon>
+    <v-expansion-panels variant="accordion" class="mb-3">
+      <v-expansion-panel>
+        <v-expansion-panel-title class="text-caption">
+          <v-icon icon="mdi-play" size="small" class="me-2"></v-icon>
           Before Transform Hook (Optional)
-        </div>
-        <v-card variant="outlined" class="pa-3">
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
           <div class="text-caption text-medium-emphasis mb-2">
             Applied to each node before the primary transform pipeline
           </div>
@@ -84,20 +57,18 @@
             context="transformer"
             @update="updateBeforeTransform"
           />
-        </v-card>
-      </v-col>
-    </v-row>
-    
-    <v-divider class="my-4"></v-divider>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+    </v-expansion-panels>
     
     <!-- After Transform Hook Configuration -->
-    <v-row dense>
-      <v-col cols="12">
-        <div class="text-subtitle-2 mb-2">
-          <v-icon icon="mdi-check" size="small" class="me-1"></v-icon>
+    <v-expansion-panels variant="accordion" class="mb-4">
+      <v-expansion-panel>
+        <v-expansion-panel-title class="text-caption">
+          <v-icon icon="mdi-check" size="small" class="me-2"></v-icon>
           After Transform Hook (Optional)
-        </div>
-        <v-card variant="outlined" class="pa-3">
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
           <div class="text-caption text-medium-emphasis mb-2">
             Applied to each node after the primary transform pipeline
           </div>
@@ -106,9 +77,36 @@
             context="transformer"
             @update="updateAfterTransform"
           />
-        </v-card>
-      </v-col>
-    </v-row>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+    </v-expansion-panels>
+
+    <!-- Help Section - Moved to bottom -->
+    <v-expansion-panels variant="accordion">
+      <v-expansion-panel>
+        <v-expansion-panel-title class="text-caption">
+          <v-icon icon="mdi-help-circle" size="small" class="me-2"></v-icon>
+          Help
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <v-alert type="info" variant="text" density="compact">
+            <strong>Map Operation Flow:</strong><br>
+            1. <span class="text-primary">Before Hook</span>: Prepare node for transformation<br>
+            2. <span class="text-warning">Primary Transform Pipeline</span>: Main transformation logic (required)<br>
+            3. <span class="text-success">After Hook</span>: Finalize or validate transformed node<br>
+            <br>
+            <strong>API:</strong> <code>map(primaryTransformPipeline, { beforeTransform?, afterTransform? })</code><br>
+            <br>
+            <strong>Multi-Transform Pipeline Examples:</strong><br>
+            - <em>Currency Processing</em>: <code>regex(/[$,]/g, '') → toNumber({ precision: 2 })</code><br>
+            - <em>Boolean Flags</em>: <code>toBoolean() → custom(node => ({...node, processed: true}))</code><br>
+            - <em>Data Cleanup</em>: <code>regex(/\s+/g, ' ') → toNumber() → toBoolean()</code><br>
+            <br>
+            Multiple transforms are automatically composed using the <code>compose()</code> function.
+          </v-alert>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+    </v-expansion-panels>
   </v-container>
 </template>
 

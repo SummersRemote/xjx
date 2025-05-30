@@ -10,35 +10,32 @@ import { ProcessingError } from '../core/error';
 import { XNode } from '../core/xnode';
 import { 
   Converter, 
-  NodeCallback, 
-  JsonOptions, 
+  TransformHooks, 
   JsonValue, 
   JsonObject, 
   JsonArray,
   getElementName,
-  applyNodeCallbacks
+  applyTransformHooks
 } from '../core/converter';
 import { removeEmptyElements } from '../core/json-utils';
 
 /**
  * XNode to JSON HiFi converter
  */
-export const xnodeToJsonHiFiConverter: Converter<XNode, JsonValue, JsonOptions> = {
+export const xnodeToJsonHiFiConverter: Converter<XNode, JsonValue> = {
   convert(
     node: XNode, 
     config: Configuration, 
-    options?: JsonOptions,
-    beforeFn?: NodeCallback,
-    afterFn?: NodeCallback
+    hooks?: TransformHooks
   ): JsonValue {
     logger.debug('Starting XNode to JSON HiFi conversion', {
       nodeName: node.name,
       nodeType: node.type,
-      hasCallbacks: !!(beforeFn || afterFn)
+      hasTransformHooks: !!(hooks && (hooks.beforeTransform || hooks.transform || hooks.afterTransform))
     });
 
-    // Apply before callback and use returned node
-    const processedNode = applyNodeCallbacks(node, beforeFn);
+    // Apply transform hooks
+    const processedNode = applyTransformHooks(node, hooks);
 
     let result: JsonValue;
 
@@ -48,11 +45,8 @@ export const xnodeToJsonHiFiConverter: Converter<XNode, JsonValue, JsonOptions> 
       result = processSpecialNode(processedNode, config);
     } else {
       // Process element node
-      result = processElementNode(processedNode, config, beforeFn, afterFn);
+      result = processElementNode(processedNode, config, hooks);
     }
-
-    // Apply after callback
-    applyNodeCallbacks(processedNode, undefined, afterFn);
 
     // Apply remove empty elements strategy if configured
     if (config.strategies.emptyElementStrategy === 'remove') {
@@ -114,8 +108,7 @@ function processSpecialNode(node: XNode, config: Configuration): JsonValue {
 function processElementNode(
   node: XNode, 
   config: Configuration,
-  beforeFn?: NodeCallback,
-  afterFn?: NodeCallback
+  hooks?: TransformHooks
 ): JsonValue {
   const result: JsonObject = {};
   const nodeObj: JsonObject = {};
@@ -151,7 +144,7 @@ function processElementNode(
     nodeObj[properties.value] = node.value;
   } else if (node.children && node.children.length > 0) {
     // Process children
-    const children = processChildren(node.children, config, beforeFn, afterFn);
+    const children = processChildren(node.children, config, hooks);
     if (children.length > 0) {
       nodeObj[properties.children] = children;
     }
@@ -237,14 +230,13 @@ function processAttributes(node: XNode, config: Configuration): JsonArray {
 function processChildren(
   children: XNode[], 
   config: Configuration,
-  beforeFn?: NodeCallback,
-  afterFn?: NodeCallback
+  hooks?: TransformHooks
 ): JsonArray {
   const result: JsonArray = [];
   
   // Process each child in order to preserve mixed content
   for (const child of children) {
-    const processedChild = processChild(child, config, beforeFn, afterFn);
+    const processedChild = processChild(child, config, hooks);
     if (processedChild !== null) {
       result.push(processedChild);
     }
@@ -259,11 +251,10 @@ function processChildren(
 function processChild(
   child: XNode, 
   config: Configuration,
-  beforeFn?: NodeCallback,
-  afterFn?: NodeCallback
+  hooks?: TransformHooks
 ): JsonValue {
-  // Apply before callback and use returned node
-  const processedChild = applyNodeCallbacks(child, beforeFn);
+  // Apply transform hooks
+  const processedChild = applyTransformHooks(child, hooks);
 
   let result: JsonValue = null;
 
@@ -294,12 +285,9 @@ function processChild(
       
     case NodeType.ELEMENT_NODE:
       // Recursively process element nodes
-      result = processElementNode(processedChild, config, beforeFn, afterFn);
+      result = processElementNode(processedChild, config, hooks);
       break;
   }
-
-  // Apply after callback
-  applyNodeCallbacks(processedChild, undefined, afterFn);
 
   return result;
 }

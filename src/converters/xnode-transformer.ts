@@ -2,6 +2,7 @@
  * XNode transformer implementation with functional approach
  * 
  * Applies transformations to XNode using transform functions.
+ * This is now separate from the TransformHooks system used by converters.
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
@@ -13,6 +14,10 @@ import { NodeType } from '../core/dom';
 
 /**
  * Apply transformations to an XNode
+ * 
+ * Note: This is different from TransformHooks which are applied during conversion.
+ * This transformer applies Transform functions to existing XNode structures.
+ * 
  * @param node XNode to transform
  * @param transforms Transformations to apply
  * @param config Configuration

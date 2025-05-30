@@ -7,7 +7,7 @@ const logger = LoggerFactory.create();
 import { XJX } from "../XJX";
 import { XNode, createElement, addChild, cloneNode } from "../core/xnode";
 import { NonTerminalExtensionContext } from "../core/extension";
-import { validateInput, NodeCallback, applyNodeCallbacks } from "../core/converter";
+import { validateInput, TransformHooks, applyTransformHooks } from "../core/converter";
 
 /**
  * Implementation for setting XNode source
@@ -15,8 +15,7 @@ import { validateInput, NodeCallback, applyNodeCallbacks } from "../core/convert
 export function fromXnode(
   this: NonTerminalExtensionContext, 
   input: XNode | XNode[],
-  beforeFn?: NodeCallback,
-  afterFn?: NodeCallback
+  options?: TransformHooks
 ): void {
   try {
     // API boundary validation
@@ -28,14 +27,14 @@ export function fromXnode(
       
       logger.debug('Setting XNode array source for transformation', {
         nodeCount: input.length,
-        hasCallbacks: !!(beforeFn || afterFn)
+        hasTransformHooks: !!(options && (options.beforeTransform || options.transform || options.afterTransform))
       });
       
       // Create a wrapper element to contain all nodes
       let wrapper = createElement('xnodes');
       
-      // Apply before callback to wrapper and use returned node
-      wrapper = applyNodeCallbacks(wrapper, beforeFn);
+      // Apply transform hooks to wrapper
+      wrapper = applyTransformHooks(wrapper, options);
       
       // Add each input node as a child (clone to avoid mutation)
       input.forEach((node, index) => {
@@ -47,14 +46,11 @@ export function fromXnode(
         // Clone the node to avoid mutating the original input
         let clonedNode = cloneNode(node, true);
         
-        // Apply callbacks to each cloned node and use returned node
-        clonedNode = applyNodeCallbacks(clonedNode, beforeFn, afterFn);
+        // Apply transform hooks to each cloned node
+        clonedNode = applyTransformHooks(clonedNode, options);
         
         addChild(wrapper, clonedNode);
       });
-      
-      // Apply after callback to wrapper and use returned node
-      wrapper = applyNodeCallbacks(wrapper, undefined, afterFn);
       
       this.xnode = wrapper;
       
@@ -72,14 +68,14 @@ export function fromXnode(
       logger.debug('Setting single XNode source for transformation', {
         nodeName: input.name,
         nodeType: input.type,
-        hasCallbacks: !!(beforeFn || afterFn)
+        hasTransformHooks: !!(options && (options.beforeTransform || options.transform || options.afterTransform))
       });
       
       // Clone the node to avoid mutating the original input
       let clonedNode = cloneNode(input, true);
       
-      // Apply callbacks to the cloned node and use returned node
-      clonedNode = applyNodeCallbacks(clonedNode, beforeFn, afterFn);
+      // Apply transform hooks to the cloned node
+      clonedNode = applyTransformHooks(clonedNode, options);
       
       this.xnode = clonedNode;
       

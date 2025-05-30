@@ -9,7 +9,7 @@ import * as xml from '../core/xml-utils';
 import { DOM, NodeType } from '../core/dom';
 import { ProcessingError } from '../core/error';
 import { XNode } from '../core/xnode';
-import { Converter, NodeCallback, applyNodeCallbacks } from '../core/converter';
+import { Converter, TransformHooks, applyTransformHooks } from '../core/converter';
 
 /**
  * Context type for XNode to XML conversion
@@ -19,33 +19,23 @@ interface XNodeToXmlContext {
 }
 
 /**
- * Options for XML serialization
- */
-export interface XmlSerializationOptions {
-  prettyPrint?: boolean;
-  indent?: number;
-  declaration?: boolean;
-}
-
-/**
  * XNode to XML Document converter
  */
-export const xnodeToXmlConverter: Converter<XNode, Document, XmlSerializationOptions> = {
+export const xnodeToXmlConverter: Converter<XNode, Document> = {
   convert(
     node: XNode, 
     config: Configuration, 
-    options?: XmlSerializationOptions,
-    beforeFn?: NodeCallback,
-    afterFn?: NodeCallback
+    hooks?: TransformHooks
   ): Document {
     try {
       logger.debug('Creating DOM document from XNode', { 
         nodeName: node.name, 
-        nodeType: node.type 
+        nodeType: node.type,
+        hasTransformHooks: !!(hooks && (hooks.beforeTransform || hooks.transform || hooks.afterTransform))
       });
       
-      // Apply before callback and use returned node
-      const processedNode = applyNodeCallbacks(node, beforeFn);
+      // Apply transform hooks
+      const processedNode = applyTransformHooks(node, hooks);
       
       // Create context with empty namespace map
       const context: XNodeToXmlContext = { namespaceMap: {} };
@@ -54,7 +44,7 @@ export const xnodeToXmlConverter: Converter<XNode, Document, XmlSerializationOpt
       const doc = DOM.createDocument();
       
       // Convert XNode to DOM
-      const element = convertXNodeToDom(processedNode, doc, config, context, beforeFn, afterFn);
+      const element = convertXNodeToDom(processedNode, doc, config, context, hooks);
       
       // Handle the root element
       if (doc.documentElement && doc.documentElement.nodeName === "temp") {
@@ -62,9 +52,6 @@ export const xnodeToXmlConverter: Converter<XNode, Document, XmlSerializationOpt
       } else {
         doc.appendChild(element);
       }
-      
-      // Apply after callback
-      applyNodeCallbacks(processedNode, undefined, afterFn);
       
       logger.debug('Successfully created DOM document', {
         documentElement: doc.documentElement?.nodeName
@@ -80,27 +67,20 @@ export const xnodeToXmlConverter: Converter<XNode, Document, XmlSerializationOpt
 /**
  * XNode to XML string converter
  */
-export const xnodeToXmlStringConverter: Converter<XNode, string, XmlSerializationOptions> = {
+export const xnodeToXmlStringConverter: Converter<XNode, string> = {
   convert(
     node: XNode, 
     config: Configuration, 
-    options?: XmlSerializationOptions,
-    beforeFn?: NodeCallback,
-    afterFn?: NodeCallback
+    hooks?: TransformHooks
   ): string {
     try {
       // First convert XNode to DOM document
-      const doc = xnodeToXmlConverter.convert(node, config, options, beforeFn, afterFn);
+      const doc = xnodeToXmlConverter.convert(node, config, hooks);
       
-      // Get options with defaults
-      const prettyPrint = options?.prettyPrint !== undefined ? 
-        options.prettyPrint : config.formatting.pretty;
-      
-      const indent = options?.indent !== undefined ? 
-        options.indent : config.formatting.indent;
-      
-      const declaration = options?.declaration !== undefined ? 
-        options.declaration : config.formatting.declaration;
+      // Get formatting options from config
+      const prettyPrint = config.formatting.pretty;
+      const indent = config.formatting.indent;
+      const declaration = config.formatting.declaration;
       
       // Serialize to string
       let xmlString = xml.serializeXml(doc);
@@ -137,13 +117,12 @@ function convertXNodeToDom(
   doc: Document,
   config: Configuration,
   context: XNodeToXmlContext,
-  beforeFn?: NodeCallback,
-  afterFn?: NodeCallback
+  hooks?: TransformHooks
 ): Element {
   let element: Element;
   
-  // Apply before callback and use returned node
-  const processedNode = applyNodeCallbacks(node, beforeFn);
+  // Apply transform hooks
+  const processedNode = applyTransformHooks(node, hooks);
   
   // Create element with namespace if provided in the XNode
   if (processedNode.namespace) {
@@ -175,11 +154,8 @@ function convertXNodeToDom(
   }
   // Node with children
   else if (processedNode.children && processedNode.children.length > 0) {
-    addChildNodes(element, processedNode.children, doc, config, context, beforeFn, afterFn);
+    addChildNodes(element, processedNode.children, doc, config, context, hooks);
   }
-  
-  // Apply after callback
-  applyNodeCallbacks(processedNode, undefined, afterFn);
   
   logger.debug('Converted XNode to DOM element', {
     nodeName: processedNode.name,
@@ -244,12 +220,11 @@ function addChildNodes(
   doc: Document,
   config: Configuration,
   context: XNodeToXmlContext,
-  beforeFn?: NodeCallback,
-  afterFn?: NodeCallback
+  hooks?: TransformHooks
 ): void {
   for (const child of children) {
-    // Apply callbacks to child and use returned node
-    const processedChild = applyNodeCallbacks(child, beforeFn);
+    // Apply transform hooks to child
+    const processedChild = applyTransformHooks(child, hooks);
     
     switch (processedChild.type) {
       case NodeType.TEXT_NODE:
@@ -285,12 +260,9 @@ function addChildNodes(
       case NodeType.ELEMENT_NODE:
         // Recursively process child element
         element.appendChild(
-          convertXNodeToDom(processedChild, doc, config, { ...context }, beforeFn, afterFn)
+          convertXNodeToDom(processedChild, doc, config, { ...context }, hooks)
         );
         break;
     }
-    
-    // Apply after callback to child
-    applyNodeCallbacks(processedChild, undefined, afterFn);
   }
 }

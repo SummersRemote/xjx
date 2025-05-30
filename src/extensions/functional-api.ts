@@ -11,16 +11,222 @@ import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
 
 import { XJX } from "../XJX";
-import { XNode, addChild } from "../core/xnode";
+import { XNode, addChild, createElement, cloneNode } from "../core/xnode";
 import { NonTerminalExtensionContext, TerminalExtensionContext } from "../core/extension";
-import { validateInput } from "../core/converter";
-import {
-  createResultsContainer,
-  filterNodeHierarchy,
-  mapNodeTree,
-  reduceNodeTree,
-  collectNodes
-} from "../core/functional-utils";
+import { validateInput, TransformHooks } from "../core/converter";
+/**
+ * Create a container node for results
+ * @param rootName Name for the container element
+ * @returns A new container node
+ */
+function createResultsContainer(rootName: string = 'results'): XNode {
+  return createElement(rootName);
+}
+
+/**
+ * Walk the tree and apply a visitor function to each node
+ * @param node Root node to start traversal
+ * @param visitor Function to apply to each node
+ * @param context Optional context passed to the visitor
+ * @returns The result from the root node visitor
+ */
+function walkTree<T>(
+  node: XNode, 
+  visitor: (node: XNode, context?: any) => T,
+  context?: any
+): T {
+  try {
+    // Apply visitor to current node
+    const result = visitor(node, context);
+    
+    // Recursively visit children
+    if (node.children && node.children.length > 0) {
+      for (const child of node.children) {
+        walkTree(child, visitor, context);
+      }
+    }
+    
+    return result;
+  } catch (err) {
+    logger.warn(`Error in tree walker for node: ${node.name}`, { 
+      error: err instanceof Error ? err.message : String(err)
+    });
+    return undefined as unknown as T;
+  }
+}
+
+/**
+ * Walk the tree and collect nodes that match a predicate
+ * @param node Root node to start traversal
+ * @param predicate Function to test each node
+ * @returns Array of matching nodes
+ */
+function collectNodes(
+  node: XNode, 
+  predicate: (node: XNode) => boolean
+): XNode[] {
+  const results: XNode[] = [];
+  
+  walkTree(node, (current) => {
+    try {
+      if (predicate(current)) {
+        // Clone the node to avoid mutations
+        results.push(cloneNode(current, true));
+      }
+    } catch (err) {
+      logger.warn(`Error evaluating predicate on node: ${current.name}`, {
+        error: err instanceof Error ? err.message : String(err)
+      });
+    }
+    
+    return undefined;
+  });
+  
+  return results;
+}
+
+/**
+ * Improved filter implementation that properly handles negations
+ * @param node Root node to filter
+ * @param predicate Function that determines if a node should be kept
+ * @returns New filtered node tree or null if no matches
+ */
+function filterNodeHierarchy(
+  node: XNode,
+  predicate: (node: XNode) => boolean
+): XNode | null {
+  try {
+    // Function to recursively filter the tree
+    const filterNode = (currentNode: XNode): XNode | null => {
+      // Check if this node matches the predicate
+      let keepThisNode: boolean;
+      
+      try {
+        keepThisNode = predicate(currentNode);
+      } catch (err) {
+        logger.warn(`Error in filter predicate for node ${currentNode.name}:`, err);
+        keepThisNode = false;
+      }
+      
+      // Process children first (if any)
+      const keptChildren: XNode[] = [];
+      
+      if (currentNode.children && currentNode.children.length > 0) {
+        for (const child of currentNode.children) {
+          const filteredChild = filterNode(child);
+          if (filteredChild) {
+            keptChildren.push(filteredChild);
+          }
+        }
+      }
+      
+      // If this node doesn't match the predicate and has no children that match,
+      // remove it entirely
+      if (!keepThisNode && keptChildren.length === 0) {
+        return null;
+      }
+      
+      // Create a new node for the result
+      const resultNode = cloneNode(currentNode, false);
+      
+      // If we have kept children, add them
+      if (keptChildren.length > 0) {
+        resultNode.children = keptChildren;
+        // Set parent references
+        keptChildren.forEach(child => child.parent = resultNode);
+      }
+      
+      return resultNode;
+    };
+    
+    // Start the filtering process from the root
+    return filterNode(node);
+  } catch (err) {
+    logger.error('Error in filter operation:', err);
+    // Return a clone of the original on critical error to avoid mutation
+    return cloneNode(node, true);
+  }
+}
+
+/**
+ * Apply a transformer function to every node in the tree
+ * @param node Root node to transform
+ * @param transformer Function to transform each node
+ * @returns New transformed node tree
+ */
+function mapNodeTree(
+  node: XNode,
+  transformer: (node: XNode) => XNode | null
+): XNode | null {
+  try {
+    // Apply transformer to current node
+    const transformedNode = transformer(cloneNode(node, false));
+    
+    // If transformer returned null, skip this node
+    if (!transformedNode) {
+      return null;
+    }
+    
+    // Process children
+    if (node.children && node.children.length > 0) {
+      transformedNode.children = [];
+      
+      for (const child of node.children) {
+        const transformedChild = mapNodeTree(child, transformer);
+        if (transformedChild) {
+          transformedChild.parent = transformedNode;
+          transformedNode.children.push(transformedChild);
+        }
+      }
+    }
+    
+    return transformedNode;
+  } catch (err) {
+    logger.warn(`Error in mapper for node: ${node.name}`, {
+      error: err instanceof Error ? err.message : String(err)
+    });
+    
+    // Return a clone of the original node on error
+    return cloneNode(node, true);
+  }
+}
+
+/**
+ * Reduce all nodes in the tree to a single value
+ * @param node Root node to process
+ * @param reducer Function to accumulate values
+ * @param initialValue Initial accumulator value
+ * @returns Final accumulated value
+ */
+function reduceNodeTree<T>(
+  node: XNode,
+  reducer: (accumulator: T, node: XNode) => T,
+  initialValue: T
+): T {
+  let accumulator = initialValue;
+  
+  // Process node in pre-order traversal
+  const traverse = (current: XNode) => {
+    try {
+      // Update accumulator with current node
+      accumulator = reducer(accumulator, cloneNode(current, false));
+    } catch (err) {
+      logger.warn(`Error in reducer for node: ${current.name}`, {
+        error: err instanceof Error ? err.message : String(err)
+      });
+    }
+    
+    // Process children
+    if (current.children && current.children.length > 0) {
+      for (const child of current.children) {
+        traverse(child);
+      }
+    }
+  };
+  
+  traverse(node);
+  return accumulator;
+}
 
 /**
  * Return a new document with only nodes that match the predicate
@@ -70,52 +276,59 @@ export function filter(
 }
 
 /**
- * Apply a transformation function to every node in the document
+ * Apply a transformation to every node in the document
  *
- * @param transformer Function to transform each node
+ * @param options Transform hooks - uses options.transform as the main transformer
  * @returns this for chaining
  */
 export function map(
   this: NonTerminalExtensionContext,
-  transformer: (node: XNode) => XNode | null | undefined | void  // Allow undefined/void
+  options?: TransformHooks
 ): void {
   try {
     // API boundary validation
-    validateInput(typeof transformer === "function", "Transformer must be a function");
     this.validateSource();
 
-    logger.debug("Mapping document nodes");
+    logger.debug("Mapping document nodes", {
+      hasTransformHooks: !!(options && (options.beforeTransform || options.transform || options.afterTransform))
+    });
 
     // Get the current document root
     const rootNode = this.xnode as XNode;
 
-    // Create a wrapper that handles undefined returns gracefully
+    // Create a wrapper that applies all transform hooks
     const consistentTransformer = (node: XNode): XNode | null => {
       try {
-        const result = transformer(node);
+        let processedNode = node;
         
-        // NEW: Handle undefined returns gracefully (keep original node)
-        if (result === undefined) {
-          // Undefined return - keep original (consistent with beforeFn/afterFn)
-          return node;
+        // Apply beforeTransform
+        if (options?.beforeTransform) {
+          const beforeResult = options.beforeTransform(processedNode);
+          if (beforeResult && typeof beforeResult === 'object' && typeof beforeResult.name === 'string') {
+            processedNode = beforeResult;
+          }
         }
         
-        // Existing logic for null and valid nodes
-        if (result === null) {
-          return null; // Explicit removal
+        // Apply main transform
+        if (options?.transform) {
+          const transformResult = options.transform(processedNode);
+          if (transformResult === null) {
+            return null; // Explicit removal
+          }
+          if (transformResult && typeof transformResult === 'object' && typeof transformResult.name === 'string') {
+            processedNode = transformResult;
+          }
         }
         
-        if (result && typeof result === 'object' && typeof result.name === 'string') {
-          return result as XNode; // Valid transformation
+        // Apply afterTransform
+        if (options?.afterTransform) {
+          const afterResult = options.afterTransform(processedNode);
+          if (afterResult && typeof afterResult === 'object' && typeof afterResult.name === 'string') {
+            processedNode = afterResult;
+          }
         }
         
-        // NEW: Handle invalid return types gracefully
-        if (result !== undefined && result !== null) {
-          logger.warn(`Transformer returned invalid type for ${node.name}: ${typeof result}, keeping original`);
-          return node;
-        }
-        
-        return node; // Fallback
+        return processedNode;
       } catch (error) {
         logger.warn(`Error in transformer for node ${node.name}:`, error);
         return node; // Keep original on error
@@ -151,24 +364,53 @@ export function map(
 /**
  * Accumulate a value by processing every node in the document
  *
- * @param reducer Function that accumulates a result from each node
  * @param initialValue Initial value for the accumulator
+ * @param options Transform hooks - uses options.transform as the reducer function
  * @returns The final accumulated value
  */
 export function reduce<T>(
   this: TerminalExtensionContext,
-  reducer: (accumulator: T, node: XNode) => T,
-  initialValue: T
+  initialValue: T,
+  options?: TransformHooks
 ): T {
   try {
     // API boundary validation
-    validateInput(typeof reducer === "function", "Reducer must be a function");
     this.validateSource();
 
-    logger.debug("Reducing document nodes");
+    logger.debug("Reducing document nodes", {
+      hasTransformHooks: !!(options && (options.beforeTransform || options.transform || options.afterTransform))
+    });
 
     // Get the current document root
     const rootNode = this.xnode as XNode;
+
+    // Create a reducer that applies transform hooks
+    const reducer = (accumulator: T, node: XNode): T => {
+      try {
+        let processedNode = node;
+        
+        // Apply beforeTransform
+        if (options?.beforeTransform) {
+          const beforeResult = options.beforeTransform(processedNode);
+          if (beforeResult && typeof beforeResult === 'object' && typeof beforeResult.name === 'string') {
+            processedNode = beforeResult;
+          }
+        }
+        
+        // Apply main transform (this should be the reducer logic)
+        if (options?.transform) {
+          // The transform function in reduce context should accept (accumulator, node) and return new accumulator
+          const transformResult = (options.transform as any)(accumulator, processedNode);
+          return transformResult;
+        }
+        
+        // Default behavior if no transform provided - just count nodes
+        return (accumulator as any) + 1;
+      } catch (error) {
+        logger.warn(`Error in reducer for node ${node.name}:`, error);
+        return accumulator; // Keep accumulator unchanged on error
+      }
+    };
 
     // Apply reducer to all nodes in the tree
     const result = reduceNodeTree(rootNode, reducer, initialValue);

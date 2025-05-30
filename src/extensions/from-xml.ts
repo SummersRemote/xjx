@@ -8,7 +8,7 @@ import { XJX } from "../XJX";
 import { xmlToXNodeConverter } from "../converters/xml-to-xnode-converter";
 import { ProcessingError } from "../core/error";
 import { NonTerminalExtensionContext } from "../core/extension";
-import { validateInput, NodeCallback } from "../core/converter";
+import { validateInput, TransformHooks } from "../core/converter";
 
 /**
  * Implementation for setting XML source
@@ -16,8 +16,7 @@ import { validateInput, NodeCallback } from "../core/converter";
 export function fromXml(
   this: NonTerminalExtensionContext, 
   xml: string,
-  beforeFn?: NodeCallback,
-  afterFn?: NodeCallback
+  options?: TransformHooks
 ): void {
   try {
     // API boundary validation
@@ -26,12 +25,12 @@ export function fromXml(
     
     logger.debug('Setting XML source for transformation', {
       sourceLength: xml.length,
-      hasCallbacks: !!(beforeFn || afterFn)
+      hasTransformHooks: !!(options && (options.beforeTransform || options.transform || options.afterTransform))
     });
     
-    // Convert XML to XNode using the converter with functional callbacks
+    // Convert XML to XNode using the converter with transform hooks
     try {
-      this.xnode = xmlToXNodeConverter.convert(xml, this.config, undefined, beforeFn, afterFn);
+      this.xnode = xmlToXNodeConverter.convert(xml, this.config, options);
     } catch (err) {
       // Specific error handling for XML conversion failures
       throw new ProcessingError("Failed to parse XML source", xml);

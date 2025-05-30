@@ -7,18 +7,20 @@ const logger = LoggerFactory.create();
 import { XJX } from "../XJX";
 import { transformXNode } from "../converters/xnode-transformer";
 import { XNode, cloneNode } from "../core/xnode";
+import { TransformHooks, applyTransformHooks } from "../core/converter";
 import { TerminalExtensionContext } from "../core/extension";
 
 /**
  * Implementation for converting to XNode array
  */
-export function toXnode(this: TerminalExtensionContext): XNode[] {
+export function toXnode(this: TerminalExtensionContext, options?: TransformHooks): XNode[] {
   try {
     // Source validation is handled by the registration mechanism
     this.validateSource();
     
     logger.debug('Starting toXnode conversion', {
-      hasTransforms: this.transforms.length > 0
+      hasTransforms: this.transforms.length > 0,
+      hasTransformHooks: !!(options && (options.beforeTransform || options.transform || options.afterTransform))
     });
     
     // Apply transformations if any are registered
@@ -32,6 +34,11 @@ export function toXnode(this: TerminalExtensionContext): XNode[] {
       logger.debug('Applied transforms to XNode', {
         transformCount: this.transforms.length
       });
+    }
+    
+    // Apply transform hooks if provided
+    if (options) {
+      nodeToConvert = applyTransformHooks(nodeToConvert, options);
     }
     
     // Always return an array - this enables consistent query processing

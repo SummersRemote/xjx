@@ -55,9 +55,9 @@ export {
   NonTerminalExtensionContext,
 } from "./core/extension";
 
-// Export JSON conversion types
+// Export converter types - NEW: TransformHooks interface
 export {
-  JsonOptions,
+  TransformHooks,
   JsonValue,
   JsonObject,
   JsonArray,

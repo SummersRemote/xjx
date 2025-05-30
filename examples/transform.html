@@ -3,289 +3,203 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>XJX Transform Test</title>
+    <title>XJX Transform Hooks Debug</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .test-section {
-            margin: 20px 0;
-            padding: 15px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-        .code {
-            background: #f5f5f5;
-            padding: 10px;
-            border-radius: 3px;
-            font-family: 'Courier New', monospace;
-            white-space: pre-wrap;
-        }
-        .result {
-            background: #e8f5e8;
-            padding: 10px;
-            border-radius: 3px;
-            margin-top: 10px;
-        }
-        .error {
-            background: #ffe8e8;
-            padding: 10px;
-            border-radius: 3px;
-            margin-top: 10px;
-            color: red;
-        }
-        button {
-            background: #007bff;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            margin: 5px;
-        }
-        button:hover {
-            background: #0056b3;
-        }
+        body { font-family: monospace; margin: 20px; }
+        .test-section { border: 1px solid #ccc; margin: 10px 0; padding: 10px; }
+        .result { background: #f0f0f0; padding: 10px; margin: 10px 0; }
+        .error { background: #ffe6e6; color: red; }
+        .success { background: #e6ffe6; color: green; }
+        pre { white-space: pre-wrap; }
     </style>
 </head>
 <body>
-    <h1>XJX Transform Test</h1>
-    <p>Testing value transforms with the XJX library</p>
+    <h1>XJX Transform Hooks Debug Page</h1>
     
-    <!-- Test 1: Basic Transform Test -->
     <div class="test-section">
-        <h3>Test 1: Direct Transform Function Test</h3>
-        <div class="code" id="test1-code">// Testing toBoolean transform directly</div>
-        <button onclick="runTest1()">Run Test 1</button>
-        <div id="test1-result"></div>
+        <h2>Test 1: Direct Transform Function Test</h2>
+        <button onclick="testDirectTransforms()">Run Direct Transform Test</button>
+        <div id="direct-result" class="result"></div>
     </div>
-
-    <!-- Test 2: Map with Transform -->
+    
     <div class="test-section">
-        <h3>Test 2: Map with Transform (Original Issue)</h3>
-        <div class="code" id="test2-code">// Testing map(toBoolean()) with XML</div>
-        <button onclick="runTest2()">Run Test 2</button>
-        <div id="test2-result"></div>
+        <h2>Test 2: Transform Hooks in fromXml</h2>
+        <button onclick="testFromXmlWithHooks()">Run fromXml Transform Test</button>
+        <div id="fromxml-result" class="result"></div>
     </div>
-
-    <!-- Test 3: Manual Node Transformer -->
+    
     <div class="test-section">
-        <h3>Test 3: Manual Node Transformer</h3>
-        <div class="code" id="test3-code">// Testing manual node transformer</div>
-        <button onclick="runTest3()">Run Test 3</button>
-        <div id="test3-result"></div>
+        <h2>Test 3: Transform Hooks in fromJson</h2>
+        <button onclick="testFromJsonWithHooks()">Run fromJson Transform Test</button>
+        <div id="fromjson-result" class="result"></div>
     </div>
-
-    <!-- Test 4: All Node Values -->
+    
     <div class="test-section">
-        <h3>Test 4: Transform All Node Values</h3>
-        <div class="code" id="test4-code">// Testing transform on all nodes with values</div>
-        <button onclick="runTest4()">Run Test 4</button>
-        <div id="test4-result"></div>
+        <h2>Test 4: Custom Transform Function</h2>
+        <button onclick="testCustomTransform()">Run Custom Transform Test</button>
+        <div id="custom-result" class="result"></div>
     </div>
 
     <script type="module">
-        // Import XJX library
-        import { XJX, toBoolean, toNumber } from '../../../dist/esm/index.js';
+        // Import XJX library - adjust path as needed
+        import { XJX, toNumber, toBoolean, regex } from '../dist/esm/index.js';
         
-        const xmlSource = `<root>
-  <example>Hello World</example>
-  <count>42</count>
-  <active>true</active>
-</root>`;
-
-        window.runTest1 = function() {
-            document.getElementById('test1-code').textContent = `
-// Test the toBoolean transform function directly
-const transform = toBoolean({
-    trueValues: ["true", "yes", "1", "on"],
-    falseValues: ["false", "no", "0", "off"],
-    ignoreCase: true
-});
-
-console.log('Transform "true":', transform("true"));
-console.log('Transform "false":', transform("false"));
-console.log('Transform "42":', transform("42"));
-            `;
-            
-            try {
-                const transform = toBoolean({
-                    trueValues: ["true", "yes", "1", "on"],
-                    falseValues: ["false", "no", "0", "off"],
-                    ignoreCase: true
-                });
-                
-                const results = {
-                    'true': transform("true"),
-                    'false': transform("false"),
-                    '42': transform("42")
-                };
-                
-                document.getElementById('test1-result').innerHTML = 
-                    '<div class="result">Results: ' + JSON.stringify(results, null, 2) + '</div>';
-            } catch (error) {
-                document.getElementById('test1-result').innerHTML = 
-                    '<div class="error">Error: ' + error.message + '</div>';
-            }
-        };
-
-        window.runTest2 = function() {
-            document.getElementById('test2-code').textContent = `
-// Test the new node transformer (should work now!)
-const result = new XJX()
-    .fromXml(source)
-    .map(toBoolean({
-        trueValues: ["true", "yes", "1", "on"],
-        falseValues: ["false", "no", "0", "off"],
-        ignoreCase: true
-    }))
-    .toJson();
-            `;
-            
-            try {
-                const result = new XJX()
-                    .fromXml(xmlSource)
-                    .map(toBoolean({
-                        trueValues: ["true", "yes", "1", "on"],
-                        falseValues: ["false", "no", "0", "off"],
-                        ignoreCase: true
-                    }))
-                    .toJson();
-                
-                document.getElementById('test2-result').innerHTML = 
-                    '<div class="result">Result: ' + JSON.stringify(result, null, 2) + '</div>';
-            } catch (error) {
-                document.getElementById('test2-result').innerHTML = 
-                    '<div class="error">Error: ' + error.message + '</div>';
-            }
-        };
-
-        window.runTest3 = function() {
-            document.getElementById('test3-code').textContent = `
-// Manual node transformer that applies toBoolean to node values
-const boolTransform = toBoolean({
-    trueValues: ["true", "yes", "1", "on"],
-    falseValues: ["false", "no", "0", "off"],
-    ignoreCase: true
-});
-
-const nodeTransformer = (node) => {
-    console.log('Processing node:', node.name, 'value:', node.value);
-    if (node.value !== undefined) {
-        const transformedValue = boolTransform(node.value);
-        console.log('Transformed', node.value, 'to', transformedValue);
-        return { ...node, value: transformedValue };
-    }
-    return node;
-};
-
-const result = new XJX()
-    .fromXml(source)
-    .map(nodeTransformer)
-    .toJson();
-            `;
-            
-            try {
-                const boolTransform = toBoolean({
-                    trueValues: ["true", "yes", "1", "on"],
-                    falseValues: ["false", "no", "0", "off"],
-                    ignoreCase: true
-                });
-
-                const nodeTransformer = (node) => {
-                    console.log('Processing node:', node.name, 'value:', node.value);
-                    if (node.value !== undefined) {
-                        const transformedValue = boolTransform(node.value);
-                        console.log('Transformed', node.value, 'to', transformedValue);
-                        return { ...node, value: transformedValue };
-                    }
-                    return node;
-                };
-
-                const result = new XJX()
-                    .fromXml(xmlSource)
-                    .map(nodeTransformer)
-                    .toJson();
-                
-                document.getElementById('test3-result').innerHTML = 
-                    '<div class="result">Result: ' + JSON.stringify(result, null, 2) + '</div>';
-            } catch (error) {
-                document.getElementById('test3-result').innerHTML = 
-                    '<div class="error">Error: ' + error.message + '</div>';
-            }
-        };
-
-        window.runTest4 = function() {
-            document.getElementById('test4-code').textContent = `
-// Transform only nodes that have string values that match boolean patterns
-const boolTransform = toBoolean({
-    trueValues: ["true", "yes", "1", "on"],
-    falseValues: ["false", "no", "0", "off"],
-    ignoreCase: true
-});
-
-const smartTransformer = (node) => {
-    if (node.value !== undefined && typeof node.value === 'string') {
-        const originalValue = node.value;
-        const transformedValue = boolTransform(node.value);
+        // Make available globally for testing
+        window.XJX = XJX;
+        window.transforms = { toNumber, toBoolean, regex };
         
-        // Only use transformed value if it actually changed to a boolean
-        if (typeof transformedValue === 'boolean') {
-            console.log('Transformed', originalValue, 'to', transformedValue);
-            return { ...node, value: transformedValue };
+        console.log('XJX Library loaded:', {
+            XJX: typeof XJX,
+            toNumber: typeof toNumber,
+            toBoolean: typeof toBoolean,
+            regex: typeof regex
+        });
+
+        // Test data
+        window.testXml = `
+            <root>
+                <count>42</count>
+                <price>19.99</price>
+                <active>true</active>
+                <name>Test Item</name>
+                <enabled>false</enabled>
+            </root>
+        `;
+        
+        window.testJson = {
+            root: {
+                count: "42",
+                price: "19.99", 
+                active: "true",
+                name: "Test Item",
+                enabled: "false"
+            }
+        };
+    </script>
+
+    <script>
+        function logResult(elementId, result, error = null) {
+            const element = document.getElementById(elementId);
+            if (error) {
+                element.className = 'result error';
+                element.innerHTML = `<strong>Error:</strong><pre>${error}</pre>`;
+            } else {
+                element.className = 'result success';
+                element.innerHTML = `<strong>Result:</strong><pre>${JSON.stringify(result, null, 2)}</pre>`;
+            }
+            console.log(`${elementId}:`, error || result);
         }
-    }
-    return node;
-};
 
-const result = new XJX()
-    .fromXml(source)
-    .map(smartTransformer)
-    .toJson();
-            `;
-            
+        function testDirectTransforms() {
+            console.log('=== Testing Direct Transforms ===');
             try {
-                const boolTransform = toBoolean({
-                    trueValues: ["true", "yes", "1", "on"],
-                    falseValues: ["false", "no", "0", "off"],
-                    ignoreCase: true
+                const testNode = { name: 'count', value: '42', type: 1 };
+                
+                // Test toNumber directly
+                const numberTransform = window.transforms.toNumber();
+                const numberResult = numberTransform(testNode);
+                console.log('toNumber result:', numberResult);
+                
+                // Test toBoolean directly
+                const testBoolNode = { name: 'active', value: 'true', type: 1 };
+                const booleanTransform = window.transforms.toBoolean();
+                const booleanResult = booleanTransform(testBoolNode);
+                console.log('toBoolean result:', booleanResult);
+                
+                logResult('direct-result', {
+                    numberTest: { input: testNode, output: numberResult },
+                    booleanTest: { input: testBoolNode, output: booleanResult }
                 });
+            } catch (err) {
+                logResult('direct-result', null, err.toString());
+            }
+        }
 
-                const smartTransformer = (node) => {
-                    if (node.value !== undefined && typeof node.value === 'string') {
-                        const originalValue = node.value;
-                        const transformedValue = boolTransform(node.value);
-                        
-                        // Only use transformed value if it actually changed to a boolean
-                        if (typeof transformedValue === 'boolean') {
-                            console.log('Transformed', originalValue, 'to', transformedValue);
-                            return { ...node, value: transformedValue };
-                        }
+        function testFromXmlWithHooks() {
+            console.log('=== Testing fromXml with Transform Hooks ===');
+            try {
+                const config = {
+                    strategies: { highFidelity: false },
+                    formatting: { pretty: true }
+                };
+                
+                const hooks = {
+                    transform: window.transforms.toNumber({ nodeNames: ['count', 'price'] })
+                };
+                
+                console.log('Using hooks:', hooks);
+                console.log('Transform function:', hooks.transform);
+                
+                const result = new window.XJX(config)
+                    .fromXml(window.testXml, hooks)
+                    .toJson();
+                    
+                logResult('fromxml-result', result);
+            } catch (err) {
+                logResult('fromxml-result', null, err.toString());
+            }
+        }
+
+        function testFromJsonWithHooks() {
+            console.log('=== Testing fromJson with Transform Hooks ===');
+            try {
+                const config = {
+                    strategies: { highFidelity: false },
+                    formatting: { pretty: true }
+                };
+                
+                const hooks = {
+                    beforeTransform: (node) => {
+                        console.log('beforeTransform:', node.name, node.value);
+                        return node;
+                    },
+                    transform: window.transforms.toBoolean({ nodeNames: ['active', 'enabled'] }),
+                    afterTransform: (node) => {
+                        console.log('afterTransform:', node.name, node.value);
+                        return node;
+                    }
+                };
+                
+                console.log('Using hooks:', hooks);
+                
+                const result = new window.XJX(config)
+                    .fromJson(window.testJson, hooks)
+                    .toJson();
+                    
+                logResult('fromjson-result', result);
+            } catch (err) {
+                logResult('fromjson-result', null, err.toString());
+            }
+        }
+
+        function testCustomTransform() {
+            console.log('=== Testing Custom Transform ===');
+            try {
+                const config = {
+                    strategies: { highFidelity: false }
+                };
+                
+                const customTransform = (node) => {
+                    console.log('Custom transform processing:', node.name, node.value);
+                    if (node.name === 'name') {
+                        return { ...node, value: `TRANSFORMED: ${node.value}` };
                     }
                     return node;
                 };
-
-                const result = new XJX()
-                    .fromXml(xmlSource)
-                    .map(smartTransformer)
-                    .toJson();
                 
-                document.getElementById('test4-result').innerHTML = 
-                    '<div class="result">Result: ' + JSON.stringify(result, null, 2) + '</div>';
-            } catch (error) {
-                document.getElementById('test4-result').innerHTML = 
-                    '<div class="error">Error: ' + error.message + '</div>';
+                const hooks = {
+                    transform: customTransform
+                };
+                
+                const result = new window.XJX(config)
+                    .fromXml(window.testXml, hooks)
+                    .toJson();
+                    
+                logResult('custom-result', result);
+            } catch (err) {
+                logResult('custom-result', null, err.toString());
             }
-        };
-
-        // Display the XML source
-        document.getElementById('test1-code').textContent = 'XML Source:\n' + xmlSource + '\n\n// Click "Run Test" buttons to test transforms';
-        document.getElementById('test2-code').textContent = 'XML Source:\n' + xmlSource + '\n\n// Click "Run Test" buttons to test transforms';
-        document.getElementById('test3-code').textContent = 'XML Source:\n' + xmlSource + '\n\n// Click "Run Test" buttons to test transforms';
-        document.getElementById('test4-code').textContent = 'XML Source:\n' + xmlSource + '\n\n// Click "Run Test" buttons to test transforms';
+        }
     </script>
 </body>
 </html>

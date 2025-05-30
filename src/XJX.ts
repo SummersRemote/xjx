@@ -8,7 +8,6 @@ import { Configuration, createConfig } from "./core/config";
 import { Transform } from "./core/transform";
 import { XNode, cloneNode } from "./core/xnode";
 import { validate, ValidationError } from "./core/error";
-import { JsonOptions, JsonValue } from "./core/converter";
 import { Extension, TerminalExtensionContext, NonTerminalExtensionContext } from "./core/extension";
 
 /**

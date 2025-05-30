@@ -9,21 +9,24 @@ import { xnodeToJsonHiFiConverter } from '../converters/xnode-to-json-hifi-conve
 import { xnodeToJsonConverter } from '../converters/xnode-to-json-std-converter';
 import { transformXNode } from '../converters/xnode-transformer';
 import { XNode } from '../core/xnode';
-import { JsonOptions, JsonValue } from '../core/converter';
+import { JsonValue, TransformHooks } from '../core/converter';
 import { TerminalExtensionContext } from '../core/extension';
 
 /**
- * Implementation for converting to JSON using converters
+ * Implementation for converting to JSON
  */
-export function toJson(this: TerminalExtensionContext, options?: JsonOptions): JsonValue {
+export function toJson(this: TerminalExtensionContext, options?: TransformHooks): JsonValue {
   try {
     // Source validation is handled by the registration mechanism
+    this.validateSource();
     
-    const useHighFidelity = options?.highFidelity === true || this.config.strategies.highFidelity === true;
+    // Use high-fidelity setting from config only
+    const useHighFidelity = this.config.strategies.highFidelity;
   
     logger.debug('Starting JSON conversion', {
       hasTransforms: this.transforms.length > 0,
-      highFidelity: useHighFidelity
+      highFidelity: useHighFidelity,
+      hasTransformHooks: !!(options && (options.beforeTransform || options.transform || options.afterTransform))
     });
     
     // Apply transformations if any are registered
@@ -37,11 +40,11 @@ export function toJson(this: TerminalExtensionContext, options?: JsonOptions): J
       });
     }
     
-    // Select and use the appropriate converter based on highFidelity option
+    // Select and use the appropriate converter based on config
     let result: JsonValue;
     
     if (useHighFidelity) {
-      // Use XNode to JSON HiFi converter for high-fidelity format (no callbacks needed for output)
+      // Use XNode to JSON HiFi converter
       result = xnodeToJsonHiFiConverter.convert(nodeToConvert, this.config, options);
       
       logger.debug('Used XNode to JSON HiFi converter for high-fidelity JSON', {
@@ -49,7 +52,7 @@ export function toJson(this: TerminalExtensionContext, options?: JsonOptions): J
         isArray: Array.isArray(result)
       });
     } else {
-      // Use standard XNode to JSON converter (no callbacks needed for output)
+      // Use standard XNode to JSON converter
       result = xnodeToJsonConverter.convert(nodeToConvert, this.config, options);
       
       logger.debug('Used XNode to standard JSON converter', {
@@ -70,20 +73,18 @@ export function toJson(this: TerminalExtensionContext, options?: JsonOptions): J
 /**
  * Implementation for converting to JSON string
  */
-export function toJsonString(
-  this: TerminalExtensionContext, 
-  options?: JsonOptions & { indent?: number }
-): string {
+export function toJsonString(this: TerminalExtensionContext, options?: TransformHooks): string {
   try {
     // Source validation is handled by the registration mechanism
+    this.validateSource();
     
     logger.debug('Starting JSON string conversion');
     
     // First get the JSON using the converter method
     const jsonValue = toJson.call(this, options);
     
-    // Use the indent value from options or config or default
-    const indent = options?.indent ?? this.config.formatting.indent ?? 2;
+    // Use the indent value from config only
+    const indent = this.config.formatting.indent;
     
     // Stringify the JSON
     const result = JSON.stringify(jsonValue, null, indent);

@@ -10,45 +10,42 @@ import { ProcessingError, ValidationError } from "../core/error";
 import { XNode, createElement, createTextNode, addChild } from "../core/xnode";
 import { 
   Converter, 
-  NodeCallback, 
-  JsonOptions,
+  TransformHooks,
   JsonValue,
   JsonObject,
   JsonArray,
   parseElementName,
   getAttributeName,
   processAttributeObject,
-  applyNodeCallbacks
+  applyTransformHooks
 } from "../core/converter";
 
 /**
  * JSON Standard to XNode converter
  */
-export const jsonToXNodeConverter: Converter<JsonValue, XNode, JsonOptions> = {
+export const jsonToXNodeConverter: Converter<JsonValue, XNode> = {
   convert(
     json: JsonValue, 
     config: Configuration, 
-    options?: JsonOptions,
-    beforeFn?: NodeCallback,
-    afterFn?: NodeCallback
+    hooks?: TransformHooks
   ): XNode {
     logger.debug('Starting JSON to XNode conversion', {
       sourceType: Array.isArray(json) ? 'array' : typeof json,
-      hasCallbacks: !!(beforeFn || afterFn)
+      hasTransformHooks: !!(hooks && (hooks.beforeTransform || hooks.transform || hooks.afterTransform))
     });
 
     // Handle array input (create a wrapper element)
     if (Array.isArray(json)) {
-      return convertJsonArray(json, config, beforeFn, afterFn);
+      return convertJsonArray(json, config, hooks);
     }
 
     // Handle object input
     if (typeof json === 'object' && json !== null) {
-      return convertJsonObject(json as JsonObject, config, beforeFn, afterFn);
+      return convertJsonObject(json as JsonObject, config, hooks);
     }
 
     // Handle primitive values
-    return convertJsonPrimitive(json, config, beforeFn, afterFn);
+    return convertJsonPrimitive(json, config, hooks);
   }
 };
 
@@ -58,8 +55,7 @@ export const jsonToXNodeConverter: Converter<JsonValue, XNode, JsonOptions> = {
 function convertJsonObject(
   obj: JsonObject, 
   config: Configuration,
-  beforeFn?: NodeCallback,
-  afterFn?: NodeCallback
+  hooks?: TransformHooks
 ): XNode {
   // Get the root element name
   const rootName = Object.keys(obj)[0];
@@ -76,17 +72,14 @@ function convertJsonObject(
     rootNode.prefix = prefix;
   }
 
-  // Apply before callback and use returned node
-  rootNode = applyNodeCallbacks(rootNode, beforeFn);
+  // Apply transform hooks
+  rootNode = applyTransformHooks(rootNode, hooks);
 
   // Get the value for this property
   const value = obj[rootName];
 
   // Process the value
-  processJsonValue(rootNode, value, config, beforeFn, afterFn);
-
-  // Apply after callback and use returned node
-  rootNode = applyNodeCallbacks(rootNode, undefined, afterFn);
+  processJsonValue(rootNode, value, config, hooks);
 
   return rootNode;
 }
@@ -97,24 +90,22 @@ function convertJsonObject(
 function convertJsonArray(
   array: JsonArray, 
   config: Configuration,
-  beforeFn?: NodeCallback,
-  afterFn?: NodeCallback
+  hooks?: TransformHooks
 ): XNode {
   // Create a root array element
   let rootNode = createElement("array");
   
-  // Apply callbacks and use returned node
-  rootNode = applyNodeCallbacks(rootNode, beforeFn);
+  // Apply transform hooks
+  rootNode = applyTransformHooks(rootNode, hooks);
 
   // Get the item name for array items
   const itemName = config.arrays.defaultItemName;
 
   // Process array items
   array.forEach((item) => {
-    processArrayItem(rootNode, item, itemName, config, beforeFn, afterFn);
+    processArrayItem(rootNode, item, itemName, config, hooks);
   });
 
-  rootNode = applyNodeCallbacks(rootNode, undefined, afterFn);
   return rootNode;
 }
 
@@ -124,18 +115,16 @@ function convertJsonArray(
 function convertJsonPrimitive(
   value: JsonValue, 
   config: Configuration,
-  beforeFn?: NodeCallback,
-  afterFn?: NodeCallback
+  hooks?: TransformHooks
 ): XNode {
   let rootNode = createElement("value");
   
-  rootNode = applyNodeCallbacks(rootNode, beforeFn);
+  rootNode = applyTransformHooks(rootNode, hooks);
 
   if (value !== undefined && value !== null) {
     rootNode.value = value;
   }
 
-  rootNode = applyNodeCallbacks(rootNode, undefined, afterFn);
   return rootNode;
 }
 
@@ -146,15 +135,14 @@ function processJsonValue(
   element: XNode,
   value: JsonValue,
   config: Configuration,
-  beforeFn?: NodeCallback,
-  afterFn?: NodeCallback
+  hooks?: TransformHooks
 ): void {
   if (value === null) {
     processNullValue(element, config);
   } else if (typeof value === 'object' && !Array.isArray(value)) {
-    processObjectValue(element, value as JsonObject, config, beforeFn, afterFn);
+    processObjectValue(element, value as JsonObject, config, hooks);
   } else if (Array.isArray(value)) {
-    processArrayValue(element, value as JsonArray, config, beforeFn, afterFn);
+    processArrayValue(element, value as JsonArray, config, hooks);
   } else {
     element.value = value;
   }
@@ -185,8 +173,7 @@ function processObjectValue(
   element: XNode,
   obj: JsonObject,
   config: Configuration,
-  beforeFn?: NodeCallback,
-  afterFn?: NodeCallback
+  hooks?: TransformHooks
 ): void {
   const { properties, prefixes } = config;
   const { attributeStrategy, textStrategy } = config.strategies;
@@ -264,7 +251,7 @@ function processObjectValue(
       element.value = textContent;
     } else {
       let textNode = createTextNode(String(textContent));
-      textNode = applyNodeCallbacks(textNode, beforeFn, afterFn);
+      textNode = applyTransformHooks(textNode, hooks);
       addChild(element, textNode);
     }
   }
@@ -278,9 +265,8 @@ function processObjectValue(
       childElement.prefix = prefix;
     }
 
-    childElement = applyNodeCallbacks(childElement, beforeFn);
-    processJsonValue(childElement, value, config, beforeFn, afterFn);
-    childElement = applyNodeCallbacks(childElement, undefined, afterFn);
+    childElement = applyTransformHooks(childElement, hooks);
+    processJsonValue(childElement, value, config, hooks);
     
     addChild(element, childElement);
   });
@@ -293,15 +279,14 @@ function processArrayValue(
   element: XNode,
   array: JsonArray,
   config: Configuration,
-  beforeFn?: NodeCallback,
-  afterFn?: NodeCallback
+  hooks?: TransformHooks
 ): void {
   // Determine the name to use for child elements
   let itemName = config.arrays.itemNames[element.name] || config.arrays.defaultItemName;
 
   // Process each item in the array
   array.forEach((item) => {
-    processArrayItem(element, item, itemName, config, beforeFn, afterFn);
+    processArrayItem(element, item, itemName, config, hooks);
   });
 }
 
@@ -313,15 +298,13 @@ function processArrayItem(
   item: JsonValue,
   itemName: string,
   config: Configuration,
-  beforeFn?: NodeCallback,
-  afterFn?: NodeCallback
+  hooks?: TransformHooks
 ): void {
   if (item === null) {
     if (config.strategies.emptyElementStrategy !== "object") {
       let childElement = createElement(itemName);
-      childElement = applyNodeCallbacks(childElement, beforeFn);
+      childElement = applyTransformHooks(childElement, hooks);
       processNullValue(childElement, config);
-      childElement = applyNodeCallbacks(childElement, undefined, afterFn);
       addChild(parent, childElement);
     }
     return;
@@ -341,31 +324,27 @@ function processArrayItem(
         childElement.prefix = prefix;
       }
 
-      childElement = applyNodeCallbacks(childElement, beforeFn);
-      processJsonValue(childElement, obj[key], config, beforeFn, afterFn);
-      childElement = applyNodeCallbacks(childElement, undefined, afterFn);
+      childElement = applyTransformHooks(childElement, hooks);
+      processJsonValue(childElement, obj[key], config, hooks);
       addChild(parent, childElement);
     } else {
       // Multiple properties, use the default name
       let childElement = createElement(itemName);
-      childElement = applyNodeCallbacks(childElement, beforeFn);
-      processJsonValue(childElement, obj, config, beforeFn, afterFn);
-      childElement = applyNodeCallbacks(childElement, undefined, afterFn);
+      childElement = applyTransformHooks(childElement, hooks);
+      processJsonValue(childElement, obj, config, hooks);
       addChild(parent, childElement);
     }
   } else if (Array.isArray(item)) {
     // Nested array
     let childElement = createElement(itemName);
-    childElement = applyNodeCallbacks(childElement, beforeFn);
-    processArrayValue(childElement, item as JsonArray, config, beforeFn, afterFn);
-    childElement = applyNodeCallbacks(childElement, undefined, afterFn);
+    childElement = applyTransformHooks(childElement, hooks);
+    processArrayValue(childElement, item as JsonArray, config, hooks);
     addChild(parent, childElement);
   } else {
     // Primitive value
     let childElement = createElement(itemName);
-    childElement = applyNodeCallbacks(childElement, beforeFn);
+    childElement = applyTransformHooks(childElement, hooks);
     childElement.value = item;
-    childElement = applyNodeCallbacks(childElement, undefined, afterFn);
     addChild(parent, childElement);
   }
 }

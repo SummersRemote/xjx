@@ -1,21 +1,7 @@
 <!-- components/configs/ReduceConfig.vue -->
 <template>
   <v-container>
-    <v-row dense>
-      <v-col cols="12">
-        <v-textarea
-          v-model="localOptions.reducer"
-          label="Reducer Function"
-          hint="Function that accumulates values from nodes"
-          persistent-hint
-          auto-grow
-          rows="5"
-          class="font-mono"
-          @update:model-value="updateOptions"
-        ></v-textarea>
-      </v-col>
-    </v-row>
-    
+    <!-- Initial Value Configuration -->
     <v-row dense>
       <v-col cols="12">
         <v-text-field
@@ -25,6 +11,24 @@
           persistent-hint
           @update:model-value="updateOptions"
         ></v-text-field>
+      </v-col>
+    </v-row>
+    
+    <v-divider class="my-4"></v-divider>
+    
+    <!-- Reducer Function Configuration -->
+    <v-row dense>
+      <v-col cols="12">
+        <v-textarea
+          v-model="localOptions.reducer"
+          label="Reducer Function"
+          hint="Function that accumulates values from nodes: (accumulator, node) => newAccumulator"
+          persistent-hint
+          auto-grow
+          rows="5"
+          class="font-mono"
+          @update:model-value="updateOptions"
+        ></v-textarea>
       </v-col>
     </v-row>
     
@@ -74,6 +78,22 @@
           - <code>[]</code> for collecting values in an array<br>
           - <code>{}</code> for building an object<br>
           - <code>""</code> for string concatenation
+        </v-alert>
+      </v-col>
+    </v-row>
+    
+    <v-row dense>
+      <v-col cols="12">
+        <v-alert
+          type="info"
+          variant="tonal"
+          density="compact"
+          icon="mdi-api"
+          class="text-caption mt-3"
+        >
+          <strong>Updated API Signature:</strong><br>
+          <code>reduce(initialValue, options?: TransformHooks)</code><br>
+          The reducer function is passed via <code>options.transform</code> hook for consistency.
         </v-alert>
       </v-col>
     </v-row>

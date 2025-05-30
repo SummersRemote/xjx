@@ -6,21 +6,39 @@ import { XNode } from './xnode';
 import { ValidationError } from './error';
 
 /**
- * Node processing callback function - consistent with transform signature
- * Returns new node, void, or undefined (void/undefined = no change)
+ * Unified transform hooks for consistent node processing
+ */
+export interface TransformHooks {
+  /**
+   * Applied to each node before main processing
+   */
+  beforeTransform?: (node: XNode) => XNode | void | undefined;
+  
+  /**
+   * Main transformation applied to each node
+   */
+  transform?: (node: XNode) => XNode | void | undefined;
+  
+  /**
+   * Applied to each node after main processing
+   */
+  afterTransform?: (node: XNode) => XNode | void | undefined;
+}
+
+/**
+ * Legacy node callback for backwards compatibility in internal code
+ * @deprecated Use TransformHooks instead
  */
 export type NodeCallback = (node: XNode) => XNode | void | undefined;
 
 /**
- * Converter interface - consistent across all converters
+ * Converter interface - simplified without options
  */
-export interface Converter<TInput, TOutput, TOptions = any> {
+export interface Converter<TInput, TOutput> {
   convert(
     input: TInput, 
     config: Configuration, 
-    options?: TOptions,
-    beforeFn?: NodeCallback,
-    afterFn?: NodeCallback
+    hooks?: TransformHooks
   ): TOutput;
 }
 
@@ -36,26 +54,11 @@ export function validateInput(condition: boolean, message: string): void {
 }
 
 /**
- * JSON value types for converter options
+ * JSON value types for converter operations
  */
 export type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
 export interface JsonObject { [key: string]: JsonValue }
 export type JsonArray = JsonValue[];
-
-/**
- * Options for JSON conversion
- */
-export interface JsonOptions {
-  /**
-   * Whether to use high-fidelity mode
-   */
-  highFidelity?: boolean;
-  
-  /**
-   * Override formatting options
-   */
-  formatting?: Partial<Configuration['formatting']>;
-}
 
 /**
  * Parse element name with optional prefix
@@ -188,44 +191,71 @@ export function processNamespaceDeclarations(
 }
 
 /**
- * Apply node callbacks consistently - functional approach
+ * Apply transform hooks to a node consistently
  * @param node Node to process
- * @param beforeFn Optional before callback
- * @param afterFn Optional after callback
+ * @param hooks Transform hooks to apply
  * @returns Processed node (may be the original or a new one)
+ */
+export function applyTransformHooks(
+  node: XNode,
+  hooks?: TransformHooks
+): XNode {
+  if (!hooks) return node;
+  
+  let processedNode = node;
+
+  // Apply beforeTransform
+  if (hooks.beforeTransform) {
+    try {
+      const beforeResult = hooks.beforeTransform(processedNode);
+      if (beforeResult && typeof beforeResult === 'object' && typeof beforeResult.name === 'string') {
+        processedNode = beforeResult;
+      }
+    } catch (err) {
+      console.warn(`Error in beforeTransform: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  // Apply transform
+  if (hooks.transform) {
+    try {
+      const transformResult = hooks.transform(processedNode);
+      if (transformResult && typeof transformResult === 'object' && typeof transformResult.name === 'string') {
+        processedNode = transformResult;
+      }
+    } catch (err) {
+      console.warn(`Error in transform: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  // Apply afterTransform
+  if (hooks.afterTransform) {
+    try {
+      const afterResult = hooks.afterTransform(processedNode);
+      if (afterResult && typeof afterResult === 'object' && typeof afterResult.name === 'string') {
+        processedNode = afterResult;
+      }
+    } catch (err) {
+      console.warn(`Error in afterTransform: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  return processedNode;
+}
+
+/**
+ * Legacy function for backwards compatibility in converters
+ * @deprecated Use applyTransformHooks instead
  */
 export function applyNodeCallbacks(
   node: XNode,
   beforeFn?: NodeCallback,
   afterFn?: NodeCallback
 ): XNode {
-  let processedNode = node;
-
-  try {
-    if (beforeFn) {
-      const beforeResult = beforeFn(processedNode);
-      // If callback returns a node, use it; otherwise keep the original
-      if (beforeResult && typeof beforeResult === 'object' && typeof beforeResult.name === 'string') {
-        processedNode = beforeResult;
-      }
-    }
-  } catch (err) {
-    console.warn(`Error in beforeFn callback: ${err instanceof Error ? err.message : String(err)}`);
-  }
-
-  try {
-    if (afterFn) {
-      const afterResult = afterFn(processedNode);
-      // If callback returns a node, use it; otherwise keep the current
-      if (afterResult && typeof afterResult === 'object' && typeof afterResult.name === 'string') {
-        processedNode = afterResult;
-      }
-    }
-  } catch (err) {
-    console.warn(`Error in afterFn callback: ${err instanceof Error ? err.message : String(err)}`);
-  }
-
-  return processedNode;
+  return applyTransformHooks(node, {
+    beforeTransform: beforeFn,
+    afterTransform: afterFn
+  });
 }
 
 /**

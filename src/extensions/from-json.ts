@@ -9,42 +9,34 @@ import { jsonHiFiToXNodeConverter } from '../converters/json-hifi-to-xnode-conve
 import { jsonToXNodeConverter } from '../converters/json-std-to-xnode-converter';
 import { ProcessingError } from '../core/error';
 import { NonTerminalExtensionContext } from '../core/extension';
-import { JsonOptions, JsonValue, validateInput, NodeCallback } from '../core/converter';
+import { TransformHooks, JsonValue, validateInput } from '../core/converter';
 
 /**
- * Implementation for auto-detecting JSON format
+ * Implementation for setting JSON source
  */
 export function fromJson(
   this: NonTerminalExtensionContext, 
-  json: JsonValue, 
-  options?: JsonOptions,
-  beforeFn?: NodeCallback,
-  afterFn?: NodeCallback
+  json: JsonValue,
+  options?: TransformHooks
 ): void {
   try {
     // API boundary validation
     validateInput(json !== null && typeof json === 'object', "JSON source must be an object or array");
     
-    // Determine format based on configuration or options
-    const useHighFidelity = options?.highFidelity ?? this.config.strategies.highFidelity;
+    // Determine format based on configuration (no more options parameter)
+    const useHighFidelity = this.config.strategies.highFidelity;
     
-    logger.debug('Using JSON format based on configuration', {
+    logger.debug('Setting JSON source for transformation', {
       sourceType: Array.isArray(json) ? 'array' : 'object',
       highFidelity: useHighFidelity,
-      hasCallbacks: !!(beforeFn || afterFn)
+      hasTransformHooks: !!(options && (options.beforeTransform || options.transform || options.afterTransform))
     });
     
-    // Create effective options
-    const effectiveOptions = {
-      ...options,
-      highFidelity: useHighFidelity
-    };
-    
-    // Convert using appropriate converter with functional callbacks
+    // Convert using appropriate converter with transform hooks
     if (useHighFidelity) {
-      this.xnode = jsonHiFiToXNodeConverter.convert(json, this.config, effectiveOptions, beforeFn, afterFn);
+      this.xnode = jsonHiFiToXNodeConverter.convert(json, this.config, options);
     } else {
-      this.xnode = jsonToXNodeConverter.convert(json, this.config, effectiveOptions, beforeFn, afterFn);
+      this.xnode = jsonToXNodeConverter.convert(json, this.config, options);
     }
     
     logger.debug('Successfully set JSON source', {

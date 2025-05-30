@@ -18,25 +18,22 @@ import {
 } from '../core/xnode';
 import { 
   Converter, 
-  NodeCallback, 
-  JsonOptions, 
+  TransformHooks, 
   JsonValue, 
   JsonObject, 
   JsonArray,
   parseElementName,
-  applyNodeCallbacks
+  applyTransformHooks
 } from '../core/converter';
 
 /**
  * JSON HiFi to XNode converter
  */
-export const jsonHiFiToXNodeConverter: Converter<JsonValue, XNode, JsonOptions> = {
+export const jsonHiFiToXNodeConverter: Converter<JsonValue, XNode> = {
   convert(
     json: JsonValue, 
     config: Configuration, 
-    options?: JsonOptions,
-    beforeFn?: NodeCallback,
-    afterFn?: NodeCallback
+    hooks?: TransformHooks
   ): XNode {
     // Verify we have an object
     if (typeof json !== 'object' || json === null || Array.isArray(json)) {
@@ -59,11 +56,11 @@ export const jsonHiFiToXNodeConverter: Converter<JsonValue, XNode, JsonOptions> 
     
     logger.debug('Starting JSON HiFi to XNode conversion', {
       rootElement: rootName,
-      hasCallbacks: !!(beforeFn || afterFn)
+      hasTransformHooks: !!(hooks && (hooks.beforeTransform || hooks.transform || hooks.afterTransform))
     });
     
     // Process the root element
-    return processElement(rootName, rootObj as JsonObject, config, beforeFn, afterFn);
+    return processElement(rootName, rootObj as JsonObject, config, hooks);
   }
 };
 
@@ -74,8 +71,7 @@ function processElement(
   name: string, 
   obj: JsonObject, 
   config: Configuration,
-  beforeFn?: NodeCallback,
-  afterFn?: NodeCallback,
+  hooks?: TransformHooks,
   parent?: XNode
 ): XNode {
   // Parse element name for prefix handling
@@ -94,8 +90,8 @@ function processElement(
     element.prefix = prefix;
   }
   
-  // Apply before callback and use returned node
-  element = applyNodeCallbacks(element, beforeFn);
+  // Apply transform hooks
+  element = applyTransformHooks(element, hooks);
   
   const { properties } = config;
   
@@ -137,16 +133,13 @@ function processElement(
   
   // Process children
   if (obj[properties.children] && Array.isArray(obj[properties.children])) {
-    processChildren(element, obj[properties.children] as JsonArray, config, beforeFn, afterFn);
+    processChildren(element, obj[properties.children] as JsonArray, config, hooks);
   }
   
   // Process metadata if present
   if (obj.metadata && typeof obj.metadata === 'object' && !Array.isArray(obj.metadata)) {
     element.metadata = { ...obj.metadata as Record<string, any> };
   }
-  
-  // Apply after callback and use returned node
-  element = applyNodeCallbacks(element, undefined, afterFn);
   
   return element;
 }
@@ -203,8 +196,7 @@ function processChildren(
   parent: XNode, 
   children: JsonArray, 
   config: Configuration,
-  beforeFn?: NodeCallback,
-  afterFn?: NodeCallback
+  hooks?: TransformHooks
 ): void {
   const { properties } = config;
   
@@ -219,7 +211,7 @@ function processChildren(
       // Text node
       if (childObj[properties.value] !== undefined && config.preserveTextNodes) {
         let textNode = createTextNode(String(childObj[properties.value]));
-        textNode = applyNodeCallbacks(textNode, beforeFn, afterFn);
+        textNode = applyTransformHooks(textNode, hooks);
         addChild(parent, textNode);
         return;
       }
@@ -227,7 +219,7 @@ function processChildren(
       // CDATA node
       if (childObj[properties.cdata] !== undefined && config.preserveCDATA) {
         let cdataNode = createCDATANode(String(childObj[properties.cdata]));
-        cdataNode = applyNodeCallbacks(cdataNode, beforeFn, afterFn);
+        cdataNode = applyTransformHooks(cdataNode, hooks);
         addChild(parent, cdataNode);
         return;
       }
@@ -235,7 +227,7 @@ function processChildren(
       // Comment node
       if (childObj[properties.comment] !== undefined && config.preserveComments) {
         let commentNode = createCommentNode(String(childObj[properties.comment]));
-        commentNode = applyNodeCallbacks(commentNode, beforeFn, afterFn);
+        commentNode = applyTransformHooks(commentNode, hooks);
         addChild(parent, commentNode);
         return;
       }
@@ -250,7 +242,7 @@ function processChildren(
           
           if (target) {
             let piNode = createProcessingInstructionNode(String(target), String(value));
-            piNode = applyNodeCallbacks(piNode, beforeFn, afterFn);
+            piNode = applyTransformHooks(piNode, hooks);
             addChild(parent, piNode);
             return;
           }
@@ -262,7 +254,7 @@ function processChildren(
       if (elementName) {
         const elementObj = childObj[elementName];
         if (typeof elementObj === 'object' && elementObj !== null && !Array.isArray(elementObj)) {
-          const childNode = processElement(elementName, elementObj as JsonObject, config, beforeFn, afterFn, parent);
+          const childNode = processElement(elementName, elementObj as JsonObject, config, hooks, parent);
           addChild(parent, childNode);
           return;
         }
@@ -272,7 +264,7 @@ function processChildren(
     // If we get here, try to convert as raw text
     if (config.preserveTextNodes) {
       let textNode = createTextNode(String(child));
-      textNode = applyNodeCallbacks(textNode, beforeFn, afterFn);
+      textNode = applyTransformHooks(textNode, hooks);
       addChild(parent, textNode);
     }
   });

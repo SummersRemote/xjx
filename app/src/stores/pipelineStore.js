@@ -1,4 +1,4 @@
-// stores/pipelineStore.js - Updated for new hook system only
+// stores/pipelineStore.js - Complete implementation with multi-transform support
 import { defineStore } from 'pinia';
 
 export const usePipelineStore = defineStore('pipeline', {
@@ -412,14 +412,16 @@ export const usePipelineStore = defineStore('pipeline', {
       return Object.keys(hooks).length > 0 ? hooks : undefined;
     },
     
-    hasValidTransform(config) {
-      if (!config) return false;
-      return !!(config.transformType || (config.customTransformer && config.customTransformer.trim()));
-    },
-    
+    // UPDATED: Multi-transform support
     createTransformerFromConfig(config, transforms) {
       if (!config) return undefined;
       
+      // Handle new multi-transform structure
+      if (config.selectedTransforms && Array.isArray(config.selectedTransforms) && config.selectedTransforms.length > 0) {
+        return this.createComposedTransformer(config, transforms);
+      }
+      
+      // Handle legacy single transform structure (for backward compatibility)
       const { transformType, transformOptions, customTransformer } = config;
       
       // Use custom transformer if provided
@@ -433,6 +435,120 @@ export const usePipelineStore = defineStore('pipeline', {
       }
       
       return undefined;
+    },
+    
+    // NEW: Create composed transformer from multi-transform config
+    createComposedTransformer(config, transforms) {
+      const { selectedTransforms, transformOrder, globalNodeNames, globalSkipNodes } = config;
+      
+      if (!transformOrder || transformOrder.length === 0) {
+        return undefined;
+      }
+      
+      // Create individual transform functions
+      const transformFunctions = [];
+      
+      transformOrder.forEach(transformType => {
+        let transformFn;
+        
+        switch (transformType) {
+          case 'toBoolean': {
+            const options = {
+              ...config.transforms?.toBoolean,
+              nodeNames: globalNodeNames || [],
+              skipNodes: globalSkipNodes || []
+            };
+            transformFn = transforms.toBoolean(options);
+            break;
+          }
+          
+          case 'toNumber': {
+            const options = {
+              ...config.transforms?.toNumber,
+              nodeNames: globalNodeNames || [],
+              skipNodes: globalSkipNodes || []
+            };
+            transformFn = transforms.toNumber(options);
+            break;
+          }
+          
+          case 'regex': {
+            const regexConfig = config.transforms?.regex;
+            if (regexConfig?.pattern && regexConfig?.replacement !== undefined) {
+              const options = {
+                nodeNames: globalNodeNames || [],
+                skipNodes: globalSkipNodes || []
+              };
+              transformFn = transforms.regex(regexConfig.pattern, regexConfig.replacement, options);
+            }
+            break;
+          }
+          
+          case 'custom': {
+            const customConfig = config.transforms?.custom;
+            if (customConfig?.customTransformer?.trim()) {
+              transformFn = this.createFunction(customConfig.customTransformer);
+            }
+            break;
+          }
+        }
+        
+        if (transformFn) {
+          transformFunctions.push(transformFn);
+        }
+      });
+      
+      // Return composed function if we have transforms, undefined otherwise
+      if (transformFunctions.length === 0) {
+        return undefined;
+      } else if (transformFunctions.length === 1) {
+        return transformFunctions[0];
+      } else {
+        // Create composed transform using a closure that applies transforms in sequence
+        return (node) => {
+          // Apply transforms in sequence
+          return transformFunctions.reduce((result, transform) => {
+            try {
+              return transform(result);
+            } catch (err) {
+              console.warn('Error in composed transform:', err);
+              return result;
+            }
+          }, node);
+        };
+      }
+    },
+    
+    // UPDATED: Multi-transform validation
+    hasValidTransform(config) {
+      if (!config) return false;
+      
+      // Handle new multi-transform structure
+      if (config.selectedTransforms && Array.isArray(config.selectedTransforms)) {
+        if (config.selectedTransforms.length === 0) return false;
+        
+        // Check if at least one transform is properly configured
+        return config.selectedTransforms.some(transformType => {
+          switch (transformType) {
+            case 'toBoolean':
+            case 'toNumber':
+              return true; // These have defaults
+              
+            case 'regex':
+              return config.transforms?.regex?.pattern && 
+                     config.transforms?.regex?.replacement !== undefined;
+              
+            case 'custom':
+              return config.transforms?.custom?.customTransformer?.trim();
+              
+            default:
+              return false;
+          }
+        });
+      }
+      
+      // Handle legacy structure
+      return !!(config.transformType || (config.customTransformer && config.customTransformer.trim()));
     },
     
     async executeTerminalOperation(builder) {
@@ -512,6 +628,7 @@ export const usePipelineStore = defineStore('pipeline', {
       }
     },
     
+    // UPDATED: Multi-transform default options
     getDefaultOptions(type) {
       const operation = this.availableOperations[type];
       
@@ -522,19 +639,11 @@ export const usePipelineStore = defineStore('pipeline', {
       
       // Create default hook structure based on operation type
       if (hookTypes.includes('beforeTransform')) {
-        defaultOptions.beforeTransform = {
-          transformType: null,
-          transformOptions: {},
-          customTransformer: ''
-        };
+        defaultOptions.beforeTransform = this.getDefaultTransformConfig();
       }
       
       if (hookTypes.includes('afterTransform')) {
-        defaultOptions.afterTransform = {
-          transformType: null,
-          transformOptions: {},
-          customTransformer: ''
-        };
+        defaultOptions.afterTransform = this.getDefaultTransformConfig();
       }
       
       // Special defaults for specific operation types
@@ -545,12 +654,8 @@ export const usePipelineStore = defineStore('pipeline', {
           break;
           
         case 'map':
-          // For map, we also need the main transform
-          defaultOptions.transform = {
-            transformType: null,
-            transformOptions: {},
-            customTransformer: ''
-          };
+          // For map, we also need the main transform with new multi-transform structure
+          defaultOptions.transform = this.getDefaultTransformConfig();
           break;
           
         case 'reduce':
@@ -562,12 +667,44 @@ export const usePipelineStore = defineStore('pipeline', {
       return defaultOptions;
     },
     
+    // NEW: Get default transform config structure
+    getDefaultTransformConfig() {
+      return {
+        selectedTransforms: [],
+        transformOrder: [],
+        globalNodeNames: [],
+        globalSkipNodes: [],
+        transforms: {
+          toBoolean: {
+            trueValues: ['true', 'yes', '1', 'on'],
+            falseValues: ['false', 'no', '0', 'off'],
+            ignoreCase: true
+          },
+          toNumber: {
+            precision: undefined,
+            decimalSeparator: '.',
+            thousandsSeparator: ',',
+            integers: true,
+            decimals: true,
+            scientific: true
+          },
+          regex: {
+            pattern: '',
+            replacement: ''
+          },
+          custom: {
+            customTransformer: ''
+          }
+        }
+      };
+    },
+    
     generateFluentAPI() {
       if (!this.isValidPipeline) {
         return '// Invalid pipeline: missing source or output operation';
       }
       
-      let code = `import { XJX, toNumber, toBoolean, regex } from 'xjx';\n\n`;
+      let code = `import { XJX, toNumber, toBoolean, regex, compose } from 'xjx';\n\n`;
       code += `const config = /* your configuration */;\n`;
       code += `const source = /* your source content */;\n\n`;
       
@@ -615,18 +752,77 @@ export const usePipelineStore = defineStore('pipeline', {
         : '';
     },
     
+    // UPDATED: Multi-transform declarations
     generateTransformerDeclarations() {
       const declarations = [];
+      const usedNames = new Set();
       
-      this.steps.forEach(step => {
+      this.steps.forEach((step, stepIndex) => {
         const { options } = step;
         
         // Check for transformers in hooks
         ['beforeTransform', 'transform', 'afterTransform'].forEach(hookName => {
           if (options[hookName] && this.hasValidTransform(options[hookName])) {
-            const decl = this.generateTransformerDeclaration(`${hookName}Fn`, options[hookName]);
-            if (decl && !declarations.includes(decl)) {
-              declarations.push(decl);
+            const config = options[hookName];
+            
+            // Handle multi-transform structure
+            if (config.selectedTransforms && config.transformOrder) {
+              config.transformOrder.forEach((transformType, transformIndex) => {
+                const baseName = `${transformType}Fn`;
+                let varName = baseName;
+                let counter = 1;
+                
+                while (usedNames.has(varName)) {
+                  varName = `${baseName}${counter}`;
+                  counter++;
+                }
+                usedNames.add(varName);
+                
+                const decl = this.generateSingleTransformerDeclaration(varName, transformType, config);
+                if (decl && !declarations.some(d => d.includes(varName))) {
+                  declarations.push(decl);
+                }
+              });
+              
+              // Generate composed declaration if multiple transforms
+              if (config.transformOrder.length > 1) {
+                const composedName = `${hookName}ComposedFn`;
+                let composedVarName = composedName;
+                let counter = 1;
+                
+                while (usedNames.has(composedVarName)) {
+                  composedVarName = `${composedName}${counter}`;
+                  counter++;
+                }
+                usedNames.add(composedVarName);
+                
+                const transformRefs = config.transformOrder.map(type => `${type}Fn`).join(', ');
+                declarations.push(`const ${composedVarName} = compose(${transformRefs});`);
+                
+                // Store for later use
+                config._generatedVarName = composedVarName;
+              } else if (config.transformOrder.length === 1) {
+                // Single transform, use it directly
+                config._generatedVarName = `${config.transformOrder[0]}Fn`;
+              }
+            }
+            // Handle legacy structure
+            else {
+              const baseName = `${hookName}Fn`;
+              let varName = baseName;
+              let counter = 1;
+              
+              while (usedNames.has(varName)) {
+                varName = `${baseName}${counter}`;
+                counter++;
+              }
+              usedNames.add(varName);
+              
+              const decl = this.generateTransformerDeclaration(varName, config);
+              if (decl && !declarations.some(d => d.includes(varName))) {
+                declarations.push(decl);
+                config._generatedVarName = varName;
+              }
             }
           }
         });
@@ -635,6 +831,70 @@ export const usePipelineStore = defineStore('pipeline', {
       return declarations.length > 0 ? declarations.join('\n') : '';
     },
     
+    // NEW: Generate single transformer declaration
+    generateSingleTransformerDeclaration(varName, transformType, config) {
+      const transformConfig = config.transforms?.[transformType];
+      if (!transformConfig) return '';
+      
+      let cleanOptions = {};
+      
+      switch (transformType) {
+        case 'toBoolean':
+        case 'toNumber':
+          cleanOptions = { ...transformConfig };
+          // Add global node filtering
+          if (config.globalNodeNames?.length > 0) {
+            cleanOptions.nodeNames = config.globalNodeNames;
+          }
+          if (config.globalSkipNodes?.length > 0) {
+            cleanOptions.skipNodes = config.globalSkipNodes;
+          }
+          break;
+          
+        case 'regex':
+          if (transformConfig.pattern && transformConfig.replacement !== undefined) {
+            const regexOptions = {};
+            if (config.globalNodeNames?.length > 0) {
+              regexOptions.nodeNames = config.globalNodeNames;
+            }
+            if (config.globalSkipNodes?.length > 0) {
+              regexOptions.skipNodes = config.globalSkipNodes;
+            }
+            
+            const optionsStr = Object.keys(regexOptions).length > 0 ? 
+              `, ${JSON.stringify(regexOptions)}` : '';
+            
+            return `const ${varName} = regex(${JSON.stringify(transformConfig.pattern)}, ${JSON.stringify(transformConfig.replacement)}${optionsStr});`;
+          }
+          return '';
+          
+        case 'custom':
+          if (transformConfig.customTransformer?.trim()) {
+            return `const ${varName} = ${transformConfig.customTransformer};`;
+          }
+          return '';
+          
+        default:
+          return '';
+      }
+      
+      // Clean up undefined values
+      Object.keys(cleanOptions).forEach(key => {
+        if (cleanOptions[key] === undefined || cleanOptions[key] === '' || 
+            (Array.isArray(cleanOptions[key]) && cleanOptions[key].length === 0)) {
+          delete cleanOptions[key];
+        }
+      });
+      
+      const optionsStr = Object.keys(cleanOptions).length > 0 ? 
+        JSON.stringify(cleanOptions) : '';
+      
+      return optionsStr ? 
+        `const ${varName} = ${transformType}(${optionsStr});` :
+        `const ${varName} = ${transformType}();`;
+    },
+    
+    // Legacy transformer declaration (for backward compatibility)
     generateTransformerDeclaration(varName, config) {
       const { transformType, transformOptions } = config;
       
@@ -716,16 +976,53 @@ export const usePipelineStore = defineStore('pipeline', {
       return hooks.length > 0 ? `{${hooks.join(', ')}}` : '';
     },
     
+    // UPDATED: Multi-transform code generation
     generateTransformCode(config) {
       if (!config) return '';
       
+      // Check if we have a generated variable name (for composed transforms)
+      if (config._generatedVarName) {
+        return config._generatedVarName;
+      }
+      
+      // Handle multi-transform structure
+      if (config.selectedTransforms && config.transformOrder) {
+        if (config.transformOrder.length === 0) {
+          return '';
+        } else if (config.transformOrder.length === 1) {
+          return `${config.transformOrder[0]}Fn`;
+        } else {
+          // This should have been handled by _generatedVarName
+          const transformRefs = config.transformOrder.map(type => `${type}Fn`).join(', ');
+          return `compose(${transformRefs})`;
+        }
+      }
+      
+      // Handle legacy structure
       if (config.transformType) {
-        return `${config.transformType}Fn`;
+        const optionsStr = this.generateOptionsString(config.transformOptions);
+        return optionsStr ? `${config.transformType}(${optionsStr})` : `${config.transformType}()`;
       } else if (config.customTransformer?.trim()) {
         return config.customTransformer;
       }
       
       return '';
+    },
+    
+    generateOptionsString(options) {
+      if (!options || typeof options !== 'object') return '';
+      
+      const cleanOptions = { ...options };
+      Object.keys(cleanOptions).forEach(key => {
+        if (cleanOptions[key] === undefined || cleanOptions[key] === '' || 
+            (Array.isArray(cleanOptions[key]) && cleanOptions[key].length === 0)) {
+          delete cleanOptions[key];
+        }
+      });
+      
+      return Object.keys(cleanOptions).length > 0 
+        ? JSON.stringify(cleanOptions) 
+        : '';
     }
   }
 });

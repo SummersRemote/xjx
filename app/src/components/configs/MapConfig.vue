@@ -1,4 +1,4 @@
-<!-- components/configs/MapConfig.vue - Final update for new hook system -->
+<!-- components/configs/MapConfig.vue - Updated for multi-transform support -->
 <template>
   <v-container>
     <!-- Primary Transform Configuration -->
@@ -6,11 +6,11 @@
       <v-col cols="12">
         <div class="text-subtitle-2 mb-2">
           <v-icon icon="mdi-cog" size="small" class="me-1"></v-icon>
-          Primary Transform (Required)
+          Primary Transform Pipeline (Required)
         </div>
         <v-card variant="outlined" class="pa-3" :color="!hasMainTransform ? 'warning' : ''">
           <div class="text-caption text-medium-emphasis mb-2">
-            Main transformation function applied to each node
+            Main transformation pipeline applied to each node - supports multiple chained transforms
           </div>
           <TransformerConfig
             :value="localOptions.transform"
@@ -24,7 +24,16 @@
             density="compact"
             class="mt-2"
           >
-            Primary transform is required for map operations
+            Primary transform pipeline is required for map operations
+          </v-alert>
+          <v-alert
+            v-if="hasMainTransform && transformSummary"
+            type="success"
+            variant="text"
+            density="compact"
+            class="mt-2"
+          >
+            <strong>Transform Pipeline:</strong> {{ transformSummary }}
           </v-alert>
         </v-card>
       </v-col>
@@ -41,7 +50,7 @@
         </div>
         <v-card variant="outlined" class="pa-3">
           <div class="text-caption text-medium-emphasis mb-2">
-            Applied to each node before the primary transform
+            Applied to each node before the primary transform pipeline
           </div>
           <TransformerConfig
             :value="localOptions.beforeTransform"
@@ -63,7 +72,7 @@
         </div>
         <v-card variant="outlined" class="pa-3">
           <div class="text-caption text-medium-emphasis mb-2">
-            Applied to each node after the primary transform
+            Applied to each node after the primary transform pipeline
           </div>
           <TransformerConfig
             :value="localOptions.afterTransform"
@@ -85,10 +94,10 @@
         >
           <strong>Map Operation Flow:</strong><br>
           1. <span class="text-primary">Before Hook</span>: Prepare node for transformation<br>
-          2. <span class="text-warning">Primary Transform</span>: Main transformation logic (required)<br>
+          2. <span class="text-warning">Primary Transform Pipeline</span>: Main transformation logic (required)<br>
           3. <span class="text-success">After Hook</span>: Finalize or validate transformed node<br>
           <br>
-          <strong>API:</strong> <code>map(primaryTransform, { beforeTransform?, afterTransform? })</code>
+          <strong>API:</strong> <code>map(primaryTransformPipeline, { beforeTransform?, afterTransform? })</code>
         </v-alert>
       </v-col>
     </v-row>
@@ -102,12 +111,12 @@
           icon="mdi-lightbulb-outline"
           class="text-caption mt-3"
         >
-          <strong>Transform Examples:</strong><br>
-          - <em>Primary</em>: <code>toNumber({ nodeNames: ['price'] })</code><br>
-          - <em>Before Hook</em>: <code>node => ({ ...node, originalValue: node.value })</code><br>
-          - <em>After Hook</em>: <code>node => node.value > 100 ? {...node, expensive: true} : node</code><br>
+          <strong>Multi-Transform Pipeline Examples:</strong><br>
+          - <em>Currency Processing</em>: <code>regex(/[$,]/g, '') → toNumber({ precision: 2 })</code><br>
+          - <em>Boolean Flags</em>: <code>toBoolean() → custom(node => ({...node, processed: true}))</code><br>
+          - <em>Data Cleanup</em>: <code>regex(/\s+/g, ' ') → toNumber() → toBoolean()</code><br>
           <br>
-          Return <code>null</code> from any transform to remove the node from the tree.
+          <strong>Global Node Filtering:</strong> Apply the entire pipeline only to specific nodes or skip certain nodes.
         </v-alert>
       </v-col>
     </v-row>
@@ -121,9 +130,9 @@
           icon="mdi-api"
           class="text-caption mt-3"
         >
-          <strong>Hook Timing (Fixed):</strong><br>
-          Transforms now receive fully populated nodes with values, attributes, and children.
-          This ensures <code>toNumber()</code> and <code>toBoolean()</code> work correctly.
+          <strong>Transform Composition:</strong><br>
+          Multiple transforms are automatically composed using the <code>compose()</code> function.
+          Each transform receives the output of the previous transform, allowing for powerful data pipelines.
         </v-alert>
       </v-col>
     </v-row>
@@ -139,19 +148,25 @@ const props = defineProps({
     type: Object,
     default: () => ({
       transform: {
-        transformType: null,
-        transformOptions: {},
-        customTransformer: ''
+        selectedTransforms: [],
+        transformOrder: [],
+        globalNodeNames: [],
+        globalSkipNodes: [],
+        transforms: {}
       },
       beforeTransform: {
-        transformType: null,
-        transformOptions: {},
-        customTransformer: ''
+        selectedTransforms: [],
+        transformOrder: [],
+        globalNodeNames: [],
+        globalSkipNodes: [],
+        transforms: {}
       },
       afterTransform: {
-        transformType: null,
-        transformOptions: {},
-        customTransformer: ''
+        selectedTransforms: [],
+        transformOrder: [],
+        globalNodeNames: [],
+        globalSkipNodes: [],
+        transforms: {}
       }
     })
   }
@@ -159,46 +174,110 @@ const props = defineProps({
 
 const emit = defineEmits(['update']);
 
+// Get default transform config structure
+function getDefaultTransformConfig() {
+  return {
+    selectedTransforms: [],
+    transformOrder: [],
+    globalNodeNames: [],
+    globalSkipNodes: [],
+    transforms: {
+      toBoolean: {
+        trueValues: ['true', 'yes', '1', 'on'],
+        falseValues: ['false', 'no', '0', 'off'],
+        ignoreCase: true
+      },
+      toNumber: {
+        precision: undefined,
+        decimalSeparator: '.',
+        thousandsSeparator: ',',
+        integers: true,
+        decimals: true,
+        scientific: true
+      },
+      regex: {
+        pattern: '',
+        replacement: ''
+      },
+      custom: {
+        customTransformer: ''
+      }
+    }
+  };
+}
+
 // Create a local reactive copy of the props
 const localOptions = reactive({
   transform: { 
-    transformType: props.value.transform?.transformType || null,
-    transformOptions: { ...props.value.transform?.transformOptions } || {},
-    customTransformer: props.value.transform?.customTransformer || ''
+    ...getDefaultTransformConfig(),
+    ...(props.value.transform || {})
   },
   beforeTransform: { 
-    transformType: props.value.beforeTransform?.transformType || null,
-    transformOptions: { ...props.value.beforeTransform?.transformOptions } || {},
-    customTransformer: props.value.beforeTransform?.customTransformer || ''
+    ...getDefaultTransformConfig(),
+    ...(props.value.beforeTransform || {})
   },
   afterTransform: { 
-    transformType: props.value.afterTransform?.transformType || null,
-    transformOptions: { ...props.value.afterTransform?.transformOptions } || {},
-    customTransformer: props.value.afterTransform?.customTransformer || ''
+    ...getDefaultTransformConfig(),
+    ...(props.value.afterTransform || {})
   }
 });
 
-// Check if main transform is configured
+// Check if main transform pipeline is configured
 const hasMainTransform = computed(() => {
   const t = localOptions.transform;
-  return !!(t.transformType || (t.customTransformer && t.customTransformer.trim()));
+  return !!(t.selectedTransforms && t.selectedTransforms.length > 0);
+});
+
+// Generate a summary of the transform pipeline
+const transformSummary = computed(() => {
+  const t = localOptions.transform;
+  if (!t.transformOrder || t.transformOrder.length === 0) {
+    return '';
+  }
+  
+  const transformNames = t.transformOrder.map(type => {
+    switch (type) {
+      case 'toBoolean': return 'Boolean';
+      case 'toNumber': return 'Number';
+      case 'regex': return 'Regex';
+      case 'custom': return 'Custom';
+      default: return type;
+    }
+  });
+  
+  let summary = transformNames.join(' → ');
+  
+  // Add node filtering info if present
+  const nodeInfo = [];
+  if (t.globalNodeNames && t.globalNodeNames.length > 0) {
+    nodeInfo.push(`only: [${t.globalNodeNames.join(', ')}]`);
+  }
+  if (t.globalSkipNodes && t.globalSkipNodes.length > 0) {
+    nodeInfo.push(`skip: [${t.globalSkipNodes.join(', ')}]`);
+  }
+  
+  if (nodeInfo.length > 0) {
+    summary += ` (${nodeInfo.join(', ')})`;
+  }
+  
+  return summary;
 });
 
 // Update primary transform
 const updateTransform = (options) => {
-  localOptions.transform = { ...options };
+  localOptions.transform = { ...getDefaultTransformConfig(), ...options };
   updateOptions();
 };
 
 // Update before transform hook
 const updateBeforeTransform = (options) => {
-  localOptions.beforeTransform = { ...options };
+  localOptions.beforeTransform = { ...getDefaultTransformConfig(), ...options };
   updateOptions();
 };
 
 // Update after transform hook
 const updateAfterTransform = (options) => {
-  localOptions.afterTransform = { ...options };
+  localOptions.afterTransform = { ...getDefaultTransformConfig(), ...options };
   updateOptions();
 };
 
@@ -212,19 +291,16 @@ watch(() => props.value, (newValue) => {
   if (newValue) {
     Object.assign(localOptions, {
       transform: { 
-        transformType: newValue.transform?.transformType || null,
-        transformOptions: { ...newValue.transform?.transformOptions } || {},
-        customTransformer: newValue.transform?.customTransformer || ''
+        ...getDefaultTransformConfig(),
+        ...(newValue.transform || {})
       },
       beforeTransform: { 
-        transformType: newValue.beforeTransform?.transformType || null,
-        transformOptions: { ...newValue.beforeTransform?.transformOptions } || {},
-        customTransformer: newValue.beforeTransform?.customTransformer || ''
+        ...getDefaultTransformConfig(),
+        ...(newValue.beforeTransform || {})
       },
       afterTransform: { 
-        transformType: newValue.afterTransform?.transformType || null,
-        transformOptions: { ...newValue.afterTransform?.transformOptions } || {},
-        customTransformer: newValue.afterTransform?.customTransformer || ''
+        ...getDefaultTransformConfig(),
+        ...(newValue.afterTransform || {})
       }
     });
   }

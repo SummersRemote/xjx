@@ -5,9 +5,6 @@ import SelectConfig from './SelectConfig.vue';
 import FilterConfig from './FilterConfig.vue';
 import MapConfig from './MapConfig.vue';
 import ReduceConfig from './ReduceConfig.vue';
-import SliceConfig from './SliceConfig.vue';
-import UnwrapConfig from './UnwrapConfig.vue';
-import HoistConfig from './HoistConfig.vue';
 import TransformConfig from './TransformConfig.vue';
 import TransformerConfig from './TransformerConfig.vue';
 import SourceConfig from './SourceConfig.vue';
@@ -17,10 +14,7 @@ export {
   FilterConfig,
   MapConfig,
   ReduceConfig,
-  SliceConfig,
-  UnwrapConfig,
-  HoistConfig,
   TransformConfig,
-  TransformerConfig,
+  TransformerConfig, 
   SourceConfig
 };

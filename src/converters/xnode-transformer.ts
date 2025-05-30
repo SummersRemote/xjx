@@ -1,5 +1,5 @@
 /**
- * XNode transformer implementation integrated with new hook system
+ * XNode transformer implementation integrated with new hook system - FIXED
  *
  * This module handles node transformations for the map() operation using the new NodeHooks.
  * It applies transform functions to XNode structures with proper before/after hook timing.
@@ -104,7 +104,7 @@ function processNodeTreeWithHooks(
     }
   }
 
-  // Apply main transform to node value and attributes
+  // Apply main transform to the entire node - FIXED
   currentNode = applyMainTransformToNode(currentNode, mainTransform, intent);
 
   // Process children recursively
@@ -132,7 +132,7 @@ function processNodeTreeWithHooks(
 }
 
 /**
- * Apply main transform to a single node (value and attributes)
+ * Apply main transform to a single node - FIXED TO WORK WITH NODE TRANSFORMS
  * @param node Node to transform
  * @param mainTransform Main transform function
  * @param intent Transform intent
@@ -143,25 +143,47 @@ function applyMainTransformToNode(
   mainTransform: Transform,
   intent?: TransformIntent
 ): XNode {
-  // Apply transform to node value
-  if (node.value !== undefined) {
-    try {
+  try {
+    // FIXED: Check if this is a node transform (expects XNode) or value transform
+    // Node transforms like toBoolean(), toNumber(), regex() expect XNode and return XNode
+    // Try calling with the node first
+    const transformResult = mainTransform(node, {
+      intent,
+      path: node.name,
+    });
+
+    // If the result is an XNode, use it directly
+    if (
+      transformResult &&
+      typeof transformResult === "object" &&
+      typeof transformResult.name === "string" &&
+      transformResult.type !== undefined
+    ) {
+      return transformResult;
+    }
+
+    // If the result is not an XNode, assume it's a value transform
+    // and apply it to the node's value
+    if (node.value !== undefined) {
       const transformedValue = mainTransform(node.value, {
         intent,
         path: node.name,
       });
-      node.value = transformedValue;
-    } catch (err) {
-      logger.warn(`Error transforming value for node ${node.name}:`, err);
+      return { ...node, value: transformedValue };
     }
-  }
 
-  // Apply transform to attributes
-  if (node.attributes) {
-    transformNodeAttributes(node, mainTransform, intent);
-  }
+    // If no value to transform, apply to attributes
+    if (node.attributes) {
+      const updatedNode = { ...node };
+      transformNodeAttributes(updatedNode, mainTransform, intent);
+      return updatedNode;
+    }
 
-  return node;
+    return node;
+  } catch (err) {
+    logger.warn(`Error transforming node ${node.name}:`, err);
+    return node;
+  }
 }
 
 /**

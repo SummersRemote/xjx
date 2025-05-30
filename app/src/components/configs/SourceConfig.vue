@@ -1,4 +1,4 @@
-<!-- components/configs/SourceConfig.vue - Updated for new hook system -->
+<!-- components/configs/SourceConfig.vue - Updated for multi-transform support -->
 <template>
   <v-container>
     <!-- Before Transform Hook Configuration -->
@@ -10,7 +10,7 @@
         </div>
         <v-card variant="outlined" class="pa-3">
           <div class="text-caption text-medium-emphasis mb-2">
-            Applied to raw source before parsing
+            Applied to raw source before parsing - supports multi-transform pipelines
           </div>
           <TransformerConfig
             :value="localOptions.beforeTransform"
@@ -32,7 +32,7 @@
         </div>
         <v-card variant="outlined" class="pa-3">
           <div class="text-caption text-medium-emphasis mb-2">
-            Applied to parsed XNode structure
+            Applied to parsed XNode structure - supports multi-transform pipelines
           </div>
           <TransformerConfig
             :value="localOptions.afterTransform"
@@ -52,7 +52,7 @@
           icon="mdi-information-outline"
           class="text-caption mt-3"
         >
-          <strong>Source Operations with Hooks:</strong><br>
+          <strong>Source Operations with Multi-Transform Hooks:</strong><br>
           - <em>fromXml</em>: Parse XML string into XNode structure<br>
           - <em>fromJson</em>: Parse JSON object into XNode structure<br>
           - <em>fromXnode</em>: Use existing XNode array as source<br>
@@ -73,11 +73,11 @@
           icon="mdi-lightbulb-outline"
           class="text-caption mt-3"
         >
-          <strong>Common Use Cases:</strong><br>
-          - <em>Before Transform</em>: Source validation, preprocessing, format conversion<br>
-          - <em>After Transform</em>: Add metadata, inject timestamps, modify structure<br>
+          <strong>Multi-Transform Hook Examples:</strong><br>
+          - <em>Before Transform</em>: XML preprocessing pipeline (regex cleanup → custom validation)<br>
+          - <em>After Transform</em>: XNode enrichment pipeline (add metadata → boolean flags → custom processing)<br>
           <br>
-          <strong>Example:</strong> beforeTransform validates XML, afterTransform adds processing timestamp
+          <strong>Example:</strong> beforeTransform validates XML format, afterTransform adds processing timestamps and converts flags
         </v-alert>
       </v-col>
     </v-row>
@@ -93,14 +93,18 @@ const props = defineProps({
     type: Object,
     default: () => ({
       beforeTransform: {
-        transformType: null,
-        transformOptions: {},
-        customTransformer: ''
+        selectedTransforms: [],
+        transformOrder: [],
+        globalNodeNames: [],
+        globalSkipNodes: [],
+        transforms: {}
       },
       afterTransform: {
-        transformType: null,
-        transformOptions: {},
-        customTransformer: ''
+        selectedTransforms: [],
+        transformOrder: [],
+        globalNodeNames: [],
+        globalSkipNodes: [],
+        transforms: {}
       }
     })
   }
@@ -108,29 +112,59 @@ const props = defineProps({
 
 const emit = defineEmits(['update']);
 
+// Get default transform config structure
+function getDefaultTransformConfig() {
+  return {
+    selectedTransforms: [],
+    transformOrder: [],
+    globalNodeNames: [],
+    globalSkipNodes: [],
+    transforms: {
+      toBoolean: {
+        trueValues: ['true', 'yes', '1', 'on'],
+        falseValues: ['false', 'no', '0', 'off'],
+        ignoreCase: true
+      },
+      toNumber: {
+        precision: undefined,
+        decimalSeparator: '.',
+        thousandsSeparator: ',',
+        integers: true,
+        decimals: true,
+        scientific: true
+      },
+      regex: {
+        pattern: '',
+        replacement: ''
+      },
+      custom: {
+        customTransformer: ''
+      }
+    }
+  };
+}
+
 // Create a local reactive copy of the props
 const localOptions = reactive({
   beforeTransform: { 
-    transformType: props.value.beforeTransform?.transformType || null,
-    transformOptions: { ...props.value.beforeTransform?.transformOptions } || {},
-    customTransformer: props.value.beforeTransform?.customTransformer || ''
+    ...getDefaultTransformConfig(),
+    ...(props.value.beforeTransform || {})
   },
   afterTransform: { 
-    transformType: props.value.afterTransform?.transformType || null,
-    transformOptions: { ...props.value.afterTransform?.transformOptions } || {},
-    customTransformer: props.value.afterTransform?.customTransformer || ''
+    ...getDefaultTransformConfig(),
+    ...(props.value.afterTransform || {})
   }
 });
 
 // Update before transform hook
 const updateBeforeTransform = (options) => {
-  localOptions.beforeTransform = { ...options };
+  localOptions.beforeTransform = { ...getDefaultTransformConfig(), ...options };
   updateOptions();
 };
 
 // Update after transform hook
 const updateAfterTransform = (options) => {
-  localOptions.afterTransform = { ...options };
+  localOptions.afterTransform = { ...getDefaultTransformConfig(), ...options };
   updateOptions();
 };
 
@@ -144,14 +178,12 @@ watch(() => props.value, (newValue) => {
   if (newValue) {
     Object.assign(localOptions, {
       beforeTransform: { 
-        transformType: newValue.beforeTransform?.transformType || null,
-        transformOptions: { ...newValue.beforeTransform?.transformOptions } || {},
-        customTransformer: newValue.beforeTransform?.customTransformer || ''
+        ...getDefaultTransformConfig(),
+        ...(newValue.beforeTransform || {})
       },
       afterTransform: { 
-        transformType: newValue.afterTransform?.transformType || null,
-        transformOptions: { ...newValue.afterTransform?.transformOptions } || {},
-        customTransformer: newValue.afterTransform?.customTransformer || ''
+        ...getDefaultTransformConfig(),
+        ...(newValue.afterTransform || {})
       }
     });
   }

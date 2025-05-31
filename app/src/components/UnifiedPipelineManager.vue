@@ -270,8 +270,6 @@
                     </template>
                   </v-tooltip>
                   
-                  <v-tooltip text="Move up">
-                    <template v-slot:activator="{ props }">
                       <v-btn
                         v-bind="props"
                         icon="mdi-arrow-up"
@@ -280,11 +278,7 @@
                         :disabled="index === 0"
                         @click.stop="moveFunctionalStep(step.id, 'up')"
                       ></v-btn>
-                    </template>
-                  </v-tooltip>
                   
-                  <v-tooltip text="Move down">
-                    <template v-slot:activator="{ props }">
                       <v-btn
                         v-bind="props"
                         icon="mdi-arrow-down"
@@ -293,11 +287,7 @@
                         :disabled="index === functionalSteps.length - 1"
                         @click.stop="moveFunctionalStep(step.id, 'down')"
                       ></v-btn>
-                    </template>
-                  </v-tooltip>
                   
-                  <v-tooltip text="Remove operation">
-                    <template v-slot:activator="{ props }">
                       <v-btn
                         v-bind="props"
                         icon="mdi-delete"
@@ -306,8 +296,7 @@
                         color="error"
                         @click.stop="removeFunctionalStep(step.id)"
                       ></v-btn>
-                    </template>
-                  </v-tooltip>
+
                 </div>
                 
                 <!-- Mobile Three-Dot Menu -->

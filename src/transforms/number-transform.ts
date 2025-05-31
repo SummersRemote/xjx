@@ -2,6 +2,7 @@
  * Number node transform - Converts string node values to numbers
  */
 import { XNode } from '../core/xnode';
+import { Transform } from "../core/functional";
 
 /**
  * Options for number node transform
@@ -65,7 +66,7 @@ export interface NumberTransformOptions {
  * @param options Number transform options
  * @returns A node transformer function for use with map()
  */
-export function toNumber(options: NumberTransformOptions = {}): (node: XNode) => XNode {
+export function toNumber(options: NumberTransformOptions = {}): Transform {
   const {
     precision,
     decimalSeparator = ".",

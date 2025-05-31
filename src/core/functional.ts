@@ -49,3 +49,43 @@ export function walkTree<T>(
     return undefined as unknown as T;
   }
 }
+/**
+ * A transform function that processes an XNode
+ */
+
+export type Transform = (node: XNode) => XNode;
+/**
+ * Compose multiple transforms into a single transform
+ * Transforms are applied in order (left to right)
+ *
+ * @example
+ * ```typescript
+ * const processPrice = compose(
+ *   regex(/[^\d.]/g, ''),  // Remove non-digits and dots
+ *   toNumber({ precision: 2 }),
+ *   (node) => ({ ...node, value: node.value * 1.1 })  // Add 10% markup
+ * );
+ *
+ * xjx.fromXml(xml)
+ *    .filter(node => node.name === 'price')
+ *    .map(processPrice)
+ *    .toJson();
+ * ```
+ *
+ * @param transforms Array of transforms to compose
+ * @returns A composed transform function
+ */
+
+export function compose(...transforms: Transform[]): Transform {
+  return (node: XNode): XNode => {
+    return transforms.reduce((result, transform) => {
+      try {
+        return transform(result);
+      } catch (err) {
+        // If transform fails, return original node
+        logger.warn(`Transform error on node '${result.name}':`, err);
+        return result;
+      }
+    }, node);
+  };
+}

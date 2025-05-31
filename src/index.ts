@@ -1,5 +1,5 @@
 /**
- * XJX Library - XML/JSON transformation with fluent API and new hook system
+ * XJX Library - XML/JSON transformation with fluent API and minimal transform system
  */
 
 // IMPORTANT: Register all extensions by importing their files
@@ -25,13 +25,10 @@ export {
 } from "./core/config";
 
 export {
-  // Transform system
+  // Minimal transform system
   Transform,
-  TransformOptions,
-  TransformIntent,
   compose,
-  createTransform,
-} from "./core/transform";
+} from "./core/functional";
 
 // Export logging
 export { 
@@ -55,18 +52,18 @@ export {
   NonTerminalExtensionContext,
 } from "./core/extension";
 
-// Export converter types and NEW HOOK INTERFACES
+// Export converter types and hook interfaces
 export {
   Converter,
   JsonValue,
   JsonObject,
   JsonArray,
-  // NEW: Hook system interfaces - UPDATED
+  // Hook system interfaces
   SourceHooks,
   OutputHooks,
   NodeHooks,
   PipelineHooks,
-  // NEW: Hook utility functions - UPDATED
+  // Hook utility functions
   applySourceHooks,
   applyOutputHooks,
   applyNodeHooks,
@@ -82,7 +79,6 @@ export {
   // Options interfaces
   NumberTransformOptions,
   BooleanTransformOptions,
-  RegexTransformOptions,
 } from "./transforms";
 
 // Manual registration verification - this function does nothing at runtime

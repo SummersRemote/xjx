@@ -14,7 +14,7 @@ import { XJX } from "../XJX";
 import { XNode, addChild, createElement, cloneNode } from "../core/xnode";
 import { NonTerminalExtensionContext, TerminalExtensionContext } from "../core/extension";
 import { validateInput, NodeHooks } from "../core/converter";
-import { Transform } from "../core/transform";
+import { Transform } from "../core/functional";
 import { transformXNodeWithHooks } from "../converters/xnode-transformer";
 
 /**

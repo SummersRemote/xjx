@@ -2,6 +2,7 @@
  * Regex node transform - Apply regular expression replacements to string node values
  */
 import { XNode } from '../core/xnode';
+import { Transform } from "../core/functional";
 
 /**
  * Detect if a string is a regular expression pattern
@@ -50,7 +51,7 @@ function parseRegexPattern(pattern: string): { source: string, flags: string } |
 export function regex(
   pattern: RegExp | string, 
   replacement: string
-): (node: XNode) => XNode {
+): Transform {
   
   // Create RegExp object based on input type
   let re: RegExp;

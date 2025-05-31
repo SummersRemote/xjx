@@ -1,5 +1,5 @@
 /**
- * XJX Core Module
+ * XJX Core Module - Updated for minimal transform system
  * 
  * This module exports all core functionality for the XJX library.
  */
@@ -21,8 +21,8 @@ export * from './config';
 // Converter system
 export * from './converter';
 
-// Transform system
-export * from './transform';
+// Minimal transform system
+export * from './functional';
 
 // XML processing
 export * from './xml-utils';

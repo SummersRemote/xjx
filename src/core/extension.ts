@@ -2,7 +2,7 @@
  * Extension system for the XJX library
  */
 import { Configuration } from './config';
-import { Transform } from './transform';
+import { Transform } from "./functional";
 import { XNode } from './xnode';
 
 /**

@@ -1,5 +1,5 @@
 /**
- * Converters module - Updated for new hook system
+ * Converters module - Updated for minimal transform system
  *
  * This module provides converter functions for transforming between XML, JSON, and XNode.
  */
@@ -38,7 +38,7 @@ export {
   convertXNodeToJsonHiFiWithHooks,
 } from "./xnode-to-json-hifi-converter";
 
-// Node transformer - integrated with new hook system
+// Node transformer - updated for minimal transform system
 export {
   transformXNodeWithHooks,
   transformXNode, // Legacy wrapper

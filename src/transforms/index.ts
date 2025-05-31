@@ -1,18 +1,15 @@
 /**
- * Node Transforms module - Node transformer factories for use with map()
+ * Node Transforms module - Pure transform functions for use with map()
  *
  * This module provides node transformer factories that work directly with the map() function.
- * All transforms are node transformers that take an XNode and return a transformed XNode.
+ * All transforms are pure functions that take an XNode and return a transformed XNode.
  */
 
 // Core transform types and utilities
 export {
   Transform,
-  TransformOptions,
-  TransformIntent,
-  compose,
-  createTransform
-} from '../core/transform';
+  compose
+} from '../core/functional';
 
 // Number node transform
 export {
@@ -28,14 +25,13 @@ export {
 
 // Regex node transform
 export {
-  regex,
-  RegexTransformOptions
+  regex
 } from './regex-transform';
 
 /**
- * Quick reference for the node transform system:
+ * Quick reference for the minimal transform system:
  * 
- * All transforms work directly with map() and transform XNode objects:
+ * All transforms are pure functions: (node: XNode) => XNode
  * 
  * ```typescript
  * // Transform all boolean-like values
@@ -43,40 +39,48 @@ export {
  *    .map(toBoolean())
  *    .toJson();
  * 
- * // Transform only specific nodes
+ * // Transform only specific nodes using explicit filtering
  * xjx.fromXml(xml)
- *    .map(toNumber({ nodeNames: ['price', 'total'] }))
+ *    .filter(node => ['price', 'total'].includes(node.name))
+ *    .map(toNumber({ precision: 2 }))
  *    .toJson();
  * 
- * // Chain multiple transforms
+ * // Chain multiple transforms using compose
  * xjx.fromXml(xml)
- *    .map(toBoolean({ nodeNames: ['active', 'enabled'] }))
- *    .map(toNumber({ nodeNames: ['price', 'count'] }))
- *    .map(regex(/\s+/g, ' '))  // Clean up whitespace
+ *    .filter(node => node.name === 'price')
+ *    .map(compose(
+ *      regex(/[^\d.]/g, ''),  // Clean currency symbols
+ *      toNumber({ precision: 2 })
+ *    ))
+ *    .toJson();
+ * 
+ * // Inline custom transforms
+ * xjx.fromXml(xml)
+ *    .map(node => ({ ...node, processed: true }))
  *    .toJson();
  * 
  * // Create reusable configured transforms
- * const cleanPhoneNumbers = regex(/[^\d]/g, '');
+ * const cleanPrice = compose(
+ *   regex(/[$,]/g, ''),
+ *   toNumber({ precision: 2 })
+ * );
+ * 
  * const parseBoolean = toBoolean({ 
  *   trueValues: ['yes', '1', 'true'], 
  *   falseValues: ['no', '0', 'false'] 
  * });
- * const parseCurrency = toNumber({ 
- *   precision: 2,
- *   nodeNames: ['price', 'total', 'tax'] 
- * });
  * 
  * xjx.fromXml(xml)
- *    .map(cleanPhoneNumbers)
+ *    .filter(node => node.name === 'price')
+ *    .map(cleanPrice)
+ *    .filter(node => ['active', 'enabled'].includes(node.name))
  *    .map(parseBoolean)
- *    .map(parseCurrency)
  *    .toJson();
  * ```
  * 
- * Key differences from legacy transforms:
- * - Work directly with map(), no wrapper needed
- * - Transform entire nodes, not just values
- * - Support node filtering (nodeNames, skipNodes)
- * - Preserve non-matching nodes unchanged
- * - Composable and chainable
+ * Key principles of the minimal transform system:
+ * - Pure functions: no side effects, predictable results
+ * - Explicit filtering: use filter() or select() before transforms
+ * - Composable: use compose() to chain multiple transforms
+ * - Self-contained: transforms handle their own validation and errors
  */

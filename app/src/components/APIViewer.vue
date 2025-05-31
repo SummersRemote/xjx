@@ -1,4 +1,4 @@
-<!-- components/APIViewer.vue - Updated for new pipeline structure -->
+<!-- components/APIViewer.vue - Updated for minimal transform system -->
 <template>
   <v-dialog
     v-model="dialog"
@@ -39,16 +39,16 @@
           </div>
         </v-alert>
         
-        <!-- Hook System Notice -->
+        <!-- Minimal Transform System Notice -->
         <v-alert
           type="info"
           variant="tonal"
           class="mb-4"
           icon="mdi-information"
         >
-          <div class="font-weight-bold">XJX Logger Integration</div>
+          <div class="font-weight-bold">Minimal Transform System</div>
           <div class="text-caption">
-            Generated code uses XJX's LoggerFactory for professional pipeline logging with proper timing.
+            Transforms are now pure functions: <code>(node: XNode) => XNode</code>. Use explicit filtering for node targeting.
           </div>
         </v-alert>
         
@@ -65,11 +65,12 @@
           <v-card-text class="text-body-2">
             <ol class="pl-4">
               <li>Install the XJX library: <code>npm install xjx</code></li>
-              <li>Import the hook system: <code>import { XJX, toNumber, toBoolean, regex, LoggerFactory } from 'xjx';</code></li>
-              <li>Use the pipeline structure:
+              <li>Import the minimal transform system: <code>import { XJX, toNumber, toBoolean, regex, compose } from 'xjx';</code></li>
+              <li>Use the simplified pipeline structure:
                 <ul class="mt-2">
                   <li><strong>Source operations:</strong> <code>fromXml(source, hooks?)</code></li>
-                  <li><strong>Functional operations:</strong> <code>map(transform, hooks?)</code>, <code>filter(predicate)</code></li>
+                  <li><strong>Explicit filtering:</strong> <code>filter(node => condition)</code>, <code>select(node => condition)</code></li>
+                  <li><strong>Pure transforms:</strong> <code>map(transform)</code>, <code>map(compose(transform1, transform2))</code></li>
                   <li><strong>Output operations:</strong> <code>toJson(hooks?)</code></li>
                 </ul>
               </li>
@@ -79,27 +80,31 @@
           </v-card-text>
         </v-card>
         
-        <!-- Hook Types Reference -->
+        <!-- Minimal Transform System Reference -->
         <v-card variant="outlined" class="mt-4">
           <v-card-title class="text-subtitle-1">
-            Hook Types Reference
+            Minimal Transform System
           </v-card-title>
           <v-card-text class="text-body-2">
             <div class="mb-3">
-              <strong>SourceHooks&lt;TInput&gt;</strong> - for fromXml, fromJson, fromXnode<br>
-              <code class="text-caption">{ beforeTransform?: (source) => source, afterTransform?: (xnode) => xnode }</code>
+              <strong>Pure Transform Functions</strong><br>
+              <code class="text-caption">type Transform = (node: XNode) => XNode</code><br>
+              All transforms are pure functions with no side effects.
             </div>
             <div class="mb-3">
-              <strong>NodeHooks</strong> - for map operations<br>
-              <code class="text-caption">{ beforeTransform?: (node) => node, afterTransform?: (node) => node }</code>
+              <strong>Explicit Node Targeting</strong><br>
+              <code class="text-caption">filter(node => node.name === 'price')</code><br>
+              <code class="text-caption">select(node => ['price', 'total'].includes(node.name))</code><br>
+              Use filtering operations before transforms instead of built-in targeting.
             </div>
             <div class="mb-3">
-              <strong>OutputHooks&lt;TOutput&gt;</strong> - for toXml, toJson, etc.<br>
-              <code class="text-caption">{ beforeTransform?: (xnode) => xnode, afterTransform?: (output) => output }</code>
+              <strong>Transform Composition</strong><br>
+              <code class="text-caption">compose(regex(/[^\d.]/g, ''), toNumber({ precision: 2 }))</code><br>
+              Chain multiple transforms using the compose function.
             </div>
             <div class="mb-3">
-              <strong>PipelineHooks</strong> - for cross-cutting concerns<br>
-              <code class="text-caption">{ beforeStep?: (stepName, input) => void, afterStep?: (stepName, output) => void }</code>
+              <strong>Hook System</strong><br>
+              Source, Output, Node, and Pipeline hooks work with the minimal transform system.
             </div>
           </v-card-text>
         </v-card>
@@ -107,20 +112,48 @@
         <!-- Transform Examples -->
         <v-card variant="outlined" class="mt-4">
           <v-card-title class="text-subtitle-1">
-            Transform Examples (Fixed Timing)
+            Transform Examples (Minimal System)
           </v-card-title>
           <v-card-text class="text-body-2">
             <div class="mb-2">
-              <strong>Number transforms now work correctly:</strong><br>
-              <code class="text-caption">map(toNumber({ nodeNames: ['price', 'total'] }))</code>
+              <strong>Explicit filtering with transforms:</strong><br>
+              <code class="text-caption">filter(node => node.name === 'price').map(toNumber({ precision: 2 }))</code>
             </div>
             <div class="mb-2">
-              <strong>Boolean transforms with proper timing:</strong><br>
-              <code class="text-caption">map(toBoolean({ trueValues: ['yes', '1'] }))</code>
+              <strong>Composed transforms:</strong><br>
+              <code class="text-caption">map(compose(regex(/[$,]/g, ''), toNumber()))</code>
             </div>
             <div class="mb-2">
-              <strong>Custom transforms receive populated nodes:</strong><br>
-              <code class="text-caption">map(node => node.value ? {...node, value: parseFloat(node.value)} : node)</code>
+              <strong>Inline custom transforms:</strong><br>
+              <code class="text-caption">map(node => ({ ...node, processed: true }))</code>
+            </div>
+            <div class="mb-2">
+              <strong>Multiple operation pipeline:</strong><br>
+              <code class="text-caption">filter(node => node.name === 'active').map(toBoolean()).select(node => node.value === true)</code>
+            </div>
+          </v-card-text>
+        </v-card>
+        
+        <!-- Migration Guide -->
+        <v-card variant="outlined" class="mt-4">
+          <v-card-title class="text-subtitle-1">
+            Migration from Node Targeting
+          </v-card-title>
+          <v-card-text class="text-body-2">
+            <div class="mb-2">
+              <strong>Before (with built-in targeting):</strong><br>
+              <code class="text-caption">map(toBoolean({ nodeNames: ['active', 'enabled'] }))</code>
+            </div>
+            <div class="mb-2">
+              <strong>After (explicit filtering):</strong><br>
+              <code class="text-caption">filter(node => ['active', 'enabled'].includes(node.name)).map(toBoolean())</code>
+            </div>
+            <div class="mb-2">
+              <strong>Benefits:</strong><br>
+              - Pure functions: predictable, testable transforms<br>
+              - Explicit intent: clear separation of filtering and transforming<br>
+              - Composable: easily chain operations<br>
+              - Simpler: no complex option handling within transforms
             </div>
           </v-card-text>
         </v-card>

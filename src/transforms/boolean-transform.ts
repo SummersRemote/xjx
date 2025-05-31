@@ -2,6 +2,7 @@
  * Boolean node transform - Converts string node values to booleans
  */
 import { XNode } from '../core/xnode';
+import { Transform } from "../core/functional";
 
 /**
  * Options for boolean node transform
@@ -53,7 +54,7 @@ const DEFAULT_FALSE_VALUES = ['false', 'no', '0', 'off'];
  * @param options Boolean transform options
  * @returns A node transformer function for use with map()
  */
-export function toBoolean(options: BooleanTransformOptions = {}): (node: XNode) => XNode {
+export function toBoolean(options: BooleanTransformOptions = {}): Transform {
   const {
     trueValues = DEFAULT_TRUE_VALUES,
     falseValues = DEFAULT_FALSE_VALUES,

@@ -1,6 +1,18 @@
-<!-- components/configs/TransformerConfig.vue - Refactored with help at bottom -->
+<!-- components/configs/TransformerConfig.vue - Context-filtered transform types -->
 <template>
   <v-container>
+    <!-- Context-specific info alert -->
+    <v-alert
+      v-if="isSourceOrOutputContext"
+      type="info"
+      variant="text"
+      density="compact"
+      class="mb-3"
+    >
+      <strong>{{ contextDisplayName }} Context:</strong><br>
+      Only custom transforms are available here. Use <code>map()</code> operations for built-in transforms like boolean, number, and regex.
+    </v-alert>
+    
     <!-- Transform Selection (Multiple) -->
     <v-row dense>
       <v-col cols="12">
@@ -12,6 +24,7 @@
           @update:model-value="updateSelectedTransforms"
         >
           <v-chip
+            v-if="availableTransforms.includes('toBoolean')"
             value="toBoolean"
             color="primary"
             variant="outlined"
@@ -21,6 +34,7 @@
             Boolean
           </v-chip>
           <v-chip
+            v-if="availableTransforms.includes('toNumber')"
             value="toNumber"
             color="primary"
             variant="outlined"
@@ -30,6 +44,7 @@
             Number
           </v-chip>
           <v-chip
+            v-if="availableTransforms.includes('regex')"
             value="regex"
             color="primary"
             variant="outlined"
@@ -39,6 +54,7 @@
             Regex
           </v-chip>
           <v-chip
+            v-if="availableTransforms.includes('custom')"
             value="custom"
             color="primary"
             variant="outlined"
@@ -63,45 +79,47 @@
     
     <!-- Transform Configurations -->
     <div v-if="selectedTransforms.length > 0">
-      <!-- Global Node Filtering (applies to all transforms) -->
-      <v-row dense>
-        <v-col cols="12">
-          <v-divider class="my-4"></v-divider>
-          <div class="text-subtitle-2 mb-2">Global Node Filtering</div>
-          <v-row dense>
-            <v-col cols="12" sm="6">
-              <v-combobox
-                v-model="localOptions.globalNodeNames"
-                label="Transform Only These Nodes"
-                hint="Leave empty to transform all nodes"
-                persistent-hint
-                multiple
-                chips
-                closable-chips
-                density="compact"
-                variant="outlined"
-                @update:model-value="updateOptions"
-              ></v-combobox>
-            </v-col>
-            <v-col cols="12" sm="6">
-              <v-combobox
-                v-model="localOptions.globalSkipNodes"
-                label="Skip These Nodes"
-                hint="Nodes to exclude from all transforms"
-                persistent-hint
-                multiple
-                chips
-                closable-chips
-                density="compact"
-                variant="outlined"
-                @update:model-value="updateOptions"
-              ></v-combobox>
-            </v-col>
-          </v-row>
-        </v-col>
-      </v-row>
-      
-      <v-divider class="my-4"></v-divider>
+      <!-- Global Node Filtering (applies to all transforms) - only show for transformer context -->
+      <div v-if="context === 'transformer'">
+        <v-row dense>
+          <v-col cols="12">
+            <v-divider class="my-4"></v-divider>
+            <div class="text-subtitle-2 mb-2">Global Node Filtering</div>
+            <v-row dense>
+              <v-col cols="12" sm="6">
+                <v-combobox
+                  v-model="localOptions.globalNodeNames"
+                  label="Transform Only These Nodes"
+                  hint="Leave empty to transform all nodes"
+                  persistent-hint
+                  multiple
+                  chips
+                  closable-chips
+                  density="compact"
+                  variant="outlined"
+                  @update:model-value="updateOptions"
+                ></v-combobox>
+              </v-col>
+              <v-col cols="12" sm="6">
+                <v-combobox
+                  v-model="localOptions.globalSkipNodes"
+                  label="Skip These Nodes"
+                  hint="Nodes to exclude from all transforms"
+                  persistent-hint
+                  multiple
+                  chips
+                  closable-chips
+                  density="compact"
+                  variant="outlined"
+                  @update:model-value="updateOptions"
+                ></v-combobox>
+              </v-col>
+            </v-row>
+          </v-col>
+        </v-row>
+        
+        <v-divider class="my-4"></v-divider>
+      </div>
       
       <!-- Individual Transform Configurations -->
       <div v-for="(transformType, index) in transformOrder" :key="transformType" class="mb-4">
@@ -306,7 +324,7 @@
       </v-col>
     </v-row>
 
-    <!-- Help Section - Moved to bottom -->
+    <!-- Help Section - Context-aware help -->
     <v-expansion-panels variant="accordion" class="mt-4">
       <v-expansion-panel>
         <v-expansion-panel-title class="text-caption">
@@ -315,20 +333,40 @@
         </v-expansion-panel-title>
         <v-expansion-panel-text>
           <v-alert type="info" variant="text" density="compact">
-            <strong>Multi-Transform Pipeline:</strong><br>
-            Select one or more transform types to configure a transformation pipeline.
-            Transforms will be applied in the order shown, allowing you to chain operations together.<br>
-            <br>
-            <strong>Transform Composition:</strong><br>
-            Multiple transforms are automatically composed using the <code>compose()</code> function.
-            Each transform receives the output of the previous transform, allowing for powerful data pipelines.<br>
-            <br>
-            <strong>Multi-Transform Examples:</strong><br>
-            - <em>Regex → Number</em>: Clean currency symbols then parse as number<br>
-            - <em>Boolean → Custom</em>: Convert to boolean then add metadata<br>
-            - <em>Number → Custom → Boolean</em>: Parse number, apply business logic, convert to flag<br>
-            <br>
-            <strong>Global Node Filtering:</strong> Apply the entire pipeline only to specific nodes or skip certain nodes.
+            <div v-if="isSourceOrOutputContext">
+              <strong>{{ contextDisplayName }} Context Transforms:</strong><br>
+              In {{ contextDisplayName.toLowerCase() }} hooks, you work with {{ getContextDataType() }}, not individual nodes.
+              Only custom transforms are suitable here.<br>
+              <br>
+              <strong>For Built-in Transforms:</strong><br>
+              Use <code>map()</code> operations for boolean, number, and regex transforms as they process individual nodes.<br>
+              <br>
+              <strong>Custom Transform Examples:</strong><br>
+              <span v-if="context === 'source'">
+                - <em>beforeTransform</em>: <code>source => source.replace(/&lt;/g, '&amp;lt;')</code><br>
+                - <em>afterTransform</em>: <code>xnode => ({ ...xnode, metadata: { processed: true } })</code>
+              </span>
+              <span v-if="context === 'output'">
+                - <em>beforeTransform</em>: <code>xnode => ({ ...xnode, version: '1.0' })</code><br>
+                - <em>afterTransform</em>: <code>output => output.replace(/\n\s*\n/g, '\n')</code>
+              </span>
+            </div>
+            <div v-else>
+              <strong>Multi-Transform Pipeline:</strong><br>
+              Select one or more transform types to configure a transformation pipeline.
+              Transforms will be applied in the order shown, allowing you to chain operations together.<br>
+              <br>
+              <strong>Transform Composition:</strong><br>
+              Multiple transforms are automatically composed using the <code>compose()</code> function.
+              Each transform receives the output of the previous transform, allowing for powerful data pipelines.<br>
+              <br>
+              <strong>Multi-Transform Examples:</strong><br>
+              - <em>Regex → Number</em>: Clean currency symbols then parse as number<br>
+              - <em>Boolean → Custom</em>: Convert to boolean then add metadata<br>
+              - <em>Number → Custom → Boolean</em>: Parse number, apply business logic, convert to flag<br>
+              <br>
+              <strong>Global Node Filtering:</strong> Apply the entire pipeline only to specific nodes or skip certain nodes.
+            </div>
           </v-alert>
         </v-expansion-panel-text>
       </v-expansion-panel>
@@ -380,6 +418,35 @@ const props = defineProps({
 
 const emit = defineEmits(['update']);
 
+// Computed properties for context-based filtering
+const availableTransforms = computed(() => {
+  switch (props.context) {
+    case 'source':
+    case 'output':
+      // Only custom transforms for source and output contexts
+      return ['custom'];
+    case 'transformer':
+    case 'xnode':
+    default:
+      // All transforms for node processing contexts
+      return ['toBoolean', 'toNumber', 'regex', 'custom'];
+  }
+});
+
+const isSourceOrOutputContext = computed(() => {
+  return props.context === 'source' || props.context === 'output';
+});
+
+const contextDisplayName = computed(() => {
+  switch (props.context) {
+    case 'source': return 'Source';
+    case 'output': return 'Output';
+    case 'xnode': return 'XNode';
+    case 'transformer':
+    default: return 'Transform';
+  }
+});
+
 // Create a local reactive copy of the props
 const localOptions = reactive({
   selectedTransforms: [...(props.value.selectedTransforms || [])],
@@ -409,7 +476,10 @@ const localOptions = reactive({
 // Computed properties
 const selectedTransforms = computed({
   get() {
-    return localOptions.selectedTransforms;
+    // Filter selected transforms to only include available ones for this context
+    return localOptions.selectedTransforms.filter(transform => 
+      availableTransforms.value.includes(transform)
+    );
   },
   set(value) {
     localOptions.selectedTransforms = value;
@@ -438,6 +508,15 @@ const customHint = computed(() => {
     default: return 'Function that transforms each node: (node) => transformedNode';
   }
 });
+
+// Helper function to get context data type description
+const getContextDataType = () => {
+  switch (props.context) {
+    case 'source': return 'raw source data (strings, objects)';
+    case 'output': return 'final output data (strings, objects, DOM)';
+    default: return 'structured data';
+  }
+};
 
 // Helper functions
 function getDefaultBooleanOptions() {
@@ -516,14 +595,14 @@ function updateTransformOrder() {
   
   // First, add transforms that are in both selected and preferred order
   preferredOrder.forEach(type => {
-    if (localOptions.selectedTransforms.includes(type)) {
+    if (localOptions.selectedTransforms.includes(type) && availableTransforms.value.includes(type)) {
       newOrder.push(type);
     }
   });
   
   // Then add any selected transforms not in preferred order
   localOptions.selectedTransforms.forEach(type => {
-    if (!newOrder.includes(type)) {
+    if (!newOrder.includes(type) && availableTransforms.value.includes(type)) {
       newOrder.push(type);
     }
   });
@@ -575,6 +654,16 @@ watch(() => props.value, (newValue) => {
     });
   }
 }, { deep: true });
+
+// Watch for context changes and filter selected transforms
+watch(() => props.context, () => {
+  // Filter out any selected transforms that aren't available in the new context
+  localOptions.selectedTransforms = localOptions.selectedTransforms.filter(transform =>
+    availableTransforms.value.includes(transform)
+  );
+  updateTransformOrder();
+  updateOptions();
+});
 </script>
 
 <style scoped>

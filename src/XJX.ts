@@ -1,5 +1,5 @@
 /**
- * XJX - Main class with fluent API and Pipeline Hooks
+ * XJX - Main class with fluent API, Pipeline Hooks, and Branch Context
  */
 import { LoggerFactory } from "./core/logger";
 const logger = LoggerFactory.create();
@@ -8,11 +8,11 @@ import { Configuration, createConfig } from "./core/config";
 import { Transform } from "./core/functional";
 import { XNode, cloneNode } from "./core/xnode";
 import { validate, ValidationError } from "./core/error";
-import { Extension, TerminalExtensionContext, NonTerminalExtensionContext } from "./core/extension";
+import { Extension, TerminalExtensionContext, NonTerminalExtensionContext, BranchContext } from "./core/extension";
 import { PipelineHooks } from "./core/hooks";
 
 /**
- * Main XJX class - provides the fluent API for XML/JSON transformation with pipeline hooks
+ * Main XJX class - provides the fluent API for XML/JSON transformation with pipeline hooks and branch context
  */
 export class XJX implements TerminalExtensionContext, NonTerminalExtensionContext {
   // Instance properties
@@ -20,6 +20,7 @@ export class XJX implements TerminalExtensionContext, NonTerminalExtensionContex
   public transforms: Transform[] = [];
   public config: Configuration;
   public pipelineHooks?: PipelineHooks;
+  public branchContext: BranchContext | null = null;
   
   /**
    * Create a new XJX instance

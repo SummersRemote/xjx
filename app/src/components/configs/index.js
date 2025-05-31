@@ -5,6 +5,8 @@ import SelectConfig from './SelectConfig.vue';
 import FilterConfig from './FilterConfig.vue';
 import MapConfig from './MapConfig.vue';
 import ReduceConfig from './ReduceConfig.vue';
+import BranchConfig from './BranchConfig.vue';
+import MergeConfig from './MergeConfig.vue';
 import TransformConfig from './TransformConfig.vue';
 import TransformerConfig from './TransformerConfig.vue';
 import SourceConfig from './SourceConfig.vue';
@@ -14,6 +16,8 @@ export {
   FilterConfig,
   MapConfig,
   ReduceConfig,
+  BranchConfig,
+  MergeConfig,
   TransformConfig,
   TransformerConfig, 
   SourceConfig

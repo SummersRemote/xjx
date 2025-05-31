@@ -50,6 +50,7 @@ export { XNode } from "./core/xnode";
 export {
   TerminalExtensionContext,
   NonTerminalExtensionContext,
+  BranchContext,
 } from "./core/extension";
 
 // Export converter types and hook interfaces

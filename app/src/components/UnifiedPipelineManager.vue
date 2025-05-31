@@ -1,4 +1,4 @@
-<!-- components/UnifiedPipelineManager.vue - Fixed title bar layout -->
+<!-- components/UnifiedPipelineManager.vue - Fixed tooltip issues, added branch/merge support -->
 <template>
   <v-card>
     <!-- Pipeline Title and Actions -->
@@ -163,18 +163,13 @@
               <div class="d-flex align-center ms-auto">
                 <!-- Desktop Action Buttons -->
                 <div class="d-none d-md-flex align-center gap-1">
-                  <v-tooltip text="Add operation below">
-                    <template v-slot:activator="{ props }">
-                      <v-btn
-                        v-bind="props"
-                        icon="mdi-plus"
-                        size="x-small"
-                        variant="text"
-                        color="primary"
-                        @click.stop="addFunctionalStep('filter', 0)"
-                      ></v-btn>
-                    </template>
-                  </v-tooltip>
+                  <v-btn
+                    icon="mdi-plus"
+                    size="x-small"
+                    variant="text"
+                    color="primary"
+                    @click.stop="addFunctionalStep('filter', 0)"
+                  ></v-btn>
                 </div>
                 
                 <!-- Mobile Three-Dot Menu -->
@@ -244,59 +239,45 @@
               <div class="d-flex align-center ms-auto">
                 <!-- Desktop Action Buttons -->
                 <div class="d-none d-md-flex align-center gap-1">
-                  <v-tooltip text="Add operation above">
-                    <template v-slot:activator="{ props }">
-                      <v-btn
-                        v-bind="props"
-                        icon="mdi-plus-circle-outline"
-                        size="x-small"
-                        variant="text"
-                        color="primary"
-                        @click.stop="addFunctionalStep('filter', index)"
-                      ></v-btn>
-                    </template>
-                  </v-tooltip>
+                  <v-btn
+                    icon="mdi-plus-circle-outline"
+                    size="x-small"
+                    variant="text"
+                    color="primary"
+                    @click.stop="addFunctionalStep('filter', index)"
+                  ></v-btn>
                   
-                  <v-tooltip text="Add operation below">
-                    <template v-slot:activator="{ props }">
-                      <v-btn
-                        v-bind="props"
-                        icon="mdi-plus-circle"
-                        size="x-small"
-                        variant="text"
-                        color="primary"
-                        @click.stop="addFunctionalStep('filter', index + 1)"
-                      ></v-btn>
-                    </template>
-                  </v-tooltip>
+                  <v-btn
+                    icon="mdi-plus-circle"
+                    size="x-small"
+                    variant="text"
+                    color="primary"
+                    @click.stop="addFunctionalStep('filter', index + 1)"
+                  ></v-btn>
                   
-                      <v-btn
-                        v-bind="props"
-                        icon="mdi-arrow-up"
-                        size="x-small"
-                        variant="text"
-                        :disabled="index === 0"
-                        @click.stop="moveFunctionalStep(step.id, 'up')"
-                      ></v-btn>
-                  
-                      <v-btn
-                        v-bind="props"
-                        icon="mdi-arrow-down"
-                        size="x-small"
-                        variant="text"
-                        :disabled="index === functionalSteps.length - 1"
-                        @click.stop="moveFunctionalStep(step.id, 'down')"
-                      ></v-btn>
-                  
-                      <v-btn
-                        v-bind="props"
-                        icon="mdi-delete"
-                        size="x-small"
-                        variant="text"
-                        color="error"
-                        @click.stop="removeFunctionalStep(step.id)"
-                      ></v-btn>
-
+                  <v-btn
+                    icon="mdi-arrow-up"
+                    size="x-small"
+                    variant="text"
+                    :disabled="index === 0"
+                    @click.stop="moveFunctionalStep(step.id, 'up')"
+                  ></v-btn>
+              
+                  <v-btn
+                    icon="mdi-arrow-down"
+                    size="x-small"
+                    variant="text"
+                    :disabled="index === functionalSteps.length - 1"
+                    @click.stop="moveFunctionalStep(step.id, 'down')"
+                  ></v-btn>
+              
+                  <v-btn
+                    icon="mdi-delete"
+                    size="x-small"
+                    variant="text"
+                    color="error"
+                    @click.stop="removeFunctionalStep(step.id)"
+                  ></v-btn>
                 </div>
                 
                 <!-- Mobile Three-Dot Menu -->
@@ -388,18 +369,13 @@
               <div class="d-flex align-center ms-auto">
                 <!-- Desktop Action Buttons -->
                 <div class="d-none d-md-flex align-center gap-1">
-                  <v-tooltip text="Add operation above">
-                    <template v-slot:activator="{ props }">
-                      <v-btn
-                        v-bind="props"
-                        icon="mdi-plus"
-                        size="x-small"
-                        variant="text"
-                        color="primary"
-                        @click.stop="addFunctionalStep('filter', functionalSteps.length)"
-                      ></v-btn>
-                    </template>
-                  </v-tooltip>
+                  <v-btn
+                    icon="mdi-plus"
+                    size="x-small"
+                    variant="text"
+                    color="primary"
+                    @click.stop="addFunctionalStep('filter', functionalSteps.length)"
+                  ></v-btn>
                 </div>
                 
                 <!-- Mobile Three-Dot Menu -->
@@ -466,6 +442,8 @@ import FilterConfig from './configs/FilterConfig.vue';
 import MapConfig from './configs/MapConfig.vue';
 import SelectConfig from './configs/SelectConfig.vue';
 import ReduceConfig from './configs/ReduceConfig.vue';
+import BranchConfig from './configs/BranchConfig.vue';
+import MergeConfig from './configs/MergeConfig.vue';
 import SourceConfig from './configs/SourceConfig.vue';
 
 const pipelineStore = usePipelineStore();
@@ -507,6 +485,8 @@ const getConfigComponent = (type) => {
     case 'map': return MapConfig;
     case 'select': return SelectConfig;
     case 'reduce': return ReduceConfig;
+    case 'branch': return BranchConfig;
+    case 'merge': return MergeConfig;
     default: return null;
   }
 };

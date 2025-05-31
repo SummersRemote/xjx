@@ -1,9 +1,19 @@
 /**
- * Extension system for the XJX library
+ * Extension system for the XJX library - Updated with Branch Context
  */
 import { Configuration } from './config';
 import { Transform } from "./functional";
 import { XNode } from './xnode';
+
+/**
+ * Branch context interface for tracking branch state
+ */
+export interface BranchContext {
+  parentNodes: XNode[];           // Original parent context
+  originalIndices: number[];      // Original positions of branched nodes
+  branchedNodes: XNode[];        // Originally selected subset
+  nodePaths: number[][];          // Exact paths to branched nodes in the tree
+}
 
 /**
  * Base context interface for extension functions
@@ -20,6 +30,7 @@ export interface TerminalExtensionContext extends XJXContext {
   // These properties are available in the builder context
   xnode: XNode | null;
   transforms: Transform[];
+  branchContext: BranchContext | null;
   
   // Common utility methods required by terminal extensions
   validateSource: () => void;
@@ -35,6 +46,7 @@ export interface NonTerminalExtensionContext extends XJXContext {
   // Properties that can be modified by extensions
   xnode: XNode | null;
   transforms: Transform[];
+  branchContext: BranchContext | null;
   
   // Utility methods
   validateSource: () => void;

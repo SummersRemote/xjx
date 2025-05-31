@@ -15,7 +15,8 @@ import {
 } from '../converters/xnode-to-json-std-converter';
 import { transformXNodeWithHooks } from '../converters/xnode-transformer';
 import { XNode } from '../core/xnode';
-import { JsonValue, OutputHooks } from '../core/converter';
+import { JsonValue } from '../core/converter';
+import { OutputHooks } from "../core/hooks";
 import { TerminalExtensionContext } from '../core/extension';
 
 /**

@@ -58,16 +58,18 @@ export {
   JsonValue,
   JsonObject,
   JsonArray,
-  // Hook system interfaces
-  SourceHooks,
-  OutputHooks,
-  NodeHooks,
-  PipelineHooks,
-  // Hook utility functions
   applySourceHooks,
   applyOutputHooks,
   applyNodeHooks,
 } from "./core/converter";
+
+// Hooks system
+export {
+  SourceHooks,
+  OutputHooks,
+  NodeHooks,
+  PipelineHooks
+} from './core/hooks';
 
 // Export transform functions and creators
 export {

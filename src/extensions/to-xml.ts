@@ -13,7 +13,7 @@ import {
 } from "../converters/xnode-to-xml-converter";
 import { transformXNodeWithHooks } from "../converters/xnode-transformer";
 import { XNode } from "../core/xnode";
-import { OutputHooks } from "../core/converter";
+import { OutputHooks } from "../core/hooks";
 import { TerminalExtensionContext } from "../core/extension";
 
 /**

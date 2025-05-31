@@ -8,7 +8,7 @@ import { XJX } from "../XJX";
 import { convertXmlWithHooks } from "../converters/xml-to-xnode-converter";
 import { ProcessingError } from "../core/error";
 import { NonTerminalExtensionContext } from "../core/extension";
-import { validateInput, SourceHooks } from "../core/converter";
+import { validateInput, SourceHooks } from "../core/hooks";
 
 /**
  * Implementation for setting XML source with new hook system

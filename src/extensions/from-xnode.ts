@@ -7,7 +7,7 @@ const logger = LoggerFactory.create();
 import { XJX } from "../XJX";
 import { XNode, createElement, addChild, cloneNode } from "../core/xnode";
 import { NonTerminalExtensionContext } from "../core/extension";
-import { validateInput, SourceHooks } from "../core/converter";
+import { validateInput, SourceHooks } from "../core/hooks";
 
 /**
  * Implementation for setting XNode source with new hook system

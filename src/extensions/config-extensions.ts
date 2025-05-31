@@ -7,7 +7,7 @@ const logger = LoggerFactory.create();
 import { XJX } from "../XJX";
 import { Configuration, createConfig } from "../core/config";
 import { NonTerminalExtensionContext } from "../core/extension";
-import { validateInput } from "../core/converter";
+import { validateInput } from "../core/hooks";
 
 /**
  * Implementation for setting configuration options

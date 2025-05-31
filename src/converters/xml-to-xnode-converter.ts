@@ -19,12 +19,13 @@ import {
 } from '../core/xnode';
 import { 
   Converter,
-  SourceHooks,
-  applySourceHooks,
   processAttributes,
   processNamespaceDeclarations,
   hasTextContent
 } from '../core/converter';
+import {
+  SourceHooks
+} from "../core/hooks";
 
 /**
  * Context for XML to XNode conversion

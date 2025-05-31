@@ -9,7 +9,7 @@ import { Transform } from "./core/functional";
 import { XNode, cloneNode } from "./core/xnode";
 import { validate, ValidationError } from "./core/error";
 import { Extension, TerminalExtensionContext, NonTerminalExtensionContext } from "./core/extension";
-import { PipelineHooks } from "./core/converter";
+import { PipelineHooks } from "./core/hooks";
 
 /**
  * Main XJX class - provides the fluent API for XML/JSON transformation with pipeline hooks

@@ -9,7 +9,8 @@ import * as xml from '../core/xml-utils';
 import { DOM, NodeType } from '../core/dom';
 import { ProcessingError } from '../core/error';
 import { XNode } from '../core/xnode';
-import { Converter, OutputHooks } from '../core/converter';
+import { OutputHooks } from "../core/hooks";
+import { Converter } from "../core/converter"
 
 /**
  * Context type for XNode to XML conversion

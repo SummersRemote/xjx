@@ -10,7 +10,7 @@ const logger = LoggerFactory.create();
 import { Configuration } from "../core/config";
 import { XNode, cloneNode } from "../core/xnode";
 import { Transform } from "../core/functional";
-import { NodeHooks } from "../core/converter";
+import { NodeHooks } from "../core/hooks";
 import { NodeType } from "../core/dom";
 
 /**

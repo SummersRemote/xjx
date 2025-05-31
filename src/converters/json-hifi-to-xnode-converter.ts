@@ -17,13 +17,15 @@ import {
   addChild 
 } from '../core/xnode';
 import { 
-  Converter, 
-  SourceHooks,
+  Converter,
   JsonValue, 
   JsonObject, 
   JsonArray,
   parseElementName
 } from '../core/converter';
+import {
+  SourceHooks
+} from "../core/hooks";
 
 /**
  * JSON HiFi to XNode converter

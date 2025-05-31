@@ -9,14 +9,16 @@ import { NodeType } from '../core/dom';
 import { ProcessingError } from '../core/error';
 import { XNode, getTextContent } from '../core/xnode';
 import { 
-  Converter, 
-  OutputHooks,
+  Converter,
   JsonValue, 
   JsonObject, 
   JsonArray,
   getElementName,
   getAttributeName
 } from '../core/converter';
+import {
+  OutputHooks
+} from "../core/hooks";
 import { removeEmptyElements } from '../core/json-utils';
 
 /**

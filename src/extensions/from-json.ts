@@ -9,7 +9,8 @@ import { convertJsonHiFiWithHooks } from '../converters/json-hifi-to-xnode-conve
 import { convertJsonWithHooks } from '../converters/json-std-to-xnode-converter';
 import { ProcessingError } from '../core/error';
 import { NonTerminalExtensionContext } from '../core/extension';
-import { SourceHooks, JsonValue, validateInput } from '../core/converter';
+import { JsonValue } from '../core/converter';
+import { SourceHooks, validateInput } from "../core/hooks";
 
 /**
  * Implementation for setting JSON source with new hook system

@@ -9,8 +9,7 @@ import { NodeType } from "../core/dom";
 import { ProcessingError, ValidationError } from "../core/error";
 import { XNode, createElement, createTextNode, addChild } from "../core/xnode";
 import { 
-  Converter, 
-  SourceHooks,
+  Converter,
   JsonValue,
   JsonObject,
   JsonArray,
@@ -18,6 +17,9 @@ import {
   getAttributeName,
   processAttributeObject
 } from "../core/converter";
+import {
+  SourceHooks
+} from "../core/hooks";
 
 /**
  * JSON Standard to XNode converter

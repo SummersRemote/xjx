@@ -7,7 +7,7 @@ const logger = LoggerFactory.create();
 import { XJX } from "../XJX";
 import { XNode, createElement, addChild, cloneNode, createTextNode } from "../core/xnode";
 import { NonTerminalExtensionContext } from "../core/extension";
-import { validateInput } from "../core/converter";
+import { validateInput } from "../core/hooks";
 
 /**
  * Replace the current root element with a new one

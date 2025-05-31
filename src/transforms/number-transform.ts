@@ -36,16 +36,6 @@ export interface NumberTransformOptions {
    * Whether to parse scientific notation (default: true)
    */
   scientific?: boolean;
-  
-  /**
-   * Only transform nodes with these names (default: transform all)
-   */
-  nodeNames?: string[];
-  
-  /**
-   * Skip nodes with these names (default: none)
-   */
-  skipNodes?: string[];
 }
 
 /**
@@ -56,17 +46,20 @@ export interface NumberTransformOptions {
  * // Transform all numeric nodes
  * xjx.fromXml(xml).map(toNumber()).toJson();
  * 
- * // Transform only specific nodes with precision
- * xjx.fromXml(xml).map(toNumber({
- *   nodeNames: ['price', 'total', 'amount'],
- *   precision: 2
- * })).toJson();
+ * // Transform with precision
+ * xjx.fromXml(xml).map(toNumber({ precision: 2 })).toJson();
  * 
  * // Custom separators (European format)
  * xjx.fromXml(xml).map(toNumber({
  *   decimalSeparator: ',',
  *   thousandsSeparator: '.'
  * })).toJson();
+ * 
+ * // Use with filtering for specific nodes
+ * xjx.fromXml(xml)
+ *    .filter(node => ['price', 'total', 'amount'].includes(node.name))
+ *    .map(toNumber({ precision: 2 }))
+ *    .toJson();
  * ```
  *
  * @param options Number transform options
@@ -79,22 +72,10 @@ export function toNumber(options: NumberTransformOptions = {}): (node: XNode) =>
     thousandsSeparator = ",",
     integers = true,
     decimals = true,
-    scientific = true,
-    nodeNames,
-    skipNodes = []
+    scientific = true
   } = options;
 
   return (node: XNode): XNode => {
-    // Skip if this node should be skipped
-    if (skipNodes && skipNodes.length > 0 && skipNodes.includes(node.name)) {
-      return node;
-    }
-    
-    // Skip if nodeNames is specified with items and this node isn't included
-    if (nodeNames && nodeNames.length > 0 && !nodeNames.includes(node.name)) {
-      return node;
-    }
-    
     // Skip if node has no value
     if (node.value === undefined) {
       return node;

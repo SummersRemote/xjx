@@ -1,4 +1,4 @@
-<!-- components/configs/MapConfig.vue - Refactored with collapsible hooks and help at bottom -->
+<!-- components/configs/MapConfig.vue - Simplified without node targeting -->
 <template>
   <v-container>
     <!-- Primary Transform Configuration -->
@@ -81,7 +81,7 @@
       </v-expansion-panel>
     </v-expansion-panels>
 
-    <!-- Help Section - Moved to bottom -->
+    <!-- Help Section -->
     <v-expansion-panels variant="accordion">
       <v-expansion-panel>
         <v-expansion-panel-title class="text-caption">
@@ -90,12 +90,18 @@
         </v-expansion-panel-title>
         <v-expansion-panel-text>
           <v-alert type="info" variant="text" density="compact">
-            <strong>Map Operation Flow:</strong><br>
+            <strong>Simplified Map Operation Flow:</strong><br>
             1. <span class="text-primary">Before Hook</span>: Prepare node for transformation<br>
             2. <span class="text-warning">Primary Transform Pipeline</span>: Main transformation logic (required)<br>
             3. <span class="text-success">After Hook</span>: Finalize or validate transformed node<br>
             <br>
             <strong>API:</strong> <code>map(primaryTransformPipeline, { beforeTransform?, afterTransform? })</code><br>
+            <br>
+            <strong>Node Targeting Pattern:</strong><br>
+            Use explicit filtering operations for node targeting:<br>
+            - <code>filter(node => ['price', 'total'].includes(node.name))</code><br>
+            - <code>select(node => node.name === 'item')</code><br>
+            Then apply transforms: <code>map(toNumber({ precision: 2 }))</code><br>
             <br>
             <strong>Multi-Transform Pipeline Examples:</strong><br>
             - <em>Currency Processing</em>: <code>regex(/[$,]/g, '') → toNumber({ precision: 2 })</code><br>
@@ -121,22 +127,16 @@ const props = defineProps({
       transform: {
         selectedTransforms: [],
         transformOrder: [],
-        globalNodeNames: [],
-        globalSkipNodes: [],
         transforms: {}
       },
       beforeTransform: {
         selectedTransforms: [],
         transformOrder: [],
-        globalNodeNames: [],
-        globalSkipNodes: [],
         transforms: {}
       },
       afterTransform: {
         selectedTransforms: [],
         transformOrder: [],
-        globalNodeNames: [],
-        globalSkipNodes: [],
         transforms: {}
       }
     })
@@ -150,8 +150,6 @@ function getDefaultTransformConfig() {
   return {
     selectedTransforms: [],
     transformOrder: [],
-    globalNodeNames: [],
-    globalSkipNodes: [],
     transforms: {
       toBoolean: {
         trueValues: ['true', 'yes', '1', 'on'],
@@ -216,22 +214,7 @@ const transformSummary = computed(() => {
     }
   });
   
-  let summary = transformNames.join(' → ');
-  
-  // Add node filtering info if present
-  const nodeInfo = [];
-  if (t.globalNodeNames && t.globalNodeNames.length > 0) {
-    nodeInfo.push(`only: [${t.globalNodeNames.join(', ')}]`);
-  }
-  if (t.globalSkipNodes && t.globalSkipNodes.length > 0) {
-    nodeInfo.push(`skip: [${t.globalSkipNodes.join(', ')}]`);
-  }
-  
-  if (nodeInfo.length > 0) {
-    summary += ` (${nodeInfo.join(', ')})`;
-  }
-  
-  return summary;
+  return transformNames.join(' → ');
 });
 
 // Update primary transform

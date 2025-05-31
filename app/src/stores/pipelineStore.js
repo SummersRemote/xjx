@@ -1,4 +1,4 @@
-// stores/pipelineStore.js - Fixed transform function issue
+// stores/pipelineStore.js - Simplified without node targeting
 import { defineStore } from 'pinia';
 
 export const usePipelineStore = defineStore('pipeline', {
@@ -121,7 +121,7 @@ export const usePipelineStore = defineStore('pipeline', {
     isProcessing: false,
     error: null,
     
-    // Pipeline-level hooks - removed logMemory
+    // Pipeline-level hooks
     enablePipelineHooks: false,
     pipelineHookOptions: {
       logSteps: false,
@@ -301,11 +301,6 @@ export const usePipelineStore = defineStore('pipeline', {
       // Compose hooks based on selected options
       const hooks = {};
       
-      // Determine if we need to import logger
-      if (this.pipelineHookOptions.logSteps || this.pipelineHookOptions.logTiming) {
-        // Import will happen in the hook functions
-      }
-      
       if (this.pipelineHookOptions.logSteps && this.pipelineHookOptions.logTiming) {
         // Both logging and timing enabled - compose them
         hooks.beforeStep = async (stepName, input) => {
@@ -428,7 +423,6 @@ export const usePipelineStore = defineStore('pipeline', {
       }
     },
     
-    // FIXED: Pass transforms object to all hook creation methods
     createSourceHooks(options, transforms) {
       if (!options) return undefined;
       
@@ -445,7 +439,6 @@ export const usePipelineStore = defineStore('pipeline', {
       return Object.keys(hooks).length > 0 ? hooks : undefined;
     },
     
-    // FIXED: Pass transforms object to hook creation methods
     createNodeHooks(options, transforms) {
       if (!options) return undefined;
       
@@ -483,7 +476,7 @@ export const usePipelineStore = defineStore('pipeline', {
     },
     
     createComposedTransformer(config, transforms) {
-      const { selectedTransforms, transformOrder, globalNodeNames, globalSkipNodes } = config;
+      const { selectedTransforms, transformOrder } = config;
       
       if (!transformOrder || transformOrder.length === 0) {
         return undefined;
@@ -496,21 +489,13 @@ export const usePipelineStore = defineStore('pipeline', {
         
         switch (transformType) {
           case 'toBoolean': {
-            const options = {
-              ...config.transforms?.toBoolean,
-              nodeNames: globalNodeNames || [],
-              skipNodes: globalSkipNodes || []
-            };
+            const options = config.transforms?.toBoolean || {};
             transformFn = transforms.toBoolean(options);
             break;
           }
           
           case 'toNumber': {
-            const options = {
-              ...config.transforms?.toNumber,
-              nodeNames: globalNodeNames || [],
-              skipNodes: globalSkipNodes || []
-            };
+            const options = config.transforms?.toNumber || {};
             transformFn = transforms.toNumber(options);
             break;
           }
@@ -518,11 +503,7 @@ export const usePipelineStore = defineStore('pipeline', {
           case 'regex': {
             const regexConfig = config.transforms?.regex;
             if (regexConfig?.pattern && regexConfig?.replacement !== undefined) {
-              const options = {
-                nodeNames: globalNodeNames || [],
-                skipNodes: globalSkipNodes || []
-              };
-              transformFn = transforms.regex(regexConfig.pattern, regexConfig.replacement, options);
+              transformFn = transforms.regex(regexConfig.pattern, regexConfig.replacement);
             }
             break;
           }
@@ -590,8 +571,7 @@ export const usePipelineStore = defineStore('pipeline', {
     async executeTerminalOperation(builder) {
       const { type, options } = this.outputOperation;
       
-      // FIXED: Pass transforms object to output hooks
-      const transforms = { toNumber: null, toBoolean: null, regex: null }; // Placeholder - these aren't used in output hooks typically
+      const transforms = { toNumber: null, toBoolean: null, regex: null };
       const outputHooks = this.createOutputHooks(options, transforms);
       
       switch (type) {
@@ -614,7 +594,6 @@ export const usePipelineStore = defineStore('pipeline', {
       }
     },
     
-    // FIXED: Pass transforms object to output hooks
     createOutputHooks(options, transforms) {
       if (!options) return undefined;
       
@@ -695,8 +674,6 @@ export const usePipelineStore = defineStore('pipeline', {
       return {
         selectedTransforms: [],
         transformOrder: [],
-        globalNodeNames: [],
-        globalSkipNodes: [],
         transforms: {
           toBoolean: {
             trueValues: ['true', 'yes', '1', 'on'],
@@ -845,28 +822,11 @@ export const usePipelineStore = defineStore('pipeline', {
         case 'toBoolean':
         case 'toNumber':
           cleanOptions = { ...transformConfig };
-          if (config.globalNodeNames?.length > 0) {
-            cleanOptions.nodeNames = config.globalNodeNames;
-          }
-          if (config.globalSkipNodes?.length > 0) {
-            cleanOptions.skipNodes = config.globalSkipNodes;
-          }
           break;
           
         case 'regex':
           if (transformConfig.pattern && transformConfig.replacement !== undefined) {
-            const regexOptions = {};
-            if (config.globalNodeNames?.length > 0) {
-              regexOptions.nodeNames = config.globalNodeNames;
-            }
-            if (config.globalSkipNodes?.length > 0) {
-              regexOptions.skipNodes = config.globalSkipNodes;
-            }
-            
-            const optionsStr = Object.keys(regexOptions).length > 0 ? 
-              `, ${JSON.stringify(regexOptions)}` : '';
-            
-            return `const ${varName} = regex(${JSON.stringify(transformConfig.pattern)}, ${JSON.stringify(transformConfig.replacement)}${optionsStr});`;
+            return `const ${varName} = regex(${JSON.stringify(transformConfig.pattern)}, ${JSON.stringify(transformConfig.replacement)});`;
           }
           return '';
           

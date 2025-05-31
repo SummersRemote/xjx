@@ -21,16 +21,6 @@ export interface BooleanTransformOptions {
    * Whether to ignore case when matching (default: true)
    */
   ignoreCase?: boolean;
-  
-  /**
-   * Only transform nodes with these names (default: transform all)
-   */
-  nodeNames?: string[];
-  
-  /**
-   * Skip nodes with these names (default: none)
-   */
-  skipNodes?: string[];
 }
 
 /**
@@ -47,16 +37,17 @@ const DEFAULT_FALSE_VALUES = ['false', 'no', '0', 'off'];
  * // Transform all nodes with boolean-like values
  * xjx.fromXml(xml).map(toBoolean()).toJson();
  * 
- * // Transform only specific nodes
- * xjx.fromXml(xml).map(toBoolean({ 
- *   nodeNames: ['active', 'enabled', 'visible'] 
- * })).toJson();
- * 
  * // Custom true/false values
  * xjx.fromXml(xml).map(toBoolean({ 
  *   trueValues: ['yes', 'y', '1'], 
  *   falseValues: ['no', 'n', '0'] 
  * })).toJson();
+ * 
+ * // Use with filtering for specific nodes
+ * xjx.fromXml(xml)
+ *    .filter(node => ['active', 'enabled', 'visible'].includes(node.name))
+ *    .map(toBoolean())
+ *    .toJson();
  * ```
  * 
  * @param options Boolean transform options
@@ -66,9 +57,7 @@ export function toBoolean(options: BooleanTransformOptions = {}): (node: XNode) 
   const {
     trueValues = DEFAULT_TRUE_VALUES,
     falseValues = DEFAULT_FALSE_VALUES,
-    ignoreCase = true,
-    nodeNames,
-    skipNodes = []
+    ignoreCase = true
   } = options;
   
   // Pre-process values for case insensitive comparison
@@ -80,16 +69,6 @@ export function toBoolean(options: BooleanTransformOptions = {}): (node: XNode) 
     : falseValues;
   
   return (node: XNode): XNode => {
-    // Skip if this node should be skipped
-    if (skipNodes && skipNodes.length > 0 && skipNodes.includes(node.name)) {
-      return node;
-    }
-    
-    // Skip if nodeNames is specified with items and this node isn't included
-    if (nodeNames && nodeNames.length > 0 && !nodeNames.includes(node.name)) {
-      return node;
-    }
-    
     // Skip if node has no value or value is not a string
     if (node.value === undefined || typeof node.value !== 'string') {
       return node;

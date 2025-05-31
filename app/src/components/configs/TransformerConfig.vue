@@ -1,4 +1,4 @@
-<!-- components/configs/TransformerConfig.vue - Simplified for source/output contexts -->
+<!-- components/configs/TransformerConfig.vue - Simplified without node targeting -->
 <template>
   <v-container>
     <!-- Source/Output Context: Simple text box -->
@@ -27,7 +27,7 @@
       ></v-textarea>
     </div>
     
-    <!-- Transformer Context: Full multi-transform interface -->
+    <!-- Transformer Context: Multi-transform interface -->
     <div v-else>
       <!-- Transform Selection (Multiple) -->
       <v-row dense>
@@ -91,44 +91,6 @@
       
       <!-- Transform Configurations -->
       <div v-if="selectedTransforms.length > 0">
-        <!-- Global Node Filtering (applies to all transforms) -->
-        <v-row dense>
-          <v-col cols="12">
-            <v-divider class="my-4"></v-divider>
-            <div class="text-subtitle-2 mb-2">Global Node Filtering</div>
-            <v-row dense>
-              <v-col cols="12" sm="6">
-                <v-combobox
-                  v-model="localOptions.globalNodeNames"
-                  label="Transform Only These Nodes"
-                  hint="Leave empty to transform all nodes"
-                  persistent-hint
-                  multiple
-                  chips
-                  closable-chips
-                  density="compact"
-                  variant="outlined"
-                  @update:model-value="updateOptions"
-                ></v-combobox>
-              </v-col>
-              <v-col cols="12" sm="6">
-                <v-combobox
-                  v-model="localOptions.globalSkipNodes"
-                  label="Skip These Nodes"
-                  hint="Nodes to exclude from all transforms"
-                  persistent-hint
-                  multiple
-                  chips
-                  closable-chips
-                  density="compact"
-                  variant="outlined"
-                  @update:model-value="updateOptions"
-                ></v-combobox>
-              </v-col>
-            </v-row>
-          </v-col>
-        </v-row>
-        
         <v-divider class="my-4"></v-divider>
         
         <!-- Individual Transform Configurations -->
@@ -334,7 +296,7 @@
         </v-col>
       </v-row>
 
-      <!-- Help Section - Full transform help -->
+      <!-- Help Section - Updated for simplified transforms -->
       <v-expansion-panels variant="accordion" class="mt-4">
         <v-expansion-panel>
           <v-expansion-panel-title class="text-caption">
@@ -343,20 +305,23 @@
           </v-expansion-panel-title>
           <v-expansion-panel-text>
             <v-alert type="info" variant="text" density="compact">
-              <strong>Multi-Transform Pipeline:</strong><br>
-              Select one or more transform types to configure a transformation pipeline.
-              Transforms will be applied in the order shown, allowing you to chain operations together.<br>
+              <strong>Simplified Transform Pipeline:</strong><br>
+              Transforms are now pure functions that operate on all nodes they receive.
+              Use explicit filtering operations for node targeting.<br>
               <br>
               <strong>Transform Composition:</strong><br>
               Multiple transforms are automatically composed using the <code>compose()</code> function.
-              Each transform receives the output of the previous transform, allowing for powerful data pipelines.<br>
+              Each transform receives the output of the previous transform.<br>
               <br>
-              <strong>Multi-Transform Examples:</strong><br>
+              <strong>Node Targeting Pattern:</strong><br>
+              - Use <code>filter(node => node.name === 'price')</code> before transforms<br>
+              - Use <code>select(node => ['price', 'total'].includes(node.name))</code> to collect specific nodes<br>
+              - Then apply transforms: <code>map(toNumber({ precision: 2 }))</code><br>
+              <br>
+              <strong>Examples:</strong><br>
               - <em>Regex → Number</em>: Clean currency symbols then parse as number<br>
               - <em>Boolean → Custom</em>: Convert to boolean then add metadata<br>
-              - <em>Number → Custom → Boolean</em>: Parse number, apply business logic, convert to flag<br>
-              <br>
-              <strong>Global Node Filtering:</strong> Apply the entire pipeline only to specific nodes or skip certain nodes.
+              - <em>Custom → Number → Boolean</em>: Process, parse, then convert to flag
             </v-alert>
           </v-expansion-panel-text>
         </v-expansion-panel>
@@ -385,8 +350,8 @@
               - <em>afterTransform</em>: <code>output => output.replace(/\n\s*\n/g, '\n')</code>
             </span>
             <br>
-            <strong>For Built-in Transforms:</strong><br>
-            Use <code>map()</code> operations for boolean, number, and regex transforms.
+            <strong>For Node Targeting:</strong><br>
+            Use <code>filter()</code> or <code>select()</code> operations before transforms.
           </v-alert>
         </v-expansion-panel-text>
       </v-expansion-panel>
@@ -403,8 +368,6 @@ const props = defineProps({
     default: () => ({
       selectedTransforms: [],
       transformOrder: [],
-      globalNodeNames: [],
-      globalSkipNodes: [],
       transforms: {
         toBoolean: {
           trueValues: ['true', 'yes', '1', 'on'],
@@ -489,8 +452,6 @@ const getContextDataType = () => {
 const localOptions = reactive({
   selectedTransforms: [...(props.value.selectedTransforms || [])],
   transformOrder: [...(props.value.transformOrder || [])],
-  globalNodeNames: [...(props.value.globalNodeNames || [])],
-  globalSkipNodes: [...(props.value.globalSkipNodes || [])],
   transforms: {
     toBoolean: { 
       ...getDefaultBooleanOptions(),
@@ -654,8 +615,6 @@ watch(() => props.value, (newValue) => {
       Object.assign(localOptions, {
         selectedTransforms: [...(newValue.selectedTransforms || [])],
         transformOrder: [...(newValue.transformOrder || [])],
-        globalNodeNames: [...(newValue.globalNodeNames || [])],
-        globalSkipNodes: [...(newValue.globalSkipNodes || [])],
         transforms: {
           toBoolean: { 
             ...getDefaultBooleanOptions(),

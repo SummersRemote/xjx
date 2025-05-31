@@ -4,21 +4,6 @@
 import { XNode } from '../core/xnode';
 
 /**
- * Options for regex node transform
- */
-export interface RegexTransformOptions {
-  /**
-   * Only transform nodes with these names (default: transform all)
-   */
-  nodeNames?: string[];
-  
-  /**
-   * Skip nodes with these names (default: none)
-   */
-  skipNodes?: string[];
-}
-
-/**
  * Detect if a string is a regular expression pattern
  * Matches patterns like: /pattern/flags
  * 
@@ -51,26 +36,21 @@ function parseRegexPattern(pattern: string): { source: string, flags: string } |
  * // Using RegExp object
  * xjx.fromXml(xml).map(regex(/hello/gi, 'hi')).toJson();
  * 
- * // Transform only specific nodes
- * xjx.fromXml(xml).map(regex(/\d+/, 'NUMBER', { 
- *   nodeNames: ['description', 'content']
- * })).toJson();
+ * // Use with filtering for specific nodes
+ * xjx.fromXml(xml)
+ *    .filter(node => ['description', 'content'].includes(node.name))
+ *    .map(regex(/\d+/, 'NUMBER'))
+ *    .toJson();
  * ```
  * 
  * @param pattern Regular expression pattern (string or RegExp)
  * @param replacement Replacement string (can use capture groups)
- * @param options Transform options
  * @returns A node transformer function for use with map()
  */
 export function regex(
   pattern: RegExp | string, 
-  replacement: string,
-  options: RegexTransformOptions = {}
+  replacement: string
 ): (node: XNode) => XNode {
-  const {
-    nodeNames,
-    skipNodes = []
-  } = options;
   
   // Create RegExp object based on input type
   let re: RegExp;
@@ -95,16 +75,6 @@ export function regex(
   }
   
   return (node: XNode): XNode => {
-    // Skip if this node should be skipped
-    if (skipNodes && skipNodes.length > 0 && skipNodes.includes(node.name)) {
-      return node;
-    }
-    
-    // Skip if nodeNames is specified with items and this node isn't included
-    if (nodeNames && nodeNames.length > 0 && !nodeNames.includes(node.name)) {
-      return node;
-    }
-    
     // Skip if node has no value or value is not a string
     if (node.value === undefined || typeof node.value !== 'string') {
       return node;

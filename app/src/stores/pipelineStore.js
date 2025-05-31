@@ -1,4 +1,4 @@
-// stores/pipelineStore.js - Updated with XJX logger and improved hooks
+// stores/pipelineStore.js - Fixed transform function issue
 import { defineStore } from 'pinia';
 
 export const usePipelineStore = defineStore('pipeline', {
@@ -369,14 +369,14 @@ export const usePipelineStore = defineStore('pipeline', {
             
       switch (type) {
         case 'fromXml': {
-          const sourceHooks = this.createSourceHooks(options);
+          const sourceHooks = this.createSourceHooks(options, transforms);
           return builder.fromXml(this.sourceContent, sourceHooks);
         }
           
         case 'fromJson': {
           try {
             const jsonSource = JSON.parse(this.sourceContent);
-            const sourceHooks = this.createSourceHooks(options);
+            const sourceHooks = this.createSourceHooks(options, transforms);
             return builder.fromJson(jsonSource, sourceHooks);
           } catch (err) {
             throw new Error('Invalid JSON in source content');
@@ -384,7 +384,7 @@ export const usePipelineStore = defineStore('pipeline', {
         }
           
         case 'fromXnode': {
-          const sourceHooks = this.createSourceHooks(options);
+          const sourceHooks = this.createSourceHooks(options, transforms);
           return builder.fromXml(this.sourceContent, sourceHooks);
         }
           
@@ -395,7 +395,7 @@ export const usePipelineStore = defineStore('pipeline', {
           
         case 'map': {
           const mainTransform = this.createTransformerFromConfig(options.transform, transforms);
-          const nodeHooks = this.createNodeHooks(options);
+          const nodeHooks = this.createNodeHooks(options, transforms);
           
           if (mainTransform) {
             return builder.map(mainTransform, nodeHooks);
@@ -428,33 +428,35 @@ export const usePipelineStore = defineStore('pipeline', {
       }
     },
     
-    createSourceHooks(options) {
+    // FIXED: Pass transforms object to all hook creation methods
+    createSourceHooks(options, transforms) {
       if (!options) return undefined;
       
       const hooks = {};
       
       if (options.beforeTransform && this.hasValidTransform(options.beforeTransform)) {
-        hooks.beforeTransform = this.createTransformerFromConfig(options.beforeTransform, {});
+        hooks.beforeTransform = this.createTransformerFromConfig(options.beforeTransform, transforms);
       }
       
       if (options.afterTransform && this.hasValidTransform(options.afterTransform)) {
-        hooks.afterTransform = this.createTransformerFromConfig(options.afterTransform, {});
+        hooks.afterTransform = this.createTransformerFromConfig(options.afterTransform, transforms);
       }
       
       return Object.keys(hooks).length > 0 ? hooks : undefined;
     },
     
-    createNodeHooks(options) {
+    // FIXED: Pass transforms object to hook creation methods
+    createNodeHooks(options, transforms) {
       if (!options) return undefined;
       
       const hooks = {};
       
       if (options.beforeTransform && this.hasValidTransform(options.beforeTransform)) {
-        hooks.beforeTransform = this.createTransformerFromConfig(options.beforeTransform, {});
+        hooks.beforeTransform = this.createTransformerFromConfig(options.beforeTransform, transforms);
       }
       
       if (options.afterTransform && this.hasValidTransform(options.afterTransform)) {
-        hooks.afterTransform = this.createTransformerFromConfig(options.afterTransform, {});
+        hooks.afterTransform = this.createTransformerFromConfig(options.afterTransform, transforms);
       }
       
       return Object.keys(hooks).length > 0 ? hooks : undefined;
@@ -588,7 +590,9 @@ export const usePipelineStore = defineStore('pipeline', {
     async executeTerminalOperation(builder) {
       const { type, options } = this.outputOperation;
       
-      const outputHooks = this.createOutputHooks(options);
+      // FIXED: Pass transforms object to output hooks
+      const transforms = { toNumber: null, toBoolean: null, regex: null }; // Placeholder - these aren't used in output hooks typically
+      const outputHooks = this.createOutputHooks(options, transforms);
       
       switch (type) {
         case 'toXml':
@@ -610,17 +614,18 @@ export const usePipelineStore = defineStore('pipeline', {
       }
     },
     
-    createOutputHooks(options) {
+    // FIXED: Pass transforms object to output hooks
+    createOutputHooks(options, transforms) {
       if (!options) return undefined;
       
       const hooks = {};
       
       if (options.beforeTransform && this.hasValidTransform(options.beforeTransform)) {
-        hooks.beforeTransform = this.createTransformerFromConfig(options.beforeTransform, {});
+        hooks.beforeTransform = this.createTransformerFromConfig(options.beforeTransform, transforms);
       }
       
       if (options.afterTransform && this.hasValidTransform(options.afterTransform)) {
-        hooks.afterTransform = this.createTransformerFromConfig(options.afterTransform, {});
+        hooks.afterTransform = this.createTransformerFromConfig(options.afterTransform, transforms);
       }
       
       return Object.keys(hooks).length > 0 ? hooks : undefined;

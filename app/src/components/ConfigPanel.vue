@@ -1,41 +1,9 @@
-<!-- components/ConfigPanel.vue - Responsive action buttons -->
+<!-- components/ConfigPanel.vue - Fixed button layout -->
 <template>
   <v-sheet class="pa-4">
-    <!-- Header with responsive actions -->
+    <!-- Header -->
     <div class="mb-4">
-      <div class="d-flex flex-column">
-        <!-- Title Row -->
-        <h5 class="text-h5 mb-2">Configuration</h5>
-        
-        <!-- Action Buttons Row - responsive layout -->
-        <div class="d-flex flex-wrap gap-2 mb-3">
-          <v-btn
-            color="primary"
-            variant="tonal"
-            prepend-icon="mdi-code-tags"
-            density="compact"
-            size="small"
-            @click="$emit('showApi')"
-            class="flex-grow-1 flex-sm-grow-0"
-          >
-            <span class="d-none d-sm-inline">View Code</span>
-            <span class="d-inline d-sm-none">Code</span>
-          </v-btn>
-          
-          <v-btn
-            color="primary"
-            variant="tonal"
-            prepend-icon="mdi-eye"
-            density="compact"
-            size="small"
-            @click="$emit('showConfig')"
-            class="flex-grow-1 flex-sm-grow-0"
-          >
-            <span class="d-none d-sm-inline">View Config</span>
-            <span class="d-inline d-sm-none">Config</span>
-          </v-btn>
-        </div>
-      </div>
+      <h5 class="text-h5 mb-3">Configuration</h5>
     </div>
 
     <!-- Log Level Selector -->
@@ -61,6 +29,31 @@
       @update:model-value="loadPreset"
     >
     </v-select>
+
+    <!-- Action Buttons - moved below preset selection, normal size -->
+    <div class="d-flex flex-wrap gap-2 mb-4">
+      <v-btn
+        color="primary"
+        variant="tonal"
+        prepend-icon="mdi-code-tags"
+        @click="$emit('showApi')"
+        class="flex-grow-1 flex-sm-grow-0"
+      >
+        <span class="d-none d-sm-inline">View Code</span>
+        <span class="d-inline d-sm-none">Code</span>
+      </v-btn>
+      
+      <v-btn
+        color="primary"
+        variant="tonal"
+        prepend-icon="mdi-eye"
+        @click="$emit('showConfig')"
+        class="flex-grow-1 flex-sm-grow-0"
+      >
+        <span class="d-none d-sm-inline">View Config</span>
+        <span class="d-inline d-sm-none">Config</span>
+      </v-btn>
+    </div>
 
     <!-- Feature Preservation Section -->
     <div class="section-title">Feature Preservation</div>

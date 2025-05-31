@@ -1,68 +1,91 @@
-<!-- components/UnifiedPipelineManager.vue - Accordion Panel Design -->
+<!-- components/UnifiedPipelineManager.vue - Fixed title bar layout -->
 <template>
   <v-card>
     <!-- Pipeline Title and Actions -->
     <v-card-title class="pa-3">
-      <div class="d-flex flex-column">
-        <!-- Title Row -->
-        <div class="d-flex align-center mb-2 mb-sm-0">
+      <div class="d-flex align-center w-100">
+        <!-- Title -->
+        <div class="d-flex align-center">
           <v-icon icon="mdi-pipe" class="me-2"></v-icon>
           <span class="text-h6">Fluent API Pipeline</span>
         </div>
         
-        <!-- Action Buttons Row - wraps on small screens -->
-        <div class="d-flex flex-wrap align-center gap-2 mt-2 mt-sm-0 ms-sm-auto">
-          <!-- Pipeline Hooks Toggle -->
-          <v-btn
-            :color="enablePipelineHooks ? 'primary' : 'grey'"
-            variant="outlined"
-            density="compact"
-            @click="togglePipelineHooks"
-            size="small"
-          >
-            <v-icon :icon="enablePipelineHooks ? 'mdi-hook' : 'mdi-hook-off'" class="me-1"></v-icon>
-            <span class="d-none d-sm-inline">Pipeline Hooks</span>
-            <span class="d-inline d-sm-none">Hooks</span>
-          </v-btn>
-          
-          <!-- Swap Button -->
-          <v-btn
-            color="primary"
-            variant="outlined"
-            density="compact"
-            @click="swapContent"
-            :disabled="isProcessing"
-            size="small"
-          >
-            <v-icon icon="mdi-swap-horizontal" class="me-1"></v-icon>
-            <span class="d-none d-sm-inline">Swap</span>
-          </v-btn>
-          
-          <!-- Reset Button -->
-          <v-btn 
-            color="error" 
-            variant="outlined" 
-            density="compact" 
-            @click="resetPipeline"
-            size="small"
-          >
-            <v-icon icon="mdi-refresh" class="me-1"></v-icon>
-            <span class="d-none d-sm-inline">Reset</span>
-          </v-btn>
-          
-          <!-- Execute Button -->
+        <!-- Action Buttons - same line as title -->
+        <div class="d-flex align-center ms-auto">
+          <!-- Always visible Execute button -->
           <v-btn
             color="success"
             variant="elevated"
-            density="compact"
             :disabled="!isValidPipeline || isProcessing"
             :loading="isProcessing"
             @click="executePipeline"
-            size="small"
+            class="me-2"
           >
             <v-icon icon="mdi-play" class="me-1"></v-icon>
             <span class="d-none d-sm-inline">Execute</span>
           </v-btn>
+          
+          <!-- Desktop: Show all buttons -->
+          <div class="d-none d-lg-flex align-center gap-2">
+            <v-btn
+              :color="enablePipelineHooks ? 'primary' : 'grey'"
+              variant="outlined"
+              @click="togglePipelineHooks"
+            >
+              <v-icon :icon="enablePipelineHooks ? 'mdi-hook' : 'mdi-hook-off'" class="me-1"></v-icon>
+              Pipeline Hooks
+            </v-btn>
+            
+            <v-btn
+              color="primary"
+              variant="outlined"
+              @click="swapContent"
+              :disabled="isProcessing"
+            >
+              <v-icon icon="mdi-swap-horizontal" class="me-1"></v-icon>
+              Swap
+            </v-btn>
+            
+            <v-btn 
+              color="error" 
+              variant="outlined" 
+              @click="resetPipeline"
+            >
+              <v-icon icon="mdi-refresh" class="me-1"></v-icon>
+              Reset
+            </v-btn>
+          </div>
+          
+          <!-- Mobile/Tablet: Overflow menu -->
+          <div class="d-flex d-lg-none">
+            <v-menu>
+              <template v-slot:activator="{ props }">
+                <v-btn
+                  v-bind="props"
+                  icon="mdi-dots-vertical"
+                  variant="text"
+                ></v-btn>
+              </template>
+              <v-list density="compact">
+                <v-list-item
+                  :prepend-icon="enablePipelineHooks ? 'mdi-hook' : 'mdi-hook-off'"
+                  :title="`Pipeline Hooks ${enablePipelineHooks ? '(On)' : '(Off)'}`"
+                  @click="togglePipelineHooks"
+                ></v-list-item>
+                <v-list-item
+                  prepend-icon="mdi-swap-horizontal"
+                  title="Swap"
+                  :disabled="isProcessing"
+                  @click="swapContent"
+                ></v-list-item>
+                <v-list-item
+                  prepend-icon="mdi-refresh"
+                  title="Reset"
+                  @click="resetPipeline"
+                ></v-list-item>
+              </v-list>
+            </v-menu>
+          </div>
         </div>
       </div>
     </v-card-title>

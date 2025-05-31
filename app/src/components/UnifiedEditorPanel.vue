@@ -1,4 +1,4 @@
-<!-- components/UnifiedEditorPanel.vue - Execute button removed -->
+<!-- components/UnifiedEditorPanel.vue - Swap button moved to pipeline -->
 <template>
   <!-- Error Alert -->
   <v-alert v-if="error" type="error" variant="tonal" closable class="mt-4">
@@ -9,19 +9,6 @@
     <v-card-title class="d-flex align-center">
       <v-icon icon="mdi-swap-horizontal" class="me-2"></v-icon>
       Source & Result
-      <v-spacer></v-spacer>
-      
-      <!-- Swap Button -->
-      <v-btn
-        color="primary"
-        variant="outlined"
-        prepend-icon="mdi-swap-horizontal"
-        @click="swapContent"
-        :disabled="isProcessing"
-        density="compact"
-      >
-        Swap
-      </v-btn>
     </v-card-title>
 
     <v-card-text>
@@ -202,11 +189,6 @@ const loadSourceSample = (index) => {
 const copyToClipboard = (content) => {
   navigator.clipboard.writeText(content);
   copySuccess.value = true;
-};
-
-// Swap source and result content
-const swapContent = () => {
-  pipelineStore.swapSourceResult();
 };
 </script>
 

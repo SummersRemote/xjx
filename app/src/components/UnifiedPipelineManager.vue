@@ -1,44 +1,70 @@
-<!-- components/UnifiedPipelineManager.vue - Refactored with simplified controls -->
+<!-- components/UnifiedPipelineManager.vue - Accordion Panel Design -->
 <template>
   <v-card>
-    <v-card-title class="d-flex align-center">
-      <v-icon icon="mdi-pipe" class="me-2"></v-icon>
-      Fluent API Pipeline
-      <v-spacer></v-spacer>
-      
-      <!-- Execute Button -->
-      <v-btn
-        color="success"
-        variant="elevated"
-        prepend-icon="mdi-play"
-        :disabled="!isValidPipeline || isProcessing"
-        :loading="isProcessing"
-        @click="executePipeline"
-        class="me-2"
-      >
-        Execute
-      </v-btn>
-      
-      <!-- Pipeline Hooks Toggle -->
-      <v-btn
-        :color="enablePipelineHooks ? 'primary' : 'grey'"
-        variant="outlined"
-        density="compact"
-        @click="togglePipelineHooks"
-        class="me-2"
-      >
-        <v-icon :icon="enablePipelineHooks ? 'mdi-hook' : 'mdi-hook-off'" class="me-1"></v-icon>
-        Pipeline Hooks
-      </v-btn>
-      
-      <v-btn 
-        color="error" 
-        variant="text" 
-        density="compact" 
-        @click="resetPipeline"
-      >
-        Reset
-      </v-btn>
+    <!-- Pipeline Title and Actions -->
+    <v-card-title class="pa-3">
+      <div class="d-flex flex-column">
+        <!-- Title Row -->
+        <div class="d-flex align-center mb-2 mb-sm-0">
+          <v-icon icon="mdi-pipe" class="me-2"></v-icon>
+          <span class="text-h6">Fluent API Pipeline</span>
+        </div>
+        
+        <!-- Action Buttons Row - wraps on small screens -->
+        <div class="d-flex flex-wrap align-center gap-2 mt-2 mt-sm-0 ms-sm-auto">
+          <!-- Pipeline Hooks Toggle -->
+          <v-btn
+            :color="enablePipelineHooks ? 'primary' : 'grey'"
+            variant="outlined"
+            density="compact"
+            @click="togglePipelineHooks"
+            size="small"
+          >
+            <v-icon :icon="enablePipelineHooks ? 'mdi-hook' : 'mdi-hook-off'" class="me-1"></v-icon>
+            <span class="d-none d-sm-inline">Pipeline Hooks</span>
+            <span class="d-inline d-sm-none">Hooks</span>
+          </v-btn>
+          
+          <!-- Swap Button -->
+          <v-btn
+            color="primary"
+            variant="outlined"
+            density="compact"
+            @click="swapContent"
+            :disabled="isProcessing"
+            size="small"
+          >
+            <v-icon icon="mdi-swap-horizontal" class="me-1"></v-icon>
+            <span class="d-none d-sm-inline">Swap</span>
+          </v-btn>
+          
+          <!-- Reset Button -->
+          <v-btn 
+            color="error" 
+            variant="outlined" 
+            density="compact" 
+            @click="resetPipeline"
+            size="small"
+          >
+            <v-icon icon="mdi-refresh" class="me-1"></v-icon>
+            <span class="d-none d-sm-inline">Reset</span>
+          </v-btn>
+          
+          <!-- Execute Button -->
+          <v-btn
+            color="success"
+            variant="elevated"
+            density="compact"
+            :disabled="!isValidPipeline || isProcessing"
+            :loading="isProcessing"
+            @click="executePipeline"
+            size="small"
+          >
+            <v-icon icon="mdi-play" class="me-1"></v-icon>
+            <span class="d-none d-sm-inline">Execute</span>
+          </v-btn>
+        </div>
+      </div>
     </v-card-title>
     
     <!-- Pipeline Hooks Configuration -->
@@ -98,177 +124,322 @@
         </div>
       </v-alert>
       
-      <!-- Fixed Source Row -->
-      <v-card variant="outlined" class="mb-3" color="blue">
-        <v-card-title class="text-subtitle-1 pa-3 d-flex align-center">
-          <v-chip color="blue" size="small" class="me-2">SOURCE</v-chip>
+      <!-- Pipeline Accordion -->
+      <v-expansion-panels variant="accordion" class="pipeline-accordion">
+        <!-- Source Panel -->
+        <v-expansion-panel>
+          <v-expansion-panel-title class="pipeline-panel-title">
+            <div class="d-flex align-center w-100">
+              <!-- Left side: Label and Operation Name -->
+              <div class="d-flex align-center">
+                <v-chip color="blue" size="small" class="me-2" variant="flat">SOURCE</v-chip>
+                <span class="text-subtitle-2">{{ getOperationDisplayName(sourceOperation.type) }}</span>
+              </div>
+              
+              <!-- Right side: Action Buttons -->
+              <div class="d-flex align-center ms-auto">
+                <!-- Desktop Action Buttons -->
+                <div class="d-none d-md-flex align-center gap-1">
+                  <v-tooltip text="Add operation below">
+                    <template v-slot:activator="{ props }">
+                      <v-btn
+                        v-bind="props"
+                        icon="mdi-plus"
+                        size="x-small"
+                        variant="text"
+                        color="primary"
+                        @click.stop="addFunctionalStep('filter', 0)"
+                      ></v-btn>
+                    </template>
+                  </v-tooltip>
+                </div>
+                
+                <!-- Mobile Three-Dot Menu -->
+                <div class="d-flex d-md-none">
+                  <v-menu>
+                    <template v-slot:activator="{ props }">
+                      <v-btn
+                        v-bind="props"
+                        icon="mdi-dots-vertical"
+                        size="x-small"
+                        variant="text"
+                        @click.stop
+                      ></v-btn>
+                    </template>
+                    <v-list density="compact">
+                      <v-list-item
+                        prepend-icon="mdi-plus"
+                        title="Add operation below"
+                        @click="addFunctionalStep('filter', 0)"
+                      ></v-list-item>
+                    </v-list>
+                  </v-menu>
+                </div>
+              </div>
+            </div>
+          </v-expansion-panel-title>
           
-          <!-- Source Selection (replaces title text) -->
-          <v-select
-            :model-value="sourceOperation.type"
-            :items="sourceOperations"
-            item-title="name"
-            item-value="value"
-            density="compact"
-            variant="outlined"
-            hide-details
-            style="max-width: 200px"
-            @update:model-value="updateSourceOperation"
-          ></v-select>
-          
-          <v-spacer></v-spacer>
-          
-          <!-- Add Below Button -->
-          <v-btn
-            color="primary"
-            variant="outlined"
-            size="small"
-            prepend-icon="mdi-plus"
-            @click="addFunctionalStep('filter', 0)"
-          >
-            Add Below
-          </v-btn>
-        </v-card-title>
-        
-        <v-card-text class="pt-0">
-          <v-expand-transition>
-            <div v-if="sourceOperation.type">
+          <v-expansion-panel-text>
+            <div class="panel-content">
+              <!-- Source Type Selection -->
+              <v-select
+                :model-value="sourceOperation.type"
+                :items="sourceOperations"
+                item-title="name"
+                item-value="value"
+                label="Source Type"
+                density="compact"
+                variant="outlined"
+                class="mb-3"
+                @update:model-value="updateSourceOperation"
+              ></v-select>
+              
+              <!-- Source Configuration -->
               <SourceConfig
+                v-if="sourceOperation.type"
                 :value="sourceOperation.options"
                 @update="updateSourceOptions"
               />
             </div>
-          </v-expand-transition>
-        </v-card-text>
-      </v-card>
-      
-      <!-- Dynamic Functional Steps -->
-      <div v-for="(step, index) in functionalSteps" :key="step.id" class="mb-3">
-        <v-card variant="outlined" color="purple">
-          <v-card-title class="text-subtitle-1 pa-3 d-flex align-center">
-            <v-chip color="purple" size="small" class="me-2">{{ index + 1 }}</v-chip>
-            
-            <!-- Operation Type Selector -->
-            <v-select
-              :model-value="step.type"
-              :items="functionalOperationItems"
-              item-title="name"
-              item-value="value"
-              density="compact"
-              variant="outlined"
-              hide-details
-              style="max-width: 200px"
-              @update:model-value="changeStepType(step.id, $event)"
-            ></v-select>
-            
-            <v-spacer></v-spacer>
-            
-            <!-- Step Controls -->
-            <div class="d-flex align-center gap-2">
-              <!-- Add Above Button -->
-              <v-btn
-                color="primary"
-                variant="outlined"
-                size="small"
-                prepend-icon="mdi-plus"
-                @click="addFunctionalStep('filter', index)"
-              >
-                Add Above
-              </v-btn>
-              
-              <!-- Add Below Button -->
-              <v-btn
-                color="primary"
-                variant="outlined"
-                size="small"
-                prepend-icon="mdi-plus"
-                @click="addFunctionalStep('filter', index + 1)"
-              >
-                Add Below
-              </v-btn>
-              
-              <!-- Move Up -->
-              <v-btn 
-                icon="mdi-arrow-up" 
-                size="small"
-                variant="text"
-                :disabled="index === 0"
-                @click="moveFunctionalStep(step.id, 'up')" 
-              ></v-btn>
-              
-              <!-- Move Down -->
-              <v-btn 
-                icon="mdi-arrow-down" 
-                size="small"
-                variant="text"
-                :disabled="index === functionalSteps.length - 1"
-                @click="moveFunctionalStep(step.id, 'down')" 
-              ></v-btn>
-              
-              <!-- Delete -->
-              <v-btn 
-                icon="mdi-delete" 
-                size="small"
-                color="error"
-                variant="text"
-                @click="removeFunctionalStep(step.id)"
-              ></v-btn>
-            </div>
-          </v-card-title>
-          
-          <v-card-text class="pt-0">
-            <component 
-              :is="getConfigComponent(step.type)"
-              :value="step.options"
-              @update="updateFunctionalStepOptions(step.id, $event)"
-            />
-          </v-card-text>
-        </v-card>
-      </div>
-      
-      <!-- Fixed Output Row -->
-      <v-card variant="outlined" color="green">
-        <v-card-title class="text-subtitle-1 pa-3 d-flex align-center">
-          <v-chip color="green" size="small" class="me-2">OUTPUT</v-chip>
-          
-          <!-- Output Selection (replaces title text) -->
-          <v-select
-            :model-value="outputOperation.type"
-            :items="outputOperations"
-            item-title="name"
-            item-value="value"
-            density="compact"
-            variant="outlined"
-            hide-details
-            style="max-width: 200px"
-            @update:model-value="updateOutputOperation"
-          ></v-select>
-          
-          <v-spacer></v-spacer>
-          
-          <!-- Add Above Button -->
-          <v-btn
-            color="primary"
-            variant="outlined"
-            size="small"
-            prepend-icon="mdi-plus"
-            @click="addFunctionalStep('filter', functionalSteps.length)"
-          >
-            Add Above
-          </v-btn>
-        </v-card-title>
+          </v-expansion-panel-text>
+        </v-expansion-panel>
         
-        <v-card-text class="pt-0">
-          <v-expand-transition>
-            <div v-if="outputOperation.type">
+        <!-- Functional Step Panels -->
+        <v-expansion-panel
+          v-for="(step, index) in functionalSteps"
+          :key="step.id"
+        >
+          <v-expansion-panel-title class="pipeline-panel-title">
+            <div class="d-flex align-center w-100">
+              <!-- Left side: Step Number and Operation Name -->
+              <div class="d-flex align-center">
+                <v-chip color="purple" size="small" class="me-2" variant="flat">{{ index + 1 }}</v-chip>
+                <span class="text-subtitle-2">{{ getOperationDisplayName(step.type) }}</span>
+              </div>
+              
+              <!-- Right side: Action Buttons -->
+              <div class="d-flex align-center ms-auto">
+                <!-- Desktop Action Buttons -->
+                <div class="d-none d-md-flex align-center gap-1">
+                  <v-tooltip text="Add operation above">
+                    <template v-slot:activator="{ props }">
+                      <v-btn
+                        v-bind="props"
+                        icon="mdi-plus-circle-outline"
+                        size="x-small"
+                        variant="text"
+                        color="primary"
+                        @click.stop="addFunctionalStep('filter', index)"
+                      ></v-btn>
+                    </template>
+                  </v-tooltip>
+                  
+                  <v-tooltip text="Add operation below">
+                    <template v-slot:activator="{ props }">
+                      <v-btn
+                        v-bind="props"
+                        icon="mdi-plus-circle"
+                        size="x-small"
+                        variant="text"
+                        color="primary"
+                        @click.stop="addFunctionalStep('filter', index + 1)"
+                      ></v-btn>
+                    </template>
+                  </v-tooltip>
+                  
+                  <v-tooltip text="Move up">
+                    <template v-slot:activator="{ props }">
+                      <v-btn
+                        v-bind="props"
+                        icon="mdi-arrow-up"
+                        size="x-small"
+                        variant="text"
+                        :disabled="index === 0"
+                        @click.stop="moveFunctionalStep(step.id, 'up')"
+                      ></v-btn>
+                    </template>
+                  </v-tooltip>
+                  
+                  <v-tooltip text="Move down">
+                    <template v-slot:activator="{ props }">
+                      <v-btn
+                        v-bind="props"
+                        icon="mdi-arrow-down"
+                        size="x-small"
+                        variant="text"
+                        :disabled="index === functionalSteps.length - 1"
+                        @click.stop="moveFunctionalStep(step.id, 'down')"
+                      ></v-btn>
+                    </template>
+                  </v-tooltip>
+                  
+                  <v-tooltip text="Remove operation">
+                    <template v-slot:activator="{ props }">
+                      <v-btn
+                        v-bind="props"
+                        icon="mdi-delete"
+                        size="x-small"
+                        variant="text"
+                        color="error"
+                        @click.stop="removeFunctionalStep(step.id)"
+                      ></v-btn>
+                    </template>
+                  </v-tooltip>
+                </div>
+                
+                <!-- Mobile Three-Dot Menu -->
+                <div class="d-flex d-md-none">
+                  <v-menu>
+                    <template v-slot:activator="{ props }">
+                      <v-btn
+                        v-bind="props"
+                        icon="mdi-dots-vertical"
+                        size="x-small"
+                        variant="text"
+                        @click.stop
+                      ></v-btn>
+                    </template>
+                    <v-list density="compact">
+                      <v-list-item
+                        prepend-icon="mdi-plus-circle-outline"
+                        title="Add operation above"
+                        @click="addFunctionalStep('filter', index)"
+                      ></v-list-item>
+                      <v-list-item
+                        prepend-icon="mdi-plus-circle"
+                        title="Add operation below"
+                        @click="addFunctionalStep('filter', index + 1)"
+                      ></v-list-item>
+                      <v-divider></v-divider>
+                      <v-list-item
+                        prepend-icon="mdi-arrow-up"
+                        title="Move up"
+                        :disabled="index === 0"
+                        @click="moveFunctionalStep(step.id, 'up')"
+                      ></v-list-item>
+                      <v-list-item
+                        prepend-icon="mdi-arrow-down"
+                        title="Move down"
+                        :disabled="index === functionalSteps.length - 1"
+                        @click="moveFunctionalStep(step.id, 'down')"
+                      ></v-list-item>
+                      <v-divider></v-divider>
+                      <v-list-item
+                        prepend-icon="mdi-delete"
+                        title="Remove operation"
+                        class="text-error"
+                        @click="removeFunctionalStep(step.id)"
+                      ></v-list-item>
+                    </v-list>
+                  </v-menu>
+                </div>
+              </div>
+            </div>
+          </v-expansion-panel-title>
+          
+          <v-expansion-panel-text>
+            <div class="panel-content">
+              <!-- Operation Type Selection -->
+              <v-select
+                :model-value="step.type"
+                :items="functionalOperationItems"
+                item-title="name"
+                item-value="value"
+                label="Operation Type"
+                density="compact"
+                variant="outlined"
+                class="mb-3"
+                @update:model-value="changeStepType(step.id, $event)"
+              ></v-select>
+              
+              <!-- Operation Configuration -->
+              <component 
+                :is="getConfigComponent(step.type)"
+                :value="step.options"
+                @update="updateFunctionalStepOptions(step.id, $event)"
+              />
+            </div>
+          </v-expansion-panel-text>
+        </v-expansion-panel>
+        
+        <!-- Output Panel -->
+        <v-expansion-panel>
+          <v-expansion-panel-title class="pipeline-panel-title">
+            <div class="d-flex align-center w-100">
+              <!-- Left side: Label and Operation Name -->
+              <div class="d-flex align-center">
+                <v-chip color="green" size="small" class="me-2" variant="flat">OUTPUT</v-chip>
+                <span class="text-subtitle-2">{{ getOperationDisplayName(outputOperation.type) }}</span>
+              </div>
+              
+              <!-- Right side: Action Buttons -->
+              <div class="d-flex align-center ms-auto">
+                <!-- Desktop Action Buttons -->
+                <div class="d-none d-md-flex align-center gap-1">
+                  <v-tooltip text="Add operation above">
+                    <template v-slot:activator="{ props }">
+                      <v-btn
+                        v-bind="props"
+                        icon="mdi-plus"
+                        size="x-small"
+                        variant="text"
+                        color="primary"
+                        @click.stop="addFunctionalStep('filter', functionalSteps.length)"
+                      ></v-btn>
+                    </template>
+                  </v-tooltip>
+                </div>
+                
+                <!-- Mobile Three-Dot Menu -->
+                <div class="d-flex d-md-none">
+                  <v-menu>
+                    <template v-slot:activator="{ props }">
+                      <v-btn
+                        v-bind="props"
+                        icon="mdi-dots-vertical"
+                        size="x-small"
+                        variant="text"
+                        @click.stop
+                      ></v-btn>
+                    </template>
+                    <v-list density="compact">
+                      <v-list-item
+                        prepend-icon="mdi-plus"
+                        title="Add operation above"
+                        @click="addFunctionalStep('filter', functionalSteps.length)"
+                      ></v-list-item>
+                    </v-list>
+                  </v-menu>
+                </div>
+              </div>
+            </div>
+          </v-expansion-panel-title>
+          
+          <v-expansion-panel-text>
+            <div class="panel-content">
+              <!-- Output Type Selection -->
+              <v-select
+                :model-value="outputOperation.type"
+                :items="outputOperations"
+                item-title="name"
+                item-value="value"
+                label="Output Type"
+                density="compact"
+                variant="outlined"
+                class="mb-3"
+                @update:model-value="updateOutputOperation"
+              ></v-select>
+              
+              <!-- Output Configuration -->
               <SourceConfig
+                v-if="outputOperation.type"
                 :value="outputOperation.options"
                 @update="updateOutputOptions"
               />
             </div>
-          </v-expand-transition>
-        </v-card-text>
-      </v-card>
+          </v-expansion-panel-text>
+        </v-expansion-panel>
+      </v-expansion-panels>
     </v-card-text>
   </v-card>
 </template>
@@ -299,7 +470,7 @@ const {
   isProcessing
 } = storeToRefs(pipelineStore);
 
-// Source operations for the fixed source row
+// Source operations for the selection dropdown
 const sourceOperations = [
   { name: 'From XML', value: 'fromXml' },
   { name: 'From JSON', value: 'fromJson' },
@@ -313,7 +484,8 @@ const functionalOperationItems = [
 ];
 
 // Helper functions
-const getOperationName = (type) => {
+const getOperationDisplayName = (type) => {
+  if (!type) return 'Select Operation';
   return availableOperations.value[type]?.name || type;
 };
 
@@ -384,6 +556,10 @@ const updatePipelineHooks = () => {
   pipelineStore.updatePipelineHooks(pipelineHookOptions.value);
 };
 
+const swapContent = () => {
+  pipelineStore.swapSourceResult();
+};
+
 const executePipeline = async () => {
   try {
     await pipelineStore.executePipeline();
@@ -394,15 +570,51 @@ const executePipeline = async () => {
 </script>
 
 <style scoped>
-.v-card {
-  border-left: 4px solid transparent;
-}
-
-.v-card:hover {
-  background-color: rgba(0, 0, 0, 0.02);
+.gap-1 {
+  gap: 4px;
 }
 
 .gap-2 {
   gap: 8px;
+}
+
+.pipeline-accordion {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+}
+
+.pipeline-panel-title {
+  min-height: 48px !important;
+}
+
+.pipeline-panel-title :deep(.v-expansion-panel-title__overlay) {
+  background-color: transparent;
+}
+
+.panel-content {
+  padding-top: 8px;
+}
+
+/* Custom styling for panel titles */
+.pipeline-accordion :deep(.v-expansion-panel-title) {
+  padding: 12px 16px;
+}
+
+.pipeline-accordion :deep(.v-expansion-panel-text__wrapper) {
+  padding: 0 16px 16px 16px;
+}
+
+/* Ensure action buttons don't trigger panel expansion */
+.pipeline-panel-title :deep(.v-btn) {
+  z-index: 1;
+}
+
+/* Mobile menu styling */
+:deep(.v-list-item--disabled) {
+  opacity: 0.5;
+}
+
+:deep(.v-list-item.text-error .v-list-item__prepend) {
+  color: rgb(var(--v-theme-error));
 }
 </style>

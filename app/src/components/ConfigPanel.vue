@@ -1,7 +1,42 @@
-<!-- components/ConfigPanel.vue - Updated with compact variants -->
+<!-- components/ConfigPanel.vue - Responsive action buttons -->
 <template>
   <v-sheet class="pa-4">
-    <h5 class="text-h5 mb-4">Configuration</h5>
+    <!-- Header with responsive actions -->
+    <div class="mb-4">
+      <div class="d-flex flex-column">
+        <!-- Title Row -->
+        <h5 class="text-h5 mb-2">Configuration</h5>
+        
+        <!-- Action Buttons Row - responsive layout -->
+        <div class="d-flex flex-wrap gap-2 mb-3">
+          <v-btn
+            color="primary"
+            variant="tonal"
+            prepend-icon="mdi-code-tags"
+            density="compact"
+            size="small"
+            @click="$emit('showApi')"
+            class="flex-grow-1 flex-sm-grow-0"
+          >
+            <span class="d-none d-sm-inline">View Code</span>
+            <span class="d-inline d-sm-none">Code</span>
+          </v-btn>
+          
+          <v-btn
+            color="primary"
+            variant="tonal"
+            prepend-icon="mdi-eye"
+            density="compact"
+            size="small"
+            @click="$emit('showConfig')"
+            class="flex-grow-1 flex-sm-grow-0"
+          >
+            <span class="d-none d-sm-inline">View Config</span>
+            <span class="d-inline d-sm-none">Config</span>
+          </v-btn>
+        </div>
+      </div>
+    </div>
 
     <!-- Log Level Selector -->
     <v-select
@@ -22,38 +57,10 @@
       label="Configuration Preset"
       density="compact"
       variant="outlined"
-      class="mb-2"
+      class="mb-4"
       @update:model-value="loadPreset"
     >
     </v-select>
-
-    <!-- Action Buttons Row -->
-    <v-row dense class="mb-4">
-      <v-col cols="6">
-        <v-btn
-          block
-          color="primary"
-          variant="tonal"
-          prepend-icon="mdi-code-tags"
-          density="compact"
-          @click="$emit('showApi')"
-        >
-          View Code
-        </v-btn>
-      </v-col>
-      <v-col cols="6">
-        <v-btn
-          block
-          color="primary"
-          variant="tonal"
-          prepend-icon="mdi-eye"
-          density="compact"
-          @click="$emit('showConfig')"
-        >
-          View Config
-        </v-btn>
-      </v-col>
-    </v-row>
 
     <!-- Feature Preservation Section -->
     <div class="section-title">Feature Preservation</div>
@@ -516,5 +523,9 @@ onMounted(() => {
   margin-bottom: 8px;
   padding-bottom: 4px;
   border-bottom: 1px solid #e0e0e0;
+}
+
+.gap-2 {
+  gap: 8px;
 }
 </style>

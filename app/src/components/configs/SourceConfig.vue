@@ -1,4 +1,4 @@
-<!-- components/configs/SourceConfig.vue - Refactored with collapsible hooks -->
+<!-- components/configs/SourceConfig.vue - Simplified for source/output context -->
 <template>
   <v-container>
     <!-- Before Transform Hook Configuration -->
@@ -10,7 +10,7 @@
         </v-expansion-panel-title>
         <v-expansion-panel-text>
           <div class="text-caption text-medium-emphasis mb-2">
-            Applied to raw source before parsing - supports multi-transform pipelines
+            Applied to raw source before parsing - only custom functions available
           </div>
           <TransformerConfig
             :value="localOptions.beforeTransform"
@@ -30,18 +30,18 @@
         </v-expansion-panel-title>
         <v-expansion-panel-text>
           <div class="text-caption text-medium-emphasis mb-2">
-            Applied to parsed XNode structure - supports multi-transform pipelines
+            Applied to parsed XNode structure - only custom functions available
           </div>
           <TransformerConfig
             :value="localOptions.afterTransform"
-            context="xnode"
+            context="source"
             @update="updateAfterTransform"
           />
         </v-expansion-panel-text>
       </v-expansion-panel>
     </v-expansion-panels>
 
-    <!-- Help Section - Moved to bottom -->
+    <!-- Help Section -->
     <v-expansion-panels variant="accordion">
       <v-expansion-panel>
         <v-expansion-panel-title class="text-caption">
@@ -50,7 +50,7 @@
         </v-expansion-panel-title>
         <v-expansion-panel-text>
           <v-alert type="info" variant="text" density="compact">
-            <strong>Source Operations with Multi-Transform Hooks:</strong><br>
+            <strong>Source Operations with Custom Hooks:</strong><br>
             - <em>fromXml</em>: Parse XML string into XNode structure<br>
             - <em>fromJson</em>: Parse JSON object into XNode structure<br>
             - <em>fromXnode</em>: Use existing XNode array as source<br>
@@ -59,9 +59,12 @@
             <span class="text-primary">Before Transform</span>: Applied to raw source (string/object) before parsing<br>
             <span class="text-success">After Transform</span>: Applied to parsed XNode after conversion<br>
             <br>
-            <strong>Multi-Transform Hook Examples:</strong><br>
-            - <em>Before Transform</em>: XML preprocessing pipeline (regex cleanup → custom validation)<br>
-            - <em>After Transform</em>: XNode enrichment pipeline (add metadata → boolean flags → custom processing)
+            <strong>Custom Function Examples:</strong><br>
+            - <em>Before Transform</em>: XML preprocessing (source validation, cleanup)<br>
+            - <em>After Transform</em>: XNode enrichment (add metadata, modify structure)<br>
+            <br>
+            <strong>For Built-in Transforms:</strong><br>
+            Use <code>map()</code> operations for boolean, number, and regex transforms that work with individual nodes.
           </v-alert>
         </v-expansion-panel-text>
       </v-expansion-panel>
@@ -78,18 +81,10 @@ const props = defineProps({
     type: Object,
     default: () => ({
       beforeTransform: {
-        selectedTransforms: [],
-        transformOrder: [],
-        globalNodeNames: [],
-        globalSkipNodes: [],
-        transforms: {}
+        customTransformer: 'source => source'
       },
       afterTransform: {
-        selectedTransforms: [],
-        transformOrder: [],
-        globalNodeNames: [],
-        globalSkipNodes: [],
-        transforms: {}
+        customTransformer: 'xnode => xnode'
       }
     })
   }
@@ -97,59 +92,40 @@ const props = defineProps({
 
 const emit = defineEmits(['update']);
 
-// Get default transform config structure
-function getDefaultTransformConfig() {
+// Get default transform config structure for source context
+function getDefaultSourceTransformConfig() {
   return {
-    selectedTransforms: [],
-    transformOrder: [],
-    globalNodeNames: [],
-    globalSkipNodes: [],
-    transforms: {
-      toBoolean: {
-        trueValues: ['true', 'yes', '1', 'on'],
-        falseValues: ['false', 'no', '0', 'off'],
-        ignoreCase: true
-      },
-      toNumber: {
-        precision: undefined,
-        decimalSeparator: '.',
-        thousandsSeparator: ',',
-        integers: true,
-        decimals: true,
-        scientific: true
-      },
-      regex: {
-        pattern: '',
-        replacement: ''
-      },
-      custom: {
-        customTransformer: ''
-      }
-    }
+    customTransformer: 'source => source'
+  };
+}
+
+function getDefaultXNodeTransformConfig() {
+  return {
+    customTransformer: 'xnode => xnode'
   };
 }
 
 // Create a local reactive copy of the props
 const localOptions = reactive({
   beforeTransform: { 
-    ...getDefaultTransformConfig(),
+    ...getDefaultSourceTransformConfig(),
     ...(props.value.beforeTransform || {})
   },
   afterTransform: { 
-    ...getDefaultTransformConfig(),
+    ...getDefaultXNodeTransformConfig(),
     ...(props.value.afterTransform || {})
   }
 });
 
 // Update before transform hook
 const updateBeforeTransform = (options) => {
-  localOptions.beforeTransform = { ...getDefaultTransformConfig(), ...options };
+  localOptions.beforeTransform = { ...getDefaultSourceTransformConfig(), ...options };
   updateOptions();
 };
 
 // Update after transform hook
 const updateAfterTransform = (options) => {
-  localOptions.afterTransform = { ...getDefaultTransformConfig(), ...options };
+  localOptions.afterTransform = { ...getDefaultXNodeTransformConfig(), ...options };
   updateOptions();
 };
 
@@ -163,11 +139,11 @@ watch(() => props.value, (newValue) => {
   if (newValue) {
     Object.assign(localOptions, {
       beforeTransform: { 
-        ...getDefaultTransformConfig(),
+        ...getDefaultSourceTransformConfig(),
         ...(newValue.beforeTransform || {})
       },
       afterTransform: { 
-        ...getDefaultTransformConfig(),
+        ...getDefaultXNodeTransformConfig(),
         ...(newValue.afterTransform || {})
       }
     });

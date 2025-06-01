@@ -1,4 +1,4 @@
-// stores/pipelineStore.js - Refactored core state management and execution
+// stores/pipelineStore.js - Updated with custom pipeline hooks support
 import { defineStore } from 'pinia';
 import { availableOperations, getDefaultOptions } from './operationsConfig.js';
 import { 
@@ -51,11 +51,16 @@ export const usePipelineStore = defineStore('pipeline', {
     isProcessing: false,
     error: null,
     
-    // Pipeline-level hooks
+    // Pipeline-level hooks - UPDATED with custom hooks support
     enablePipelineHooks: false,
     pipelineHookOptions: {
+      // Built-in hook options
       logSteps: false,
-      logTiming: false
+      logTiming: false,
+      
+      // Custom hook functions
+      customBeforeStep: '',
+      customAfterStep: ''
     }
   }),
   
@@ -235,64 +240,91 @@ export const usePipelineStore = defineStore('pipeline', {
       }
     },
     
+    // UPDATED: Enhanced createPipelineHooks with custom hook composition
     createPipelineHooks() {
       let logger;
+      const options = this.pipelineHookOptions;
+      
+      // Parse custom hook functions
+      let customBeforeStepFn = null;
+      let customAfterStepFn = null;
+      
+      if (options.customBeforeStep && options.customBeforeStep.trim()) {
+        try {
+          customBeforeStepFn = createFunction(options.customBeforeStep);
+        } catch (err) {
+          console.warn('Error parsing custom beforeStep hook:', err);
+        }
+      }
+      
+      if (options.customAfterStep && options.customAfterStep.trim()) {
+        try {
+          customAfterStepFn = createFunction(options.customAfterStep);
+        } catch (err) {
+          console.warn('Error parsing custom afterStep hook:', err);
+        }
+      }
       
       // Compose hooks based on selected options
       const hooks = {};
       
-      if (this.pipelineHookOptions.logSteps && this.pipelineHookOptions.logTiming) {
-        // Both logging and timing enabled - compose them
+      // Create composed beforeStep hook
+      if (options.logSteps || options.logTiming || customBeforeStepFn) {
         hooks.beforeStep = async (stepName, input) => {
-          if (!logger) {
-            const { LoggerFactory } = await import("../../../dist/esm/index.js");
-            logger = LoggerFactory.create('Pipeline');
+          // Built-in timing hook
+          if (options.logTiming) {
+            console.time(`Step: ${stepName}`);
           }
-          console.time(`Step: ${stepName}`);
-          logger.info(`Starting step: ${stepName}`, {
-            inputType: Array.isArray(input) ? 'array' : typeof input
-          });
+          
+          // Built-in logging hook
+          if (options.logSteps) {
+            if (!logger) {
+              const { LoggerFactory } = await import("../../../dist/esm/index.js");
+              logger = LoggerFactory.create('Pipeline');
+            }
+            logger.info(`Starting step: ${stepName}`, {
+              inputType: Array.isArray(input) ? 'array' : typeof input
+            });
+          }
+          
+          // Custom beforeStep hook
+          if (customBeforeStepFn) {
+            try {
+              customBeforeStepFn(stepName, input);
+            } catch (err) {
+              console.warn(`Error in custom beforeStep hook for ${stepName}:`, err);
+            }
+          }
         };
-        
+      }
+      
+      // Create composed afterStep hook
+      if (options.logSteps || options.logTiming || customAfterStepFn) {
         hooks.afterStep = async (stepName, output) => {
-          if (!logger) {
-            const { LoggerFactory } = await import("../../../dist/esm/index.js");
-            logger = LoggerFactory.create('Pipeline');
+          // Built-in timing hook
+          if (options.logTiming) {
+            console.timeEnd(`Step: ${stepName}`);
           }
-          console.timeEnd(`Step: ${stepName}`);
-          logger.info(`Completed step: ${stepName}`, {
-            outputType: Array.isArray(output) ? 'array' : typeof output
-          });
-        };
-      } else if (this.pipelineHookOptions.logSteps) {
-        // Only step logging
-        hooks.beforeStep = async (stepName, input) => {
-          if (!logger) {
-            const { LoggerFactory } = await import("../../../dist/esm/index.js");
-            logger = LoggerFactory.create('Pipeline');
+          
+          // Built-in logging hook
+          if (options.logSteps) {
+            if (!logger) {
+              const { LoggerFactory } = await import("../../../dist/esm/index.js");
+              logger = LoggerFactory.create('Pipeline');
+            }
+            logger.info(`Completed step: ${stepName}`, {
+              outputType: Array.isArray(output) ? 'array' : typeof output
+            });
           }
-          logger.info(`Starting step: ${stepName}`, {
-            inputType: Array.isArray(input) ? 'array' : typeof input
-          });
-        };
-        
-        hooks.afterStep = async (stepName, output) => {
-          if (!logger) {
-            const { LoggerFactory } = await import("../../../dist/esm/index.js");
-            logger = LoggerFactory.create('Pipeline');
+          
+          // Custom afterStep hook
+          if (customAfterStepFn) {
+            try {
+              customAfterStepFn(stepName, output);
+            } catch (err) {
+              console.warn(`Error in custom afterStep hook for ${stepName}:`, err);
+            }
           }
-          logger.info(`Completed step: ${stepName}`, {
-            outputType: Array.isArray(output) ? 'array' : typeof output
-          });
-        };
-      } else if (this.pipelineHookOptions.logTiming) {
-        // Only timing
-        hooks.beforeStep = (stepName) => {
-          console.time(`Step: ${stepName}`);
-        };
-        
-        hooks.afterStep = (stepName) => {
-          console.timeEnd(`Step: ${stepName}`);
         };
       }
       

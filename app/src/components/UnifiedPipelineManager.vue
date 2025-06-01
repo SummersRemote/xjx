@@ -1,4 +1,4 @@
-<!-- components/UnifiedPipelineManager.vue - Fixed tooltip issues, added branch/merge support -->
+<!-- components/UnifiedPipelineManager.vue - Updated with custom pipeline hooks UI -->
 <template>
   <v-card>
     <!-- Pipeline Title and Actions -->
@@ -90,7 +90,7 @@
       </div>
     </v-card-title>
     
-    <!-- Pipeline Hooks Configuration -->
+    <!-- Pipeline Hooks Configuration - UPDATED with custom hooks -->
     <v-expand-transition>
       <v-card-text v-show="enablePipelineHooks" class="pt-0">
         <v-card variant="outlined" color="primary" class="mb-4">
@@ -99,6 +99,8 @@
             Pipeline Hooks Configuration
           </v-card-title>
           <v-card-text>
+            <!-- Built-in Hook Options -->
+            <div class="text-subtitle-2 mb-2">Built-in Hooks</div>
             <v-row dense>
               <v-col cols="12" sm="6">
                 <v-switch
@@ -119,14 +121,83 @@
                 ></v-switch>
               </v-col>
             </v-row>
-            <v-alert
-              type="info"
-              variant="text"
-              density="compact"
-              class="mt-2"
-            >
-              Pipeline hooks provide logging and timing across all operations.
-            </v-alert>
+            
+            <v-divider class="my-4"></v-divider>
+            
+            <!-- Custom Hook Functions -->
+            <div class="text-subtitle-2 mb-3">Custom Hook Functions</div>
+            <v-row dense>
+              <v-col cols="12" md="6">
+                <v-textarea
+                  v-model="pipelineHookOptions.customBeforeStep"
+                  label="Custom Before Step Hook"
+                  hint="Function called before each pipeline step: (stepName, input) => { ... }"
+                  persistent-hint
+                  auto-grow
+                  rows="4"
+                  density="compact"
+                  variant="outlined"
+                  class="font-mono"
+                  @update:model-value="updatePipelineHooks"
+                  placeholder="(stepName, input) => {
+  console.log('Before:', stepName);
+}"
+                ></v-textarea>
+              </v-col>
+              <v-col cols="12" md="6">
+                <v-textarea
+                  v-model="pipelineHookOptions.customAfterStep"
+                  label="Custom After Step Hook"
+                  hint="Function called after each pipeline step: (stepName, output) => { ... }"
+                  persistent-hint
+                  auto-grow
+                  rows="4"
+                  density="compact"
+                  variant="outlined"
+                  class="font-mono"
+                  @update:model-value="updatePipelineHooks"
+                  placeholder="(stepName, output) => {
+  console.log('After:', stepName);
+}"
+                ></v-textarea>
+              </v-col>
+            </v-row>
+            
+            <!-- Help and Info -->
+            <v-expansion-panels variant="accordion" class="mt-4">
+              <v-expansion-panel>
+                <v-expansion-panel-title class="text-caption">
+                  <v-icon icon="mdi-help-circle" size="small" class="me-2"></v-icon>
+                  Pipeline Hooks Help
+                </v-expansion-panel-title>
+                <v-expansion-panel-text>
+                  <v-alert type="info" variant="text" density="compact">
+                    <strong>Hook Composition:</strong><br>
+                    Custom hooks compose with built-in hooks. All enabled hooks run in this order:<br>
+                    1. Built-in timing hooks (if enabled)<br>
+                    2. Built-in logging hooks (if enabled)<br>
+                    3. Custom hooks (if provided)<br>
+                    <br>
+                    <strong>Function Signatures:</strong><br>
+                    - <code>beforeStep: (stepName: string, input: any) => void</code><br>
+                    - <code>afterStep: (stepName: string, output: any) => void</code><br>
+                    <br>
+                    <strong>Custom Hook Examples:</strong><br>
+                    <em>Data Validation:</em><br>
+                    <code>(stepName, input) => { if (!input) throw new Error('Invalid input'); }</code><br>
+                    <br>
+                    <em>Performance Monitoring:</em><br>
+                    <code>(stepName, output) => { performance.mark(`${stepName}-end`); }</code><br>
+                    <br>
+                    <em>Debug Inspection:</em><br>
+                    <code>(stepName, output) => { if (stepName === 'map') console.log('Mapped:', output); }</code><br>
+                    <br>
+                    <strong>Error Handling:</strong><br>
+                    Errors in custom hooks are caught and logged as warnings, but won't stop pipeline execution.
+                  </v-alert>
+                </v-expansion-panel-text>
+              </v-expansion-panel>
+            </v-expansion-panels>
           </v-card-text>
         </v-card>
       </v-card-text>
@@ -608,5 +679,9 @@ const executePipeline = async () => {
 
 :deep(.v-list-item.text-error .v-list-item__prepend) {
   color: rgb(var(--v-theme-error));
+}
+
+.font-mono {
+  font-family: 'Courier New', Courier, monospace;
 }
 </style>

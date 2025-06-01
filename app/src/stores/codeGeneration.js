@@ -1,4 +1,4 @@
-// stores/codeGeneration.js - Fluent API code generation logic
+// stores/codeGeneration.js - Updated with custom pipeline hooks support
 
 import { hasValidTransform } from './transformHelpers.js';
 
@@ -38,32 +38,102 @@ export function generateFluentAPI(state) {
 }
 
 /**
- * Generate pipeline hooks code
+ * Generate pipeline hooks code - UPDATED with custom hooks support
  */
 function generatePipelineHooksCode(state) {
-  const hooks = [];
+  const options = state.pipelineHookOptions;
+  const beforeStepParts = [];
+  const afterStepParts = [];
+  let needsLogger = false;
   
-  if (state.pipelineHookOptions.logSteps && state.pipelineHookOptions.logTiming) {
-    hooks.push(`  beforeStep: (stepName, input) => { console.time(\`Step: \${stepName}\`); logger.info(\`Starting: \${stepName}\`); }`);
-    hooks.push(`  afterStep: (stepName, output) => { console.timeEnd(\`Step: \${stepName}\`); logger.info(\`Completed: \${stepName}\`); }`);
-  } else if (state.pipelineHookOptions.logSteps) {
-    hooks.push(`  beforeStep: (stepName, input) => logger.info(\`Starting: \${stepName}\`)`);
-    hooks.push(`  afterStep: (stepName, output) => logger.info(\`Completed: \${stepName}\`)`);
-  } else if (state.pipelineHookOptions.logTiming) {
-    hooks.push(`  beforeStep: (stepName) => console.time(\`Step: \${stepName}\`)`);
-    hooks.push(`  afterStep: (stepName) => console.timeEnd(\`Step: \${stepName}\`)`);
+  // Built-in timing hooks
+  if (options.logTiming) {
+    beforeStepParts.push('console.time(`Step: ${stepName}`);');
+    afterStepParts.push('console.timeEnd(`Step: ${stepName}`);');
   }
   
+  // Built-in logging hooks
+  if (options.logSteps) {
+    needsLogger = true;
+    beforeStepParts.push('logger.info(`Starting: ${stepName}`, { inputType: Array.isArray(input) ? \'array\' : typeof input });');
+    afterStepParts.push('logger.info(`Completed: ${stepName}`, { outputType: Array.isArray(output) ? \'array\' : typeof output });');
+  }
+  
+  // Custom hooks
+  if (options.customBeforeStep && options.customBeforeStep.trim()) {
+    const customCode = formatCustomHookCode(options.customBeforeStep);
+    beforeStepParts.push(`try {
+    const customBeforeStep = ${customCode};
+    customBeforeStep(stepName, input);
+  } catch (err) {
+    console.warn(\`Error in custom beforeStep hook for \${stepName}:\`, err);
+  }`);
+  }
+  
+  if (options.customAfterStep && options.customAfterStep.trim()) {
+    const customCode = formatCustomHookCode(options.customAfterStep);
+    afterStepParts.push(`try {
+    const customAfterStep = ${customCode};
+    customAfterStep(stepName, output);
+  } catch (err) {
+    console.warn(\`Error in custom afterStep hook for \${stepName}:\`, err);
+  }`);
+  }
+  
+  // Generate the complete hooks code
   let code = '';
-  if (hooks.length > 0) {
-    if (state.pipelineHookOptions.logSteps) {
-      code += `const { LoggerFactory } = require('xjx');\n`;
-      code += `const logger = LoggerFactory.create('Pipeline');\n`;
+  
+  // Add logger import if needed
+  if (needsLogger) {
+    code += `const { LoggerFactory } = require('xjx');\n`;
+    code += `const logger = LoggerFactory.create('Pipeline');\n\n`;
+  }
+  
+  // Generate hooks object
+  if (beforeStepParts.length > 0 || afterStepParts.length > 0) {
+    code += `const pipelineHooks = {\n`;
+    
+    if (beforeStepParts.length > 0) {
+      code += `  beforeStep: (stepName, input) => {\n`;
+      beforeStepParts.forEach(part => {
+        code += `    ${part.split('\n').join('\n    ')}\n`;
+      });
+      code += `  }`;
+      
+      if (afterStepParts.length > 0) {
+        code += ',\n';
+      } else {
+        code += '\n';
+      }
     }
-    code += `const pipelineHooks = {\n${hooks.join(',\n')}\n};\n`;
+    
+    if (afterStepParts.length > 0) {
+      code += `  afterStep: (stepName, output) => {\n`;
+      afterStepParts.forEach(part => {
+        code += `    ${part.split('\n').join('\n    ')}\n`;
+      });
+      code += `  }\n`;
+    }
+    
+    code += `};\n`;
   }
   
   return code;
+}
+
+/**
+ * Format custom hook code for generation
+ */
+function formatCustomHookCode(customCode) {
+  const trimmed = customCode.trim();
+  
+  // If it's already a function expression or arrow function, use as-is
+  if (trimmed.startsWith('function') || trimmed.includes('=>') || trimmed.startsWith('(')) {
+    return trimmed;
+  }
+  
+  // Otherwise, wrap it in an arrow function
+  return `(stepName, input) => {\n  ${trimmed.split('\n').join('\n  ')}\n}`;
 }
 
 /**

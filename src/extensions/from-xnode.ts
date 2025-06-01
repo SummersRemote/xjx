@@ -1,16 +1,18 @@
 /**
- * Extension implementation for XNode input methods - Updated for new hook system
+ * Extension implementation for XNode input methods - Simplified with unified pipeline
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
 
 import { XJX } from "../XJX";
-import { XNode, createElement, addChild, cloneNode } from "../core/xnode";
+import { XNode, createElement, addChild } from "../core/xnode";
 import { NonTerminalExtensionContext } from "../core/extension";
-import { validateInput, SourceHooks } from "../core/hooks";
+import { SourceHooks } from "../core/hooks";
+import { ClonePolicies } from "../core/context";
 
 /**
- * Implementation for setting XNode source with new hook system
+ * Implementation for setting XNode source with unified pipeline context
+ * Note: XNode doesn't need a converter since it's already the target format
  */
 export function fromXnode(
   this: NonTerminalExtensionContext, 
@@ -18,8 +20,8 @@ export function fromXnode(
   hooks?: SourceHooks<XNode | XNode[]>
 ): void {
   try {
-    // API boundary validation
-    validateInput(input !== null && input !== undefined, "XNode input cannot be null or undefined");
+    // API boundary validation using pipeline context
+    this.pipeline.validateInput(input !== null && input !== undefined, "XNode input cannot be null or undefined");
     
     let processedInput = input;
     
@@ -39,7 +41,7 @@ export function fromXnode(
     let resultXNode: XNode;
     
     if (Array.isArray(processedInput)) {
-      validateInput(processedInput.length > 0, "XNode array cannot be empty");
+      this.pipeline.validateInput(processedInput.length > 0, "XNode array cannot be empty");
       
       logger.debug('Setting XNode array source for transformation', {
         nodeCount: processedInput.length,
@@ -51,13 +53,13 @@ export function fromXnode(
       
       // Add each input node as a child (clone to avoid mutation)
       processedInput.forEach((node, index) => {
-        validateInput(
+        this.pipeline.validateInput(
           node && typeof node === 'object' && typeof node.name === 'string', 
           `XNode at index ${index} must be a valid XNode object`
         );
         
-        // Clone the node to avoid mutating the original input
-        const clonedNode = cloneNode(node, true);
+        // Clone the node using standardized pipeline cloning
+        const clonedNode = this.pipeline.cloneNode(node, ClonePolicies.BRANCH);
         addChild(resultXNode, clonedNode);
       });
       
@@ -67,7 +69,7 @@ export function fromXnode(
       });
     } else {
       // Single XNode case
-      validateInput(
+      this.pipeline.validateInput(
         processedInput && typeof processedInput === 'object' && typeof processedInput.name === 'string',
         "XNode input must be a valid XNode object"
       );
@@ -78,8 +80,8 @@ export function fromXnode(
         hasSourceHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
       });
       
-      // Clone the node to avoid mutating the original input
-      resultXNode = cloneNode(processedInput, true);
+      // Clone the node using standardized pipeline cloning
+      resultXNode = this.pipeline.cloneNode(processedInput, ClonePolicies.BRANCH);
       
       logger.debug('Successfully processed single XNode source', {
         rootNodeName: resultXNode.name,

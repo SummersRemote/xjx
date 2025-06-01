@@ -1,77 +1,89 @@
 /**
- * XJX - Main class with fluent API, Pipeline Hooks, and Branch Context
+ * XJX - Main class with unified pipeline context and standardized operations
  */
 import { LoggerFactory } from "./core/logger";
 const logger = LoggerFactory.create();
 
 import { Configuration, createConfig } from "./core/config";
-import { Transform } from "./core/functional";
 import { XNode, cloneNode } from "./core/xnode";
 import { validate, ValidationError } from "./core/error";
-import { Extension, TerminalExtensionContext, NonTerminalExtensionContext, BranchContext } from "./core/extension";
-import { PipelineHooks } from "./core/hooks";
+import { UnifiedExtensionContext, TerminalExtensionContext, NonTerminalExtensionContext, BranchContext } from "./core/extension";
+import { PipelineHooks, SourceHooks, OutputHooks, NodeHooks } from "./core/hooks";
+import { PipelineContext, PipelineContextImpl } from "./core/context";
+import { UnifiedConverter, PipelineStage, Pipeline } from "./core/pipeline";
 
 /**
- * Main XJX class - provides the fluent API for XML/JSON transformation with pipeline hooks and branch context
+ * Main XJX class - provides the fluent API for XML/JSON transformation with unified pipeline architecture
  */
-export class XJX implements TerminalExtensionContext, NonTerminalExtensionContext {
+export class XJX implements UnifiedExtensionContext {
   // Instance properties
   public xnode: XNode | null = null;
-  public transforms: Transform[] = [];
-  public config: Configuration;
-  public pipelineHooks?: PipelineHooks;
   public branchContext: BranchContext | null = null;
+  public pipeline: PipelineContext;
+  
+  // REMOVED: public transforms: Transform[] = []; // DELETED - no longer needed
   
   /**
-   * Create a new XJX instance
+   * Create a new XJX instance with unified pipeline context
    * @param config Optional configuration
    * @param pipelineHooks Optional pipeline-level hooks for cross-cutting concerns
    */
   constructor(config?: Partial<Configuration>, pipelineHooks?: PipelineHooks) {
-    this.config = createConfig(config);
-    this.pipelineHooks = pipelineHooks;
+    this.pipeline = new PipelineContextImpl(
+      createConfig(config),
+      pipelineHooks
+    );
     
-    logger.debug('Created new XJX instance with configuration', {
-      preserveNamespaces: this.config.preserveNamespaces,
-      preserveComments: this.config.preserveComments,
-      preserveTextNodes: this.config.preserveTextNodes,
-      highFidelity: this.config.strategies.highFidelity,
+    logger.debug('Created new XJX instance with unified pipeline context', {
+      preserveNamespaces: this.pipeline.config.get().preserveNamespaces,
+      preserveComments: this.pipeline.config.get().preserveComments,
+      preserveTextNodes: this.pipeline.config.get().preserveTextNodes,
+      highFidelity: this.pipeline.config.get().strategies.highFidelity,
       hasPipelineHooks: !!pipelineHooks
     });
   }
   
+  // --- Standardized Pipeline Operations ---
+  
   /**
-   * Execute pipeline hook before a step
-   * @param stepName Name of the step being executed
-   * @param input Input to the step
-   * @returns Potentially modified input
+   * Execute a source operation (input -> XNode) using unified pipeline
+   * @param converter Unified converter to execute
+   * @param input Input data
+   * @param hooks Optional source hooks
    */
-  public executeBeforeStepHook(stepName: string, input: any): any {
-    if (this.pipelineHooks?.beforeStep) {
-      try {
-        this.pipelineHooks.beforeStep(stepName, input);
-      } catch (err) {
-        logger.warn(`Error in pipeline beforeStep hook for ${stepName}:`, err);
-      }
-    }
-    return input;
+  public executeSource<T>(
+    converter: UnifiedConverter<T, XNode>, 
+    input: T, 
+    hooks?: SourceHooks<T>
+  ): void {
+    this.xnode = Pipeline.executeSource(converter, input, this.pipeline, hooks);
   }
   
   /**
-   * Execute pipeline hook after a step
-   * @param stepName Name of the step that was executed
-   * @param output Output from the step
-   * @returns Potentially modified output
+   * Execute an output operation (XNode -> output) using unified pipeline
+   * @param converter Unified converter to execute
+   * @param hooks Optional output hooks
+   * @returns Converted output
    */
-  public executeAfterStepHook(stepName: string, output: any): any {
-    if (this.pipelineHooks?.afterStep) {
-      try {
-        this.pipelineHooks.afterStep(stepName, output);
-      } catch (err) {
-        logger.warn(`Error in pipeline afterStep hook for ${stepName}:`, err);
-      }
-    }
-    return output;
+  public executeOutput<T>(
+    converter: UnifiedConverter<XNode, T>, 
+    hooks?: OutputHooks<T>
+  ): T {
+    this.validateSource();
+    return Pipeline.executeOutput(converter, this.xnode as XNode, this.pipeline, hooks);
+  }
+  
+  /**
+   * Execute a transform operation (XNode -> XNode) using unified pipeline
+   * @param operation Pipeline stage to execute
+   * @param hooks Optional node hooks
+   */
+  public executeTransform(
+    operation: PipelineStage<XNode, XNode>, 
+    hooks?: NodeHooks
+  ): void {
+    this.validateSource();
+    this.xnode = Pipeline.executeTransform(operation, this.xnode as XNode, this.pipeline, hooks);
   }
   
   /**
@@ -90,16 +102,14 @@ export class XJX implements TerminalExtensionContext, NonTerminalExtensionContex
       // Add method to XJX prototype
       (XJX.prototype as any)[name] = function(...args: any[]): any {
         // Execute pipeline beforeStep hook
-        this.executeBeforeStepHook(name, this.xnode || args[0]);
+        this.pipeline.executeHooks(this.pipeline.hooks, name, this.xnode || args[0]);
         
-        // Validate source first for terminal extensions
-        this.validateSource();
-        
+        // Validate source first for terminal extensions (built into executeOutput)
         // Call the implementation method with this context
         const result = method.apply(this, args);
         
         // Execute pipeline afterStep hook
-        this.executeAfterStepHook(name, result);
+        this.pipeline.executeHooks(this.pipeline.hooks, name, result);
         
         return result;
       };
@@ -127,13 +137,13 @@ export class XJX implements TerminalExtensionContext, NonTerminalExtensionContex
       // Add method to XJX prototype that returns this
       (XJX.prototype as any)[name] = function(...args: any[]): XJX {
         // Execute pipeline beforeStep hook
-        this.executeBeforeStepHook(name, args[0] || this.xnode);
+        this.pipeline.executeHooks(this.pipeline.hooks, name, args[0] || this.xnode);
         
         // Call the implementation method with this context
         method.apply(this, args);
         
         // Execute pipeline afterStep hook
-        this.executeAfterStepHook(name, this.xnode);
+        this.pipeline.executeHooks(this.pipeline.hooks, name, this.xnode);
         
         // Return this for chaining
         return this;
@@ -159,17 +169,20 @@ export class XJX implements TerminalExtensionContext, NonTerminalExtensionContex
   }
   
   /**
-   * Clone an XNode
+   * Clone an XNode using standardized pipeline cloning
    * @param node Node to clone
    * @param deep Whether to clone deeply
    * @returns Cloned node
    */
   public cloneNode(node: XNode, deep: boolean = false): XNode {
-    return cloneNode(node, deep);
+    return this.pipeline.cloneNode(node, { 
+      strategy: deep ? 'deep' : 'shallow', 
+      preserveParent: false 
+    });
   }
   
   /**
-   * Deep clone a value
+   * Deep clone a value (legacy utility - kept for compatibility)
    */
   public deepClone<T>(obj: T): T {
     if (obj === undefined || obj === null) {
@@ -179,7 +192,7 @@ export class XJX implements TerminalExtensionContext, NonTerminalExtensionContex
   }
   
   /**
-   * Deep merge two objects
+   * Deep merge two objects (legacy utility - kept for compatibility)
    */
   public deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
     if (!source || typeof source !== 'object' || source === null) {

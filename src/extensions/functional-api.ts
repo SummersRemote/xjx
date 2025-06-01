@@ -1,63 +1,103 @@
 /**
- * Core functional API implementation
- *
+ * Core functional API implementation - Updated for unified pipeline execution
+ * CRITICAL: All legacy transform handling REMOVED
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
 
 import { XJX } from "../XJX";
-import { XNode, addChild, cloneNode } from "../core/xnode";
+import { XNode, addChild } from "../core/xnode";
 import {
   NonTerminalExtensionContext,
   TerminalExtensionContext,
   BranchContext,
 } from "../core/extension";
-import { validateInput, NodeHooks } from "../core/hooks";
+import { NodeHooks } from "../core/hooks";
 import {
   Transform,
   createResultsContainer,
-  filterNodeHierarchy,
-  reduceNodeTree,
-  collectNodes,
   collectNodesWithPaths,
   replaceNodeAtPath,
   removeNodeAtPath,
+  getNodeAtPath,
+  traverseTree,
+  TreeVisitor,
+  TraversalContext
 } from "../core/functional";
-import { transformXNodeWithHooks } from "../converters/xnode-transformer";
+import { ClonePolicies } from "../core/context";
+import { PipelineStage } from "../core/pipeline";
 
 /**
  * Return a new document with only nodes that match the predicate
- * (no hooks - predicates are simple)
+ * NEW: Uses unified pipeline execution
  */
 export function filter(
   this: NonTerminalExtensionContext,
-  predicate: (node: XNode) => boolean
+  predicate: (node: XNode) => boolean,
+  hooks?: NodeHooks
 ): void {
   try {
-    validateInput(
+    this.pipeline.validateInput(
       typeof predicate === "function",
       "Predicate must be a function"
     );
     this.validateSource();
 
-    logger.debug("Filtering document nodes hierarchically");
+    logger.debug("Filtering document nodes using unified pipeline");
 
-    const rootNode = this.xnode as XNode;
-    const filteredRoot = filterNodeHierarchy(rootNode, predicate);
+    // Create pipeline stage for filter operation
+    const filterStage: PipelineStage<XNode, XNode> = {
+      name: 'filter',
+      
+      execute: (node, context) => {
+        const visitor: TreeVisitor<XNode | null> = {
+          visit: (node, ctx) => {
+            try {
+              return predicate(node) ? context.cloneNode(node, ClonePolicies.TRANSFORM) : null;
+            } catch (err) {
+              logger.warn(`Error in predicate for node '${node.name}':`, err);
+              return null;
+            }
+          },
+          
+          combineResults: (parent, children) => {
+            const validChildren = children.filter(child => child !== null) as XNode[];
+            
+            if (parent && (validChildren.length > 0 || predicate(parent))) {
+              const result = context.cloneNode(parent, { strategy: 'shallow', preserveParent: false });
+              
+              if (validChildren.length > 0) {
+                result.children = validChildren;
+                validChildren.forEach(child => child.parent = result);
+              }
+              
+              return result;
+            }
+            
+            return null;
+          }
+        };
+        
+        const result = traverseTree(node, visitor, {
+          order: 'post',
+          hooks,
+          context
+        });
+        
+        return result || createResultsContainer(
+          typeof context.config.get().fragmentRoot === "string"
+            ? context.config.get().fragmentRoot
+            : "results"
+        );
+      }
+    };
 
-    if (filteredRoot) {
-      this.xnode = filteredRoot;
-      logger.debug("Successfully filtered document", {
-        rootName: filteredRoot.name,
-      });
-    } else {
-      this.xnode = createResultsContainer(
-        typeof this.config.fragmentRoot === "string"
-          ? this.config.fragmentRoot
-          : "results"
-      );
-      logger.debug("No nodes matched the filter predicate");
-    }
+    // Execute using unified pipeline
+    this.executeTransform(filterStage, hooks);
+
+    logger.debug("Successfully filtered document using pipeline", {
+      rootName: this.xnode?.name,
+    });
   } catch (err) {
     if (err instanceof Error) {
       throw err;
@@ -68,7 +108,7 @@ export function filter(
 
 /**
  * Apply a transformation to every node in the document
- * NEW: transform is primary parameter, hooks are optional
+ * NEW: Uses unified pipeline execution, transform is primary parameter
  */
 export function map(
   this: NonTerminalExtensionContext,
@@ -76,42 +116,58 @@ export function map(
   hooks?: NodeHooks
 ): void {
   try {
-    validateInput(
+    this.pipeline.validateInput(
       typeof transform === "function",
       "Transform must be a function"
     );
     this.validateSource();
 
-    logger.debug("Mapping document nodes", {
+    logger.debug("Mapping document nodes using unified pipeline", {
       hasNodeHooks: !!(
         hooks &&
         (hooks.beforeTransform || hooks.afterTransform)
       ),
     });
 
-    const rootNode = this.xnode as XNode;
+    // Create pipeline stage for map operation
+    const mapStage: PipelineStage<XNode, XNode> = {
+      name: 'map',
+      
+      execute: (node, context) => {
+        const visitor: TreeVisitor<XNode> = {
+          visit: (node, ctx) => {
+            try {
+              return transform(node);
+            } catch (err) {
+              logger.warn(`Error in transform for node '${node.name}':`, err);
+              return node; // Return original on error
+            }
+          },
+          
+          combineResults: (parent, children) => {
+            const result = { ...parent };
+            if (children.length > 0) {
+              result.children = children;
+              children.forEach(child => child.parent = result);
+            }
+            return result;
+          }
+        };
+        
+        return traverseTree(node, visitor, {
+          order: 'both',
+          hooks,
+          context
+        });
+      }
+    };
 
-    // Use the integrated transformer with the new hook system
-    const mappedRoot = transformXNodeWithHooks(
-      rootNode,
-      transform,
-      hooks,
-      this.config
-    );
+    // Execute using unified pipeline
+    this.executeTransform(mapStage, hooks);
 
-    if (mappedRoot) {
-      this.xnode = mappedRoot;
-      logger.debug("Successfully transformed document", {
-        rootName: mappedRoot.name,
-      });
-    } else {
-      this.xnode = createResultsContainer(
-        typeof this.config.fragmentRoot === "string"
-          ? this.config.fragmentRoot
-          : "results"
-      );
-      logger.debug("Transform removed all nodes from the document");
-    }
+    logger.debug("Successfully transformed document using pipeline", {
+      rootName: this.xnode?.name,
+    });
   } catch (err) {
     if (err instanceof Error) {
       throw err;
@@ -122,7 +178,7 @@ export function map(
 
 /**
  * Accumulate a value by processing every node in the document
- * (no hooks - keep simple)
+ * NEW: Uses unified traversal system
  */
 export function reduce<T>(
   this: TerminalExtensionContext,
@@ -130,17 +186,31 @@ export function reduce<T>(
   reducer: (accumulator: T, node: XNode) => T
 ): T {
   try {
-    validateInput(typeof reducer === "function", "Reducer must be a function");
+    this.pipeline.validateInput(typeof reducer === "function", "Reducer must be a function");
     this.validateSource();
 
-    logger.debug("Reducing document nodes");
+    logger.debug("Reducing document nodes using unified traversal");
 
     const rootNode = this.xnode as XNode;
-    const result = reduceNodeTree(rootNode, reducer, initialValue);
+    let accumulator = initialValue;
+
+    const visitor: TreeVisitor<void> = {
+      visit: (node, ctx) => {
+        try {
+          accumulator = reducer(accumulator, node);
+        } catch (err) {
+          logger.warn(`Error in reducer for node '${node.name}':`, err);
+        }
+      }
+    };
+
+    traverseTree(rootNode, visitor, {
+      order: 'pre',
+      context: this.pipeline
+    });
 
     logger.debug("Successfully reduced document");
-
-    return result;
+    return accumulator;
   } catch (err) {
     if (err instanceof Error) {
       throw err;
@@ -151,27 +221,45 @@ export function reduce<T>(
 
 /**
  * Collect nodes that match a predicate without maintaining hierarchy
- * (no hooks - predicates are simple)
+ * NEW: Uses unified traversal system
  */
 export function select(
   this: NonTerminalExtensionContext,
   predicate: (node: XNode) => boolean
 ): void {
   try {
-    validateInput(
+    this.pipeline.validateInput(
       typeof predicate === "function",
       "Predicate must be a function"
     );
     this.validateSource();
 
-    logger.debug("Selecting document nodes");
+    logger.debug("Selecting document nodes using unified traversal");
 
     const rootNode = this.xnode as XNode;
-    const selectedNodes = collectNodes(rootNode, predicate);
+    const selectedNodes: XNode[] = [];
+
+    const visitor: TreeVisitor<void> = {
+      visit: (node, ctx) => {
+        try {
+          if (predicate(node)) {
+            const clonedNode = this.pipeline.cloneNode(node, ClonePolicies.TRANSFORM);
+            selectedNodes.push(clonedNode);
+          }
+        } catch (err) {
+          logger.warn(`Error in predicate for node '${node.name}':`, err);
+        }
+      }
+    };
+
+    traverseTree(rootNode, visitor, {
+      order: 'pre',
+      context: this.pipeline
+    });
 
     const resultsContainer = createResultsContainer(
-      typeof this.config.fragmentRoot === "string"
-        ? this.config.fragmentRoot
+      typeof this.pipeline.config.get().fragmentRoot === "string"
+        ? this.pipeline.config.get().fragmentRoot
         : "results"
     );
 
@@ -181,7 +269,7 @@ export function select(
 
     this.xnode = resultsContainer;
 
-    logger.debug("Successfully selected nodes", {
+    logger.debug("Successfully selected nodes using unified traversal", {
       count: selectedNodes.length,
     });
   } catch (err) {
@@ -194,24 +282,25 @@ export function select(
 
 /**
  * Create an isolated scope containing nodes matching the predicate
+ * NEW: Uses unified traversal and standardized cloning
  */
 export function branch(
   this: NonTerminalExtensionContext,
   predicate: (node: XNode) => boolean
 ): void {
   try {
-    validateInput(
+    this.pipeline.validateInput(
       typeof predicate === "function",
       "Predicate must be a function"
     );
     this.validateSource();
 
-    logger.debug("Creating branch scope");
+    logger.debug("Creating branch scope using unified traversal");
 
     const rootNode = this.xnode as XNode;
 
     // Collect all nodes that match the predicate with their paths
-    const branchInfo = collectNodesWithPaths(rootNode, predicate);
+    const branchInfo = collectNodesWithPaths(rootNode, predicate, this.pipeline);
 
     if (branchInfo.nodes.length === 0) {
       // No nodes matched - create empty branch
@@ -223,35 +312,37 @@ export function branch(
       };
 
       this.xnode = createResultsContainer(
-        typeof this.config.fragmentRoot === "string"
-          ? this.config.fragmentRoot
+        typeof this.pipeline.config.get().fragmentRoot === "string"
+          ? this.pipeline.config.get().fragmentRoot
           : "results"
       );
     } else {
-      // Store branch context
+      // Store branch context using standardized cloning
       this.branchContext = {
         parentNodes: [rootNode],
         originalIndices: branchInfo.indices,
-        branchedNodes: branchInfo.nodes.map((node) => cloneNode(node, true)),
+        branchedNodes: branchInfo.nodes.map((node) => 
+          this.pipeline.cloneNode(node, ClonePolicies.BRANCH)
+        ),
         nodePaths: branchInfo.paths,
       };
 
       // Create results container with branched nodes
       const resultsContainer = createResultsContainer(
-        typeof this.config.fragmentRoot === "string"
-          ? this.config.fragmentRoot
+        typeof this.pipeline.config.get().fragmentRoot === "string"
+          ? this.pipeline.config.get().fragmentRoot
           : "results"
       );
 
       for (const node of branchInfo.nodes) {
-        const clonedNode = cloneNode(node, true);
+        const clonedNode = this.pipeline.cloneNode(node, ClonePolicies.BRANCH);
         addChild(resultsContainer, clonedNode);
       }
 
       this.xnode = resultsContainer;
     }
 
-    logger.debug("Successfully created branch", {
+    logger.debug("Successfully created branch using unified traversal", {
       branchedNodeCount: branchInfo.nodes?.length || 0,
     });
   } catch (err) {
@@ -264,6 +355,7 @@ export function branch(
 
 /**
  * Merge the current branch back into the parent scope
+ * NEW: Uses standardized cloning
  */
 export function merge(this: NonTerminalExtensionContext): void {
   try {
@@ -273,7 +365,7 @@ export function merge(this: NonTerminalExtensionContext): void {
       return;
     }
 
-    logger.debug("Merging branch back to parent scope");
+    logger.debug("Merging branch back to parent scope using standardized cloning");
 
     const { parentNodes, nodePaths } = this.branchContext;
     const parentNode = parentNodes[0];
@@ -281,8 +373,8 @@ export function merge(this: NonTerminalExtensionContext): void {
     // Get current branch nodes (excluding the container)
     const currentBranchNodes = this.xnode?.children || [];
 
-    // Create a deep clone of the parent to avoid mutation
-    const mergedParent = cloneNode(parentNode, true);
+    // Create a deep clone of the parent using standardized pipeline cloning
+    const mergedParent = this.pipeline.cloneNode(parentNode, ClonePolicies.BRANCH);
 
     // Replace each original node with its corresponding replacement
     // Process from deepest paths first to avoid index shifting issues
@@ -310,7 +402,7 @@ export function merge(this: NonTerminalExtensionContext): void {
     this.branchContext = null;
     this.xnode = mergedParent;
 
-    logger.debug("Successfully merged branch", {
+    logger.debug("Successfully merged branch using standardized operations", {
       replacementNodeCount: currentBranchNodes.length,
       originalNodeCount: nodePaths.length,
     });

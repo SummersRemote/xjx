@@ -1,31 +1,32 @@
 /**
- * Extension implementation for XML output methods - Updated for unified pipeline
+ * Extension implementation for XML output methods - Simplified with unified pipeline
+ * CRITICAL: All legacy transform handling REMOVED
  */
+import { LoggerFactory } from "../core/logger";
+const logger = LoggerFactory.create();
+
 import { XJX } from "../XJX";
 import { 
   xnodeToXmlConverter,
   xnodeToXmlStringConverter 
 } from "../converters/xnode-to-xml-converter";
-import { Pipeline } from "../core/pipeline";  // Import pipeline execution
-import { XNode } from "../core/xnode";
 import { OutputHooks } from "../core/hooks";
 import { TerminalExtensionContext } from "../core/extension";
 
 /**
- * Implementation for converting to XML DOM with unified pipeline
+ * Implementation for converting to XML DOM with unified pipeline execution
+ * NO LEGACY TRANSFORMS - All complexity moved to pipeline
  */
 export function toXml(this: TerminalExtensionContext, hooks?: OutputHooks<Document>): Document {
   try {
-    // Source validation is handled by the registration mechanism
-    this.validateSource();
-    
     logger.debug('Starting XML DOM conversion', {
       hasOutputHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
     });
     
-    // OLD: Complex legacy transform application + convertXNodeToXmlWithHooks
-    // NEW: Simple pipeline execution - no legacy transforms needed
-    const result = Pipeline.executeOutput(xnodeToXmlConverter, this.xnode as XNode, this.pipeline, hooks);
+    // NEW: Simple pipeline execution - all source validation, hook execution,
+    // performance tracking, resource management, and logging handled by pipeline
+    // NO LEGACY TRANSFORM APPLICATION
+    const result = this.executeOutput(xnodeToXmlConverter, hooks);
     
     logger.debug('Successfully converted XNode to DOM', {
       documentElement: result.documentElement?.nodeName
@@ -41,20 +42,19 @@ export function toXml(this: TerminalExtensionContext, hooks?: OutputHooks<Docume
 }
 
 /**
- * Implementation for converting to XML string with unified pipeline
+ * Implementation for converting to XML string with unified pipeline execution
+ * NO LEGACY TRANSFORMS - All complexity moved to pipeline
  */
 export function toXmlString(this: TerminalExtensionContext, hooks?: OutputHooks<string>): string {
   try {
-    // Source validation is handled by the registration mechanism
-    this.validateSource();
-    
     logger.debug('Starting XML string conversion', {
       hasOutputHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
     });
     
-    // OLD: Complex legacy transform application + convertXNodeToXmlStringWithHooks  
-    // NEW: Simple pipeline execution - no legacy transforms needed
-    const result = Pipeline.executeOutput(xnodeToXmlStringConverter, this.xnode as XNode, this.pipeline, hooks);
+    // NEW: Simple pipeline execution - all source validation, hook execution,
+    // performance tracking, resource management, and logging handled by pipeline
+    // NO LEGACY TRANSFORM APPLICATION
+    const result = this.executeOutput(xnodeToXmlStringConverter, hooks);
     
     logger.debug('Successfully converted to XML string', {
       xmlLength: result.length
@@ -68,6 +68,7 @@ export function toXmlString(this: TerminalExtensionContext, hooks?: OutputHooks<
     throw new Error(`Failed to convert to XML string: ${String(err)}`);
   }
 }
+
 // Register the extensions with XJX
 XJX.registerTerminalExtension("toXml", toXml);
 XJX.registerTerminalExtension("toXmlString", toXmlString);

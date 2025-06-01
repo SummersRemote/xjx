@@ -1,5 +1,6 @@
 /**
  * Unified tree traversal system - Single algorithm for all tree operations
+ * STAGE 5: All legacy traversal functions REMOVED
  */
 import { LoggerFactory } from "./logger";
 const logger = LoggerFactory.create();
@@ -50,7 +51,7 @@ export interface TraversalOptions {
 }
 
 /**
- * Unified tree traversal function - replaces all legacy traversal functions
+ * Unified tree traversal function - THE ONLY tree walking algorithm
  * 
  * This single function handles all tree walking needs:
  * - Pre-order, post-order, or both
@@ -58,6 +59,8 @@ export interface TraversalOptions {
  * - Error handling and logging
  * - Path tracking for branch operations
  * - Performance monitoring
+ * 
+ * REPLACES: walkTree(), filterNodeHierarchy(), reduceNodeTree(), collectNodes()
  */
 export function traverseTree<T>(
   node: XNode,
@@ -70,7 +73,7 @@ export function traverseTree<T>(
   const stageId = context.performance.startStage('traverse');
   
   try {
-    logger.debug('Starting tree traversal', {
+    logger.debug('Starting unified tree traversal', {
       rootNode: node.name,
       order,
       hasHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
@@ -82,11 +85,11 @@ export function traverseTree<T>(
       pipelineContext: context
     });
     
-    logger.debug('Tree traversal completed successfully');
+    logger.debug('Unified tree traversal completed successfully');
     return result;
     
   } catch (err) {
-    logger.error('Error during tree traversal:', err);
+    logger.error('Error during unified tree traversal:', err);
     throw err;
   } finally {
     context.performance.endStage(stageId);
@@ -296,3 +299,18 @@ export function getNodeAtPath(root: XNode, path: number[]): XNode | null {
   
   return current;
 }
+
+// ================================
+// DELETED LEGACY FUNCTIONS (Stage 5)
+// ================================
+// 
+// The following functions have been REMOVED and replaced by traverseTree():
+//
+// ❌ walkTree() - Use traverseTree() with appropriate visitor
+// ❌ filterNodeHierarchy() - Use traverseTree() with filter visitor
+// ❌ reduceNodeTree() - Use traverseTree() with accumulator visitor  
+// ❌ collectNodes() - Use traverseTree() with collector visitor
+//
+// All functionality is now available through the unified traverseTree() function
+// with appropriate TreeVisitor implementations.
+// ================================

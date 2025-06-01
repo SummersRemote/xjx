@@ -1,21 +1,20 @@
 /**
- * Extension implementation for configuration methods
+ * Extension implementation for configuration methods - Updated for unified pipeline context
  */
 import { LoggerFactory, LogLevel } from "../core/logger";
 const logger = LoggerFactory.create();
 
 import { XJX } from "../XJX";
-import { Configuration, createConfig } from "../core/config";
+import { Configuration } from "../core/config";
 import { NonTerminalExtensionContext } from "../core/extension";
-import { validateInput } from "../core/hooks";
 
 /**
- * Implementation for setting configuration options
+ * Implementation for setting configuration options using unified pipeline context
  */
 export function withConfig(this: NonTerminalExtensionContext, config: Partial<Configuration>): void {
   try {
-    // API boundary validation
-    validateInput(config !== null && typeof config === 'object', "Configuration must be an object");
+    // API boundary validation using pipeline context
+    this.pipeline.validateInput(config !== null && typeof config === 'object', "Configuration must be an object");
     
     // Skip if empty config object
     if (Object.keys(config).length === 0) {
@@ -36,9 +35,10 @@ export function withConfig(this: NonTerminalExtensionContext, config: Partial<Co
     
     if (this.xnode !== null) {
       // Source has already been set, check for preservation setting changes
+      const currentConfig = this.pipeline.config.get();
       const changedSettings = PRESERVATION_SETTINGS.filter(
         setting => config[setting as keyof Configuration] !== undefined && 
-                   config[setting as keyof Configuration] !== this.config[setting as keyof Configuration]
+                   config[setting as keyof Configuration] !== currentConfig[setting as keyof Configuration]
       );
       
       if (changedSettings.length > 0) {
@@ -49,12 +49,12 @@ export function withConfig(this: NonTerminalExtensionContext, config: Partial<Co
       }
     }
     
-    // Apply configuration using the config utility
-    this.config = createConfig(config, this.config);
+    // Apply configuration using pipeline configuration manager
+    this.pipeline.config = this.pipeline.config.merge(config);
     
-    logger.debug('Successfully applied configuration', {
-      preserveNamespaces: this.config.preserveNamespaces,
-      prettyPrint: this.config.formatting.pretty
+    logger.debug('Successfully applied configuration using pipeline context', {
+      preserveNamespaces: this.pipeline.config.get().preserveNamespaces,
+      prettyPrint: this.pipeline.config.get().formatting.pretty
     });
   } catch (err) {
     if (err instanceof Error) {
@@ -65,12 +65,12 @@ export function withConfig(this: NonTerminalExtensionContext, config: Partial<Co
 }
 
 /**
- * Implementation for setting the log level
+ * Implementation for setting the log level using unified pipeline context
  */
 export function withLogLevel(this: NonTerminalExtensionContext, level: LogLevel | string): void {
   try {
-    // API boundary validation
-    validateInput(level !== undefined && level !== null, "Log level must be provided");
+    // API boundary validation using pipeline context
+    this.pipeline.validateInput(level !== undefined && level !== null, "Log level must be provided");
     
     // Handle string input for level
     let logLevel: LogLevel;
@@ -106,7 +106,7 @@ export function withLogLevel(this: NonTerminalExtensionContext, level: LogLevel 
    // Set the default log level
    LoggerFactory.setDefaultLevel(logLevel);
     
-    logger.info(`Log level set to ${logLevel}`);
+    logger.info(`Log level set to ${logLevel} via pipeline context`);
   } catch (err) {
     if (err instanceof Error) {
       throw err;

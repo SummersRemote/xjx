@@ -1,16 +1,18 @@
 /**
- * Extension implementation for fromJson method - Updated for unified pipeline
+ * Extension implementation for fromJson method - Simplified with unified pipeline
  */
+import { LoggerFactory } from "../core/logger";
+const logger = LoggerFactory.create();
+
 import { XJX } from '../XJX';
 import { jsonHiFiToXNodeConverter } from '../converters/json-hifi-to-xnode-converter';
 import { jsonToXNodeConverter } from '../converters/json-std-to-xnode-converter';
-import { Pipeline } from '../core/pipeline';  // Import pipeline execution
 import { NonTerminalExtensionContext } from '../core/extension';
 import { JsonValue } from '../core/converter';
-import { SourceHooks, validateInput } from "../core/hooks";
+import { SourceHooks } from "../core/hooks";
 
 /**
- * Implementation for setting JSON source with unified pipeline
+ * Implementation for setting JSON source with unified pipeline execution
  */
 export function fromJson(
   this: NonTerminalExtensionContext, 
@@ -18,9 +20,6 @@ export function fromJson(
   hooks?: SourceHooks<JsonValue>
 ): void {
   try {
-    // API boundary validation - now using pipeline context
-    this.pipeline.validateInput(json !== null && typeof json === 'object', "JSON source must be an object or array");
-    
     // Determine format based on configuration
     const useHighFidelity = this.pipeline.config.get().strategies.highFidelity;
     
@@ -30,19 +29,11 @@ export function fromJson(
       hasSourceHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
     });
     
-    // OLD: 
-    // if (useHighFidelity) {
-    //   this.xnode = convertJsonHiFiWithHooks(json, this.config, hooks);
-    // } else {
-    //   this.xnode = convertJsonWithHooks(json, this.config, hooks);
-    // }
-    
-    // NEW: Use unified pipeline execution
-    if (useHighFidelity) {
-      this.xnode = Pipeline.executeSource(jsonHiFiToXNodeConverter, json, this.pipeline, hooks);
-    } else {
-      this.xnode = Pipeline.executeSource(jsonToXNodeConverter, json, this.pipeline, hooks);
-    }
+    // NEW: Simple pipeline execution - choose converter based on config
+    // All validation, hook execution, performance tracking, resource management, 
+    // and logging handled by pipeline
+    const converter = useHighFidelity ? jsonHiFiToXNodeConverter : jsonToXNodeConverter;
+    this.executeSource(converter, json, hooks);
     
     logger.debug('Successfully set JSON source', {
       rootNodeName: this.xnode?.name,

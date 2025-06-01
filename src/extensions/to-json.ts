@@ -1,6 +1,10 @@
 /**
- * Extension implementation for JSON output methods - Updated for unified pipeline
+ * Extension implementation for JSON output methods - Simplified with unified pipeline
+ * CRITICAL: All legacy transform handling REMOVED
  */
+import { LoggerFactory } from "../core/logger";
+const logger = LoggerFactory.create();
+
 import { XJX } from '../XJX';
 import { 
   xnodeToJsonHiFiConverter 
@@ -8,20 +12,16 @@ import {
 import { 
   xnodeToJsonConverter 
 } from '../converters/xnode-to-json-std-converter';
-import { Pipeline } from '../core/pipeline';  // Import pipeline execution
-import { XNode } from '../core/xnode';
 import { JsonValue } from '../core/converter';
 import { OutputHooks } from "../core/hooks";
 import { TerminalExtensionContext } from '../core/extension';
 
 /**
- * Implementation for converting to JSON with unified pipeline
+ * Implementation for converting to JSON with unified pipeline execution
+ * NO LEGACY TRANSFORMS - All complexity moved to pipeline
  */
 export function toJson(this: TerminalExtensionContext, hooks?: OutputHooks<JsonValue>): JsonValue {
   try {
-    // Source validation is handled by the registration mechanism
-    this.validateSource();
-    
     // Use high-fidelity setting from config only
     const useHighFidelity = this.pipeline.config.get().strategies.highFidelity;
   
@@ -30,10 +30,10 @@ export function toJson(this: TerminalExtensionContext, hooks?: OutputHooks<JsonV
       hasOutputHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
     });
     
-    // OLD: Complex legacy transform application + converter selection + hook wrapper calls
-    // NEW: Simple pipeline execution with converter selection - no legacy transforms needed
+    // NEW: Simple pipeline execution with converter selection
+    // NO LEGACY TRANSFORM APPLICATION - pipeline handles everything
     const converter = useHighFidelity ? xnodeToJsonHiFiConverter : xnodeToJsonConverter;
-    const result = Pipeline.executeOutput(converter, this.xnode as XNode, this.pipeline, hooks);
+    const result = this.executeOutput(converter, hooks);
     
     logger.debug('Successfully converted to JSON', {
       resultType: typeof result,
@@ -47,6 +47,34 @@ export function toJson(this: TerminalExtensionContext, hooks?: OutputHooks<JsonV
       throw err;
     }
     throw new Error(`Failed to convert to JSON: ${String(err)}`);
+  }
+}
+
+/**
+ * Implementation for converting to JSON string with unified pipeline execution  
+ * NO LEGACY TRANSFORMS - All complexity moved to pipeline
+ */
+export function toJsonString(this: TerminalExtensionContext, hooks?: OutputHooks<string>): string {
+  try {
+    logger.debug('Starting JSON string conversion', {
+      hasOutputHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
+    });
+    
+    // First convert to JSON value, then stringify
+    // NO LEGACY TRANSFORM APPLICATION
+    const jsonValue = this.toJson(hooks);
+    const result = JSON.stringify(jsonValue, null, this.pipeline.config.get().formatting.indent);
+    
+    logger.debug('Successfully converted to JSON string', {
+      jsonLength: result.length
+    });
+    
+    return result;
+  } catch (err) {
+    if (err instanceof Error) {
+      throw err;
+    }
+    throw new Error(`Failed to convert to JSON string: ${String(err)}`);
   }
 }
 

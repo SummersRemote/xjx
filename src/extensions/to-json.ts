@@ -60,9 +60,15 @@ export function toJsonString(this: TerminalExtensionContext, hooks?: OutputHooks
       hasOutputHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
     });
     
-    // First convert to JSON value, then stringify
-    // NO LEGACY TRANSFORM APPLICATION
-    const jsonValue = this.toJson(hooks);
+    // First convert to JSON value using the same logic as toJson()
+    // Use high-fidelity setting from config only
+    const useHighFidelity = this.pipeline.config.get().strategies.highFidelity;
+    
+    // Get JSON value using the converter directly (avoid circular call to this.toJson)
+    const converter = useHighFidelity ? xnodeToJsonHiFiConverter : xnodeToJsonConverter;
+    const jsonValue = this.executeOutput(converter, hooks);
+    
+    // Then stringify the result
     const result = JSON.stringify(jsonValue, null, this.pipeline.config.get().formatting.indent);
     
     logger.debug('Successfully converted to JSON string', {

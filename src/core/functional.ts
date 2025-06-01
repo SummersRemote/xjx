@@ -212,8 +212,9 @@ export function compose(...transforms: Transform[]): Transform {
 /**
  * Create a container node for results
  */
-export function createResultsContainer(rootName: string = 'results'): XNode {
-  return createElement(rootName);
+export function createResultsContainer(rootName: string | undefined = 'results'): XNode {
+  const finalName = rootName || 'results';
+  return createElement(finalName);
 }
 
 /**

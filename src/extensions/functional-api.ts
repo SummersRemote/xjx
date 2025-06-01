@@ -85,9 +85,7 @@ export function filter(
         });
         
         return result || createResultsContainer(
-          typeof context.config.get().fragmentRoot === "string"
-            ? context.config.get().fragmentRoot
-            : "results"
+          getFragmentRootName(context.config.get())
         );
       }
     };
@@ -258,9 +256,7 @@ export function select(
     });
 
     const resultsContainer = createResultsContainer(
-      typeof this.pipeline.config.get().fragmentRoot === "string"
-        ? this.pipeline.config.get().fragmentRoot
-        : "results"
+      getFragmentRootName(this.pipeline.config.get())
     );
 
     for (const node of selectedNodes) {
@@ -312,9 +308,7 @@ export function branch(
       };
 
       this.xnode = createResultsContainer(
-        typeof this.pipeline.config.get().fragmentRoot === "string"
-          ? this.pipeline.config.get().fragmentRoot
-          : "results"
+        getFragmentRootName(this.pipeline.config.get())
       );
     } else {
       // Store branch context using standardized cloning
@@ -329,9 +323,7 @@ export function branch(
 
       // Create results container with branched nodes
       const resultsContainer = createResultsContainer(
-        typeof this.pipeline.config.get().fragmentRoot === "string"
-          ? this.pipeline.config.get().fragmentRoot
-          : "results"
+        getFragmentRootName(this.pipeline.config.get())
       );
 
       for (const node of branchInfo.nodes) {
@@ -411,6 +403,21 @@ export function merge(this: NonTerminalExtensionContext): void {
       throw err;
     }
     throw new Error(`Failed to merge branch: ${String(err)}`);
+  }
+}
+
+/**
+ * Helper function to safely get fragment root name from config
+ */
+function getFragmentRootName(config: any): string {
+  const fragmentRoot = config.fragmentRoot;
+  
+  if (typeof fragmentRoot === "string") {
+    return fragmentRoot;
+  } else if (fragmentRoot && typeof fragmentRoot === 'object' && typeof fragmentRoot.name === 'string') {
+    return fragmentRoot.name;
+  } else {
+    return "results";
   }
 }
 

@@ -309,7 +309,7 @@ export class Pipeline {
             retries++;
             
             logger.warn(`Stage ${stage.name} failed, retrying (${retries}/${policy.maxRetries || 3})`, {
-              error: error.message
+              error: error instanceof Error ? error.message : String(error)
             });
             
             // Call retry callback if provided
@@ -344,7 +344,7 @@ export class Pipeline {
       switch (policy.strategy) {
         case 'continue-with-warning':
           logger.warn(`Stage ${stage.name} failed but continuing with warning`, {
-            error: lastError?.message,
+            error: lastError instanceof Error ? lastError.message : String(lastError),
             retries
           });
           
@@ -356,7 +356,7 @@ export class Pipeline {
         case 'fallback-value':
           if (policy.fallbackValue !== undefined) {
             logger.warn(`Stage ${stage.name} failed, using fallback value`, {
-              error: lastError?.message,
+              error: lastError instanceof Error ? lastError.message : String(lastError),
               retries
             });
             
@@ -375,7 +375,7 @@ export class Pipeline {
           
         case 'skip-and-continue':
           logger.warn(`Stage ${stage.name} failed, skipping and continuing`, {
-            error: lastError?.message,
+            error: lastError instanceof Error ? lastError.message : String(lastError),
             retries
           });
           

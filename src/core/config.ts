@@ -1,8 +1,10 @@
 /**
  * Configuration system for the XJX library
  */
+import { LoggerFactory } from "./logger";
+const logger = LoggerFactory.create();
+
 import { deepClone, deepMerge } from "./common";
-import { logger } from "./error";
 import { XNode } from "./xnode";
 
 export interface Configuration {

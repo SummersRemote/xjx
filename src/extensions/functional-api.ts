@@ -1,57 +1,40 @@
 /**
  * Core functional API implementation
  *
- * This file implements the streamlined functional API for XJX:
- * - filter: Tree-walking filter that preserves document hierarchy
- * - map: Tree-walking transformation of every node
- * - reduce: Aggregate values from all nodes
- * - select: Collect matching nodes without hierarchy
- * - get: Retrieve a specific node by index
  */
+import { LoggerFactory } from "../core/logger";
+const logger = LoggerFactory.create();
+
 import { XJX } from "../XJX";
-import { XNode, createElement, cloneNode, addChild } from "../core/xnode";
-import { logger, validate, ValidationError } from "../core/error";
-import { NonTerminalExtensionContext, TerminalExtensionContext } from "../core/extension";
-import {
-  createResultsContainer,
-  filterNodeHierarchy,
-  mapNodeTree,
-  reduceNodeTree,
-  collectNodes
-} from "../core/functional-utils";
+import { XNode, addChild, cloneNode } from "../core/xnode";
+import { NonTerminalExtensionContext, TerminalExtensionContext, BranchContext } from "../core/extension";
+import { validateInput, NodeHooks } from "../core/hooks";
+import { Transform, createResultsContainer, filterNodeHierarchy, reduceNodeTree, collectNodes } from "../core/functional";
+import { transformXNodeWithHooks } from "../converters/xnode-transformer";
 
 /**
  * Return a new document with only nodes that match the predicate
- * (and their ancestors to maintain structure)
- *
- * @param predicate Function that determines if a node should be kept
- * @returns this for chaining
+ * (no hooks - predicates are simple)
  */
 export function filter(
   this: NonTerminalExtensionContext,
   predicate: (node: XNode) => boolean
 ): void {
   try {
-    // API boundary validation
-    validate(typeof predicate === "function", "Predicate must be a function");
+    validateInput(typeof predicate === "function", "Predicate must be a function");
     this.validateSource();
 
     logger.debug("Filtering document nodes hierarchically");
 
-    // Get the current document root
     const rootNode = this.xnode as XNode;
-
-    // Apply filter to get a new filtered document
     const filteredRoot = filterNodeHierarchy(rootNode, predicate);
 
     if (filteredRoot) {
-      // Update the document with filtered results
       this.xnode = filteredRoot;
       logger.debug("Successfully filtered document", {
         rootName: filteredRoot.name
       });
     } else {
-      // Create an empty results container if nothing matched
       this.xnode = createResultsContainer(
         typeof this.config.fragmentRoot === 'string' 
           ? this.config.fragmentRoot 
@@ -68,42 +51,39 @@ export function filter(
 }
 
 /**
- * Apply a transformation function to every node in the document
- *
- * @param transformer Function to transform each node
- * @returns this for chaining
+ * Apply a transformation to every node in the document
+ * NEW: transform is primary parameter, hooks are optional
  */
 export function map(
   this: NonTerminalExtensionContext,
-  transformer: (node: XNode) => XNode | null
+  transform: Transform,
+  hooks?: NodeHooks
 ): void {
   try {
-    // API boundary validation
-    validate(typeof transformer === "function", "Transformer must be a function");
+    validateInput(typeof transform === "function", "Transform must be a function");
     this.validateSource();
 
-    logger.debug("Mapping document nodes");
+    logger.debug("Mapping document nodes", {
+      hasNodeHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
+    });
 
-    // Get the current document root
     const rootNode = this.xnode as XNode;
-
-    // Apply transformer to get a new document
-    const mappedRoot = mapNodeTree(rootNode, transformer);
+    
+    // Use the integrated transformer with the new hook system
+    const mappedRoot = transformXNodeWithHooks(rootNode, transform, hooks, this.config);
 
     if (mappedRoot) {
-      // Update the document with transformed results
       this.xnode = mappedRoot;
       logger.debug("Successfully transformed document", {
         rootName: mappedRoot.name
       });
     } else {
-      // Create an empty results container if transformer removed all nodes
       this.xnode = createResultsContainer(
         typeof this.config.fragmentRoot === 'string' 
           ? this.config.fragmentRoot 
           : 'results'
       );
-      logger.debug("Transformer removed all nodes from the document");
+      logger.debug("Transform removed all nodes from the document");
     }
   } catch (err) {
     if (err instanceof Error) {
@@ -115,27 +95,20 @@ export function map(
 
 /**
  * Accumulate a value by processing every node in the document
- *
- * @param reducer Function that accumulates a result from each node
- * @param initialValue Initial value for the accumulator
- * @returns The final accumulated value
+ * (no hooks - keep simple)
  */
 export function reduce<T>(
   this: TerminalExtensionContext,
-  reducer: (accumulator: T, node: XNode) => T,
-  initialValue: T
+  initialValue: T,
+  reducer: (accumulator: T, node: XNode) => T
 ): T {
   try {
-    // API boundary validation
-    validate(typeof reducer === "function", "Reducer must be a function");
+    validateInput(typeof reducer === "function", "Reducer must be a function");
     this.validateSource();
 
     logger.debug("Reducing document nodes");
 
-    // Get the current document root
     const rootNode = this.xnode as XNode;
-
-    // Apply reducer to all nodes in the tree
     const result = reduceNodeTree(rootNode, reducer, initialValue);
 
     logger.debug("Successfully reduced document");
@@ -150,63 +123,32 @@ export function reduce<T>(
 }
 
 /**
- * Combine multiple functions into a single function
- * Functions are applied in sequence from left to right
- *
- * @param functions Functions to compose
- * @returns A new function that applies the composition
- */
-export function compose<T>(...functions: Array<(value: T) => T>): (value: T) => T {
-  return (value: T): T => {
-    return functions.reduce((result, func) => {
-      try {
-        return func(result);
-      } catch (err) {
-        logger.warn('Error in composed function', { 
-          error: err instanceof Error ? err.message : String(err)
-        });
-        return result; // Return previous result on error
-      }
-    }, value);
-  };
-}
-
-/**
  * Collect nodes that match a predicate without maintaining hierarchy
- *
- * @param predicate Function that determines if a node should be included
- * @returns this for chaining
+ * (no hooks - predicates are simple)
  */
 export function select(
   this: NonTerminalExtensionContext,
   predicate: (node: XNode) => boolean
 ): void {
   try {
-    // API boundary validation
-    validate(typeof predicate === "function", "Predicate must be a function");
+    validateInput(typeof predicate === "function", "Predicate must be a function");
     this.validateSource();
 
     logger.debug("Selecting document nodes");
 
-    // Get the current document root
     const rootNode = this.xnode as XNode;
-
-    // Collect matching nodes
     const selectedNodes = collectNodes(rootNode, predicate);
 
-    // Create a container for the results
     const resultsContainer = createResultsContainer(
       typeof this.config.fragmentRoot === 'string' 
         ? this.config.fragmentRoot 
         : 'results'
     );
 
-    // Add selected nodes to container
     for (const node of selectedNodes) {
       addChild(resultsContainer, node);
     }
 
-    // Update the document
     this.xnode = resultsContainer;
 
     logger.debug("Successfully selected nodes", {
@@ -220,11 +162,216 @@ export function select(
   }
 }
 
+/**
+ * Create an isolated scope containing nodes matching the predicate
+ */
+export function branch(
+  this: NonTerminalExtensionContext,
+  predicate: (node: XNode) => boolean
+): void {
+  try {
+    validateInput(typeof predicate === "function", "Predicate must be a function");
+    this.validateSource();
+
+    logger.debug("Creating branch scope");
+
+    const rootNode = this.xnode as XNode;
+    
+    // Collect all nodes that match the predicate with their paths
+    const branchInfo = collectNodesWithPaths(rootNode, predicate);
+    
+    if (branchInfo.nodes.length === 0) {
+      // No nodes matched - create empty branch
+      this.branchContext = {
+        parentNodes: [rootNode],
+        originalIndices: [],
+        branchedNodes: [],
+        nodePaths: []
+      };
+      
+      this.xnode = createResultsContainer(
+        typeof this.config.fragmentRoot === 'string' 
+          ? this.config.fragmentRoot 
+          : 'results'
+      );
+    } else {
+      // Store branch context
+      this.branchContext = {
+        parentNodes: [rootNode],
+        originalIndices: branchInfo.indices,
+        branchedNodes: branchInfo.nodes.map(node => cloneNode(node, true)),
+        nodePaths: branchInfo.paths
+      };
+      
+      // Create results container with branched nodes
+      const resultsContainer = createResultsContainer(
+        typeof this.config.fragmentRoot === 'string' 
+          ? this.config.fragmentRoot 
+          : 'results'
+      );
+      
+      for (const node of branchInfo.nodes) {
+        const clonedNode = cloneNode(node, true);
+        addChild(resultsContainer, clonedNode);
+      }
+      
+      this.xnode = resultsContainer;
+    }
+
+    logger.debug("Successfully created branch", {
+      branchedNodeCount: branchInfo.nodes?.length || 0
+    });
+  } catch (err) {
+    if (err instanceof Error) {
+      throw err;
+    }
+    throw new Error(`Failed to create branch: ${String(err)}`);
+  }
+}
+
+/**
+ * Merge the current branch back into the parent scope
+ */
+export function merge(this: NonTerminalExtensionContext): void {
+  try {
+    // If no active branch, this is a no-op
+    if (!this.branchContext) {
+      logger.debug("No active branch to merge - operation ignored");
+      return;
+    }
+
+    logger.debug("Merging branch back to parent scope");
+
+    const { parentNodes, nodePaths } = this.branchContext;
+    const parentNode = parentNodes[0];
+    
+    // Get current branch nodes (excluding the container)
+    const currentBranchNodes = this.xnode?.children || [];
+    
+    // Create a deep clone of the parent to avoid mutation
+    const mergedParent = cloneNode(parentNode, true);
+    
+    // Replace each original node with its corresponding replacement
+    // Process from deepest paths first to avoid index shifting issues
+    const pathNodePairs = nodePaths.map((path, index) => ({
+      path,
+      node: currentBranchNodes[index] || null
+    })).sort((a, b) => b.path.length - a.path.length || b.path[b.path.length - 1] - a.path[a.path.length - 1]);
+    
+    for (const { path, node } of pathNodePairs) {
+      if (node && path.length > 0) {
+        replaceNodeAtPath(mergedParent, node, path);
+      } else if (!node && path.length > 0) {
+        // Node was removed (filtered out), remove original
+        removeNodeAtPath(mergedParent, path);
+      }
+    }
+    
+    // Clear branch context and restore parent
+    this.branchContext = null;
+    this.xnode = mergedParent;
+
+    logger.debug("Successfully merged branch", {
+      replacementNodeCount: currentBranchNodes.length,
+      originalNodeCount: nodePaths.length
+    });
+  } catch (err) {
+    if (err instanceof Error) {
+      throw err;
+    }
+    throw new Error(`Failed to merge branch: ${String(err)}`);
+  }
+}
+
+/**
+ * Collect nodes matching predicate along with their paths in the tree
+ */
+function collectNodesWithPaths(
+  root: XNode,
+  predicate: (node: XNode) => boolean
+): { nodes: XNode[], indices: number[], paths: number[][] } {
+  const results: XNode[] = [];
+  const indices: number[] = [];
+  const paths: number[][] = [];
+  
+  function traverse(node: XNode, path: number[] = []): void {
+    try {
+      if (predicate(node)) {
+        results.push(node);
+        indices.push(results.length - 1);
+        paths.push([...path]);
+      }
+    } catch (err) {
+      logger.warn(`Error evaluating predicate on node: ${node.name}`, {
+        error: err instanceof Error ? err.message : String(err)
+      });
+    }
+    
+    if (node.children) {
+      node.children.forEach((child, index) => {
+        traverse(child, [...path, index]);
+      });
+    }
+  }
+  
+  traverse(root);
+  
+  return { nodes: results, indices, paths };
+}
+
+/**
+ * Replace a single node at a specific path in the tree
+ */
+function replaceNodeAtPath(root: XNode, replacementNode: XNode, path: number[]): void {
+  if (path.length === 0) return; // Can't replace root
+  
+  const parentPath = path.slice(0, -1);
+  const nodeIndex = path[path.length - 1];
+  
+  const parent = getNodeAtPath(root, parentPath);
+  if (parent?.children && nodeIndex < parent.children.length) {
+    // Set correct parent reference
+    replacementNode.parent = parent;
+    // Replace the node at this position
+    parent.children[nodeIndex] = replacementNode;
+  }
+}
+
+/**
+ * Remove a single node at a specific path in the tree
+ */
+function removeNodeAtPath(root: XNode, path: number[]): void {
+  if (path.length === 0) return; // Can't remove root
+  
+  const parentPath = path.slice(0, -1);
+  const nodeIndex = path[path.length - 1];
+  
+  const parent = getNodeAtPath(root, parentPath);
+  if (parent?.children && nodeIndex < parent.children.length) {
+    parent.children.splice(nodeIndex, 1);
+  }
+}
+
+/**
+ * Get a node at a specific path in the tree
+ */
+function getNodeAtPath(root: XNode, path: number[]): XNode | null {
+  let current = root;
+  
+  for (const index of path) {
+    if (!current.children || index >= current.children.length) {
+      return null;
+    }
+    current = current.children[index];
+  }
+  
+  return current;
+}
+
 // Register the functions with XJX
 XJX.registerNonTerminalExtension("filter", filter);
 XJX.registerNonTerminalExtension("map", map);
 XJX.registerTerminalExtension("reduce", reduce);
 XJX.registerNonTerminalExtension("select", select);
-
-// Export compose as a global utility
-// export { compose };
+XJX.registerNonTerminalExtension("branch", branch);
+XJX.registerNonTerminalExtension("merge", merge);

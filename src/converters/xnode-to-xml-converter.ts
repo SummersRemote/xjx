@@ -1,42 +1,36 @@
 /**
- * XNode to XML converter implementation
+ * XNode to XML converter implementation - Updated for new hook system
  */
+import { LoggerFactory } from "../core/logger";
+const logger = LoggerFactory.create();
+
 import { Configuration } from '../core/config';
 import * as xml from '../core/xml-utils';
 import { DOM, NodeType } from '../core/dom';
-import { logger, ProcessingError } from '../core/error';
+import { ProcessingError } from '../core/error';
 import { XNode } from '../core/xnode';
-import { validateInput, Converter, createConverter } from '../core/converter';
+import { OutputHooks } from "../core/hooks";
+import { Converter } from "../core/converter"
 
-// Context type for XNode to XML conversion
+/**
+ * Context type for XNode to XML conversion
+ */
 interface XNodeToXmlContext {
   namespaceMap: Record<string, string>;
 }
 
 /**
- * Options for XML serialization
+ * XNode to XML Document converter
  */
-export interface XmlSerializationOptions {
-  prettyPrint?: boolean;
-  indent?: number;
-  declaration?: boolean;
-}
-
-/**
- * Create an XNode to XML Document converter
- * @param config Configuration for the converter
- * @returns Converter implementation
- */
-export function createXNodeToXmlConverter(config: Configuration): Converter<XNode, Document> {
-  return createConverter(config, (node: XNode, config: Configuration) => {
-    // Validate input
-    validateInput(node, "Node must be an XNode instance", 
-                  input => input !== null && typeof input === 'object');
-    
+export const xnodeToXmlConverter: Converter<XNode, Document> = {
+  convert(
+    node: XNode, 
+    config: Configuration
+  ): Document {
     try {
       logger.debug('Creating DOM document from XNode', { 
         nodeName: node.name, 
-        nodeType: node.type 
+        nodeType: node.type
       });
       
       // Create context with empty namespace map
@@ -63,39 +57,25 @@ export function createXNodeToXmlConverter(config: Configuration): Converter<XNod
     } catch (err) {
       throw new ProcessingError(`Failed to convert XNode to XML: ${err instanceof Error ? err.message : String(err)}`);
     }
-  });
-}
+  }
+};
 
 /**
- * Create an XNode to XML string converter
- * @param config Configuration for the converter
- * @returns Converter implementation
+ * XNode to XML string converter
  */
-export function createXNodeToXmlStringConverter(
-  config: Configuration, 
-  serializationOptions?: XmlSerializationOptions
-): Converter<XNode, string, XmlSerializationOptions> {
-  return createConverter(config, (node: XNode, config: Configuration, options?: XmlSerializationOptions) => {
+export const xnodeToXmlStringConverter: Converter<XNode, string> = {
+  convert(
+    node: XNode, 
+    config: Configuration
+  ): string {
     try {
-      // Merge options with any pre-configured options
-      const mergedOptions = {
-        ...serializationOptions,
-        ...options
-      };
-      
       // First convert XNode to DOM document
-      const docConverter = createXNodeToXmlConverter(config);
-      const doc = docConverter.convert(node);
+      const doc = xnodeToXmlConverter.convert(node, config);
       
-      // Get options, allowing overrides from the parameters
-      const prettyPrint = mergedOptions?.prettyPrint !== undefined ? 
-        mergedOptions.prettyPrint : config.formatting.pretty;
-      
-      const indent = mergedOptions?.indent !== undefined ? 
-        mergedOptions.indent : config.formatting.indent;
-      
-      const declaration = mergedOptions?.declaration !== undefined ? 
-        mergedOptions.declaration : config.formatting.declaration;
+      // Get formatting options from config
+      const prettyPrint = config.formatting.pretty;
+      const indent = config.formatting.indent;
+      const declaration = config.formatting.declaration;
       
       // Serialize to string
       let xmlString = xml.serializeXml(doc);
@@ -121,16 +101,91 @@ export function createXNodeToXmlStringConverter(
     } catch (err) {
       throw new ProcessingError(`Failed to convert XNode to XML string: ${err instanceof Error ? err.message : String(err)}`);
     }
-  });
+  }
+};
+
+/**
+ * Convert XNode to XML Document with output hooks - FIXED TIMING
+ */
+export function convertXNodeToXmlWithHooks(
+  node: XNode,
+  config: Configuration,
+  hooks?: OutputHooks<Document>
+): Document {
+  let processedXNode = node;
+  
+  // Apply beforeTransform hook to XNode
+  if (hooks?.beforeTransform) {
+    try {
+      const beforeResult = hooks.beforeTransform(processedXNode);
+      if (beforeResult && typeof beforeResult === 'object' && typeof beforeResult.name === 'string') {
+        processedXNode = beforeResult;
+      }
+    } catch (err) {
+      logger.warn(`Error in XML output beforeTransform: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  
+  // Convert to XML Document
+  let doc = xnodeToXmlConverter.convert(processedXNode, config);
+  
+  // Apply afterTransform hook to final Document
+  if (hooks?.afterTransform) {
+    try {
+      const afterResult = hooks.afterTransform(doc);
+      if (afterResult !== undefined && afterResult !== null) {
+        doc = afterResult;
+      }
+    } catch (err) {
+      logger.warn(`Error in XML output afterTransform: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  
+  return doc;
+}
+
+/**
+ * Convert XNode to XML string with output hooks - FIXED TIMING
+ */
+export function convertXNodeToXmlStringWithHooks(
+  node: XNode,
+  config: Configuration,
+  hooks?: OutputHooks<string>
+): string {
+  let processedXNode = node;
+  
+  // Apply beforeTransform hook to XNode
+  if (hooks?.beforeTransform) {
+    try {
+      const beforeResult = hooks.beforeTransform(processedXNode);
+      if (beforeResult && typeof beforeResult === 'object' && typeof beforeResult.name === 'string') {
+        processedXNode = beforeResult;
+      }
+    } catch (err) {
+      logger.warn(`Error in XML string output beforeTransform: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  
+  // Convert to XML string
+  let xmlString = xnodeToXmlStringConverter.convert(processedXNode, config);
+  
+  // Apply afterTransform hook to final string
+  if (hooks?.afterTransform) {
+    try {
+      const afterResult = hooks.afterTransform(xmlString);
+      if (afterResult !== undefined && afterResult !== null) {
+        xmlString = afterResult;
+      }
+    } catch (err) {
+      logger.warn(`Error in XML string output afterTransform: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  
+  return xmlString;
 }
 
 /**
  * Convert XNode to DOM element
- * @param node XNode to convert
- * @param doc DOM document
- * @param config Configuration
- * @param context Conversion context
- * @returns DOM element
  */
 function convertXNodeToDom(
   node: XNode,
@@ -184,9 +239,6 @@ function convertXNodeToDom(
 
 /**
  * Add attributes to a DOM element
- * @param element Target DOM element
- * @param node Source XNode
- * @param namespaceMap Namespace map
  */
 function addAttributes(
   element: Element,
@@ -215,10 +267,6 @@ function addAttributes(
 
 /**
  * Find namespace URI for a prefix
- * @param prefix Namespace prefix
- * @param node Starting node
- * @param namespaceMap Global namespace map
- * @returns Namespace URI or null if not found
  */
 function findNamespaceURI(
   prefix: string,
@@ -236,11 +284,6 @@ function findNamespaceURI(
 
 /**
  * Add child nodes to a DOM element
- * @param element Target DOM element
- * @param children Source XNode children
- * @param doc DOM document
- * @param config Configuration
- * @param context Conversion context
  */
 function addChildNodes(
   element: Element,

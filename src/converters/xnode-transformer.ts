@@ -1,199 +1,202 @@
 /**
- * XNode transformer implementation with functional approach
- * 
- * Applies transformations to XNode using transform functions.
+ * XNode transformer implementation with minimal transform system
+ *
+ * This module handles node transformations for the map() operation using the new minimal Transform interface.
+ * It applies transform functions to XNode structures with proper before/after hook timing.
  */
-import { Configuration } from '../core/config';
-import { XNode, cloneNode } from '../core/xnode';
-import { Transform, TransformIntent, TransformContext } from '../core/transform';
-import { NodeType } from '../core/dom';
-import { logger } from '../core/error';
+import { LoggerFactory } from "../core/logger";
+const logger = LoggerFactory.create();
+
+import { Configuration } from "../core/config";
+import { XNode, cloneNode } from "../core/xnode";
+import { Transform } from "../core/functional";
+import { NodeHooks } from "../core/hooks";
+import { NodeType } from "../core/dom";
 
 /**
- * Apply transformations to an XNode
+ * Apply node transformation with hooks
+ *
+ * This is the main function used by the map() operation to transform XNode trees.
+ * It applies beforeTransform hook, main transform, then afterTransform hook.
+ *
  * @param node XNode to transform
- * @param transforms Transformations to apply
+ * @param mainTransform Main transformation function (required)
+ * @param hooks Optional before/after hooks
  * @param config Configuration
- * @param options Transform options including intent
  * @returns Transformed XNode
  */
-export function transformXNode(
+export function transformXNodeWithHooks(
   node: XNode,
-  transforms: Transform[],
-  config: Configuration,
-  options: { intent?: TransformIntent } = {}
+  mainTransform: Transform,
+  hooks: NodeHooks | undefined,
+  config: Configuration
 ): XNode {
-  // Skip if no transforms to apply
-  if (!transforms || transforms.length === 0) {
-    logger.debug('No transformations to apply, returning original node');
-    return node;
-  }
-
-  logger.debug('Starting node transformation', { 
-    nodeName: node.name, 
-    transformCount: transforms.length,
-    intent: options.intent || 'PARSE'
+  logger.debug("Starting node transformation with hooks", {
+    nodeName: node.name,
+    hasHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
   });
 
   try {
-    // Create a deep clone of the node using cloneNode instead of JSON.stringify/parse
-    // This properly handles circular references like parent properties
-    const clonedNode = cloneNode(node, true);
-    
-    // Apply transformations to the node and its descendants
-    const transformedNode = processNode(clonedNode, transforms, options.intent);
+    // Create a deep clone of the node using cloneNode to avoid mutation
+    let clonedNode = cloneNode(node, true);
 
-    logger.debug('Successfully transformed node', { 
-      nodeName: transformedNode.name, 
-      hasChildren: !!transformedNode.children && transformedNode.children.length > 0 
+    // Apply transformations to the node and its descendants
+    const transformedNode = processNodeTreeWithHooks(
+      clonedNode,
+      mainTransform,
+      hooks
+    );
+
+    logger.debug("Successfully transformed node tree", {
+      nodeName: transformedNode.name,
+      hasChildren: !!transformedNode.children && transformedNode.children.length > 0,
     });
-    
+
     return transformedNode;
   } catch (err) {
-    logger.error('Error applying transforms to node', {
+    logger.error("Error applying transform with hooks to node", {
       nodeName: node?.name,
       nodeType: node?.type,
-      error: err
+      error: err,
     });
     return node; // Return original node as fallback
   }
 }
 
 /**
- * Process a node and its descendants with transforms
+ * Process a node tree with main transform and hooks
  * @param node Node to process
- * @param transforms Transforms to apply
- * @param intent Transform intent (PARSE or SERIALIZE)
+ * @param mainTransform Main transform to apply
+ * @param hooks Before/after hooks
  * @returns Processed node
  */
-function processNode(
-  node: XNode, 
-  transforms: Transform[],
-  intent?: TransformIntent
-): XNode {
-  // Apply transforms to node value
-  if (node.value !== undefined) {
-    node.value = applyTransforms(node.value, transforms, {
-      intent,
-      path: node.name
-    });
-  }
-
-  // Apply transforms to attributes
-  if (node.attributes) {
-    transformAttributes(node, transforms, intent);
-  }
-
-  // Apply transforms to children
-  if (node.children && node.children.length > 0) {
-    transformChildren(node, transforms, intent);
-  }
-
-  return node;
-}
-
-/**
- * Apply a series of transforms to a value
- * @param value Value to transform
- * @param transforms Transforms to apply
- * @param context Transform context including intent
- * @returns Transformed value
- */
-function applyTransforms(
-  value: any,
-  transforms: Transform[],
-  context: TransformContext = {}
-): any {
-  return transforms.reduce((result, transform) => {
-    try {
-      // Pass the context to the transform
-      return transform(result, context);
-    } catch (err) {
-      logger.warn('Error applying transform to value', {
-        value,
-        error: err
-      });
-      return result; // Return unchanged value on error
-    }
-  }, value);
-}
-
-/**
- * Transform node attributes with filtering
- * @param node Node to transform
- * @param transforms Transforms to apply
- * @param intent Transform intent (PARSE or SERIALIZE)
- */
-function transformAttributes(
+function processNodeTreeWithHooks(
   node: XNode,
-  transforms: Transform[],
-  intent?: TransformIntent
-): void {
-  if (!node.attributes) return;
+  mainTransform: Transform,
+  hooks: NodeHooks | undefined
+): XNode {
+  let currentNode = node;
 
-  for (const [key, value] of Object.entries(node.attributes)) {
-    // Skip xmlns attributes since they're handled separately
-    if (key === "xmlns" || key.startsWith("xmlns:")) continue;
-    
-    // Apply transforms to attribute value
+  // Apply beforeTransform hook first
+  if (hooks?.beforeTransform) {
     try {
-      node.attributes[key] = applyTransforms(value, transforms, {
-        intent,
-        isAttribute: true,
-        attributeName: key,
-        path: `${node.name}[@${key}]`
-      });
+      const beforeResult = hooks.beforeTransform(currentNode);
+      if (
+        beforeResult &&
+        typeof beforeResult === "object" &&
+        typeof beforeResult.name === "string"
+      ) {
+        currentNode = beforeResult;
+      }
     } catch (err) {
-      logger.warn('Error transforming attribute', { 
-        nodeName: node.name, 
-        attributeName: key, 
-        attributeValue: value,
-        error: err 
-      });
-      // Continue processing other attributes on error
+      logger.warn("Error in beforeTransform hook:", err);
     }
   }
+
+  // Apply main transform to the node
+  try {
+    currentNode = mainTransform(currentNode);
+  } catch (err) {
+    logger.warn(`Error in main transform on node '${currentNode.name}':`, err);
+    // Continue with original node on error
+  }
+
+  // Process children recursively
+  if (currentNode.children && currentNode.children.length > 0) {
+    transformChildren(currentNode, mainTransform, hooks);
+  }
+
+  // Apply afterTransform hook
+  if (hooks?.afterTransform) {
+    try {
+      const afterResult = hooks.afterTransform(currentNode);
+      if (
+        afterResult &&
+        typeof afterResult === "object" &&
+        typeof afterResult.name === "string"
+      ) {
+        currentNode = afterResult;
+      }
+    } catch (err) {
+      logger.warn("Error in afterTransform hook:", err);
+    }
+  }
+
+  return currentNode;
 }
 
 /**
- * Transform child nodes
- * @param node Parent node
- * @param transforms Transforms to apply
- * @param intent Transform intent (PARSE or SERIALIZE)
+ * Transform child nodes recursively
+ * @param parent Parent node
+ * @param mainTransform Transform to apply
+ * @param hooks Before/after hooks
  */
 function transformChildren(
-  node: XNode,
-  transforms: Transform[],
-  intent?: TransformIntent
+  parent: XNode,
+  mainTransform: Transform,
+  hooks: NodeHooks | undefined
 ): void {
-  if (!node.children || node.children.length === 0) return;
+  if (!parent.children || parent.children.length === 0) return;
 
   // Process each child node
-  for (let i = 0; i < node.children.length; i++) {
-    const child = node.children[i];
-    
-    // Apply appropriate transformations based on node type
+  for (let i = 0; i < parent.children.length; i++) {
+    const child = parent.children[i];
+
+    // Apply transformations based on node type
     switch (child.type) {
       case NodeType.TEXT_NODE:
       case NodeType.CDATA_SECTION_NODE:
-        // For text and CDATA nodes, transform the value
-        if (child.value !== undefined) {
-          child.value = applyTransforms(child.value, transforms, {
-            intent,
-            path: `${node.name}/text()[${i}]`
-          });
+        // For text and CDATA nodes, apply transform directly
+        try {
+          parent.children[i] = mainTransform(child);
+        } catch (err) {
+          logger.warn(`Error transforming text content at ${parent.name}/text()[${i}]:`, err);
         }
         break;
-        
+
       case NodeType.ELEMENT_NODE:
-        // Recursively process element nodes
-        processNode(child, transforms, intent);
+        // Recursively process element nodes with full hook support
+        parent.children[i] = processNodeTreeWithHooks(
+          child,
+          mainTransform,
+          hooks
+        );
         break;
-        
+
       case NodeType.COMMENT_NODE:
       case NodeType.PROCESSING_INSTRUCTION_NODE:
-        // Skip comments and processing instructions by default
+        // Apply transform to comments and processing instructions too
+        try {
+          parent.children[i] = mainTransform(child);
+        } catch (err) {
+          logger.warn(`Error transforming ${child.type === NodeType.COMMENT_NODE ? 'comment' : 'processing instruction'}:`, err);
+        }
         break;
     }
   }
+}
+
+/**
+ * Legacy wrapper for backwards compatibility with old transform system
+ * @deprecated Use transformXNodeWithHooks instead
+ */
+export function transformXNode(
+  node: XNode,
+  transforms: Transform[],
+  config: Configuration
+): XNode {
+  // For legacy support, compose all transforms into one
+  const composedTransform: Transform = (inputNode: XNode): XNode => {
+    return transforms.reduce((result, transform) => {
+      try {
+        return transform(result);
+      } catch (err) {
+        logger.warn("Error applying legacy transform:", err);
+        return result;
+      }
+    }, inputNode);
+  };
+
+  // Apply using new system without hooks
+  return transformXNodeWithHooks(node, composedTransform, undefined, config);
 }

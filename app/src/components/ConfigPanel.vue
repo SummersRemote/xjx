@@ -1,7 +1,10 @@
-<!-- components/ConfigPanel.vue -->
+<!-- components/ConfigPanel.vue - Fixed button layout -->
 <template>
   <v-sheet class="pa-4">
-    <h5 class="text-h5 mb-4">Configuration</h5>
+    <!-- Header -->
+    <div class="mb-4">
+      <h5 class="text-h5 mb-3">Configuration</h5>
+    </div>
 
     <!-- Log Level Selector -->
     <v-select
@@ -22,36 +25,35 @@
       label="Configuration Preset"
       density="compact"
       variant="outlined"
-      class="mb-2"
+      class="mb-4"
       @update:model-value="loadPreset"
     >
     </v-select>
 
-    <!-- Action Buttons Row -->
-    <v-row dense class="mb-4">
-      <v-col cols="6">
-        <v-btn
-          block
-          color="primary"
-          variant="tonal"
-          prepend-icon="mdi-code-tags"
-          @click="$emit('showApi')"
-        >
-          View Code
-        </v-btn>
-      </v-col>
-      <v-col cols="6">
-        <v-btn
-          block
-          color="primary"
-          variant="tonal"
-          prepend-icon="mdi-eye"
-          @click="$emit('showConfig')"
-        >
-          View Config
-        </v-btn>
-      </v-col>
-    </v-row>
+    <!-- Action Buttons - moved below preset selection, normal size -->
+    <div class="d-flex flex-wrap gap-2 mb-4">
+      <v-btn
+        color="primary"
+        variant="tonal"
+        prepend-icon="mdi-code-tags"
+        @click="$emit('showApi')"
+        class="flex-grow-1 flex-sm-grow-0"
+      >
+        <span class="d-none d-sm-inline">View Code</span>
+        <span class="d-inline d-sm-none">Code</span>
+      </v-btn>
+      
+      <v-btn
+        color="primary"
+        variant="tonal"
+        prepend-icon="mdi-eye"
+        @click="$emit('showConfig')"
+        class="flex-grow-1 flex-sm-grow-0"
+      >
+        <span class="d-none d-sm-inline">View Config</span>
+        <span class="d-inline d-sm-none">Config</span>
+      </v-btn>
+    </div>
 
     <!-- Feature Preservation Section -->
     <div class="section-title">Feature Preservation</div>
@@ -141,9 +143,7 @@
       v-model="config.strategies.highFidelity"
       label="High-Fidelity Mode"
       color="primary"
-      hint="Preserve all XML information for perfect round-trip"
-      persistent-hint
-      density="compact"
+       density="compact"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-switch>
@@ -152,9 +152,8 @@
       v-model="config.strategies.attributeStrategy"
       :items="attributeStrategyOptions"
       label="Attribute Strategy"
-      hint="How to represent XML attributes in JSON"
-      persistent-hint
-      density="compact"
+       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-select>
@@ -163,9 +162,8 @@
       v-model="config.strategies.textStrategy"
       :items="textStrategyOptions"
       label="Text Strategy"
-      hint="How to represent text content in JSON"
-      persistent-hint
-      density="compact"
+       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-select>
@@ -174,9 +172,8 @@
       v-model="config.strategies.namespaceStrategy"
       :items="namespaceStrategyOptions"
       label="Namespace Strategy"
-      hint="How to represent namespaces in JSON"
-      persistent-hint
-      density="compact"
+       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-select>
@@ -185,9 +182,8 @@
       v-model="config.strategies.arrayStrategy"
       :items="arrayStrategyOptions"
       label="Array Strategy"
-      hint="How to handle multiple elements with the same name"
-      persistent-hint
-      density="compact"
+       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-select>
@@ -196,9 +192,8 @@
       v-model="config.strategies.emptyElementStrategy"
       :items="emptyElementStrategyOptions"
       label="Empty Element Strategy"
-      hint="How to handle empty elements in JSON"
-      persistent-hint
-      density="compact"
+       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-select>
@@ -207,9 +202,8 @@
       v-model="config.strategies.mixedContentStrategy"
       :items="mixedContentStrategyOptions"
       label="Mixed Content Strategy"
-      hint="How to handle elements with both text and child elements"
-      persistent-hint
-      density="compact"
+       density="compact"
+      variant="outlined"
       class="mb-4"
       @update:model-value="updateConfig"
     ></v-select>
@@ -219,9 +213,8 @@
     <v-text-field
       v-model="config.properties.attribute"
       label="Attribute Property"
-      hint="Property name for attributes"
-      persistent-hint
-      density="compact"
+       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -229,9 +222,8 @@
     <v-text-field
       v-model="config.properties.value"
       label="Value Property"
-      hint="Property name for values and text content"
-      persistent-hint
-      density="compact"
+       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -239,9 +231,8 @@
     <v-text-field
       v-model="config.properties.namespace"
       label="Namespace Property"
-      hint="Property name for namespaces"
-      persistent-hint
-      density="compact"
+       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -249,9 +240,8 @@
     <v-text-field
       v-model="config.properties.prefix"
       label="Prefix Property"
-      hint="Property name for namespace prefixes"
-      persistent-hint
-      density="compact"
+       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -259,9 +249,8 @@
     <v-text-field
       v-model="config.properties.cdata"
       label="CDATA Property"
-      hint="Property name for CDATA sections"
-      persistent-hint
-      density="compact"
+       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -269,9 +258,8 @@
     <v-text-field
       v-model="config.properties.comment"
       label="Comment Property"
-      hint="Property name for comments"
-      persistent-hint
-      density="compact"
+       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -279,9 +267,8 @@
     <v-text-field
       v-model="config.properties.processingInstr"
       label="Processing Instruction Property"
-      hint="Property name for processing instructions"
-      persistent-hint
-      density="compact"
+       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -289,9 +276,8 @@
     <v-text-field
       v-model="config.properties.target"
       label="Target Property"
-      hint="Property name for processing instruction targets"
-      persistent-hint
-      density="compact"
+       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -299,9 +285,8 @@
     <v-text-field
       v-model="config.properties.children"
       label="Children Property"
-      hint="Property name for child elements"
-      persistent-hint
-      density="compact"
+       density="compact"
+      variant="outlined"
       class="mb-4"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -311,9 +296,8 @@
     <v-text-field
       v-model="config.prefixes.attribute"
       label="Attribute Prefix"
-      hint="Prefix for attributes when using prefix strategy"
-      persistent-hint
-      density="compact"
+       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -321,9 +305,8 @@
     <v-text-field
       v-model="config.prefixes.namespace"
       label="Namespace Prefix"
-      hint="Prefix for namespaces"
-      persistent-hint
-      density="compact"
+       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -331,9 +314,8 @@
     <v-text-field
       v-model="config.prefixes.comment"
       label="Comment Prefix"
-      hint="Prefix for comments"
-      persistent-hint
-      density="compact"
+       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -341,9 +323,8 @@
     <v-text-field
       v-model="config.prefixes.cdata"
       label="CDATA Prefix"
-      hint="Prefix for CDATA sections"
-      persistent-hint
-      density="compact"
+       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -351,9 +332,8 @@
     <v-text-field
       v-model="config.prefixes.pi"
       label="Processing Instruction Prefix"
-      hint="Prefix for processing instructions"
-      persistent-hint
-      density="compact"
+       density="compact"
+      variant="outlined"
       class="mb-4"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -363,12 +343,11 @@
     <v-combobox
       v-model="config.arrays.forceArrays"
       label="Force Arrays"
-      hint="Element names that should always be treated as arrays"
-      persistent-hint
-      multiple
+       multiple
       chips
       closable-chips
       density="compact"
+      variant="outlined"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-combobox>
@@ -376,9 +355,8 @@
     <v-text-field
       v-model="config.arrays.defaultItemName"
       label="Default Item Name"
-      hint="Default name for items when converting JSON arrays to XML"
-      persistent-hint
-      density="compact"
+       density="compact"
+      variant="outlined"
       class="mb-4"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -388,9 +366,7 @@
     <v-switch
       v-model="config.formatting.pretty"
       label="Pretty Print"
-      hint="Format output with indentation"
-      persistent-hint
-      density="compact"
+       density="compact"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-switch>
@@ -398,9 +374,7 @@
     <v-switch
       v-model="config.formatting.declaration"
       label="Include XML Declaration"
-      hint="Add XML declaration to the beginning of XML output"
-      persistent-hint
-      density="compact"
+       density="compact"
       class="mb-2"
       @update:model-value="updateConfig"
     ></v-switch>
@@ -411,9 +385,8 @@
       type="number"
       min="0"
       max="8"
-      hint="Number of spaces for each indentation level"
-      persistent-hint
-      density="compact"
+       density="compact"
+      variant="outlined"
       class="mb-4"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -423,9 +396,8 @@
     <v-text-field
       v-model="config.fragmentRoot"
       label="Fragment Root Name"
-      hint="Root element name for functional operations (select, filter, map, reduce)"
-      persistent-hint
-      density="compact"
+       density="compact"
+      variant="outlined"
       class="mb-4"
       @update:model-value="updateConfig"
     ></v-text-field>
@@ -463,13 +435,6 @@ function itemProps (item) {
     }
   }
 
-// Item props function for preset dropdown
-const presetItemProps = (item) => ({
-  title: item.name,
-  subtitle: item.description,
-  value: item.value
-});
-
 // Select options
 const attributeStrategyOptions = [
   { title: 'Merge', value: 'merge' },
@@ -497,7 +462,7 @@ const emptyElementStrategyOptions = [
   { title: 'Object (Empty object)', value: 'object' },
   { title: 'Null (null value)', value: 'null' },
   { title: 'String (Empty string)', value: 'string' },
-  { title: 'Remove (Remove empty elements)', value: 'remove' }  // Added new remove option
+  { title: 'Remove (Remove empty elements)', value: 'remove' }
 ];
 
 const mixedContentStrategyOptions = [
@@ -506,11 +471,11 @@ const mixedContentStrategyOptions = [
 ];
 
 const logLevelOptions = [
-  { title: 'Debug', value: 'debug' },
-  { title: 'Info', value: 'info' },
-  { title: 'Warning', value: 'warn' },
-  { title: 'Error', value: 'error' },
-  { title: 'None', value: 'none' }
+  { title: 'Debug', value: 'DEBUG' },
+  { title: 'Info', value: 'INFO' },
+  { title: 'Warning', value: 'WARN' },
+  { title: 'Error', value: 'ERROR' },
+  { title: 'None', value: 'NONE' }
 ];
 
 // Methods
@@ -551,5 +516,9 @@ onMounted(() => {
   margin-bottom: 8px;
   padding-bottom: 4px;
   border-bottom: 1px solid #e0e0e0;
+}
+
+.gap-2 {
+  gap: 8px;
 }
 </style>

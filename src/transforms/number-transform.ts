@@ -1,17 +1,13 @@
 /**
- * Number transform - Converts between string values and numbers
+ * Number node transform - Converts string node values to numbers
  */
-import {
-  Transform,
-  TransformOptions,
-  TransformIntent,
-  createTransform,
-} from "../core/transform";
+import { XNode } from '../core/xnode';
+import { Transform } from "../core/functional";
 
 /**
- * Options for number transform
+ * Options for number node transform
  */
-export interface NumberOptions extends TransformOptions {
+export interface NumberTransformOptions {
   /**
    * Number of decimal places to round to (default: undefined = no rounding)
    */
@@ -41,208 +37,89 @@ export interface NumberOptions extends TransformOptions {
    * Whether to parse scientific notation (default: true)
    */
   scientific?: boolean;
-  
-  /**
-   * Format string for serializing numbers (default: undefined)
-   * Examples:
-   * - '0.00' - Fixed 2 decimal places
-   * - '0,000.00' - Thousands separator with 2 decimal places
-   * - '0.##' - Up to 2 decimal places
-   */
-  format?: string;
 }
 
 /**
- * Create a transform that converts between string values and numbers
+ * Create a node transformer that converts string values to numbers
  *
  * @example
- * ```
- * // PARSE mode (default): Convert strings to numbers
- * xjx.transform(toNumber());
- *
- * // With options
- * xjx.transform(toNumber({
- *   precision: 2,
- *   thousandsSeparator: '.',
- *   decimalSeparator: ','
- * }));
+ * ```typescript
+ * // Transform all numeric nodes
+ * xjx.fromXml(xml).map(toNumber()).toJson();
  * 
- * // SERIALIZE mode: Convert numbers to strings
- * xjx.transform(toNumber({ 
- *   intent: TransformIntent.SERIALIZE,
- *   format: '0.00'
- * }));
+ * // Transform with precision
+ * xjx.fromXml(xml).map(toNumber({ precision: 2 })).toJson();
+ * 
+ * // Custom separators (European format)
+ * xjx.fromXml(xml).map(toNumber({
+ *   decimalSeparator: ',',
+ *   thousandsSeparator: '.'
+ * })).toJson();
+ * 
+ * // Use with filtering for specific nodes
+ * xjx.fromXml(xml)
+ *    .filter(node => ['price', 'total', 'amount'].includes(node.name))
+ *    .map(toNumber({ precision: 2 }))
+ *    .toJson();
  * ```
  *
  * @param options Number transform options
- * @returns A number transform function
+ * @returns A node transformer function for use with map()
  */
-export function toNumber(options: NumberOptions = {}): Transform {
+export function toNumber(options: NumberTransformOptions = {}): Transform {
   const {
     precision,
     decimalSeparator = ".",
     thousandsSeparator = ",",
     integers = true,
     decimals = true,
-    scientific = true,
-    format,
-    intent = TransformIntent.PARSE,
-    ...transformOptions
+    scientific = true
   } = options;
 
-  return createTransform((value: any) => {
-    // Handle null/undefined
-    if (value == null) {
-      return value;
+  return (node: XNode): XNode => {
+    // Skip if node has no value
+    if (node.value === undefined) {
+      return node;
     }
     
-    // SERIALIZE mode: convert number to string
-    if (intent === TransformIntent.SERIALIZE && typeof value === 'number') {
-      return formatNumber(value, {
-        precision,
-        decimalSeparator,
-        thousandsSeparator,
-        format
-      });
+    // If already a number, just apply precision if specified
+    if (typeof node.value === "number") {
+      const finalValue = precision !== undefined 
+        ? Number(node.value.toFixed(precision)) 
+        : node.value;
+      return { ...node, value: finalValue };
+    }
+
+    // Convert to string for parsing
+    const strValue = String(node.value).trim();
+    if (!strValue) {
+      return node;
+    }
+
+    // Try parsing the number
+    const parsedNumber = parseNumberString(strValue, {
+      precision,
+      decimalSeparator,
+      thousandsSeparator,
+      integers,
+      decimals,
+      scientific,
+    });
+    
+    // If parsing succeeded, return transformed node
+    if (parsedNumber !== null) {
+      return { ...node, value: parsedNumber };
     }
     
-    // PARSE mode: convert string to number
-    if (intent === TransformIntent.PARSE) {
-      // If already a number, just apply precision
-      if (typeof value === "number") {
-        return precision !== undefined ? Number(value.toFixed(precision)) : value;
-      }
-
-      // Handle boolean values
-      if (typeof value === "boolean") {
-        return value ? true : false;
-      }
-
-      // Convert to string for parsing
-      const strValue = String(value).trim();
-      if (!strValue) {
-        return value;
-      }
-
-      // Quick check for simple configuration
-      if (isSimpleConfig(options)) {
-        const parsed = Number(strValue);
-        if (!isNaN(parsed)) {
-          return precision !== undefined
-            ? Number(parsed.toFixed(precision))
-            : parsed;
-        }
-      }
-
-      // Complex parsing with custom separators
-      return parseComplexNumber(strValue, {
-        precision,
-        decimalSeparator,
-        thousandsSeparator,
-        integers,
-        decimals,
-        scientific,
-      });
-    }
-    
-    // Not applicable for the current intent, return original value
-    return value;
-  }, transformOptions);
+    // No match, return original node unchanged
+    return node;
+  };
 }
 
 /**
- * Format a number as a string using the provided options
+ * Parse a number string with custom separators and options
  */
-function formatNumber(
-  value: number,
-  options: {
-    precision?: number;
-    decimalSeparator?: string;
-    thousandsSeparator?: string;
-    format?: string;
-  }
-): string {
-  const { precision, decimalSeparator = '.', thousandsSeparator = ',', format } = options;
-  
-  // Apply precision first if specified
-  let num = value;
-  if (precision !== undefined) {
-    num = Number(value.toFixed(precision));
-  }
-  
-  // If format is provided, use it
-  if (format) {
-    return applyCustomFormat(num, format, decimalSeparator, thousandsSeparator);
-  }
-  
-  // Default formatting
-  const parts = num.toString().split('.');
-  
-  // Format integer part with thousands separator
-  if (thousandsSeparator) {
-    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, thousandsSeparator);
-  }
-  
-  // Join with decimal separator
-  return parts.join(decimalSeparator);
-}
-
-/**
- * Apply a custom format to a number
- * Simple implementation of custom number formatting
- */
-function applyCustomFormat(
-  value: number,
-  format: string,
-  decimalSeparator: string,
-  thousandsSeparator: string
-): string {
-  // Handle format patterns
-  if (format === '0.00') {
-    // Fixed 2 decimal places
-    return formatNumber(value, { precision: 2, decimalSeparator, thousandsSeparator });
-  } else if (format === '0,000.00') {
-    // Thousands separator with 2 decimal places
-    return formatNumber(value, { precision: 2, decimalSeparator, thousandsSeparator });
-  } else if (format === '0.##') {
-    // Up to 2 decimal places (no trailing zeros)
-    const str = value.toString();
-    const parts = str.split('.');
-    if (parts.length === 1) {
-      return parts[0]; // No decimal part
-    }
-    const decimalPart = parts[1].substring(0, 2);
-    // Remove trailing zeros
-    const trimmedDecimal = decimalPart.replace(/0+$/, '');
-    if (trimmedDecimal === '') {
-      return parts[0]; // No significant decimal digits
-    }
-    return parts[0] + decimalSeparator + trimmedDecimal;
-  }
-  
-  // Fallback to default formatting
-  return formatNumber(value, { decimalSeparator, thousandsSeparator });
-}
-
-/**
- * Check if using simple configuration for optimization
- */
-function isSimpleConfig(options: NumberOptions): boolean {
-  return (
-    (options.integers === undefined || options.integers === true) &&
-    (options.decimals === undefined || options.decimals === true) &&
-    (options.scientific === undefined || options.scientific === true) &&
-    (options.decimalSeparator === undefined ||
-      options.decimalSeparator === ".") &&
-    (options.thousandsSeparator === undefined ||
-      options.thousandsSeparator === ",")
-  );
-}
-
-/**
- * Parse complex numbers with custom separators
- */
-function parseComplexNumber(
+function parseNumberString(
   strValue: string,
   options: {
     precision?: number;
@@ -252,7 +129,7 @@ function parseComplexNumber(
     decimals: boolean;
     scientific: boolean;
   }
-): any {
+): number | null {
   const {
     precision,
     decimalSeparator,
@@ -261,6 +138,17 @@ function parseComplexNumber(
     decimals,
     scientific,
   } = options;
+
+  // Quick check for simple configuration
+  if (isSimpleConfig(options)) {
+    const parsed = Number(strValue);
+    if (!isNaN(parsed)) {
+      return precision !== undefined
+        ? Number(parsed.toFixed(precision))
+        : parsed;
+    }
+    return null;
+  }
 
   // Build regex pattern based on configuration
   const patterns: string[] = [];
@@ -287,14 +175,14 @@ function parseComplexNumber(
   }
 
   if (patterns.length === 0) {
-    return strValue;
+    return null;
   }
 
   const fullPattern = `^(${patterns.join("|")})$`;
   const regex = new RegExp(fullPattern);
 
   if (!regex.test(strValue)) {
-    return strValue;
+    return null;
   }
 
   // Normalize for JavaScript parsing
@@ -314,7 +202,7 @@ function parseComplexNumber(
 
   const parsed = parseFloat(normalized);
   if (isNaN(parsed)) {
-    return strValue;
+    return null;
   }
 
   // Apply precision if specified
@@ -323,6 +211,25 @@ function parseComplexNumber(
   }
 
   return parsed;
+}
+
+/**
+ * Check if using simple configuration for optimization
+ */
+function isSimpleConfig(options: {
+  decimalSeparator: string;
+  thousandsSeparator: string;
+  integers: boolean;
+  decimals: boolean;
+  scientific: boolean;
+}): boolean {
+  return (
+    options.integers === true &&
+    options.decimals === true &&
+    options.scientific === true &&
+    options.decimalSeparator === "." &&
+    options.thousandsSeparator === ","
+  );
 }
 
 /**

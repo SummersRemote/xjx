@@ -1,6 +1,9 @@
 /**
- * Simplified error handling and logging for the XJX library
+ * Simplified error handling
  */
+
+import { LoggerFactory } from "./logger";
+const log = LoggerFactory.create();
 
 // --- Simplified Error Types ---
 
@@ -11,7 +14,6 @@ export class XJXError extends Error {
   constructor(message: string, public details?: any) {
     super(message);
     this.name = 'XJXError';
-    // Fix prototype chain for instanceof
     Object.setPrototypeOf(this, XJXError.prototype);
   }
 }
@@ -38,89 +40,6 @@ export class ProcessingError extends XJXError {
   }
 }
 
-// --- Simple Logger ---
-
-/**
- * Log levels supported by the logger
- */
-export enum LogLevel {
-  DEBUG = 'debug',
-  INFO = 'info',
-  WARN = 'warn',
-  ERROR = 'error',
-  NONE = 'none'
-}
-
-/**
- * Simple logger for the library
- */
-export class Logger {
-  /**
-   * Create a new logger
-   * @param level Minimum log level to output
-   */
-  constructor(private level: LogLevel = LogLevel.ERROR) {}
-
-  /**
-   * Log a message at debug level
-   */
-  debug(message: string, data?: any): void {
-    this.log(LogLevel.DEBUG, message, data);
-  }
-
-  /**
-   * Log a message at info level
-   */
-  info(message: string, data?: any): void {
-    this.log(LogLevel.INFO, message, data);
-  }
-
-  /**
-   * Log a message at warn level
-   */
-  warn(message: string, data?: any): void {
-    this.log(LogLevel.WARN, message, data);
-  }
-
-  /**
-   * Log a message at error level
-   */
-  error(message: string, data?: any): void {
-    this.log(LogLevel.ERROR, message, data);
-  }
-
-  /**
-   * Set the logger level
-   */
-  setLevel(level: LogLevel): void {
-    this.level = level;
-  }
-
-  /**
-   * Log a message at the specified level
-   */
-  private log(level: LogLevel, message: string, data?: any): void {
-    if (this.shouldLog(level)) {
-      const output = `[XJX:${level.toUpperCase()}] ${message}`;
-      if (data !== undefined) {
-        console.log(output, data);
-      } else {
-        console.log(output);
-      }
-    }
-  }
-
-  /**
-   * Check if a log level should be output
-   */
-  private shouldLog(level: LogLevel): boolean {
-    const levels = [LogLevel.DEBUG, LogLevel.INFO, LogLevel.WARN, LogLevel.ERROR];
-    return this.level !== LogLevel.NONE && levels.indexOf(level) >= levels.indexOf(this.level);
-  }
-}
-
-// Default exportable logger instance
-export const logger = new Logger(LogLevel.ERROR);
 
 /**
  * Validate a condition and throw a ValidationError if it fails.
@@ -159,12 +78,12 @@ export function handleError<T>(
 ): T {
   // Log the error
   if (err instanceof Error) {
-    logger.error(`Error in ${context}`, {
+    log.error(`Error in ${context}`, {
       error: err,
       ...(options.data || {})
     });
   } else {
-    logger.error(`Error in ${context}`, {
+    log.error(`Error in ${context}`, {
       error: String(err),
       ...(options.data || {})
     });

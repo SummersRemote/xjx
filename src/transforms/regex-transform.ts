@@ -1,14 +1,8 @@
 /**
- * Regex transform - Apply regular expression replacements to string values
+ * Regex node transform - Apply regular expression replacements to string node values
  */
-import { Transform, TransformOptions, TransformIntent, createTransform } from '../core/transform';
-
-/**
- * Options for regex transform
- */
-export interface RegexOptions extends TransformOptions {
-  // Only inherits standard TransformOptions
-}
+import { XNode } from '../core/xnode';
+import { Transform } from "../core/functional";
 
 /**
  * Detect if a string is a regular expression pattern
@@ -30,39 +24,34 @@ function parseRegexPattern(pattern: string): { source: string, flags: string } |
 }
 
 /**
- * Create a transform that applies a regex replacement
+ * Create a node transformer that applies regex replacement to string values
  * 
  * @example
- * ```
+ * ```typescript
  * // Simple text replacement (global, case-sensitive)
- * xjx.transform(regex('hello', 'hi'));
+ * xjx.fromXml(xml).map(regex('hello', 'hi')).toJson();
  * 
  * // Full regex with flags
- * xjx.transform(regex('/hello/gi', 'hi'));
+ * xjx.fromXml(xml).map(regex('/hello/gi', 'hi')).toJson();
  * 
  * // Using RegExp object
- * xjx.transform(regex(/hello/gi, 'hi'));
+ * xjx.fromXml(xml).map(regex(/hello/gi, 'hi')).toJson();
  * 
- * // SERIALIZE mode: Only apply when serializing
- * xjx.transform(regex(/\d{4}-\d{2}-\d{2}/, 'DATE', { 
- *   intent: TransformIntent.SERIALIZE 
- * }));
+ * // Use with filtering for specific nodes
+ * xjx.fromXml(xml)
+ *    .filter(node => ['description', 'content'].includes(node.name))
+ *    .map(regex(/\d+/, 'NUMBER'))
+ *    .toJson();
  * ```
  * 
  * @param pattern Regular expression pattern (string or RegExp)
  * @param replacement Replacement string (can use capture groups)
- * @param options Transform options
- * @returns A regex transform function
+ * @returns A node transformer function for use with map()
  */
 export function regex(
   pattern: RegExp | string, 
-  replacement: string,
-  options: RegexOptions = {}
+  replacement: string
 ): Transform {
-  const {
-    intent = TransformIntent.PARSE,
-    ...restOptions
-  } = options;
   
   // Create RegExp object based on input type
   let re: RegExp;
@@ -86,32 +75,16 @@ export function regex(
     throw new Error('Pattern must be a string or RegExp');
   }
   
-  // Include all options in transformOptions, including intent
-  const transformOptions = {
-    ...restOptions,
-    intent
-  };
-  
-  return createTransform((value: any, context?: any) => {
-    // Handle null/undefined
-    if (value == null) {
-      return value;
-    }
-    
-    // Only transform strings
-    if (typeof value !== 'string') {
-      return value;
-    }
-    
-    // Get the current intent (from context or from options)
-    const currentIntent = context?.intent || intent;
-    
-    // In SERIALIZE mode, only transform if the intent matches
-    if (currentIntent === TransformIntent.SERIALIZE && intent !== TransformIntent.SERIALIZE) {
-      return value;
+  return (node: XNode): XNode => {
+    // Skip if node has no value or value is not a string
+    if (node.value === undefined || typeof node.value !== 'string') {
+      return node;
     }
     
     // Apply replacement
-    return value.replace(re, replacement);
-  }, transformOptions);
+    const transformedValue = node.value.replace(re, replacement);
+    
+    // Return transformed node
+    return { ...node, value: transformedValue };
+  };
 }

@@ -1,12 +1,13 @@
 /**
- * Boolean transform - Converts string values to booleans
+ * Boolean node transform - Converts string node values to booleans
  */
-import { Transform, TransformOptions, TransformIntent, createTransform } from '../core/transform';
+import { XNode } from '../core/xnode';
+import { Transform } from "../core/functional";
 
 /**
- * Options for boolean transform
+ * Options for boolean node transform
  */
-export interface BooleanOptions extends TransformOptions {
+export interface BooleanTransformOptions {
   /**
    * Values to consider as true (default: ['true', 'yes', '1', 'on'])
    */
@@ -21,16 +22,6 @@ export interface BooleanOptions extends TransformOptions {
    * Whether to ignore case when matching (default: true)
    */
   ignoreCase?: boolean;
-  
-  /**
-   * String representation for true when serializing (default: 'true')
-   */
-  trueString?: string;
-  
-  /**
-   * String representation for false when serializing (default: 'false')
-   */
-  falseString?: string;
 }
 
 /**
@@ -40,81 +31,68 @@ const DEFAULT_TRUE_VALUES = ['true', 'yes', '1', 'on'];
 const DEFAULT_FALSE_VALUES = ['false', 'no', '0', 'off'];
 
 /**
- * Create a transform that converts between string values and booleans
+ * Create a node transformer that converts string values to booleans
  * 
  * @example
- * ```
- * // PARSE mode (default): Convert strings to booleans
- * xjx.transform(toBoolean());
+ * ```typescript
+ * // Transform all nodes with boolean-like values
+ * xjx.fromXml(xml).map(toBoolean()).toJson();
  * 
- * // With custom values
- * xjx.transform(toBoolean({ 
- *   trueValues: ['yes', 'y'], 
- *   falseValues: ['no', 'n'] 
- * }));
+ * // Custom true/false values
+ * xjx.fromXml(xml).map(toBoolean({ 
+ *   trueValues: ['yes', 'y', '1'], 
+ *   falseValues: ['no', 'n', '0'] 
+ * })).toJson();
  * 
- * // SERIALIZE mode: Convert booleans to strings
- * xjx.transform(toBoolean({ 
- *   intent: TransformIntent.SERIALIZE,
- *   trueString: 'YES',
- *   falseString: 'NO' 
- * }));
+ * // Use with filtering for specific nodes
+ * xjx.fromXml(xml)
+ *    .filter(node => ['active', 'enabled', 'visible'].includes(node.name))
+ *    .map(toBoolean())
+ *    .toJson();
  * ```
  * 
  * @param options Boolean transform options
- * @returns A boolean transform function
+ * @returns A node transformer function for use with map()
  */
-export function toBoolean(options: BooleanOptions = {} as BooleanOptions): Transform {
+export function toBoolean(options: BooleanTransformOptions = {}): Transform {
   const {
     trueValues = DEFAULT_TRUE_VALUES,
     falseValues = DEFAULT_FALSE_VALUES,
-    ignoreCase = true,
-    trueString = 'true',
-    falseString = 'false',
-    intent = TransformIntent.PARSE,
-    ...transformOptions
+    ignoreCase = true
   } = options;
   
-  return createTransform((value: any) => {
-    // Handle null/undefined
-    if (value == null) {
-      return value;
+  // Pre-process values for case insensitive comparison
+  const normalizedTrueValues = ignoreCase 
+    ? trueValues.map(v => v.toLowerCase()) 
+    : trueValues;
+  const normalizedFalseValues = ignoreCase 
+    ? falseValues.map(v => v.toLowerCase()) 
+    : falseValues;
+  
+  return (node: XNode): XNode => {
+    // Skip if node has no value or value is not a string
+    if (node.value === undefined || typeof node.value !== 'string') {
+      return node;
     }
     
-    // SERIALIZE mode: convert boolean to string
-    if (intent === TransformIntent.SERIALIZE && typeof value === 'boolean') {
-      return value ? trueString : falseString;
+    const strValue = node.value.trim();
+    if (!strValue) {
+      return node;
     }
     
-    // PARSE mode: convert string to boolean
-    if (intent === TransformIntent.PARSE) {
-      // Already a boolean, return as is
-      if (typeof value === 'boolean') {
-        return value;
-      }
-      
-      // Convert to string for comparison
-      const strValue = String(value).trim();
-      const compareValue = ignoreCase ? strValue.toLowerCase() : strValue;
-      
-      // Check for true values
-      for (const trueVal of trueValues) {
-        const compareTrue = ignoreCase ? trueVal.toLowerCase() : trueVal;
-        if (compareValue === compareTrue) {
-          return true;
-        }
-      }
-      
-      // Check for false values
-      for (const falseVal of falseValues) {
-        const compareFalse = ignoreCase ? falseVal.toLowerCase() : falseVal;
-        if (compareValue === compareFalse) {
-          return false;
-        }
-      }
+    const compareValue = ignoreCase ? strValue.toLowerCase() : strValue;
+    
+    // Check for true values
+    if (normalizedTrueValues.includes(compareValue)) {
+      return { ...node, value: true };
     }
     
-    // No match or not applicable for the current intent, return original value
-    return value;
-  }, transformOptions);
+    // Check for false values
+    if (normalizedFalseValues.includes(compareValue)) {
+      return { ...node, value: false };
+    }
+    
+    // No match, return original node unchanged
+    return node;
+  };
 }

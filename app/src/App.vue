@@ -1,8 +1,8 @@
-<!-- App.vue -->
+<!-- App.vue - Removed FAB, execute button moved to pipeline title bar -->
 <template>
   <v-app>
     <!-- App Bar -->
-    <v-app-bar color="primary" app density="comfortable">
+    <v-app-bar color="primary" app density="compact">
       <v-app-bar-nav-icon @click="drawer = !drawer"></v-app-bar-nav-icon>
       <v-app-bar-title>
         <div class="d-flex align-center">
@@ -17,9 +17,10 @@
         color="white"
         variant="text"
         prepend-icon="mdi-file-document-multiple-outline"
-        href="https://github.com/yourusername/xjx-demo"
+        href="https://github.com/summersremote/xjx"
         target="_blank"
         class="me-2"
+        density="compact"
       >
         Docs
       </v-btn>
@@ -28,31 +29,33 @@
         href="https://github.com/summersremote/xjx"
         target="_blank"
         icon
+        density="compact"
       >
         <v-icon>mdi-github</v-icon>
       </v-btn>
     </v-app-bar>
 
     <!-- Navigation Drawer -->
-    <v-navigation-drawer v-model="drawer" width="420" class="config-drawer">
-      <ConfigPanel @showApi="showApiDialog" @showConfig="showConfigDialog" />
+    <v-navigation-drawer v-model="drawer" width="375" class="config-drawer">
+      <ConfigPanel @showConfig="showConfigDialog" @showApi="showApiDialog" />
     </v-navigation-drawer>
 
     <!-- Main Content -->
     <v-main>
       <v-container fluid>
+        <!-- Source & Result Editors -->
         <v-row>
           <v-col cols="12">
-            <EditorPanel />
+            <UnifiedEditorPanel />
           </v-col>
         </v-row>
         
-<v-row>
-  <v-col cols="12">
-    <PipelineManager />
-  </v-col>
-</v-row>
-
+        <!-- Pipeline Manager -->
+        <v-row>
+          <v-col cols="12">
+            <UnifiedPipelineManager />
+          </v-col>
+        </v-row>
       </v-container>
     </v-main>
 
@@ -60,7 +63,7 @@
     <ConfigViewer ref="configViewer" />
     <APIViewer ref="apiViewer" />
 
-    <v-footer app>
+    <v-footer app density="compact">
       <div class="w-100 text-center">
         &copy; {{ new Date().getFullYear() }} - XJX Library Demo
       </div>
@@ -70,10 +73,10 @@
 
 <script setup>
 import { ref } from 'vue';
-import EditorPanel from '@/components/EditorPanel.vue';
+import UnifiedEditorPanel from '@/components/UnifiedEditorPanel.vue';
+import UnifiedPipelineManager from '@/components/UnifiedPipelineManager.vue';
 import ConfigPanel from '@/components/ConfigPanel.vue';
 import ConfigViewer from '@/components/ConfigViewer.vue';
-import PipelineManager from '@/components/PipelineManager.vue'; // Updated import
 import APIViewer from '@/components/APIViewer.vue';
 
 // References for dialogs

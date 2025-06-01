@@ -1,36 +1,77 @@
 /**
- * XJX - Main class with fluent API
+ * XJX - Main class with fluent API, Pipeline Hooks, and Branch Context
  */
-import { Configuration, createConfig, getDefaultConfig } from "./core/config";
-import { FORMAT, Transform } from "./core/transform";
+import { LoggerFactory } from "./core/logger";
+const logger = LoggerFactory.create();
+
+import { Configuration, createConfig } from "./core/config";
+import { Transform } from "./core/functional";
 import { XNode, cloneNode } from "./core/xnode";
-import { validate, ValidationError, logger, LogLevel } from "./core/error";
-import { JsonOptions, JsonValue } from "./core/converter";
-import { XmlSerializationOptions } from "./converters/xnode-to-xml-converter";
-import { Extension, TerminalExtensionContext, NonTerminalExtensionContext } from "./core/extension";
+import { validate, ValidationError } from "./core/error";
+import { Extension, TerminalExtensionContext, NonTerminalExtensionContext, BranchContext } from "./core/extension";
+import { PipelineHooks } from "./core/hooks";
 
 /**
- * Main XJX class - provides the fluent API for XML/JSON transformation
+ * Main XJX class - provides the fluent API for XML/JSON transformation with pipeline hooks and branch context
  */
 export class XJX implements TerminalExtensionContext, NonTerminalExtensionContext {
   // Instance properties
   public xnode: XNode | null = null;
   public transforms: Transform[] = [];
   public config: Configuration;
-  public sourceFormat: FORMAT | null = null;
+  public pipelineHooks?: PipelineHooks;
+  public branchContext: BranchContext | null = null;
   
   /**
    * Create a new XJX instance
    * @param config Optional configuration
+   * @param pipelineHooks Optional pipeline-level hooks for cross-cutting concerns
    */
-  constructor(config?: Partial<Configuration>) {
+  constructor(config?: Partial<Configuration>, pipelineHooks?: PipelineHooks) {
     this.config = createConfig(config);
+    this.pipelineHooks = pipelineHooks;
+    
     logger.debug('Created new XJX instance with configuration', {
       preserveNamespaces: this.config.preserveNamespaces,
       preserveComments: this.config.preserveComments,
       preserveTextNodes: this.config.preserveTextNodes,
-      highFidelity: this.config.strategies.highFidelity
+      highFidelity: this.config.strategies.highFidelity,
+      hasPipelineHooks: !!pipelineHooks
     });
+  }
+  
+  /**
+   * Execute pipeline hook before a step
+   * @param stepName Name of the step being executed
+   * @param input Input to the step
+   * @returns Potentially modified input
+   */
+  public executeBeforeStepHook(stepName: string, input: any): any {
+    if (this.pipelineHooks?.beforeStep) {
+      try {
+        this.pipelineHooks.beforeStep(stepName, input);
+      } catch (err) {
+        logger.warn(`Error in pipeline beforeStep hook for ${stepName}:`, err);
+      }
+    }
+    return input;
+  }
+  
+  /**
+   * Execute pipeline hook after a step
+   * @param stepName Name of the step that was executed
+   * @param output Output from the step
+   * @returns Potentially modified output
+   */
+  public executeAfterStepHook(stepName: string, output: any): any {
+    if (this.pipelineHooks?.afterStep) {
+      try {
+        this.pipelineHooks.afterStep(stepName, output);
+      } catch (err) {
+        logger.warn(`Error in pipeline afterStep hook for ${stepName}:`, err);
+      }
+    }
+    return output;
   }
   
   /**
@@ -48,11 +89,19 @@ export class XJX implements TerminalExtensionContext, NonTerminalExtensionContex
       
       // Add method to XJX prototype
       (XJX.prototype as any)[name] = function(...args: any[]): any {
+        // Execute pipeline beforeStep hook
+        this.executeBeforeStepHook(name, this.xnode || args[0]);
+        
         // Validate source first for terminal extensions
         this.validateSource();
         
         // Call the implementation method with this context
-        return method.apply(this, args);
+        const result = method.apply(this, args);
+        
+        // Execute pipeline afterStep hook
+        this.executeAfterStepHook(name, result);
+        
+        return result;
       };
       
       logger.debug('Terminal extension registered', { name });
@@ -77,8 +126,14 @@ export class XJX implements TerminalExtensionContext, NonTerminalExtensionContex
       
       // Add method to XJX prototype that returns this
       (XJX.prototype as any)[name] = function(...args: any[]): XJX {
+        // Execute pipeline beforeStep hook
+        this.executeBeforeStepHook(name, args[0] || this.xnode);
+        
         // Call the implementation method with this context
         method.apply(this, args);
+        
+        // Execute pipeline afterStep hook
+        this.executeAfterStepHook(name, this.xnode);
         
         // Return this for chaining
         return this;
@@ -98,8 +153,8 @@ export class XJX implements TerminalExtensionContext, NonTerminalExtensionContex
    * @throws Error if no source has been set
    */
   public validateSource(): void {
-    if (!this.xnode || !this.sourceFormat) {
-      throw new ValidationError('No source set: call fromXml() or fromJson() before transformation');
+    if (!this.xnode) {
+      throw new ValidationError('No source set: call fromXml(), fromJson(), or fromXnode() before transformation');
     }
   }
   

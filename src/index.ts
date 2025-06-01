@@ -1,38 +1,39 @@
 /**
- * XJX Library - XML/JSON transformation with fluent API
+ * XJX Library - XML/JSON transformation with fluent API and minimal transform system
  */
 
 // IMPORTANT: Register all extensions by importing their files
 // These imports MUST be kept as they register methods on the XJX prototype
-import './extensions/from-xml';
-import './extensions/from-json';
-import './extensions/to-xml';
-import './extensions/to-json';
-import './extensions/config-extensions';
-import './extensions/root-extensions';
-import './extensions/to-xnode';
-import './extensions/from-xnode';
-import './extensions/functional-api';
+import "./extensions/from-xml";
+import "./extensions/from-json";
+import "./extensions/to-xml";
+import "./extensions/to-json";
+import "./extensions/config-extensions";
+import "./extensions/root-extensions";
+import "./extensions/to-xnode";
+import "./extensions/from-xnode";
+import "./extensions/functional-api";
 
 // Export the main class (for instantiation)
-export { XJX } from './XJX';
-export { default } from './XJX';
+export { XJX } from "./XJX";
+export { default } from "./XJX";
 
 // Export core interfaces and types
 export {
   // Configuration
   Configuration,
-} from './core/config';
+} from "./core/config";
 
 export {
-  // Transform system
+  // Minimal transform system
   Transform,
-  TransformOptions,
-  TransformIntent,
   compose,
-  createTransform,
-  FORMAT
-} from './core/transform';
+} from "./core/functional";
+
+// Export logging
+export { 
+  LoggerFactory, 
+  LogLevel } from "./core/logger";
 
 // Export error handling
 export {
@@ -40,26 +41,36 @@ export {
   ProcessingError,
   XJXError,
   validate,
-  logger,
-  LogLevel,
-} from './core/error';
+} from "./core/error";
 
 // Export model interfaces
-export { XNode } from './core/xnode';
+export { XNode } from "./core/xnode";
 
 // Export extension context interfaces
 export {
   TerminalExtensionContext,
-  NonTerminalExtensionContext
-} from './core/extension';
+  NonTerminalExtensionContext,
+  BranchContext,
+} from "./core/extension";
 
-// Export JSON conversion types
+// Export converter types and hook interfaces
 export {
-  JsonOptions,
+  Converter,
   JsonValue,
   JsonObject,
   JsonArray,
-} from './core/converter';
+  applySourceHooks,
+  applyOutputHooks,
+  applyNodeHooks,
+} from "./core/converter";
+
+// Hooks system
+export {
+  SourceHooks,
+  OutputHooks,
+  NodeHooks,
+  PipelineHooks
+} from './core/hooks';
 
 // Export transform functions and creators
 export {
@@ -67,28 +78,26 @@ export {
   toNumber,
   toBoolean,
   regex,
-  
+
   // Options interfaces
-  NumberOptions,
-  BooleanOptions,
-  RegexOptions,
-} from './transforms';
+  NumberTransformOptions,
+  BooleanTransformOptions,
+} from "./transforms";
 
 // Manual registration verification - this function does nothing at runtime
 // but ensures that tree-shaking doesn't remove our extension imports
 function ensureExtensionsRegistered() {
   // The mere existence of this function with references prevents tree-shaking
   return [
-    './extensions/from-xml',
-    './extensions/from-json',
-    './extensions/to-xml',
-    './extensions/to-json',
-    './extensions/config-extensions',
-    './extensions/to-xnode',
-    './extensions/from-xnode',
-    './extensions/functional-api',
-    './extensions/root-extensions',
-
+    "./extensions/from-xml",
+    "./extensions/from-json",
+    "./extensions/to-xml",
+    "./extensions/to-json",
+    "./extensions/config-extensions",
+    "./extensions/to-xnode",
+    "./extensions/from-xnode",
+    "./extensions/functional-api",
+    "./extensions/root-extensions",
   ];
 }
 

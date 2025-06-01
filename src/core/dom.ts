@@ -1,7 +1,10 @@
 /**
  * DOM operations with unified interface for browser and Node.js
  */
-import { logger, ProcessingError } from './error';
+import { LoggerFactory } from "./logger";
+const logger = LoggerFactory.create();
+
+import { ProcessingError } from './error';
 
 /**
  * DOM node types as an enum for better type safety

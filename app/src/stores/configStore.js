@@ -1,36 +1,147 @@
-// stores/configStore.js
+// stores/configStore.js - Updated with info log level default
 import { defineStore } from 'pinia';
-import XJXService from '../services/xjxService';
-import { useAPIStore } from './apiStore';
 
 export const useConfigStore = defineStore('config', {
   state: () => ({
-    config: XJXService.getDefaultConfig(),
-    logLevel: 'error' // Default log level
+    config: {
+      // Preservation settings
+      preserveNamespaces: true,
+      preserveComments: true,
+      preserveProcessingInstr: true,
+      preserveCDATA: true,
+      preserveTextNodes: true,
+      preserveWhitespace: false,
+      preserveAttributes: true,
+      preservePrefixedNames: false,
+
+      // High-level strategies
+      strategies: {
+        highFidelity: false,
+        attributeStrategy: "merge",
+        textStrategy: "direct",
+        namespaceStrategy: "prefix",
+        arrayStrategy: "multiple",
+        emptyElementStrategy: "object",
+        mixedContentStrategy: "preserve",
+      },
+
+      // Property names
+      properties: {
+        attribute: "$attr",
+        value: "$val",
+        namespace: "$ns",
+        prefix: "$pre",
+        cdata: "$cdata",
+        comment: "$cmnt",
+        processingInstr: "$pi",
+        target: "$trgt",
+        children: "$children",
+      },
+
+      // Prefix configurations
+      prefixes: {
+        attribute: "@",
+        namespace: "xmlns:",
+        comment: "#",
+        cdata: "!",
+        pi: "?",
+      },
+
+      // Array configurations
+      arrays: {
+        forceArrays: [],
+        defaultItemName: "item",
+        itemNames: {},
+      },
+
+      // Output formatting
+      formatting: {
+        indent: 2,
+        declaration: true,
+        pretty: true,
+      },
+
+      // Fragment root name for functional operations
+      fragmentRoot: "results",
+    },
+    
+    logLevel: 'INFO' // Changed from ERROR to INFO
   }),
+  
   actions: {
     /**
      * Update configuration
-     * @param {Object} config - New configuration
+     * @param {Object} newConfig - New configuration
      */
-    updateConfig(config) {
-      this.config = config;
-      
-      // Update the API store to generate new fluent API code
-      const apiStore = useAPIStore();
-      apiStore.updateFluentAPI();
+    updateConfig(newConfig) {
+      this.config = { ...this.config, ...newConfig };
     },
     
     /**
      * Reset configuration to default
      */
     resetToDefault() {
-      // Make sure we get a fresh copy of the default config
-      this.config = XJXService.getDefaultConfig();
-      
-      // Update the API store to generate new fluent API code
-      const apiStore = useAPIStore();
-      apiStore.updateFluentAPI();
+      this.config = {
+        // Preservation settings
+        preserveNamespaces: true,
+        preserveComments: true,
+        preserveProcessingInstr: true,
+        preserveCDATA: true,
+        preserveTextNodes: true,
+        preserveWhitespace: false,
+        preserveAttributes: true,
+        preservePrefixedNames: false,
+
+        // High-level strategies
+        strategies: {
+          highFidelity: false,
+          attributeStrategy: "merge",
+          textStrategy: "direct",
+          namespaceStrategy: "prefix",
+          arrayStrategy: "multiple",
+          emptyElementStrategy: "object",
+          mixedContentStrategy: "preserve",
+        },
+
+        // Property names
+        properties: {
+          attribute: "$attr",
+          value: "$val",
+          namespace: "$ns",
+          prefix: "$pre",
+          cdata: "$cdata",
+          comment: "$cmnt",
+          processingInstr: "$pi",
+          target: "$trgt",
+          children: "$children",
+        },
+
+        // Prefix configurations
+        prefixes: {
+          attribute: "@",
+          namespace: "xmlns:",
+          comment: "#",
+          cdata: "!",
+          pi: "?",
+        },
+
+        // Array configurations
+        arrays: {
+          forceArrays: [],
+          defaultItemName: "item",
+          itemNames: {},
+        },
+
+        // Output formatting
+        formatting: {
+          indent: 2,
+          declaration: true,
+          pretty: true,
+        },
+
+        // Fragment root name for functional operations
+        fragmentRoot: "results",
+      };
     },
 
     /**
@@ -39,13 +150,15 @@ export const useConfigStore = defineStore('config', {
      */
     updateLogLevel(level) {
       this.logLevel = level;
-      
-      // Apply the log level to the XJX library
-      XJXService.setLogLevel(level);
-      
-      // Update the API store to generate new fluent API code
-      const apiStore = useAPIStore();
-      apiStore.updateFluentAPI();
+      console.log(`XJX log level set to: ${level}`);
+    },
+    
+    /**
+     * Load a configuration preset
+     * @param {Object} presetConfig - Preset configuration to load
+     */
+    loadPreset(presetConfig) {
+      this.config = JSON.parse(JSON.stringify(presetConfig));
     }
   }
 });

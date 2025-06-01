@@ -1,18 +1,60 @@
-// services/configPresets.js
-import XJXService from './xjxService.js';
-
-// Get the default configuration from the XJX library
-const defaultConfig = XJXService.getDefaultConfig();
-
+// services/configPresets.js - Simplified and updated presets
 export const configPresets = [
   {
     name: "Default",
-    description: "Default XJX configuration - automatically updated with library changes",
-    config: defaultConfig
+    description: "Balanced configuration for most XML/JSON conversion needs",
+    config: {
+      preserveNamespaces: true,
+      preserveComments: true,
+      preserveProcessingInstr: true,
+      preserveCDATA: true,
+      preserveTextNodes: true,
+      preserveWhitespace: false,
+      preserveAttributes: true,
+      preservePrefixedNames: false,
+      strategies: {
+        highFidelity: false,
+        attributeStrategy: "merge",
+        textStrategy: "direct",
+        namespaceStrategy: "prefix",
+        arrayStrategy: "multiple",
+        emptyElementStrategy: "object",
+        mixedContentStrategy: "preserve"
+      },
+      properties: {
+        attribute: "$attr",
+        value: "$val",
+        namespace: "$ns",
+        prefix: "$pre",
+        cdata: "$cdata",
+        comment: "$cmnt",
+        processingInstr: "$pi",
+        target: "$trgt",
+        children: "$children"
+      },
+      prefixes: {
+        attribute: "@",
+        namespace: "xmlns:",
+        comment: "#",
+        cdata: "!",
+        pi: "?"
+      },
+      arrays: {
+        forceArrays: [],
+        defaultItemName: "item",
+        itemNames: {}
+      },
+      formatting: {
+        indent: 2,
+        declaration: true,
+        pretty: true
+      },
+      fragmentRoot: "results"
+    }
   },
   {
-    name: "XJX High-Fidelity",
-    description: "Lossless conversion preserving all XML information for perfect round-trip conversion",
+    name: "High-Fidelity",
+    description: "Perfect round-trip conversion preserving all XML information",
     config: {
       preserveNamespaces: true,
       preserveComments: true,
@@ -115,164 +157,8 @@ export const configPresets = [
     }
   },
   {
-    name: "Parker",
-    description: "Compact format focusing on content over structure, minimal metadata",
-    config: {
-      preserveNamespaces: false,
-      preserveComments: false,
-      preserveProcessingInstr: false,
-      preserveCDATA: false,
-      preserveTextNodes: true,
-      preserveWhitespace: false,
-      preserveAttributes: true,
-      preservePrefixedNames: false,
-      strategies: {
-        highFidelity: false,
-        attributeStrategy: "merge",
-        textStrategy: "direct",
-        namespaceStrategy: "prefix",
-        arrayStrategy: "always",
-        emptyElementStrategy: "remove",  // Use remove strategy for Parker
-        mixedContentStrategy: "merge"
-      },
-      properties: {
-        attribute: "$attr",
-        value: "$val",
-        namespace: "$ns",
-        prefix: "$pre",
-        cdata: "$cdata",
-        comment: "$cmnt",
-        processingInstr: "$pi",
-        target: "$trgt",
-        children: "$children"
-      },
-      prefixes: {
-        attribute: "@",
-        namespace: "xmlns:",
-        comment: "#",
-        cdata: "!",
-        pi: "?"
-      },
-      arrays: {
-        forceArrays: [],
-        defaultItemName: "item",
-        itemNames: {}
-      },
-      formatting: {
-        indent: 0,
-        declaration: false,
-        pretty: false
-      },
-      fragmentRoot: "results"
-    }
-  },
-  {
-    name: "JsonML",
-    description: "JSON Markup Language representation using arrays for structure",
-    config: {
-      preserveNamespaces: true,
-      preserveComments: false,
-      preserveProcessingInstr: false,
-      preserveCDATA: false,
-      preserveTextNodes: true,
-      preserveWhitespace: false,
-      preserveAttributes: true,
-      preservePrefixedNames: true,
-      strategies: {
-        highFidelity: false,
-        attributeStrategy: "property",
-        textStrategy: "property",
-        namespaceStrategy: "property",
-        arrayStrategy: "always",
-        emptyElementStrategy: "object",
-        mixedContentStrategy: "preserve"
-      },
-      properties: {
-        attribute: "$attr",
-        value: "$val",
-        namespace: "$ns",
-        prefix: "$pre",
-        cdata: "$cdata",
-        comment: "$cmnt",
-        processingInstr: "$pi",
-        target: "$trgt",
-        children: "$children"
-      },
-      prefixes: {
-        attribute: "@",
-        namespace: "xmlns:",
-        comment: "#",
-        cdata: "!",
-        pi: "?"
-      },
-      arrays: {
-        forceArrays: [],
-        defaultItemName: "item",
-        itemNames: {}
-      },
-      formatting: {
-        indent: 2,
-        declaration: false,
-        pretty: true
-      },
-      fragmentRoot: "results"
-    }
-  },
-  {
-    name: "Structure Only",
-    description: "Preserves XML structure while removing text content - useful for creating templates",
-    config: {
-      preserveNamespaces: true,
-      preserveComments: false,
-      preserveProcessingInstr: false,
-      preserveCDATA: false,
-      preserveTextNodes: false,
-      preserveWhitespace: false,
-      preserveAttributes: true,
-      preservePrefixedNames: true,
-      strategies: {
-        highFidelity: false,
-        attributeStrategy: "merge",
-        textStrategy: "direct",
-        namespaceStrategy: "prefix",
-        arrayStrategy: "multiple",
-        emptyElementStrategy: "remove",  // Use remove strategy for structure-only
-        mixedContentStrategy: "preserve"
-      },
-      properties: {
-        attribute: "$attr",
-        value: "$val",
-        namespace: "$ns",
-        prefix: "$pre",
-        cdata: "$cdata",
-        comment: "$cmnt",
-        processingInstr: "$pi",
-        target: "$trgt",
-        children: "$children"
-      },
-      prefixes: {
-        attribute: "@",
-        namespace: "xmlns:",
-        comment: "#",
-        cdata: "!",
-        pi: "?"
-      },
-      arrays: {
-        forceArrays: [],
-        defaultItemName: "item",
-        itemNames: {}
-      },
-      formatting: {
-        indent: 2,
-        declaration: true,
-        pretty: true
-      },
-      fragmentRoot: "results"
-    }
-  },
-  {
     name: "Minimal",
-    description: "Basic conversion with minimal metadata and processing overhead",
+    description: "Compact conversion with minimal metadata overhead",
     config: {
       preserveNamespaces: false,
       preserveComments: false,
@@ -288,7 +174,7 @@ export const configPresets = [
         textStrategy: "direct",
         namespaceStrategy: "prefix",
         arrayStrategy: "multiple",
-        emptyElementStrategy: "string",
+        emptyElementStrategy: "remove",
         mixedContentStrategy: "merge"
       },
       properties: {
@@ -324,7 +210,7 @@ export const configPresets = [
   },
   {
     name: "Namespace Focused",
-    description: "Optimized for XML documents with heavy namespace usage",
+    description: "Optimized for XML documents with complex namespace usage",
     config: {
       preserveNamespaces: true,
       preserveComments: true,
@@ -372,58 +258,6 @@ export const configPresets = [
         pretty: true
       },
       fragmentRoot: "elements"
-    }
-  },
-  {
-    name: "Compact",
-    description: "Focused on minimal output size with aggressive compacting and empty element removal",
-    config: {
-      preserveNamespaces: false,
-      preserveComments: false,
-      preserveProcessingInstr: false,
-      preserveCDATA: false,
-      preserveTextNodes: true,
-      preserveWhitespace: false,
-      preserveAttributes: true,
-      preservePrefixedNames: false,
-      strategies: {
-        highFidelity: false,
-        attributeStrategy: "merge",
-        textStrategy: "direct",
-        namespaceStrategy: "prefix",
-        arrayStrategy: "never",
-        emptyElementStrategy: "remove",  // Use remove strategy for compact output
-        mixedContentStrategy: "merge"
-      },
-      properties: {
-        attribute: "$attr",
-        value: "$val",
-        namespace: "$ns",
-        prefix: "$pre",
-        cdata: "$cdata",
-        comment: "$cmnt",
-        processingInstr: "$pi",
-        target: "$trgt",
-        children: "$children"
-      },
-      prefixes: {
-        attribute: "@",
-        namespace: "xmlns:",
-        comment: "#",
-        cdata: "!",
-        pi: "?"
-      },
-      arrays: {
-        forceArrays: [],
-        defaultItemName: "item",
-        itemNames: {}
-      },
-      formatting: {
-        indent: 0,
-        declaration: false,
-        pretty: false
-      },
-      fragmentRoot: "results"
     }
   }
 ];

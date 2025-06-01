@@ -1,71 +1,86 @@
 /**
- * Transforms module - Functional transform factories
+ * Node Transforms module - Pure transform functions for use with map()
  *
- * This module provides transform factories for converting data between formats.
- * All transforms are simple functions that can be composed together.
+ * This module provides node transformer factories that work directly with the map() function.
+ * All transforms are pure functions that take an XNode and return a transformed XNode.
  */
 
 // Core transform types and utilities
 export {
   Transform,
-  TransformOptions,
-  TransformIntent,
-  compose,
-  createTransform
-} from '../core/transform';
+  compose
+} from '../core/functional';
 
-// Number transform
+// Number node transform
 export {
   toNumber,
-  NumberOptions
+  NumberTransformOptions
 } from './number-transform';
 
-// Boolean transform
+// Boolean node transform
 export {
   toBoolean,
-  BooleanOptions
+  BooleanTransformOptions
 } from './boolean-transform';
 
-// Regex transform
+// Regex node transform
 export {
-  regex,
-  RegexOptions
+  regex
 } from './regex-transform';
 
 /**
- * Quick reference for the functional transform system:
+ * Quick reference for the minimal transform system:
+ * 
+ * All transforms are pure functions: (node: XNode) => XNode
  * 
  * ```typescript
- * // Simple usage with defaults
+ * // Transform all boolean-like values
  * xjx.fromXml(xml)
- *    .select(node => node.name === 'price')
- *    .transform(toNumber())
- *    .filter(node => node.value > 100)
- *    .toXml();
+ *    .map(toBoolean())
+ *    .toJson();
  * 
- * // With parameters
+ * // Transform only specific nodes using explicit filtering
  * xjx.fromXml(xml)
- *    .select(node => node.name === 'price')
- *    .transform(toNumber({ precision: 2, thousandsSeparator: '.' }))
- *    .toXml();
+ *    .filter(node => ['price', 'total'].includes(node.name))
+ *    .map(toNumber({ precision: 2 }))
+ *    .toJson();
+ * 
+ * // Chain multiple transforms using compose
+ * xjx.fromXml(xml)
+ *    .filter(node => node.name === 'price')
+ *    .map(compose(
+ *      regex(/[^\d.]/g, ''),  // Clean currency symbols
+ *      toNumber({ precision: 2 })
+ *    ))
+ *    .toJson();
+ * 
+ * // Inline custom transforms
+ * xjx.fromXml(xml)
+ *    .map(node => ({ ...node, processed: true }))
+ *    .toJson();
  * 
  * // Create reusable configured transforms
- * const currencyTransform = toNumber({ precision: 2 });
- * const yesNoBoolean = toBoolean({ trueValues: ['yes'], falseValues: ['no'] });
- * const sanitizePhone = regex(/[^\d]/g, '');
- * 
- * // Use them anywhere
- * xjx.transform(currencyTransform);
- * xjx.transform(yesNoBoolean);
- * xjx.transform(sanitizePhone);
- * 
- * // Compose transforms
- * const processPrice = compose(
- *   regex(/[^\d.]/g, ''),  // Remove non-digits
- *   toNumber({ precision: 2 }),
- *   (value) => value * 1.1  // Add 10% markup
+ * const cleanPrice = compose(
+ *   regex(/[$,]/g, ''),
+ *   toNumber({ precision: 2 })
  * );
  * 
- * xjx.transform(processPrice);
+ * const parseBoolean = toBoolean({ 
+ *   trueValues: ['yes', '1', 'true'], 
+ *   falseValues: ['no', '0', 'false'] 
+ * });
+ * 
+ * xjx.fromXml(xml)
+ *    .filter(node => node.name === 'price')
+ *    .map(cleanPrice)
+ *    .filter(node => ['active', 'enabled'].includes(node.name))
+ *    .map(parseBoolean)
+ *    .toJson();
  * ```
+ * 
+ * Key principles of the minimal transform system:
+ * - Pure functions: no side effects, predictable results
+ * - Explicit filtering: use filter() or select() before transforms
+ * - Composable: use compose() to chain multiple transforms
+ * - Self-contained: transforms handle their own validation and errors
  */

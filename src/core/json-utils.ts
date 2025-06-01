@@ -1,89 +1,12 @@
 /**
  * JSON utilities and type definitions
  */
+import { LoggerFactory } from "./logger";
+const logger = LoggerFactory.create();
+
 import { getPath, setPath } from './common';
-import { logger } from './error';
 import { Configuration } from './config';
-import { FormatDetectionResult, JsonValue, JsonObject, JsonArray } from './converter';
-
-/**
- * Detect JSON format (high-fidelity vs standard)
- * @param json JSON value to analyze
- * @param config Configuration with property names to check for
- * @returns Format detection result
- */
-export function detectJsonFormat(json: JsonValue, config: Configuration): FormatDetectionResult {
-  // Default result
-  const result: FormatDetectionResult = {
-    isHighFidelity: false,
-    isArray: Array.isArray(json)
-  };
-  
-  // Handle array
-  if (result.isArray) {
-    const arr = json as JsonArray;
-    // Check if any items look like high-fidelity
-    if (arr.length > 0 && typeof arr[0] === 'object' && arr[0] !== null) {
-      // Check first item if it has high-fidelity markers
-      const firstItemKeys = Object.keys(arr[0] as JsonObject);
-      // If first key is an object, check its properties
-      if (firstItemKeys.length === 1) {
-        const firstKey = firstItemKeys[0];
-        const firstObj = (arr[0] as JsonObject)[firstKey];
-        if (typeof firstObj === 'object' && firstObj !== null) {
-          result.isHighFidelity = hasHighFidelityMarkers(firstObj as JsonObject, config);
-        }
-      }
-    }
-    return result;
-  }
-  
-  // Handle object
-  if (json && typeof json === 'object' && !Array.isArray(json)) {
-    const obj = json as JsonObject;
-    const keys = Object.keys(obj);
-    
-    // Empty object is not high-fidelity
-    if (keys.length === 0) {
-      return result;
-    }
-    
-    // Store root name for the first key
-    result.rootName = keys[0];
-    
-    // Get first property's value
-    const firstProp = obj[keys[0]];
-    
-    // If first property is an object, check its properties
-    if (typeof firstProp === 'object' && firstProp !== null) {
-      result.isHighFidelity = hasHighFidelityMarkers(firstProp as JsonObject, config);
-    }
-  }
-  
-  return result;
-}
-
-/**
- * Check if an object has high-fidelity markers
- * @param obj Object to check
- * @param config Configuration with property names
- * @returns True if the object has high-fidelity markers
- */
-function hasHighFidelityMarkers(obj: JsonObject, config: Configuration): boolean {
-  const { properties } = config;
-  
-  // Check for high-fidelity specific properties
-  return (
-    obj[properties.attribute] !== undefined ||
-    obj[properties.children] !== undefined ||
-    obj[properties.namespace] !== undefined ||
-    obj[properties.prefix] !== undefined ||
-    obj[properties.cdata] !== undefined ||
-    obj[properties.comment] !== undefined ||
-    obj[properties.processingInstr] !== undefined ||
-    obj[properties.value] !== undefined  // MERGED: single value property
-  );
-}
+import { JsonValue, JsonObject, JsonArray } from './converter';
 
 /**
  * Check if a JSON value represents an empty element

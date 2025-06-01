@@ -4,6 +4,7 @@ import { nodeResolve } from "@rollup/plugin-node-resolve";
 import commonjs from "@rollup/plugin-commonjs";
 import filesize from "rollup-plugin-filesize";
 import { readFileSync } from "fs";
+import terser from "@rollup/plugin-terser";
 
 // Read package.json for external dependencies
 const pkg = JSON.parse(readFileSync("./package.json", "utf8"));
@@ -12,8 +13,8 @@ const isProd = process.env.NODE_ENV === "production";
 // Treat all deps and peerDeps as external
 const external = [
   ...Object.keys(pkg.dependencies || {}),
-  ...Object.keys(pkg.peerDependencies || {})
-]
+  ...Object.keys(pkg.peerDependencies || {}),
+];
 
 // Common plugins for all builds
 const commonPlugins = [
@@ -103,4 +104,21 @@ export default [
       }),
     ],
   },
-]; 
+  {
+    input: "src/index.ts",
+    output: {
+      file: "dist/es/bundle.min.js",
+      format: "es", // or 'iife' for browser
+      name: "XJX", // needed for iife
+      sourcemap: false,
+    },
+    external: [], // Bundle everything
+    plugins: [
+      nodeResolve({ extensions: [".ts", ".js"] }),
+      commonjs(),
+      typescript({ tsconfig: "./tsconfig.json" }),
+      terser(),
+      filesize({ showMinifiedSize: true, showGzippedSize: true }),
+    ],
+  },
+];

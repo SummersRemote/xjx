@@ -196,4 +196,87 @@ export function reduceNodeTree<T>(
   return accumulator;
 }
 
+/**
+ * Collect nodes matching predicate along with their paths in the tree
+ */
+export function collectNodesWithPaths(
+  root: XNode,
+  predicate: (node: XNode) => boolean
+): { nodes: XNode[], indices: number[], paths: number[][] } {
+  const results: XNode[] = [];
+  const indices: number[] = [];
+  const paths: number[][] = [];
+  
+  function traverse(node: XNode, path: number[] = []): void {
+    try {
+      if (predicate(node)) {
+        results.push(node);
+        indices.push(results.length - 1);
+        paths.push([...path]);
+      }
+    } catch (err) {
+      logger.warn(`Error evaluating predicate on node: ${node.name}`, {
+        error: err instanceof Error ? err.message : String(err)
+      });
+    }
+    
+    if (node.children) {
+      node.children.forEach((child, index) => {
+        traverse(child, [...path, index]);
+      });
+    }
+  }
+  
+  traverse(root);
+  
+  return { nodes: results, indices, paths };
+}
 
+/**
+ * Replace a single node at a specific path in the tree
+ */
+export function replaceNodeAtPath(root: XNode, replacementNode: XNode, path: number[]): void {
+  if (path.length === 0) return; // Can't replace root
+  
+  const parentPath = path.slice(0, -1);
+  const nodeIndex = path[path.length - 1];
+  
+  const parent = getNodeAtPath(root, parentPath);
+  if (parent?.children && nodeIndex < parent.children.length) {
+    // Set correct parent reference
+    replacementNode.parent = parent;
+    // Replace the node at this position
+    parent.children[nodeIndex] = replacementNode;
+  }
+}
+
+/**
+ * Remove a single node at a specific path in the tree
+ */
+export function removeNodeAtPath(root: XNode, path: number[]): void {
+  if (path.length === 0) return; // Can't remove root
+  
+  const parentPath = path.slice(0, -1);
+  const nodeIndex = path[path.length - 1];
+  
+  const parent = getNodeAtPath(root, parentPath);
+  if (parent?.children && nodeIndex < parent.children.length) {
+    parent.children.splice(nodeIndex, 1);
+  }
+}
+
+/**
+ * Get a node at a specific path in the tree
+ */
+export function getNodeAtPath(root: XNode, path: number[]): XNode | null {
+  let current = root;
+  
+  for (const index of path) {
+    if (!current.children || index >= current.children.length) {
+      return null;
+    }
+    current = current.children[index];
+  }
+  
+  return current;
+}

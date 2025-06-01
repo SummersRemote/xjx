@@ -24,16 +24,16 @@
     "README.md",
     "LICENSE"
   ],
-"scripts": {
-  "clean": "rimraf dist",
-  "build": "npm run clean && npm run build:types && npm run build:js",
-  "build:types": "tsc --emitDeclarationOnly --declarationDir dist/types --outDir dist/types",
-  "build:js": "rollup -c",
-  "build:prod": "NODE_ENV=production npm run build:js",
-  "test": "NODE_OPTIONS=--experimental-vm-modules jest",
-  "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
-  "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --coverage"
-},
+  "scripts": {
+    "clean": "rimraf dist",
+    "build": "npm run clean && npm run build:types && npm run build:js",
+    "build:types": "tsc --emitDeclarationOnly --declarationDir dist/types --outDir dist/types",
+    "build:js": "rollup -c",
+    "build:prod": "NODE_ENV=production npm run build:js",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
+    "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --coverage"
+  },
   "keywords": [
     "xml",
     "json",

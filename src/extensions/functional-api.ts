@@ -7,9 +7,22 @@ const logger = LoggerFactory.create();
 
 import { XJX } from "../XJX";
 import { XNode, addChild, cloneNode } from "../core/xnode";
-import { NonTerminalExtensionContext, TerminalExtensionContext, BranchContext } from "../core/extension";
+import {
+  NonTerminalExtensionContext,
+  TerminalExtensionContext,
+  BranchContext,
+} from "../core/extension";
 import { validateInput, NodeHooks } from "../core/hooks";
-import { Transform, createResultsContainer, filterNodeHierarchy, reduceNodeTree, collectNodes } from "../core/functional";
+import {
+  Transform,
+  createResultsContainer,
+  filterNodeHierarchy,
+  reduceNodeTree,
+  collectNodes,
+  collectNodesWithPaths,
+  replaceNodeAtPath,
+  removeNodeAtPath,
+} from "../core/functional";
 import { transformXNodeWithHooks } from "../converters/xnode-transformer";
 
 /**
@@ -21,7 +34,10 @@ export function filter(
   predicate: (node: XNode) => boolean
 ): void {
   try {
-    validateInput(typeof predicate === "function", "Predicate must be a function");
+    validateInput(
+      typeof predicate === "function",
+      "Predicate must be a function"
+    );
     this.validateSource();
 
     logger.debug("Filtering document nodes hierarchically");
@@ -32,13 +48,13 @@ export function filter(
     if (filteredRoot) {
       this.xnode = filteredRoot;
       logger.debug("Successfully filtered document", {
-        rootName: filteredRoot.name
+        rootName: filteredRoot.name,
       });
     } else {
       this.xnode = createResultsContainer(
-        typeof this.config.fragmentRoot === 'string' 
-          ? this.config.fragmentRoot 
-          : 'results'
+        typeof this.config.fragmentRoot === "string"
+          ? this.config.fragmentRoot
+          : "results"
       );
       logger.debug("No nodes matched the filter predicate");
     }
@@ -60,28 +76,39 @@ export function map(
   hooks?: NodeHooks
 ): void {
   try {
-    validateInput(typeof transform === "function", "Transform must be a function");
+    validateInput(
+      typeof transform === "function",
+      "Transform must be a function"
+    );
     this.validateSource();
 
     logger.debug("Mapping document nodes", {
-      hasNodeHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
+      hasNodeHooks: !!(
+        hooks &&
+        (hooks.beforeTransform || hooks.afterTransform)
+      ),
     });
 
     const rootNode = this.xnode as XNode;
-    
+
     // Use the integrated transformer with the new hook system
-    const mappedRoot = transformXNodeWithHooks(rootNode, transform, hooks, this.config);
+    const mappedRoot = transformXNodeWithHooks(
+      rootNode,
+      transform,
+      hooks,
+      this.config
+    );
 
     if (mappedRoot) {
       this.xnode = mappedRoot;
       logger.debug("Successfully transformed document", {
-        rootName: mappedRoot.name
+        rootName: mappedRoot.name,
       });
     } else {
       this.xnode = createResultsContainer(
-        typeof this.config.fragmentRoot === 'string' 
-          ? this.config.fragmentRoot 
-          : 'results'
+        typeof this.config.fragmentRoot === "string"
+          ? this.config.fragmentRoot
+          : "results"
       );
       logger.debug("Transform removed all nodes from the document");
     }
@@ -112,7 +139,7 @@ export function reduce<T>(
     const result = reduceNodeTree(rootNode, reducer, initialValue);
 
     logger.debug("Successfully reduced document");
-    
+
     return result;
   } catch (err) {
     if (err instanceof Error) {
@@ -131,7 +158,10 @@ export function select(
   predicate: (node: XNode) => boolean
 ): void {
   try {
-    validateInput(typeof predicate === "function", "Predicate must be a function");
+    validateInput(
+      typeof predicate === "function",
+      "Predicate must be a function"
+    );
     this.validateSource();
 
     logger.debug("Selecting document nodes");
@@ -140,9 +170,9 @@ export function select(
     const selectedNodes = collectNodes(rootNode, predicate);
 
     const resultsContainer = createResultsContainer(
-      typeof this.config.fragmentRoot === 'string' 
-        ? this.config.fragmentRoot 
-        : 'results'
+      typeof this.config.fragmentRoot === "string"
+        ? this.config.fragmentRoot
+        : "results"
     );
 
     for (const node of selectedNodes) {
@@ -152,7 +182,7 @@ export function select(
     this.xnode = resultsContainer;
 
     logger.debug("Successfully selected nodes", {
-      count: selectedNodes.length
+      count: selectedNodes.length,
     });
   } catch (err) {
     if (err instanceof Error) {
@@ -170,56 +200,59 @@ export function branch(
   predicate: (node: XNode) => boolean
 ): void {
   try {
-    validateInput(typeof predicate === "function", "Predicate must be a function");
+    validateInput(
+      typeof predicate === "function",
+      "Predicate must be a function"
+    );
     this.validateSource();
 
     logger.debug("Creating branch scope");
 
     const rootNode = this.xnode as XNode;
-    
+
     // Collect all nodes that match the predicate with their paths
     const branchInfo = collectNodesWithPaths(rootNode, predicate);
-    
+
     if (branchInfo.nodes.length === 0) {
       // No nodes matched - create empty branch
       this.branchContext = {
         parentNodes: [rootNode],
         originalIndices: [],
         branchedNodes: [],
-        nodePaths: []
+        nodePaths: [],
       };
-      
+
       this.xnode = createResultsContainer(
-        typeof this.config.fragmentRoot === 'string' 
-          ? this.config.fragmentRoot 
-          : 'results'
+        typeof this.config.fragmentRoot === "string"
+          ? this.config.fragmentRoot
+          : "results"
       );
     } else {
       // Store branch context
       this.branchContext = {
         parentNodes: [rootNode],
         originalIndices: branchInfo.indices,
-        branchedNodes: branchInfo.nodes.map(node => cloneNode(node, true)),
-        nodePaths: branchInfo.paths
+        branchedNodes: branchInfo.nodes.map((node) => cloneNode(node, true)),
+        nodePaths: branchInfo.paths,
       };
-      
+
       // Create results container with branched nodes
       const resultsContainer = createResultsContainer(
-        typeof this.config.fragmentRoot === 'string' 
-          ? this.config.fragmentRoot 
-          : 'results'
+        typeof this.config.fragmentRoot === "string"
+          ? this.config.fragmentRoot
+          : "results"
       );
-      
+
       for (const node of branchInfo.nodes) {
         const clonedNode = cloneNode(node, true);
         addChild(resultsContainer, clonedNode);
       }
-      
+
       this.xnode = resultsContainer;
     }
 
     logger.debug("Successfully created branch", {
-      branchedNodeCount: branchInfo.nodes?.length || 0
+      branchedNodeCount: branchInfo.nodes?.length || 0,
     });
   } catch (err) {
     if (err instanceof Error) {
@@ -244,20 +277,26 @@ export function merge(this: NonTerminalExtensionContext): void {
 
     const { parentNodes, nodePaths } = this.branchContext;
     const parentNode = parentNodes[0];
-    
+
     // Get current branch nodes (excluding the container)
     const currentBranchNodes = this.xnode?.children || [];
-    
+
     // Create a deep clone of the parent to avoid mutation
     const mergedParent = cloneNode(parentNode, true);
-    
+
     // Replace each original node with its corresponding replacement
     // Process from deepest paths first to avoid index shifting issues
-    const pathNodePairs = nodePaths.map((path, index) => ({
-      path,
-      node: currentBranchNodes[index] || null
-    })).sort((a, b) => b.path.length - a.path.length || b.path[b.path.length - 1] - a.path[a.path.length - 1]);
-    
+    const pathNodePairs = nodePaths
+      .map((path, index) => ({
+        path,
+        node: currentBranchNodes[index] || null,
+      }))
+      .sort(
+        (a, b) =>
+          b.path.length - a.path.length ||
+          b.path[b.path.length - 1] - a.path[a.path.length - 1]
+      );
+
     for (const { path, node } of pathNodePairs) {
       if (node && path.length > 0) {
         replaceNodeAtPath(mergedParent, node, path);
@@ -266,14 +305,14 @@ export function merge(this: NonTerminalExtensionContext): void {
         removeNodeAtPath(mergedParent, path);
       }
     }
-    
+
     // Clear branch context and restore parent
     this.branchContext = null;
     this.xnode = mergedParent;
 
     logger.debug("Successfully merged branch", {
       replacementNodeCount: currentBranchNodes.length,
-      originalNodeCount: nodePaths.length
+      originalNodeCount: nodePaths.length,
     });
   } catch (err) {
     if (err instanceof Error) {
@@ -281,91 +320,6 @@ export function merge(this: NonTerminalExtensionContext): void {
     }
     throw new Error(`Failed to merge branch: ${String(err)}`);
   }
-}
-
-/**
- * Collect nodes matching predicate along with their paths in the tree
- */
-function collectNodesWithPaths(
-  root: XNode,
-  predicate: (node: XNode) => boolean
-): { nodes: XNode[], indices: number[], paths: number[][] } {
-  const results: XNode[] = [];
-  const indices: number[] = [];
-  const paths: number[][] = [];
-  
-  function traverse(node: XNode, path: number[] = []): void {
-    try {
-      if (predicate(node)) {
-        results.push(node);
-        indices.push(results.length - 1);
-        paths.push([...path]);
-      }
-    } catch (err) {
-      logger.warn(`Error evaluating predicate on node: ${node.name}`, {
-        error: err instanceof Error ? err.message : String(err)
-      });
-    }
-    
-    if (node.children) {
-      node.children.forEach((child, index) => {
-        traverse(child, [...path, index]);
-      });
-    }
-  }
-  
-  traverse(root);
-  
-  return { nodes: results, indices, paths };
-}
-
-/**
- * Replace a single node at a specific path in the tree
- */
-function replaceNodeAtPath(root: XNode, replacementNode: XNode, path: number[]): void {
-  if (path.length === 0) return; // Can't replace root
-  
-  const parentPath = path.slice(0, -1);
-  const nodeIndex = path[path.length - 1];
-  
-  const parent = getNodeAtPath(root, parentPath);
-  if (parent?.children && nodeIndex < parent.children.length) {
-    // Set correct parent reference
-    replacementNode.parent = parent;
-    // Replace the node at this position
-    parent.children[nodeIndex] = replacementNode;
-  }
-}
-
-/**
- * Remove a single node at a specific path in the tree
- */
-function removeNodeAtPath(root: XNode, path: number[]): void {
-  if (path.length === 0) return; // Can't remove root
-  
-  const parentPath = path.slice(0, -1);
-  const nodeIndex = path[path.length - 1];
-  
-  const parent = getNodeAtPath(root, parentPath);
-  if (parent?.children && nodeIndex < parent.children.length) {
-    parent.children.splice(nodeIndex, 1);
-  }
-}
-
-/**
- * Get a node at a specific path in the tree
- */
-function getNodeAtPath(root: XNode, path: number[]): XNode | null {
-  let current = root;
-  
-  for (const index of path) {
-    if (!current.children || index >= current.children.length) {
-      return null;
-    }
-    current = current.children[index];
-  }
-  
-  return current;
 }
 
 // Register the functions with XJX

@@ -1,10 +1,9 @@
 /**
- * XML to XNode converter implementation - Updated for new hook system
+ * XML to XNode unified converter - Replaces legacy converter with hooks
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
 
-import { Configuration } from '../core/config';
 import { NodeType } from '../core/dom';
 import { ProcessingError } from '../core/error';
 import * as xmlUtils from '../core/xml-utils';
@@ -18,14 +17,12 @@ import {
   addChild 
 } from '../core/xnode';
 import { 
-  Converter,
   processAttributes,
   processNamespaceDeclarations,
   hasTextContent
 } from '../core/converter';
-import {
-  SourceHooks
-} from "../core/hooks";
+import { UnifiedConverter } from '../core/pipeline';
+import { PipelineContext } from '../core/context';
 
 /**
  * Context for XML to XNode conversion
@@ -36,78 +33,71 @@ interface ConversionContext {
 }
 
 /**
- * XML to XNode converter
+ * Unified XML to XNode converter - replaces xmlToXNodeConverter and convertXmlWithHooks
  */
-export const xmlToXNodeConverter: Converter<string, XNode> = {
-  convert(xml: string, config: Configuration): XNode {
-    // Parse XML string to DOM
-    const doc = xmlUtils.parseXml(xml);
-    
-    logger.debug('Successfully parsed XML to DOM', {
-      rootElement: doc.documentElement?.nodeName
+export const xmlToXNodeConverter: UnifiedConverter<string, XNode> = {
+  name: 'xmlToXNode',
+  inputType: 'string',
+  outputType: 'XNode',
+  
+  validate(xml: string, context: PipelineContext): void {
+    context.validateInput(typeof xml === "string", "XML source must be a string");
+    context.validateInput(xml.trim().length > 0, "XML source cannot be empty");
+  },
+  
+  execute(xml: string, context: PipelineContext): XNode {
+    logger.debug('Starting XML to XNode conversion', {
+      xmlLength: xml.length
     });
     
-    // Create context with empty namespace map
-    const context: ConversionContext = { namespaceMap: {} };
-    
-    // Convert DOM element to XNode
-    return convertElementToXNode(doc.documentElement, config, context);
+    try {
+      // Parse XML string to DOM
+      const doc = xmlUtils.parseXml(xml);
+      
+      logger.debug('Successfully parsed XML to DOM', {
+        rootElement: doc.documentElement?.nodeName
+      });
+      
+      // Register DOM document for cleanup
+      context.resources.registerDOMDocument(doc);
+      
+      // Create context with empty namespace map
+      const conversionContext: ConversionContext = { namespaceMap: {} };
+      
+      // Convert DOM element to XNode
+      const result = convertElementToXNode(doc.documentElement, context, conversionContext);
+      
+      // Register result for tracking
+      context.resources.registerXNode(result);
+      
+      logger.debug('Successfully converted XML to XNode', {
+        rootNodeName: result.name,
+        rootNodeType: result.type
+      });
+      
+      return result;
+      
+    } catch (err) {
+      throw new ProcessingError(`Failed to convert XML to XNode: ${err instanceof Error ? err.message : String(err)}`, xml);
+    }
+  },
+  
+  onError(error: Error, xml: string, context: PipelineContext): XNode | null {
+    logger.error('XML to XNode conversion failed', { error, xmlLength: xml.length });
+    return null;
   }
 };
-
-/**
- * Convert XML with source hooks support - FIXED TIMING
- * @param xml XML string
- * @param config Configuration
- * @param hooks Source hooks
- * @returns Converted XNode with hooks applied
- */
-export function convertXmlWithHooks(
-  xml: string,
-  config: Configuration,
-  hooks?: SourceHooks<string>
-): XNode {
-  let processedXml = xml;
-  
-  // Apply beforeTransform hook to raw XML
-  if (hooks?.beforeTransform) {
-    try {
-      const beforeResult = hooks.beforeTransform(processedXml);
-      if (beforeResult !== undefined && beforeResult !== null) {
-        processedXml = beforeResult;
-      }
-    } catch (err) {
-      logger.warn(`Error in XML source beforeTransform: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
-  
-  // Convert XML to XNode (fully populated)
-  const xnode = xmlToXNodeConverter.convert(processedXml, config);
-  
-  // Apply afterTransform hook to fully populated XNode
-  let processedXNode = xnode;
-  if (hooks?.afterTransform) {
-    try {
-      const afterResult = hooks.afterTransform(processedXNode);
-      if (afterResult && typeof afterResult === 'object' && typeof afterResult.name === 'string') {
-        processedXNode = afterResult;
-      }
-    } catch (err) {
-      logger.warn(`Error in XML source afterTransform: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
-  
-  return processedXNode;
-}
 
 /**
  * Convert DOM element to XNode
  */
 function convertElementToXNode(
   element: Element, 
-  config: Configuration, 
-  context: ConversionContext
+  context: PipelineContext, 
+  conversionContext: ConversionContext
 ): XNode {
+  const config = context.config.get();
+  
   // Create base node
   let xnode = createElement(
     element.localName ||
@@ -116,7 +106,7 @@ function convertElementToXNode(
   );
   
   // Set parent reference
-  xnode.parent = context.parentNode;
+  xnode.parent = conversionContext.parentNode;
 
   // Process namespace information if preserving namespaces
   if (config.preserveNamespaces) {
@@ -125,12 +115,12 @@ function convertElementToXNode(
 
     // Process namespace declarations
     if (hasNamespaceDeclarations(element)) {
-      const namespaceResult = processNamespaceDeclarations(element, context.namespaceMap);
+      const namespaceResult = processNamespaceDeclarations(element, conversionContext.namespaceMap);
       
       if (Object.keys(namespaceResult.declarations).length > 0) {
         xnode.namespaceDeclarations = namespaceResult.declarations;
         xnode.isDefaultNamespace = element.hasAttribute("xmlns");
-        context.namespaceMap = namespaceResult.namespaceMap;
+        conversionContext.namespaceMap = namespaceResult.namespaceMap;
       }
     }
   }
@@ -143,7 +133,7 @@ function convertElementToXNode(
 
   // Process child nodes
   if (element.childNodes.length > 0) {
-    processChildren(element, xnode, config, context);
+    processChildren(element, xnode, context, conversionContext);
   }
 
   logger.debug('Converted DOM element to XNode', { 
@@ -198,9 +188,11 @@ function hasMixedContent(element: Element): boolean {
 function processChildren(
   element: Element,
   parentNode: XNode,
-  config: Configuration,
-  context: ConversionContext
+  context: PipelineContext,
+  conversionContext: ConversionContext
 ): void {
+  const config = context.config.get();
+  
   // Detect mixed content
   const hasMixed = hasMixedContent(element);
 
@@ -259,8 +251,8 @@ function processChildren(
         // Recursively process child element
         const childXNode = convertElementToXNode(
           child as Element, 
-          config, 
-          { ...context, parentNode }
+          context, 
+          { ...conversionContext, parentNode }
         );
         addChild(parentNode, childXNode);
         break;
@@ -274,7 +266,7 @@ function processChildren(
 function processTextNode(
   node: Node,
   parentNode: XNode,
-  config: Configuration,
+  config: any,
   hasMixed: boolean
 ): void {
   const text = node.nodeValue || "";

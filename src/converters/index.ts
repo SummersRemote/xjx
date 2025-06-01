@@ -1,45 +1,49 @@
 /**
- * Converters module - Updated for minimal transform system
+ * Converters module - Unified pipeline-based converters
  *
- * This module provides converter functions for transforming between XML, JSON, and XNode.
+ * This module provides unified converter functions for transforming between XML, JSON, and XNode.
+ * All converters now use the pipeline execution framework with integrated hook support.
  */
 
-// Base converter interface
+// Base converter and pipeline interfaces
 export * from "../core/converter";
+export * from "../core/pipeline";
 
-// XML converters
+// Unified XML converters
 export {
   xmlToXNodeConverter,
-  convertXmlWithHooks,
 } from "./xml-to-xnode-converter";
 
 export {
   xnodeToXmlConverter,
   xnodeToXmlStringConverter,
-  convertXNodeToXmlWithHooks,
-  convertXNodeToXmlStringWithHooks,
 } from "./xnode-to-xml-converter";
 
-// JSON converters - unified implementation with hooks
+// Unified JSON converters
 export {
   jsonToXNodeConverter,
-  convertJsonWithHooks,
 } from "./json-std-to-xnode-converter";
+
 export {
   xnodeToJsonConverter,
-  convertXNodeToJsonWithHooks,
 } from "./xnode-to-json-std-converter";
+
 export {
   jsonHiFiToXNodeConverter,
-  convertJsonHiFiWithHooks,
 } from "./json-hifi-to-xnode-converter";
+
 export {
   xnodeToJsonHiFiConverter,
-  convertXNodeToJsonHiFiWithHooks,
 } from "./xnode-to-json-hifi-converter";
 
-// Node transformer - updated for minimal transform system
-export {
-  transformXNodeWithHooks,
-  transformXNode, // Legacy wrapper
-} from "./xnode-transformer";
+// DELETED: All hook wrapper functions removed
+// These functions are no longer needed as hooks are integrated into pipeline execution:
+// - convertXmlWithHooks() -> Use Pipeline.executeSource(xmlToXNodeConverter, ...)
+// - convertJsonWithHooks() -> Use Pipeline.executeSource(jsonToXNodeConverter, ...)
+// - convertJsonHiFiWithHooks() -> Use Pipeline.executeSource(jsonHiFiToXNodeConverter, ...)
+// - convertXNodeToXmlWithHooks() -> Use Pipeline.executeOutput(xnodeToXmlConverter, ...)
+// - convertXNodeToXmlStringWithHooks() -> Use Pipeline.executeOutput(xnodeToXmlStringConverter, ...)
+// - convertXNodeToJsonWithHooks() -> Use Pipeline.executeOutput(xnodeToJsonConverter, ...)
+// - convertXNodeToJsonHiFiWithHooks() -> Use Pipeline.executeOutput(xnodeToJsonHiFiConverter, ...)
+
+// NOTE: transformXNodeWithHooks and transformXNode will be addressed in Stage 5 (Functional API Integration)

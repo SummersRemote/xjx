@@ -1,15 +1,13 @@
 /**
- * JSON Standard to XNode converter implementation - Updated for new hook system
+ * JSON to XNode unified converters - Standard and HiFi formats
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
 
-import { Configuration } from "../core/config";
 import { NodeType } from "../core/dom";
 import { ProcessingError, ValidationError } from "../core/error";
-import { XNode, createElement, createTextNode, addChild } from "../core/xnode";
+import { XNode, createElement, createTextNode, createCDATANode, createCommentNode, createProcessingInstructionNode, addChild } from "../core/xnode";
 import { 
-  Converter,
   JsonValue,
   JsonObject,
   JsonArray,
@@ -17,86 +15,124 @@ import {
   getAttributeName,
   processAttributeObject
 } from "../core/converter";
-import {
-  SourceHooks
-} from "../core/hooks";
+import { UnifiedConverter } from "../core/pipeline";
+import { PipelineContext } from "../core/context";
 
 /**
- * JSON Standard to XNode converter
+ * Unified JSON Standard to XNode converter - replaces jsonToXNodeConverter and convertJsonWithHooks
  */
-export const jsonToXNodeConverter: Converter<JsonValue, XNode> = {
-  convert(json: JsonValue, config: Configuration): XNode {
+export const jsonToXNodeConverter: UnifiedConverter<JsonValue, XNode> = {
+  name: 'jsonToXNode',
+  inputType: 'JsonValue',
+  outputType: 'XNode',
+  
+  validate(json: JsonValue, context: PipelineContext): void {
+    context.validateInput(json !== null && typeof json === 'object', "JSON source must be an object or array");
+  },
+  
+  execute(json: JsonValue, context: PipelineContext): XNode {
     logger.debug('Starting JSON to XNode conversion', {
       sourceType: Array.isArray(json) ? 'array' : typeof json
     });
-
-    // Handle array input (create a wrapper element)
-    if (Array.isArray(json)) {
-      return convertJsonArray(json, config);
+    
+    const config = context.config.get();
+    let result: XNode;
+    
+    try {
+      // Handle array input (create a wrapper element)
+      if (Array.isArray(json)) {
+        result = convertJsonArray(json, config);
+      }
+      // Handle object input
+      else if (typeof json === 'object' && json !== null) {
+        result = convertJsonObject(json as JsonObject, config);
+      }
+      // Handle primitive values
+      else {
+        result = convertJsonPrimitive(json, config);
+      }
+      
+      // Register result for tracking
+      context.resources.registerXNode(result);
+      
+      logger.debug('Successfully converted JSON to XNode', {
+        rootNodeName: result.name,
+        rootNodeType: result.type
+      });
+      
+      return result;
+      
+    } catch (err) {
+      throw new ProcessingError(`Failed to convert JSON to XNode: ${err instanceof Error ? err.message : String(err)}`);
     }
-
-    // Handle object input
-    if (typeof json === 'object' && json !== null) {
-      return convertJsonObject(json as JsonObject, config);
-    }
-
-    // Handle primitive values
-    return convertJsonPrimitive(json, config);
+  },
+  
+  onError(error: Error, json: JsonValue, context: PipelineContext): XNode | null {
+    logger.error('JSON to XNode conversion failed', { error });
+    return null;
   }
 };
 
 /**
- * Convert JSON with source hooks support - FIXED TIMING
- * @param json JSON value
- * @param config Configuration
- * @param hooks Source hooks
- * @returns Converted XNode with hooks applied
+ * Unified JSON HiFi to XNode converter - replaces jsonHiFiToXNodeConverter and convertJsonHiFiWithHooks
  */
-export function convertJsonWithHooks(
-  json: JsonValue,
-  config: Configuration,
-  hooks?: SourceHooks<JsonValue>
-): XNode {
-  let processedJson = json;
+export const jsonHiFiToXNodeConverter: UnifiedConverter<JsonValue, XNode> = {
+  name: 'jsonHiFiToXNode',
+  inputType: 'JsonValue',
+  outputType: 'XNode',
   
-  // Apply beforeTransform hook to raw JSON
-  if (hooks?.beforeTransform) {
+  validate(json: JsonValue, context: PipelineContext): void {
+    context.validateInput(typeof json === 'object' && json !== null && !Array.isArray(json), "JSON HiFi input must be an object");
+    
+    const jsonObj = json as JsonObject;
+    const rootName = Object.keys(jsonObj)[0];
+    context.validateInput(!!rootName, "JSON HiFi object must have a root element");
+    
+    const rootObj = jsonObj[rootName];
+    context.validateInput(
+      typeof rootObj === 'object' && rootObj !== null && !Array.isArray(rootObj),
+      "JSON HiFi root element must be an object"
+    );
+  },
+  
+  execute(json: JsonValue, context: PipelineContext): XNode {
+    logger.debug('Starting JSON HiFi to XNode conversion');
+    
+    const config = context.config.get();
+    const jsonObj = json as JsonObject;
+    
     try {
-      const beforeResult = hooks.beforeTransform(processedJson);
-      if (beforeResult !== undefined && beforeResult !== null) {
-        processedJson = beforeResult;
-      }
+      // Get root element name
+      const rootName = Object.keys(jsonObj)[0];
+      const rootObj = jsonObj[rootName] as JsonObject;
+      
+      // Process the root element
+      const result = processHiFiElement(rootName, rootObj, config);
+      
+      // Register result for tracking
+      context.resources.registerXNode(result);
+      
+      logger.debug('Successfully converted JSON HiFi to XNode', {
+        rootNodeName: result.name,
+        rootNodeType: result.type
+      });
+      
+      return result;
+      
     } catch (err) {
-      logger.warn(`Error in JSON source beforeTransform: ${err instanceof Error ? err.message : String(err)}`);
+      throw new ProcessingError(`Failed to convert JSON HiFi to XNode: ${err instanceof Error ? err.message : String(err)}`);
     }
+  },
+  
+  onError(error: Error, json: JsonValue, context: PipelineContext): XNode | null {
+    logger.error('JSON HiFi to XNode conversion failed', { error });
+    return null;
   }
-  
-  // Convert JSON to XNode (fully populated)
-  const xnode = jsonToXNodeConverter.convert(processedJson, config);
-  
-  // Apply afterTransform hook to fully populated XNode
-  let processedXNode = xnode;
-  if (hooks?.afterTransform) {
-    try {
-      const afterResult = hooks.afterTransform(processedXNode);
-      if (afterResult && typeof afterResult === 'object' && typeof afterResult.name === 'string') {
-        processedXNode = afterResult;
-      }
-    } catch (err) {
-      logger.warn(`Error in JSON source afterTransform: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
-  
-  return processedXNode;
-}
+};
 
-/**
- * Convert a JSON object to XNode
- */
-function convertJsonObject(
-  obj: JsonObject, 
-  config: Configuration
-): XNode {
+// === JSON Standard Conversion Functions ===
+
+function convertJsonObject(obj: JsonObject, config: any): XNode {
   // Get the root element name
   const rootName = Object.keys(obj)[0];
   if (!rootName) {
@@ -121,13 +157,7 @@ function convertJsonObject(
   return rootNode;
 }
 
-/**
- * Convert a JSON array to XNode
- */
-function convertJsonArray(
-  array: JsonArray, 
-  config: Configuration
-): XNode {
+function convertJsonArray(array: JsonArray, config: any): XNode {
   // Create a root array element
   let rootNode = createElement("array");
 
@@ -142,13 +172,7 @@ function convertJsonArray(
   return rootNode;
 }
 
-/**
- * Convert a JSON primitive value to XNode
- */
-function convertJsonPrimitive(
-  value: JsonValue, 
-  config: Configuration
-): XNode {
+function convertJsonPrimitive(value: JsonValue, config: any): XNode {
   let rootNode = createElement("value");
 
   if (value !== undefined && value !== null) {
@@ -158,14 +182,7 @@ function convertJsonPrimitive(
   return rootNode;
 }
 
-/**
- * Process a JSON value into an XNode element
- */
-function processJsonValue(
-  element: XNode,
-  value: JsonValue,
-  config: Configuration
-): void {
+function processJsonValue(element: XNode, value: JsonValue, config: any): void {
   if (value === null) {
     processNullValue(element, config);
   } else if (typeof value === 'object' && !Array.isArray(value)) {
@@ -177,10 +194,7 @@ function processJsonValue(
   }
 }
 
-/**
- * Process a null value
- */
-function processNullValue(element: XNode, config: Configuration): void {
+function processNullValue(element: XNode, config: any): void {
   switch (config.strategies.emptyElementStrategy) {
     case "null":
       element.value = null;
@@ -195,14 +209,7 @@ function processNullValue(element: XNode, config: Configuration): void {
   }
 }
 
-/**
- * Process an object value
- */
-function processObjectValue(
-  element: XNode,
-  obj: JsonObject,
-  config: Configuration
-): void {
+function processObjectValue(element: XNode, obj: JsonObject, config: any): void {
   const { properties, prefixes } = config;
   const { attributeStrategy, textStrategy } = config.strategies;
 
@@ -297,14 +304,7 @@ function processObjectValue(
   });
 }
 
-/**
- * Process an array value
- */
-function processArrayValue(
-  element: XNode,
-  array: JsonArray,
-  config: Configuration
-): void {
+function processArrayValue(element: XNode, array: JsonArray, config: any): void {
   // Determine the name to use for child elements
   let itemName = config.arrays.itemNames[element.name] || config.arrays.defaultItemName;
 
@@ -314,15 +314,7 @@ function processArrayValue(
   });
 }
 
-/**
- * Process an array item
- */
-function processArrayItem(
-  parent: XNode,
-  item: JsonValue,
-  itemName: string,
-  config: Configuration
-): void {
+function processArrayItem(parent: XNode, item: JsonValue, itemName: string, config: any): void {
   if (item === null) {
     if (config.strategies.emptyElementStrategy !== "object") {
       let childElement = createElement(itemName);
@@ -365,4 +357,183 @@ function processArrayItem(
     childElement.value = item;
     addChild(parent, childElement);
   }
+}
+
+// === JSON HiFi Conversion Functions ===
+
+function processHiFiElement(name: string, obj: JsonObject, config: any, parent?: XNode): XNode {
+  // Parse element name for prefix handling
+  const { prefix, localName } = parseElementName(name, config.preservePrefixedNames);
+  
+  // Create the element
+  let element = createElement(localName);
+  
+  // Set parent reference if provided
+  if (parent) {
+    element.parent = parent;
+  }
+  
+  // Set the prefix if we extracted one
+  if (prefix) {
+    element.prefix = prefix;
+  }
+  
+  const { properties } = config;
+  
+  // Process namespace information
+  if (obj[properties.namespace] && config.preserveNamespaces) {
+    element.namespace = String(obj[properties.namespace]);
+  }
+  
+  if (obj[properties.prefix] && config.preserveNamespaces) {
+    element.prefix = String(obj[properties.prefix]);
+  }
+  
+  // Process namespace declarations
+  if (obj.namespaceDeclarations && typeof obj.namespaceDeclarations === 'object' && 
+      !Array.isArray(obj.namespaceDeclarations) && config.preserveNamespaces) {
+    element.namespaceDeclarations = {};
+    
+    // Copy all namespace declarations
+    Object.entries(obj.namespaceDeclarations).forEach(([prefix, uri]) => {
+      element.namespaceDeclarations![prefix] = String(uri);
+    });
+    
+    // Set default namespace flag if present
+    if (obj.isDefaultNamespace === true) {
+      element.isDefaultNamespace = true;
+    }
+  }
+  
+  // Process attributes
+  if (obj[properties.attribute] && Array.isArray(obj[properties.attribute]) && config.preserveAttributes) {
+    processHiFiAttributes(element, obj[properties.attribute] as JsonArray, config);
+  }
+  
+  // Process value
+  if (obj[properties.value] !== undefined && config.preserveTextNodes) {
+    element.value = obj[properties.value];
+  }
+  
+  // Process children
+  if (obj[properties.children] && Array.isArray(obj[properties.children])) {
+    processHiFiChildren(element, obj[properties.children] as JsonArray, config);
+  }
+  
+  // Process metadata if present
+  if (obj.metadata && typeof obj.metadata === 'object' && !Array.isArray(obj.metadata)) {
+    element.metadata = { ...obj.metadata as Record<string, any> };
+  }
+  
+  return element;
+}
+
+function processHiFiAttributes(element: XNode, attrs: JsonArray, config: any): void {
+  const { properties } = config;
+  
+  // Initialize attributes object if needed
+  const attributes = (element.attributes ??= {});
+  
+  // Process each attribute in the array
+  attrs.forEach(attr => {
+    if (typeof attr !== 'object' || attr === null || Array.isArray(attr)) {
+      return; // Skip invalid attributes
+    }
+    
+    const attrObj = attr as JsonObject;
+    const attrName = Object.keys(attrObj)[0];
+    
+    if (!attrName) return; // Skip empty attributes
+    
+    const attrValue = attrObj[attrName];
+    
+    // Check if this is a simple or complex attribute
+    if (typeof attrValue === 'object' && attrValue !== null && !Array.isArray(attrValue)) {
+      // Complex attribute with properties
+      const attrProps = attrValue as JsonObject;
+      
+      // Get the actual value
+      const value = attrProps[properties.value];
+      
+      // Check if this is a namespaced attribute
+      let finalAttrName = attrName;
+      if (config.preserveNamespaces && attrProps[properties.prefix]) {
+        finalAttrName = `${attrProps[properties.prefix]}:${attrName}`;
+      }
+      
+      // Set the attribute
+      attributes[finalAttrName] = value;
+    } else {
+      // Simple attribute
+      attributes[attrName] = attrValue;
+    }
+  });
+}
+
+function processHiFiChildren(parent: XNode, children: JsonArray, config: any): void {
+  const { properties } = config;
+  
+  // Process each child in order (important for mixed content)
+  children.forEach(child => {
+    if (child === null) return; // Skip null children
+    
+    // Check if this is a special node
+    if (typeof child === 'object' && !Array.isArray(child)) {
+      const childObj = child as JsonObject;
+      
+      // Text node
+      if (childObj[properties.value] !== undefined && config.preserveTextNodes) {
+        const textNode = createTextNode(String(childObj[properties.value]));
+        addChild(parent, textNode);
+        return;
+      }
+      
+      // CDATA node
+      if (childObj[properties.cdata] !== undefined && config.preserveCDATA) {
+        const cdataNode = createCDATANode(String(childObj[properties.cdata]));
+        addChild(parent, cdataNode);
+        return;
+      }
+      
+      // Comment node
+      if (childObj[properties.comment] !== undefined && config.preserveComments) {
+        const commentNode = createCommentNode(String(childObj[properties.comment]));
+        addChild(parent, commentNode);
+        return;
+      }
+      
+      // Processing instruction
+      if (childObj[properties.processingInstr] !== undefined && config.preserveProcessingInstr) {
+        const piObj = childObj[properties.processingInstr];
+        if (piObj && typeof piObj === 'object' && !Array.isArray(piObj)) {
+          const piProps = piObj as JsonObject;
+          const target = piProps[properties.target];
+          const value = piProps[properties.value] || '';
+          
+          if (target) {
+            const piNode = createProcessingInstructionNode(String(target), String(value));
+            addChild(parent, piNode);
+            return;
+          }
+        }
+      }
+      
+      // Regular element node
+      const elementName = Object.keys(childObj)[0];
+      if (elementName) {
+        const elementObj = childObj[elementName];
+        if (typeof elementObj === 'object' && elementObj !== null && !Array.isArray(elementObj)) {
+          const childNode = processHiFiElement(elementName, elementObj as JsonObject, config, parent);
+          addChild(parent, childNode);
+          return;
+        }
+      }
+    }
+    
+    // If we get here, try to convert as raw text
+    if (config.preserveTextNodes) {
+      const textNode = createTextNode(String(child));
+      addChild(parent, textNode);
+    }
+  });
 }

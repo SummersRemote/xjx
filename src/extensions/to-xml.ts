@@ -1,23 +1,18 @@
 /**
- * Extension implementation for XML output methods - Updated for new hook system
+ * Extension implementation for XML output methods - Updated for unified pipeline
  */
-import { LoggerFactory } from "../core/logger";
-const logger = LoggerFactory.create();
-
 import { XJX } from "../XJX";
 import { 
-  convertXNodeToXmlWithHooks, 
-  convertXNodeToXmlStringWithHooks,
   xnodeToXmlConverter,
   xnodeToXmlStringConverter 
 } from "../converters/xnode-to-xml-converter";
-import { transformXNodeWithHooks } from "../converters/xnode-transformer";
+import { Pipeline } from "../core/pipeline";  // Import pipeline execution
 import { XNode } from "../core/xnode";
 import { OutputHooks } from "../core/hooks";
 import { TerminalExtensionContext } from "../core/extension";
 
 /**
- * Implementation for converting to XML DOM with new hook system
+ * Implementation for converting to XML DOM with unified pipeline
  */
 export function toXml(this: TerminalExtensionContext, hooks?: OutputHooks<Document>): Document {
   try {
@@ -25,46 +20,18 @@ export function toXml(this: TerminalExtensionContext, hooks?: OutputHooks<Docume
     this.validateSource();
     
     logger.debug('Starting XML DOM conversion', {
-      hasTransforms: this.transforms.length > 0,
       hasOutputHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
     });
     
-    // Apply legacy transforms if any are registered
-    let nodeToConvert = this.xnode as XNode;
-    
-    if (this.transforms && this.transforms.length > 0) {
-      // For legacy transforms, compose them into a single transform
-      const composedTransform = (value: any) => {
-        return this.transforms.reduce((result, transform) => {
-          try {
-            return transform(result);
-          } catch (err) {
-            logger.warn('Error in legacy transform:', err);
-            return result;
-          }
-        }, value);
-      };
-      
-      nodeToConvert = transformXNodeWithHooks(nodeToConvert, composedTransform, undefined, this.config);
-      
-      logger.debug('Applied legacy transforms to XNode', {
-        transformCount: this.transforms.length
-      });
-    }
-    
-    // Convert XNode to DOM with output hooks
-    let doc: Document;
-    if (hooks) {
-      doc = convertXNodeToXmlWithHooks(nodeToConvert, this.config, hooks);
-    } else {
-      doc = xnodeToXmlConverter.convert(nodeToConvert, this.config);
-    }
+    // OLD: Complex legacy transform application + convertXNodeToXmlWithHooks
+    // NEW: Simple pipeline execution - no legacy transforms needed
+    const result = Pipeline.executeOutput(xnodeToXmlConverter, this.xnode as XNode, this.pipeline, hooks);
     
     logger.debug('Successfully converted XNode to DOM', {
-      documentElement: doc.documentElement?.nodeName
+      documentElement: result.documentElement?.nodeName
     });
     
-    return doc;
+    return result;
   } catch (err) {
     if (err instanceof Error) {
       throw err;
@@ -74,7 +41,7 @@ export function toXml(this: TerminalExtensionContext, hooks?: OutputHooks<Docume
 }
 
 /**
- * Implementation for converting to XML string with new hook system
+ * Implementation for converting to XML string with unified pipeline
  */
 export function toXmlString(this: TerminalExtensionContext, hooks?: OutputHooks<string>): string {
   try {
@@ -85,42 +52,15 @@ export function toXmlString(this: TerminalExtensionContext, hooks?: OutputHooks<
       hasOutputHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
     });
     
-    // Apply legacy transforms if any are registered
-    let nodeToConvert = this.xnode as XNode;
-    
-    if (this.transforms && this.transforms.length > 0) {
-      // For legacy transforms, compose them into a single transform
-      const composedTransform = (value: any) => {
-        return this.transforms.reduce((result, transform) => {
-          try {
-            return transform(result);
-          } catch (err) {
-            logger.warn('Error in legacy transform:', err);
-            return result;
-          }
-        }, value);
-      };
-      
-      nodeToConvert = transformXNodeWithHooks(nodeToConvert, composedTransform, undefined, this.config);
-      
-      logger.debug('Applied legacy transforms to XNode', {
-        transformCount: this.transforms.length
-      });
-    }
-    
-    // Convert XNode to XML string with output hooks
-    let xmlString: string;
-    if (hooks) {
-      xmlString = convertXNodeToXmlStringWithHooks(nodeToConvert, this.config, hooks);
-    } else {
-      xmlString = xnodeToXmlStringConverter.convert(nodeToConvert, this.config);
-    }
+    // OLD: Complex legacy transform application + convertXNodeToXmlStringWithHooks  
+    // NEW: Simple pipeline execution - no legacy transforms needed
+    const result = Pipeline.executeOutput(xnodeToXmlStringConverter, this.xnode as XNode, this.pipeline, hooks);
     
     logger.debug('Successfully converted to XML string', {
-      xmlLength: xmlString.length
+      xmlLength: result.length
     });
     
-    return xmlString;
+    return result;
   } catch (err) {
     if (err instanceof Error) {
       throw err;
@@ -128,7 +68,6 @@ export function toXmlString(this: TerminalExtensionContext, hooks?: OutputHooks<
     throw new Error(`Failed to convert to XML string: ${String(err)}`);
   }
 }
-
 // Register the extensions with XJX
 XJX.registerTerminalExtension("toXml", toXml);
 XJX.registerTerminalExtension("toXmlString", toXmlString);

@@ -6,6 +6,7 @@ import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
 
 import { XJX } from '../XJX';
+import { XNode } from "../core/xnode";
 import { 
   xnodeToJsonHiFiConverter 
 } from '../converters/xnode-to-json-hifi-converter';
@@ -60,16 +61,43 @@ export function toJsonString(this: TerminalExtensionContext, hooks?: OutputHooks
       hasOutputHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
     });
     
-    // First convert to JSON value using the same logic as toJson()
-    // Use high-fidelity setting from config only
+    // Source validation handled by validateSource()
+    this.validateSource();
+    
+    // Start with current XNode
+    let nodeToConvert = this.xnode as XNode;
+    
+    // Apply beforeTransform hook to XNode (if hooks are provided)
+    if (hooks?.beforeTransform) {
+      try {
+        const beforeResult = hooks.beforeTransform(nodeToConvert);
+        if (beforeResult && typeof beforeResult === 'object' && typeof beforeResult.name === 'string') {
+          nodeToConvert = beforeResult;
+        }
+      } catch (err) {
+        logger.warn(`Error in JSON string beforeTransform: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+    
+    // Get JSON value using the converter directly (no hooks for intermediate step)
     const useHighFidelity = this.pipeline.config.get().strategies.highFidelity;
-    
-    // Get JSON value using the converter directly (avoid circular call to this.toJson)
     const converter = useHighFidelity ? xnodeToJsonHiFiConverter : xnodeToJsonConverter;
-    const jsonValue = this.executeOutput(converter, hooks);
+    const jsonValue = this.executeOutput(converter); // No hooks passed here
     
-    // Then stringify the result
-    const result = JSON.stringify(jsonValue, null, this.pipeline.config.get().formatting.indent);
+    // Stringify the result
+    let result = JSON.stringify(jsonValue, null, this.pipeline.config.get().formatting.indent);
+    
+    // Apply afterTransform hook to final string result
+    if (hooks?.afterTransform) {
+      try {
+        const afterResult = hooks.afterTransform(result);
+        if (afterResult !== undefined && afterResult !== null) {
+          result = afterResult;
+        }
+      } catch (err) {
+        logger.warn(`Error in JSON string afterTransform: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
     
     logger.debug('Successfully converted to JSON string', {
       jsonLength: result.length

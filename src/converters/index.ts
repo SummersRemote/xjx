@@ -1,8 +1,8 @@
 /**
- * Converters module - Unified pipeline-based converters
- * STAGE 5: All legacy transformer references REMOVED
+ * Converters module - Simplified unified pipeline-based converters
+ * Phase 2: All legacy hook wrappers and transform references REMOVED
  *
- * This module provides unified converter functions for transforming between XML, JSON, and XNode.
+ * This module provides simplified converter functions for transforming between XML, JSON, and XNode.
  * All converters now use the pipeline execution framework with integrated hook support.
  */
 
@@ -23,45 +23,68 @@ export {
 // Unified JSON converters
 export {
   jsonToXNodeConverter,
-} from "./json-std-to-xnode-converter";
+} from "./json-to-xnode-converter";
 
 export {
   xnodeToJsonConverter,
-} from "./xnode-to-json-std-converter";
+} from "./xnode-to-json-converter";
 
 export {
   jsonHiFiToXNodeConverter,
-} from "./json-hifi-to-xnode-converter";
+} from "./json-to-xnode-converter";
 
 export {
   xnodeToJsonHiFiConverter,
-} from "./xnode-to-json-hifi-converter";
+} from "./xnode-to-json-converter";
 
 // ================================
-// DELETED: All hook wrapper functions removed (Stage 2)
+// REMOVED: All hook wrapper functions (Phase 2 Complete)
 // ================================
-// These functions are no longer needed as hooks are integrated into pipeline execution:
-// - convertXmlWithHooks() -> Use Pipeline.executeSource(xmlToXNodeConverter, ...)
-// - convertJsonWithHooks() -> Use Pipeline.executeSource(jsonToXNodeConverter, ...)
-// - convertJsonHiFiWithHooks() -> Use Pipeline.executeSource(jsonHiFiToXNodeConverter, ...)
-// - convertXNodeToXmlWithHooks() -> Use Pipeline.executeOutput(xnodeToXmlConverter, ...)
-// - convertXNodeToXmlStringWithHooks() -> Use Pipeline.executeOutput(xnodeToXmlStringConverter, ...)
-// - convertXNodeToJsonWithHooks() -> Use Pipeline.executeOutput(xnodeToJsonConverter, ...)
-// - convertXNodeToJsonHiFiWithHooks() -> Use Pipeline.executeOutput(xnodeToJsonHiFiConverter, ...)
+// These functions have been completely removed as hooks are integrated into pipeline execution:
+// ❌ convertXmlWithHooks() -> Use Pipeline.executeSource(xmlToXNodeConverter, ...)
+// ❌ convertJsonWithHooks() -> Use Pipeline.executeSource(jsonToXNodeConverter, ...)
+// ❌ convertJsonHiFiWithHooks() -> Use Pipeline.executeSource(jsonHiFiToXNodeConverter, ...)
+// ❌ convertXNodeToXmlWithHooks() -> Use Pipeline.executeOutput(xnodeToXmlConverter, ...)
+// ❌ convertXNodeToXmlStringWithHooks() -> Use Pipeline.executeOutput(xnodeToXmlStringConverter, ...)
+// ❌ convertXNodeToJsonWithHooks() -> Use Pipeline.executeOutput(xnodeToJsonConverter, ...)
+// ❌ convertXNodeToJsonHiFiWithHooks() -> Use Pipeline.executeOutput(xnodeToJsonHiFiConverter, ...)
 
 // ================================
-// DELETED: Transform system removed (Stage 5)
+// REMOVED: Transform system (Phase 2 Complete)
 // ================================
-// These functions/files are no longer needed as transform logic moved to unified traversal:
-// - transformXNodeWithHooks() -> Use traverseTree() in src/core/functional.ts
-// - transformXNode() -> Use functional API map() operation
-// - src/converters/xnode-transformer.ts -> ENTIRE FILE DELETED
+// These functions/files have been completely removed as transform logic moved to unified traversal:
+// ❌ transformXNodeWithHooks() -> Use traverseTree() in src/core/functional.ts
+// ❌ transformXNode() -> Use functional API map() operation
+// ❌ src/converters/xnode-transformer.ts -> ENTIRE FILE DELETED
+
+// ================================
+// REMOVED: Performance tracking (Phase 2 Complete)
+// ================================
+// All performance tracking calls have been removed from converters:
+// ❌ context.performance.startStage(stage.name)
+// ❌ context.performance.endStage(stageId)
+// ❌ Performance metrics collection and reporting
 
 // ================================
 // MIGRATION GUIDE
 // ================================
 //
-// OLD TRANSFORM USAGE (DELETED):
+// OLD HOOK WRAPPER USAGE (REMOVED):
+// ```typescript
+// import { convertXmlWithHooks } from './converters';
+// const result = convertXmlWithHooks(xml, config, hooks);
+// ```
+//
+// NEW UNIFIED APPROACH:
+// ```typescript
+// // Option 1: Use extensions (recommended for most users)
+// const result = xjx.fromXml(xml, hooks).toXnode();
+//
+// // Option 2: Use pipeline directly (for advanced users)
+// const result = Pipeline.executeSource(xmlToXNodeConverter, xml, context, hooks);
+// ```
+//
+// OLD TRANSFORM USAGE (REMOVED):
 // ```typescript
 // import { transformXNodeWithHooks } from './converters/xnode-transformer';
 // const result = transformXNodeWithHooks(node, transform, hooks, config);
@@ -69,19 +92,6 @@ export {
 //
 // NEW UNIFIED APPROACH:
 // ```typescript
-// // Option 1: Use functional API (recommended)
+// // Use functional API (recommended)
 // const result = xjx.fromXnode(node).map(transform, hooks).toXnode()[0];
-//
-// // Option 2: Use pipeline directly
-// const mapStage: PipelineStage<XNode, XNode> = {
-//   name: 'transform',
-//   execute: (node, context) => {
-//     const visitor: TreeVisitor<XNode> = {
-//       visit: (node, ctx) => transform(node),
-//       combineResults: (parent, children) => ({ ...parent, children })
-//     };
-//     return traverseTree(node, visitor, { order: 'both', hooks, context });
-//   }
-// };
-// const result = Pipeline.executeTransform(mapStage, node, context, hooks);
 // ```

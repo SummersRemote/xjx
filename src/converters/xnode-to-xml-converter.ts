@@ -1,5 +1,6 @@
 /**
- * XNode to XML unified converters - Document and String outputs
+ * XNode to XML unified converters - Simplified, performance tracking removed
+ * Phase 2: All performance.startStage/endStage calls removed
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
@@ -19,7 +20,8 @@ interface XNodeToXmlContext {
 }
 
 /**
- * Unified XNode to XML Document converter - replaces xnodeToXmlConverter and convertXNodeToXmlWithHooks
+ * Simplified XNode to XML Document converter
+ * REMOVED: All performance tracking calls
  */
 export const xnodeToXmlConverter: UnifiedConverter<XNode, Document> = {
   name: 'xnodeToXml',
@@ -77,7 +79,8 @@ export const xnodeToXmlConverter: UnifiedConverter<XNode, Document> = {
 };
 
 /**
- * Unified XNode to XML string converter - replaces xnodeToXmlStringConverter and convertXNodeToXmlStringWithHooks
+ * Simplified XNode to XML string converter
+ * REMOVED: All performance tracking calls
  */
 export const xnodeToXmlStringConverter: UnifiedConverter<XNode, string> = {
   name: 'xnodeToXmlString',

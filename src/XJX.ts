@@ -1,11 +1,12 @@
 /**
- * XJX - Main class with unified pipeline context and standardized operations
+ * XJX - Main class with simplified pipeline context
+ * Phases 1 & 2: Enterprise features removed, core functionality preserved
  */
 import { LoggerFactory } from "./core/logger";
 const logger = LoggerFactory.create();
 
 import { Configuration, createConfig } from "./core/config";
-import { XNode, cloneNode } from "./core/xnode";
+import { XNode } from "./core/xnode";
 import { validate, ValidationError } from "./core/error";
 import { UnifiedExtensionContext, TerminalExtensionContext, NonTerminalExtensionContext, BranchContext } from "./core/extension";
 import { PipelineHooks, SourceHooks, OutputHooks, NodeHooks } from "./core/hooks";
@@ -13,7 +14,8 @@ import { PipelineContext, PipelineContextImpl } from "./core/context";
 import { UnifiedConverter, PipelineStage, Pipeline } from "./core/pipeline";
 
 /**
- * Main XJX class - provides the fluent API for XML/JSON transformation with unified pipeline architecture
+ * Main XJX class - provides the fluent API for XML/JSON transformation with simplified pipeline architecture
+ * REMOVED: Performance monitoring, resource reporting, health checks, optimization features
  */
 export class XJX implements UnifiedExtensionContext {
   // Instance properties
@@ -21,10 +23,8 @@ export class XJX implements UnifiedExtensionContext {
   public branchContext: BranchContext | null = null;
   public pipeline: PipelineContext;
   
-  // REMOVED: public transforms: Transform[] = []; // DELETED - no longer needed
-  
   /**
-   * Create a new XJX instance with unified pipeline context
+   * Create a new XJX instance with simplified pipeline context
    * @param config Optional configuration
    * @param pipelineHooks Optional pipeline-level hooks for cross-cutting concerns
    */
@@ -34,19 +34,13 @@ export class XJX implements UnifiedExtensionContext {
       pipelineHooks
     );
     
-    logger.debug('Created new XJX instance with unified pipeline context', {
-      preserveNamespaces: this.pipeline.config.get().preserveNamespaces,
-      preserveComments: this.pipeline.config.get().preserveComments,
-      preserveTextNodes: this.pipeline.config.get().preserveTextNodes,
-      highFidelity: this.pipeline.config.get().strategies.highFidelity,
-      hasPipelineHooks: !!pipelineHooks
-    });
+    logger.debug('Created XJX instance with simplified pipeline');
   }
   
   // --- Standardized Pipeline Operations ---
   
   /**
-   * Execute a source operation (input -> XNode) using unified pipeline
+   * Execute a source operation (input -> XNode) using simplified pipeline
    * @param converter Unified converter to execute
    * @param input Input data
    * @param hooks Optional source hooks
@@ -60,7 +54,7 @@ export class XJX implements UnifiedExtensionContext {
   }
   
   /**
-   * Execute an output operation (XNode -> output) using unified pipeline
+   * Execute an output operation (XNode -> output) using simplified pipeline
    * @param converter Unified converter to execute
    * @param hooks Optional output hooks
    * @returns Converted output
@@ -74,7 +68,7 @@ export class XJX implements UnifiedExtensionContext {
   }
   
   /**
-   * Execute a transform operation (XNode -> XNode) using unified pipeline
+   * Execute a transform operation (XNode -> XNode) using simplified pipeline
    * @param operation Pipeline stage to execute
    * @param hooks Optional node hooks
    */
@@ -104,7 +98,6 @@ export class XJX implements UnifiedExtensionContext {
         // Execute pipeline beforeStep hook
         this.pipeline.executeHooks(this.pipeline.hooks, name, this.xnode || args[0]);
         
-        // Validate source first for terminal extensions (built into executeOutput)
         // Call the implementation method with this context
         const result = method.apply(this, args);
         

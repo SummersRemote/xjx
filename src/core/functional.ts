@@ -1,6 +1,6 @@
 /**
  * Unified tree traversal system - Single algorithm for all tree operations
- * STAGE 5: All legacy traversal functions REMOVED
+ * Phase 2: Performance tracking removed (context.performance calls eliminated)
  */
 import { LoggerFactory } from "./logger";
 const logger = LoggerFactory.create();
@@ -58,9 +58,9 @@ export interface TraversalOptions {
  * - Automatic hook execution
  * - Error handling and logging
  * - Path tracking for branch operations
- * - Performance monitoring
  * 
  * REPLACES: walkTree(), filterNodeHierarchy(), reduceNodeTree(), collectNodes()
+ * REMOVED: Performance tracking (context.performance calls)
  */
 export function traverseTree<T>(
   node: XNode,
@@ -68,9 +68,6 @@ export function traverseTree<T>(
   options: TraversalOptions
 ): T {
   const { order, hooks, context } = options;
-  
-  // Start performance tracking
-  const stageId = context.performance.startStage('traverse');
   
   try {
     logger.debug('Starting unified tree traversal', {
@@ -91,8 +88,6 @@ export function traverseTree<T>(
   } catch (err) {
     logger.error('Error during unified tree traversal:', err);
     throw err;
-  } finally {
-    context.performance.endStage(stageId);
   }
 }
 
@@ -302,7 +297,7 @@ export function getNodeAtPath(root: XNode, path: number[]): XNode | null {
 }
 
 // ================================
-// DELETED LEGACY FUNCTIONS (Stage 5)
+// REMOVED LEGACY FUNCTIONS (Phase 2 Complete)
 // ================================
 // 
 // The following functions have been REMOVED and replaced by traverseTree():
@@ -314,4 +309,8 @@ export function getNodeAtPath(root: XNode, path: number[]): XNode | null {
 //
 // All functionality is now available through the unified traverseTree() function
 // with appropriate TreeVisitor implementations.
+//
+// PHASE 2 REMOVED: Performance tracking
+// ❌ context.performance.startStage('traverse')
+// ❌ context.performance.endStage(stageId)
 // ================================

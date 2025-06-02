@@ -9,10 +9,10 @@ import { XJX } from '../XJX';
 import { XNode } from "../core/xnode";
 import { 
   xnodeToJsonHiFiConverter 
-} from '../converters/xnode-to-json-hifi-converter';
+} from '../converters/xnode-to-json-converter';
 import { 
   xnodeToJsonConverter 
-} from '../converters/xnode-to-json-std-converter';
+} from '../converters/xnode-to-json-converter';
 import { JsonValue } from '../core/converter';
 import { OutputHooks } from "../core/hooks";
 import { TerminalExtensionContext } from '../core/extension';

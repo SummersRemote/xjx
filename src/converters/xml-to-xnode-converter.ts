@@ -1,5 +1,6 @@
 /**
- * XML to XNode unified converter - Replaces legacy converter with hooks
+ * XML to XNode unified converter - Simplified, performance tracking removed
+ * Phase 2: All performance.startStage/endStage calls removed
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
@@ -33,7 +34,8 @@ interface ConversionContext {
 }
 
 /**
- * Unified XML to XNode converter - replaces xmlToXNodeConverter and convertXmlWithHooks
+ * Simplified XML to XNode converter - performance tracking removed
+ * REMOVED: All context.performance.startStage/endStage calls
  */
 export const xmlToXNodeConverter: UnifiedConverter<string, XNode> = {
   name: 'xmlToXNode',

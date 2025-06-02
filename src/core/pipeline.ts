@@ -1,6 +1,6 @@
 /**
- * Enhanced pipeline execution framework - Error recovery and advanced monitoring
- * STAGE 6: Configurable error handling, retry logic, performance optimization
+ * Simplified pipeline execution framework - Enterprise features removed
+ * Phases 1 & 2: Error recovery, performance tracking, health monitoring removed
  */
 import { LoggerFactory } from "./logger";
 const logger = LoggerFactory.create();
@@ -8,35 +8,10 @@ const logger = LoggerFactory.create();
 import { PipelineContext } from "./context";
 import { XNode } from "./xnode";
 import { SourceHooks, OutputHooks, NodeHooks } from "./hooks";
-import { ProcessingError } from "./error";
 
 /**
- * Enhanced error recovery policy for pipeline stages
- * STAGE 6: Comprehensive error handling strategies
- */
-export interface ErrorRecoveryPolicy {
-  strategy: 'fail-fast' | 'continue-with-warning' | 'fallback-value' | 'retry' | 'skip-and-continue';
-  maxRetries?: number;
-  retryDelay?: number; // milliseconds
-  fallbackValue?: any;
-  onRetry?: (attempt: number, error: Error) => void;
-  onFallback?: (error: Error) => void;
-}
-
-/**
- * Pipeline stage execution metrics
- */
-export interface StageMetrics {
-  name: string;
-  duration: number;
-  memory: number;
-  retries: number;
-  success: boolean;
-  errorType?: string;
-}
-
-/**
- * Core pipeline stage interface - all operations implement this
+ * Simplified pipeline stage interface
+ * REMOVED: errorPolicy, optimizationHints, StageMetrics
  */
 export interface PipelineStage<TInput, TOutput> {
   readonly name: string;
@@ -51,16 +26,6 @@ export interface PipelineStage<TInput, TOutput> {
   
   // Optional error handling
   onError?(error: Error, input: TInput, context: PipelineContext): TOutput | null;
-  
-  // STAGE 6: Enhanced error recovery policy
-  errorPolicy?: ErrorRecoveryPolicy;
-  
-  // STAGE 6: Performance optimization hints
-  optimizationHints?: {
-    cacheable?: boolean;
-    expensive?: boolean;
-    memoryIntensive?: boolean;
-  };
 }
 
 /**
@@ -73,13 +38,13 @@ export interface UnifiedConverter<TInput, TOutput> extends PipelineStage<TInput,
 }
 
 /**
- * Enhanced pipeline execution engine with error recovery and monitoring
- * STAGE 6: Enterprise-grade pipeline with comprehensive error handling
+ * Simplified pipeline execution engine
+ * REMOVED: Advanced error recovery, retry logic, performance monitoring, health reporting
  */
 export class Pipeline {
   
   /**
-   * Execute a source operation (input -> XNode) with enhanced error recovery
+   * Execute a source operation (input -> XNode) with basic error handling
    */
   static executeSource<T>(
     stage: UnifiedConverter<T, XNode>,
@@ -87,7 +52,7 @@ export class Pipeline {
     context: PipelineContext,
     hooks?: SourceHooks<T>
   ): XNode {
-    return this.executeStageWithRecovery(
+    return this.executeStageSimple(
       stage,
       input,
       context,
@@ -138,7 +103,7 @@ export class Pipeline {
   }
   
   /**
-   * Execute an output operation (XNode -> output) with enhanced error recovery
+   * Execute an output operation (XNode -> output) with basic error handling
    */
   static executeOutput<T>(
     stage: UnifiedConverter<XNode, T>,
@@ -146,7 +111,7 @@ export class Pipeline {
     context: PipelineContext,
     hooks?: OutputHooks<T>
   ): T {
-    return this.executeStageWithRecovery(
+    return this.executeStageSimple(
       stage,
       input,
       context,
@@ -197,7 +162,7 @@ export class Pipeline {
   }
   
   /**
-   * Execute a transform operation (XNode -> XNode) with enhanced error recovery
+   * Execute a transform operation (XNode -> XNode) with basic error handling
    */
   static executeTransform(
     stage: PipelineStage<XNode, XNode>,
@@ -205,7 +170,7 @@ export class Pipeline {
     context: PipelineContext,
     hooks?: NodeHooks
   ): XNode {
-    return this.executeStageWithRecovery(
+    return this.executeStageSimple(
       stage,
       input,
       context,
@@ -256,198 +221,38 @@ export class Pipeline {
   }
   
   /**
-   * STAGE 6: Enhanced stage execution with comprehensive error recovery
+   * Simplified stage execution with basic error handling only
+   * REMOVED: Retry logic, advanced error recovery, performance tracking
    */
-  private static executeStageWithRecovery<TInput, TOutput>(
+  private static executeStageSimple<TInput, TOutput>(
     stage: PipelineStage<TInput, TOutput>,
     input: TInput,
     context: PipelineContext,
     executor: (input: TInput) => TOutput
   ): TOutput {
-    const stageId = context.performance.startStage(stage.name);
-    let retries = 0;
-    let lastError: Error | null = null;
-    
     try {
-      logger.debug(`Executing enhanced stage: ${stage.name}`, {
-        inputType: stage.inputType,
-        hasErrorPolicy: !!stage.errorPolicy,
-        hasOptimizationHints: !!stage.optimizationHints
-      });
+      context.logger.debug(`Executing stage: ${stage.name}`);
+      const result = executor(input);
+      context.logger.debug(`Completed stage: ${stage.name}`);
+      return result;
+    } catch (error) {
+      context.logger.error(`Error in stage ${stage.name}:`, error);
       
-      // Check optimization hints
-      if (stage.optimizationHints?.memoryIntensive) {
-        // Pre-cleanup for memory-intensive operations
-        if (context.resources.isCleanupNeeded()) {
-          context.optimizeResources();
-        }
-      }
-      
-      while (true) {
-        try {
-          const result = executor(input);
-          
-          // Log successful execution
-          logger.debug(`Successfully completed enhanced stage: ${stage.name}`, {
-            retries,
-            duration: `${(performance.now() - Date.now()).toFixed(2)}ms`
-          });
-          
-          return result;
-          
-        } catch (error) {
-          lastError = error as Error;
-          const policy = stage.errorPolicy;
-          
-          // If no error policy or fail-fast, handle immediately
-          if (!policy || policy.strategy === 'fail-fast') {
-            throw error;
-          }
-          
-          // Handle retry strategy
-          if (policy.strategy === 'retry' && retries < (policy.maxRetries || 3)) {
-            retries++;
-            
-            logger.warn(`Stage ${stage.name} failed, retrying (${retries}/${policy.maxRetries || 3})`, {
-              error: error instanceof Error ? error.message : String(error)
-            });
-            
-            // Call retry callback if provided
-            if (policy.onRetry) {
-              try {
-                policy.onRetry(retries, error as Error);
-              } catch (callbackError) {
-                logger.warn(`Error in retry callback for ${stage.name}:`, callbackError);
-              }
-            }
-            
-            // Add delay if specified
-            if (policy.retryDelay && policy.retryDelay > 0) {
-              // Simple blocking delay (in real implementation, might use async)
-              const start = Date.now();
-              while (Date.now() - start < policy.retryDelay) {
-                // Busy wait (for simplicity)
-              }
-            }
-            
-            continue; // Retry the operation
-          }
-          
-          // Handle other error strategies
-          break;
-        }
-      }
-      
-      // If we get here, we've exhausted retries or have a different strategy
-      const policy = stage.errorPolicy!;
-      
-      switch (policy.strategy) {
-        case 'continue-with-warning':
-          logger.warn(`Stage ${stage.name} failed but continuing with warning`, {
-            error: lastError instanceof Error ? lastError.message : String(lastError),
-            retries
-          });
-          
-          if (policy.fallbackValue !== undefined) {
-            return policy.fallbackValue;
-          }
-          break;
-          
-        case 'fallback-value':
-          if (policy.fallbackValue !== undefined) {
-            logger.warn(`Stage ${stage.name} failed, using fallback value`, {
-              error: lastError instanceof Error ? lastError.message : String(lastError),
-              retries
-            });
-            
-            // Call fallback callback if provided
-            if (policy.onFallback) {
-              try {
-                policy.onFallback(lastError!);
-              } catch (callbackError) {
-                logger.warn(`Error in fallback callback for ${stage.name}:`, callbackError);
-              }
-            }
-            
-            return policy.fallbackValue;
-          }
-          break;
-          
-        case 'skip-and-continue':
-          logger.warn(`Stage ${stage.name} failed, skipping and continuing`, {
-            error: lastError instanceof Error ? lastError.message : String(lastError),
-            retries
-          });
-          
-          // Return input as-is for skip behavior
-          if (typeof input === 'object' && input !== null) {
-            return input as unknown as TOutput;
-          }
-          break;
-      }
-      
-      // If no recovery worked, try stage-specific error handler
+      // Try stage-specific error handler
       if (stage.onError) {
         try {
-          const recovered = stage.onError(lastError!, input, context);
+          const recovered = stage.onError(error as Error, input, context);
           if (recovered !== null) {
-            logger.warn(`Stage ${stage.name} recovered from error using onError handler`);
+            context.logger.warn(`Stage ${stage.name} recovered from error using onError handler`);
             return recovered;
           }
         } catch (recoveryError) {
-          logger.error(`Error in ${stage.name} error recovery:`, recoveryError);
+          context.logger.error(`Error recovery failed for ${stage.name}:`, recoveryError);
         }
       }
       
-      // All recovery attempts failed, throw the original error
-      throw lastError || new Error(`Stage ${stage.name} failed with unknown error`);
-      
-    } finally {
-      const metrics = context.performance.endStage(stageId);
-      
-      // Log stage metrics
-      logger.debug(`Stage ${stage.name} metrics`, {
-        duration: `${metrics.duration.toFixed(2)}ms`,
-        memory: `${(metrics.memory / 1024).toFixed(2)}KB`,
-        retries,
-        success: !lastError
-      });
-      
-      // Auto-cleanup for expensive operations
-      if (stage.optimizationHints?.expensive || stage.optimizationHints?.memoryIntensive) {
-        if (context.resources.isCleanupNeeded()) {
-          context.optimizeResources();
-        }
-      }
+      // No recovery available, throw original error
+      throw error;
     }
-  }
-  
-  /**
-   * STAGE 6: Get pipeline performance and health report
-   */
-  static getHealthReport(context: PipelineContext): {
-    performance: any;
-    resources: any;
-    recommendations: string[];
-  } {
-    const perfReport = context.getPerformanceReport();
-    const resourceReport = context.getResourceReport();
-    
-    const recommendations = [...perfReport.recommendations];
-    
-    // Add resource-based recommendations
-    if (resourceReport.isCleanupNeeded) {
-      recommendations.push('Resource cleanup recommended');
-    }
-    
-    if (resourceReport.memoryEstimate > 10 * 1024 * 1024) { // 10MB
-      recommendations.push('High memory usage detected, consider optimizing data structures');
-    }
-    
-    return {
-      performance: perfReport,
-      resources: resourceReport,
-      recommendations
-    };
   }
 }

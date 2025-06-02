@@ -32,7 +32,8 @@ export {
 // Export logging
 export { 
   LoggerFactory, 
-  LogLevel } from "./core/logger";
+  LogLevel 
+} from "./core/logger";
 
 // Export error handling
 export {
@@ -50,7 +51,24 @@ export {
   TerminalExtensionContext,
   NonTerminalExtensionContext,
   BranchContext,
+  UnifiedExtensionContext
 } from "./core/extension";
+
+// Export pipeline system
+export {
+  PipelineStage,
+  UnifiedConverter,
+  Pipeline
+} from "./core/pipeline";
+
+export {
+  PipelineContext,
+  PipelineContextImpl,
+  ConfigurationManager,
+  ResourceManager,
+  ClonePolicy,
+  ClonePolicies
+} from "./core/context";
 
 // Export converter types and hook interfaces
 export {
@@ -83,10 +101,29 @@ export {
   BooleanTransformOptions,
 } from "./transforms";
 
+// Export simplified utilities (removed unused functions)
+export {
+  // Only the used JSON utilities
+  isEmptyElement,
+  removeEmptyElements
+} from "./core/json-utils";
+
+export {
+  // Only the used XML utilities  
+  parseXml,
+  serializeXml,
+  formatXml,
+  ensureXmlDeclaration,
+  escapeXml,
+  safeXmlText,
+  normalizeWhitespace,
+  createQualifiedName,
+  addNamespaceDeclarations
+} from "./core/xml-utils";
+
 // Manual registration verification - this function does nothing at runtime
 // but ensures that tree-shaking doesn't remove our extension imports
 function ensureExtensionsRegistered() {
-  // The mere existence of this function with references prevents tree-shaking
   return [
     "./extensions/from-xml",
     "./extensions/from-json",

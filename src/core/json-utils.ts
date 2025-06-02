@@ -1,38 +1,25 @@
 /**
- * JSON utilities and type definitions
+ * JSON utilities for XJX library - Simplified and consolidated
  */
 import { LoggerFactory } from "./logger";
 const logger = LoggerFactory.create();
 
-import { getPath, setPath } from './common';
 import { Configuration } from './config';
 import { JsonValue, JsonObject, JsonArray } from './converter';
 
 /**
  * Check if a JSON value represents an empty element
- * @param value JSON value to check
- * @param config Configuration for property names
- * @returns True if the value represents an empty element
+ * Simplified logic with clearer conditions
  */
 export function isEmptyElement(value: JsonValue, config: Configuration): boolean {
-  // Null or undefined are empty
-  if (value === null || value === undefined) {
-    return true;
-  }
-
-  // Empty string is empty
-  if (value === '') {
+  // Null, undefined, or empty string are empty
+  if (value === null || value === undefined || value === '') {
     return true;
   }
 
   // Arrays
   if (Array.isArray(value)) {
-    // Empty array is empty
-    if (value.length === 0) {
-      return true;
-    }
-    // Array with all empty elements is empty
-    return value.every(item => isEmptyElement(item, config));
+    return value.length === 0 || value.every(item => isEmptyElement(item, config));
   }
 
   // Objects
@@ -40,30 +27,25 @@ export function isEmptyElement(value: JsonValue, config: Configuration): boolean
     const obj = value as JsonObject;
     const keys = Object.keys(obj);
     
-    // Empty object is empty
     if (keys.length === 0) {
       return true;
     }
 
     const { properties } = config;
 
-    // For high-fidelity format, check specific properties
+    // Check high-fidelity format properties
     if (obj[properties.value] !== undefined) {
-      // Has a value property - check if it's empty
       return isEmptyElement(obj[properties.value], config);
     }
 
     if (obj[properties.children] !== undefined) {
-      // Has children property - check if all children are empty
       const children = obj[properties.children];
-      if (Array.isArray(children)) {
-        return children.length === 0 || children.every(child => isEmptyElement(child, config));
-      }
-      return isEmptyElement(children, config);
+      return Array.isArray(children) 
+        ? children.length === 0 || children.every(child => isEmptyElement(child, config))
+        : isEmptyElement(children, config);
     }
 
-    // For standard format, check if all properties are empty
-    // Skip metadata properties like attributes, namespaces, etc.
+    // Check standard format - filter out metadata properties
     const contentKeys = keys.filter(key => 
       !key.startsWith('$') && 
       !key.startsWith('_') && 
@@ -75,50 +57,30 @@ export function isEmptyElement(value: JsonValue, config: Configuration): boolean
       key !== 'metadata'
     );
 
-    if (contentKeys.length === 0) {
-      return true;
-    }
-
-    // Check if all content properties are empty
-    return contentKeys.every(key => isEmptyElement(obj[key], config));
+    return contentKeys.length === 0 || 
+           contentKeys.every(key => isEmptyElement(obj[key], config));
   }
 
-  // Primitive values - not empty unless they're falsy
+  // Primitive values are not empty
   return false;
 }
 
 /**
- * Remove empty elements from JSON structure
- * An element is considered empty if:
- * - It's null, undefined, or empty string
- * - It's an empty object or array
- * - It contains only other empty elements
- * 
- * @param value JSON value to process
- * @param config Configuration for determining what's empty
- * @returns Processed JSON value with empty elements removed, or undefined if entire value is empty
+ * Remove empty elements from JSON structure - Simplified recursive approach
  */
 export function removeEmptyElements(value: JsonValue, config: Configuration): JsonValue | undefined {
-  // Handle null/undefined
   if (value === null || value === undefined) {
     return undefined;
   }
 
-  // Handle arrays
   if (Array.isArray(value)) {
-    const processedArray: JsonValue[] = [];
-
-    for (const item of value) {
-      const processedItem = removeEmptyElements(item, config);
-      if (processedItem !== undefined) {
-        processedArray.push(processedItem);
-      }
-    }
-
+    const processedArray = value
+      .map(item => removeEmptyElements(item, config))
+      .filter(item => item !== undefined);
+    
     return processedArray.length > 0 ? processedArray : undefined;
   }
 
-  // Handle objects
   if (typeof value === 'object') {
     const obj = value as JsonObject;
     const processedObj: JsonObject = {};
@@ -132,15 +94,12 @@ export function removeEmptyElements(value: JsonValue, config: Configuration): Js
       }
     }
 
-    // After processing all properties, check if the object is still meaningful
     if (!hasContent) {
       return undefined;
     }
 
-    // Special handling for high-fidelity format
+    // Check if object only has metadata but no content
     const { properties } = config;
-    
-    // If this object only has metadata (attributes, namespaces, etc.) but no content, it might be empty
     const contentKeys = Object.keys(processedObj).filter(key => 
       key !== properties.attribute &&
       key !== properties.namespace &&
@@ -150,8 +109,7 @@ export function removeEmptyElements(value: JsonValue, config: Configuration): Js
       key !== 'metadata'
     );
 
-    // If no content keys, but has metadata, keep it (it represents an empty element with attributes)
-    // If no content keys and no metadata, remove it
+    // If no content keys but has metadata, keep it (represents empty element with attributes)
     if (contentKeys.length === 0) {
       const hasMetadata = 
         processedObj[properties.attribute] !== undefined ||
@@ -166,147 +124,10 @@ export function removeEmptyElements(value: JsonValue, config: Configuration): Js
     return processedObj;
   }
 
-  // Primitive values
+  // Handle empty strings
   if (typeof value === 'string' && value.trim() === '') {
     return undefined;
   }
 
   return value;
-}
-
-/**
- * Safely stringify JSON for debugging
- * @param obj Object to stringify
- * @param indent Optional indentation level
- * @returns JSON string representation
- */
-export function safeStringify(obj: JsonValue, indent: number = 2): string {
-  try {
-    return JSON.stringify(obj, null, indent);
-  } catch (err) {
-    logger.error('Failed to stringify JSON', { error: err });
-    return "[Cannot stringify object]";
-  }
-}
-
-/**
- * Safely parse a JSON string
- * @param text JSON string to parse
- * @returns Parsed object or null if parsing fails
- */
-export function safeParse(text: string): JsonValue | null {
-  try {
-    return JSON.parse(text);
-  } catch (err) {
-    logger.error('Failed to parse JSON string', { error: err });
-    return null;
-  }
-}
-
-/**
- * Get a value from a JSON object using a path
- * @param obj Object to get value from
- * @param path Path to value (dot notation)
- * @param defaultValue Default value if path not found
- * @returns Value at path or default value
- */
-export function getValueByPath<T>(obj: JsonValue, path: string, defaultValue?: T): T | undefined {
-  return getPath(obj, path, defaultValue);
-}
-
-/**
- * Set a value in a JSON object using a path
- * @param obj Object to set value in
- * @param path Path to value (dot notation)
- * @param value Value to set
- * @returns New object with value set (original object is not modified)
- */
-export function setValueByPath<T extends JsonValue>(obj: T, path: string, value: JsonValue): T {
-  return setPath(obj, path, value);
-}
-
-/**
- * Create an array for a value if it's not already an array
- * @param value Value to ensureArray
- * @param strategy Array strategy
- * @returns Array containing the value, or the original array, or empty array
- */
-export function ensureArray<T>(value: T | T[] | undefined | null, strategy: 'multiple' | 'always' | 'never'): T[] {
-  // Handle undefined/null
-  if (value === undefined || value === null) {
-    return [];
-  }
-  
-  // Already an array
-  if (Array.isArray(value)) {
-    return value;
-  }
-  
-  // Based on strategy
-  switch (strategy) {
-    case 'always':
-      // Always create an array even for single value
-      return [value];
-    case 'never':
-      // Never create arrays (use last value)
-      return [value];
-    case 'multiple':
-    default:
-      // Create array only for multiple values (single value isn't wrapped)
-      return [value];
-  }
-}
-
-/**
- * Add a value to an array based on array strategy
- * @param array Target array 
- * @param value Value to add
- * @param strategy Array strategy
- * @returns Updated array
- */
-export function addToArray<T>(array: T[], value: T, strategy: 'multiple' | 'always' | 'never'): T[] {
-  if (strategy === 'never') {
-    // Replace last value instead of adding
-    return [value];
-  }
-  
-  // For 'multiple' and 'always', just append
-  array.push(value);
-  return array;
-}
-
-/**
- * Check if property name is in the forceArrays list
- * @param propName Property name to check
- * @param forceArrays List of properties to force as arrays
- * @returns True if the property should be forced as array
- */
-export function shouldForceArray(propName: string, forceArrays: string[]): boolean {
-  return forceArrays.includes(propName);
-}
-
-/**
- * Determine if a value should be an array based on configuration
- * @param propName Property name
- * @param value Current value
- * @param config Configuration
- * @returns True if the value should be an array
- */
-export function shouldBeArray(propName: string, value: any, config: Configuration): boolean {
-  // Check force arrays list
-  if (shouldForceArray(propName, config.arrays.forceArrays)) {
-    return true;
-  }
-  
-  // Check strategy
-  switch (config.strategies.arrayStrategy) {
-    case 'always':
-      return true;
-    case 'never':
-      return false;
-    case 'multiple':
-    default:
-      // Only arrays if multiple items
-      return Array.isArray(value) && value.length > 1;
-  }
 }

@@ -10,7 +10,6 @@ import "./extensions/to-xml";
 import "./extensions/to-json";
 import "./extensions/config-extensions";
 import "./extensions/to-xnode";
-import "./extensions/to-csv";
 import "./extensions/from-xnode";
 import "./extensions/functional-api";
 
@@ -132,7 +131,6 @@ function ensureExtensionsRegistered() {
     "./extensions/to-json",
     "./extensions/config-extensions",
     "./extensions/to-xnode",
-    "./extensions/to-csv",
     "./extensions/from-xnode",
     "./extensions/functional-api",
   ];

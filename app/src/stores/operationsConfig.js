@@ -1,4 +1,4 @@
-// stores/operationsConfig.js - Updated with withConfig operation
+// stores/operationsConfig.js - Updated with toCsv operation
 
 export const availableOperations = {
   // Source operations
@@ -118,6 +118,14 @@ export const availableOperations = {
     terminal: true,
     hookTypes: ['beforeTransform', 'afterTransform']
   },
+  toCsv: { 
+    type: 'toCsv', 
+    name: 'To CSV', 
+    category: 'output', 
+    description: 'Convert to CSV format',
+    terminal: true,
+    hookTypes: ['beforeTransform', 'afterTransform']
+  },
   toXnode: { 
     type: 'toXnode', 
     name: 'To XNode', 
@@ -188,6 +196,10 @@ export function getDefaultOptions(type) {
         },
         fragmentRoot: "results"
       }, null, 2);
+      break;
+      
+    case 'toCsv':
+      // CSV operation uses defaults from configuration, no special options needed
       break;
   }
   

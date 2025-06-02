@@ -293,6 +293,7 @@ function generateStepCode(step) {
     case 'toXmlString':
     case 'toJson':
     case 'toJsonString':
+    case 'toCsv':
     case 'toXnode': {
       const hooks = generateHooksCode(options, ['beforeTransform', 'afterTransform']);
       return hooks ? `\n  .${type}(${hooks})` : `\n  .${type}()`;

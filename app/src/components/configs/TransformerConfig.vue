@@ -1,4 +1,4 @@
-<!-- components/configs/TransformerConfig.vue - Simplified without node targeting -->
+<!-- components/configs/TransformerConfig.vue - Updated with transformAttr/transformVal options -->
 <template>
   <v-container>
     <!-- Source/Output Context: Simple text box -->
@@ -125,6 +125,33 @@
           <v-card variant="outlined" class="pa-3">
             <!-- Boolean Transform Options -->
             <div v-if="transformType === 'toBoolean'">
+              <!-- Target Selection -->
+              <div class="text-subtitle-2 mb-2">Transform Target</div>
+              <v-row dense>
+                <v-col cols="12" sm="6">
+                  <v-switch
+                    v-model="localOptions.transforms.toBoolean.transformVal"
+                    label="Transform Node Value"
+                    hide-details
+                    density="compact"
+                    @update:model-value="updateOptions"
+                  ></v-switch>
+                </v-col>
+                <v-col cols="12" sm="6">
+                  <v-switch
+                    v-model="localOptions.transforms.toBoolean.transformAttr"
+                    label="Transform Attributes"
+                    hide-details
+                    density="compact"
+                    @update:model-value="updateOptions"
+                  ></v-switch>
+                </v-col>
+              </v-row>
+              
+              <v-divider class="my-3"></v-divider>
+              
+              <!-- Boolean Values -->
+              <div class="text-subtitle-2 mb-2">Boolean Values</div>
               <v-row dense>
                 <v-col cols="12" sm="6">
                   <v-combobox
@@ -166,6 +193,33 @@
             
             <!-- Number Transform Options -->
             <div v-if="transformType === 'toNumber'">
+              <!-- Target Selection -->
+              <div class="text-subtitle-2 mb-2">Transform Target</div>
+              <v-row dense>
+                <v-col cols="12" sm="6">
+                  <v-switch
+                    v-model="localOptions.transforms.toNumber.transformVal"
+                    label="Transform Node Value"
+                    hide-details
+                    density="compact"
+                    @update:model-value="updateOptions"
+                  ></v-switch>
+                </v-col>
+                <v-col cols="12" sm="6">
+                  <v-switch
+                    v-model="localOptions.transforms.toNumber.transformAttr"
+                    label="Transform Attributes"
+                    hide-details
+                    density="compact"
+                    @update:model-value="updateOptions"
+                  ></v-switch>
+                </v-col>
+              </v-row>
+              
+              <v-divider class="my-3"></v-divider>
+              
+              <!-- Number Options -->
+              <div class="text-subtitle-2 mb-2">Number Options</div>
               <v-row dense>
                 <v-col cols="12" sm="4">
                   <v-text-field
@@ -233,6 +287,33 @@
             
             <!-- Regex Transform Options -->
             <div v-if="transformType === 'regex'">
+              <!-- Target Selection -->
+              <div class="text-subtitle-2 mb-2">Transform Target</div>
+              <v-row dense>
+                <v-col cols="12" sm="6">
+                  <v-switch
+                    v-model="localOptions.transforms.regex.transformVal"
+                    label="Transform Node Value"
+                    hide-details
+                    density="compact"
+                    @update:model-value="updateOptions"
+                  ></v-switch>
+                </v-col>
+                <v-col cols="12" sm="6">
+                  <v-switch
+                    v-model="localOptions.transforms.regex.transformAttr"
+                    label="Transform Attributes"
+                    hide-details
+                    density="compact"
+                    @update:model-value="updateOptions"
+                  ></v-switch>
+                </v-col>
+              </v-row>
+              
+              <v-divider class="my-3"></v-divider>
+              
+              <!-- Regex Options -->
+              <div class="text-subtitle-2 mb-2">Regex Options</div>
               <v-row dense>
                 <v-col cols="12">
                   <v-text-field
@@ -296,7 +377,7 @@
         </v-col>
       </v-row>
 
-      <!-- Help Section - Updated for simplified transforms -->
+      <!-- Help Section - Updated for attribute/value targeting -->
       <v-expansion-panels variant="accordion" class="mt-4">
         <v-expansion-panel>
           <v-expansion-panel-title class="text-caption">
@@ -305,9 +386,15 @@
           </v-expansion-panel-title>
           <v-expansion-panel-text>
             <v-alert type="info" variant="text" density="compact">
-              <strong>Simplified Transform Pipeline:</strong><br>
-              Transforms are now pure functions that operate on all nodes they receive.
-              Use explicit filtering operations for node targeting.<br>
+              <strong>Transform Targeting:</strong><br>
+              Each transform can target node values, attributes, or both:<br>
+              - <strong>Transform Node Value</strong>: Apply to <code>node.value</code><br>
+              - <strong>Transform Attributes</strong>: Apply to all <code>node.attributes</code><br>
+              <br>
+              <strong>Example Use Cases:</strong><br>
+              - Convert price attributes: <code>&lt;item price="99.99"&gt;</code> → <code>&lt;item price=99.99&gt;</code><br>
+              - Transform boolean flags: <code>&lt;active&gt;true&lt;/active&gt;</code> → <code>&lt;active&gt;true&lt;/active&gt;</code><br>
+              - Clean attribute values: <code>&lt;price currency="$99.99"&gt;</code> → <code>&lt;price currency="99.99"&gt;</code><br>
               <br>
               <strong>Transform Composition:</strong><br>
               Multiple transforms are automatically composed using the <code>compose()</code> function.
@@ -316,12 +403,12 @@
               <strong>Node Targeting Pattern:</strong><br>
               - Use <code>filter(node => node.name === 'price')</code> before transforms<br>
               - Use <code>select(node => ['price', 'total'].includes(node.name))</code> to collect specific nodes<br>
-              - Then apply transforms: <code>map(toNumber({ precision: 2 }))</code><br>
+              - Then apply transforms: <code>map(toNumber({ transformAttr: true }))</code><br>
               <br>
               <strong>Examples:</strong><br>
+              - <em>Attributes Only</em>: <code>toNumber({ transformAttr: true, transformVal: false })</code><br>
+              - <em>Values + Attributes</em>: <code>toBoolean({ transformAttr: true, transformVal: true })</code><br>
               - <em>Regex → Number</em>: Clean currency symbols then parse as number<br>
-              - <em>Boolean → Custom</em>: Convert to boolean then add metadata<br>
-              - <em>Custom → Number → Boolean</em>: Process, parse, then convert to flag
             </v-alert>
           </v-expansion-panel-text>
         </v-expansion-panel>
@@ -372,7 +459,9 @@ const props = defineProps({
         toBoolean: {
           trueValues: ['true', 'yes', '1', 'on'],
           falseValues: ['false', 'no', '0', 'off'],
-          ignoreCase: true
+          ignoreCase: true,
+          transformAttr: false,
+          transformVal: true
         },
         toNumber: {
           precision: undefined,
@@ -380,11 +469,15 @@ const props = defineProps({
           thousandsSeparator: ',',
           integers: true,
           decimals: true,
-          scientific: true
+          scientific: true,
+          transformAttr: false,
+          transformVal: true
         },
         regex: {
           pattern: '',
-          replacement: ''
+          replacement: '',
+          transformAttr: false,
+          transformVal: true
         },
         custom: {
           customTransformer: ''
@@ -495,7 +588,9 @@ function getDefaultBooleanOptions() {
   return {
     trueValues: ['true', 'yes', '1', 'on'],
     falseValues: ['false', 'no', '0', 'off'],
-    ignoreCase: true
+    ignoreCase: true,
+    transformAttr: false,
+    transformVal: true
   };
 }
 
@@ -506,14 +601,18 @@ function getDefaultNumberOptions() {
     thousandsSeparator: ',',
     integers: true,
     decimals: true,
-    scientific: true
+    scientific: true,
+    transformAttr: false,
+    transformVal: true
   };
 }
 
 function getDefaultRegexOptions() {
   return {
     pattern: '',
-    replacement: ''
+    replacement: '',
+    transformAttr: false,
+    transformVal: true
   };
 }
 

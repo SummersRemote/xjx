@@ -1,4 +1,4 @@
-// stores/operationsConfig.js - Updated with toCsv operation
+// stores/operationsConfig.js - Updated with transformAttr/transformVal defaults
 
 export const availableOperations = {
   // Source operations
@@ -118,14 +118,6 @@ export const availableOperations = {
     terminal: true,
     hookTypes: ['beforeTransform', 'afterTransform']
   },
-  toCsv: { 
-    type: 'toCsv', 
-    name: 'To CSV', 
-    category: 'output', 
-    description: 'Convert to CSV format',
-    terminal: true,
-    hookTypes: ['beforeTransform', 'afterTransform']
-  },
   toXnode: { 
     type: 'toXnode', 
     name: 'To XNode', 
@@ -197,17 +189,13 @@ export function getDefaultOptions(type) {
         fragmentRoot: "results"
       }, null, 2);
       break;
-      
-    case 'toCsv':
-      // CSV operation uses defaults from configuration, no special options needed
-      break;
   }
   
   return defaultOptions;
 }
 
 /**
- * Get default transform configuration structure
+ * Get default transform configuration structure - UPDATED with transformAttr/transformVal
  */
 export function getDefaultTransformConfig() {
   return {
@@ -217,7 +205,9 @@ export function getDefaultTransformConfig() {
       toBoolean: {
         trueValues: ['true', 'yes', '1', 'on'],
         falseValues: ['false', 'no', '0', 'off'],
-        ignoreCase: true
+        ignoreCase: true,
+        transformAttr: false,  // NEW: Don't transform attributes by default
+        transformVal: true     // NEW: Do transform values by default (backward compatibility)
       },
       toNumber: {
         precision: undefined,
@@ -225,11 +215,15 @@ export function getDefaultTransformConfig() {
         thousandsSeparator: ',',
         integers: true,
         decimals: true,
-        scientific: true
+        scientific: true,
+        transformAttr: false,  // NEW: Don't transform attributes by default
+        transformVal: true     // NEW: Do transform values by default (backward compatibility)
       },
       regex: {
         pattern: '',
-        replacement: ''
+        replacement: '',
+        transformAttr: false,  // NEW: Don't transform attributes by default
+        transformVal: true     // NEW: Do transform values by default (backward compatibility)
       },
       custom: {
         customTransformer: ''

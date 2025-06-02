@@ -13,6 +13,7 @@ export * from './from-xnode';
 export * from './to-xml';
 export * from './to-json';
 export * from './to-xnode';
+export * from './to-csv';       // convert built into extension
 
 // Functional extensions (core operations)
 export * from './functional-api';

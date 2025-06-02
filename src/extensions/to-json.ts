@@ -1,92 +1,46 @@
 /**
- * Extension implementation for JSON output methods - Updated for new hook system
+ * Extension implementation for JSON output methods - Simplified with unified pipeline
+ * CRITICAL: All legacy transform handling REMOVED
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
 
 import { XJX } from '../XJX';
+import { XNode } from "../core/xnode";
 import { 
-  convertXNodeToJsonHiFiWithHooks,
   xnodeToJsonHiFiConverter 
-} from '../converters/xnode-to-json-hifi-converter';
+} from '../converters/xnode-to-json-converter';
 import { 
-  convertXNodeToJsonWithHooks,
   xnodeToJsonConverter 
-} from '../converters/xnode-to-json-std-converter';
-import { transformXNodeWithHooks } from '../converters/xnode-transformer';
-import { XNode } from '../core/xnode';
+} from '../converters/xnode-to-json-converter';
 import { JsonValue } from '../core/converter';
 import { OutputHooks } from "../core/hooks";
 import { TerminalExtensionContext } from '../core/extension';
 
 /**
- * Implementation for converting to JSON with new hook system
+ * Implementation for converting to JSON with unified pipeline execution
+ * NO LEGACY TRANSFORMS - All complexity moved to pipeline
  */
 export function toJson(this: TerminalExtensionContext, hooks?: OutputHooks<JsonValue>): JsonValue {
   try {
-    // Source validation is handled by the registration mechanism
-    this.validateSource();
-    
     // Use high-fidelity setting from config only
-    const useHighFidelity = this.config.strategies.highFidelity;
+    const useHighFidelity = this.pipeline.config.get().strategies.highFidelity;
   
     logger.debug('Starting JSON conversion', {
-      hasTransforms: this.transforms.length > 0,
       highFidelity: useHighFidelity,
       hasOutputHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
     });
     
-    // Apply legacy transforms if any are registered
-    let nodeToConvert = this.xnode as XNode;
+    // NEW: Simple pipeline execution with converter selection
+    // NO LEGACY TRANSFORM APPLICATION - pipeline handles everything
+    const converter = useHighFidelity ? xnodeToJsonHiFiConverter : xnodeToJsonConverter;
+    const result = this.executeOutput(converter, hooks);
     
-    if (this.transforms && this.transforms.length > 0) {
-      // For legacy transforms, compose them into a single transform
-      const composedTransform = (value: any) => {
-        return this.transforms.reduce((result, transform) => {
-          try {
-            return transform(result);
-          } catch (err) {
-            logger.warn('Error in legacy transform:', err);
-            return result;
-          }
-        }, value);
-      };
-      
-      nodeToConvert = transformXNodeWithHooks(nodeToConvert, composedTransform, undefined, this.config);
-      
-      logger.debug('Applied legacy transforms to XNode', {
-        transformCount: this.transforms.length
-      });
-    }
-    
-    // Select and use the appropriate converter based on config
-    let result: JsonValue;
-    
-    if (useHighFidelity) {
-      // Use XNode to JSON HiFi converter with hooks
-      if (hooks) {
-        result = convertXNodeToJsonHiFiWithHooks(nodeToConvert, this.config, hooks);
-      } else {
-        result = xnodeToJsonHiFiConverter.convert(nodeToConvert, this.config);
-      }
-      
-      logger.debug('Used XNode to JSON HiFi converter for high-fidelity JSON', {
-        resultType: typeof result,
-        isArray: Array.isArray(result)
-      });
-    } else {
-      // Use standard XNode to JSON converter with hooks
-      if (hooks) {
-        result = convertXNodeToJsonWithHooks(nodeToConvert, this.config, hooks);
-      } else {
-        result = xnodeToJsonConverter.convert(nodeToConvert, this.config);
-      }
-      
-      logger.debug('Used XNode to standard JSON converter', {
-        resultType: typeof result,
-        isArray: Array.isArray(result)
-      });
-    }
+    logger.debug('Successfully converted to JSON', {
+      resultType: typeof result,
+      isArray: Array.isArray(result),
+      usedHighFidelity: useHighFidelity
+    });
     
     return result;
   } catch (err) {
@@ -98,94 +52,55 @@ export function toJson(this: TerminalExtensionContext, hooks?: OutputHooks<JsonV
 }
 
 /**
- * Implementation for converting to JSON string with new hook system
+ * Implementation for converting to JSON string with unified pipeline execution  
+ * NO LEGACY TRANSFORMS - All complexity moved to pipeline
  */
 export function toJsonString(this: TerminalExtensionContext, hooks?: OutputHooks<string>): string {
   try {
-    // Source validation is handled by the registration mechanism
+    logger.debug('Starting JSON string conversion', {
+      hasOutputHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
+    });
+    
+    // Source validation handled by validateSource()
     this.validateSource();
     
-    logger.debug('Starting JSON string conversion');
-    
-    // Apply legacy transforms if any are registered
+    // Start with current XNode
     let nodeToConvert = this.xnode as XNode;
     
-    if (this.transforms && this.transforms.length > 0) {
-      // For legacy transforms, compose them into a single transform
-      const composedTransform = (value: any) => {
-        return this.transforms.reduce((result, transform) => {
-          try {
-            return transform(result);
-          } catch (err) {
-            logger.warn('Error in legacy transform:', err);
-            return result;
-          }
-        }, value);
-      };
-      
-      nodeToConvert = transformXNodeWithHooks(nodeToConvert, composedTransform, undefined, this.config);
-      
-      logger.debug('Applied legacy transforms to XNode', {
-        transformCount: this.transforms.length
-      });
-    }
-    
-    // Use high-fidelity setting from config
-    const useHighFidelity = this.config.strategies.highFidelity;
-    
-    // First get the JSON using the converter method
-    let jsonValue: JsonValue;
-    
-    if (useHighFidelity) {
-      jsonValue = xnodeToJsonHiFiConverter.convert(nodeToConvert, this.config);
-    } else {
-      jsonValue = xnodeToJsonConverter.convert(nodeToConvert, this.config);
-    }
-    
-    // Use the indent value from config only
-    const indent = this.config.formatting.indent;
-    
-    // Stringify the JSON
-    let result = JSON.stringify(jsonValue, null, indent);
-    
-    // Apply output hooks to the string result
-    if (hooks) {
-      // Apply beforeTransform hook to XNode (before conversion)
-      let processedXNode = nodeToConvert;
-      if (hooks.beforeTransform) {
-        try {
-          const beforeResult = hooks.beforeTransform(processedXNode);
-          if (beforeResult && typeof beforeResult === 'object' && typeof beforeResult.name === 'string') {
-            processedXNode = beforeResult;
-            // Re-convert with modified XNode
-            if (useHighFidelity) {
-              jsonValue = xnodeToJsonHiFiConverter.convert(processedXNode, this.config);
-            } else {
-              jsonValue = xnodeToJsonConverter.convert(processedXNode, this.config);
-            }
-            result = JSON.stringify(jsonValue, null, indent);
-          }
-        } catch (err) {
-          logger.warn(`Error in JSON string output beforeTransform: ${err instanceof Error ? err.message : String(err)}`);
+    // Apply beforeTransform hook to XNode (if hooks are provided)
+    if (hooks?.beforeTransform) {
+      try {
+        const beforeResult = hooks.beforeTransform(nodeToConvert);
+        if (beforeResult && typeof beforeResult === 'object' && typeof beforeResult.name === 'string') {
+          nodeToConvert = beforeResult;
         }
+      } catch (err) {
+        logger.warn(`Error in JSON string beforeTransform: ${err instanceof Error ? err.message : String(err)}`);
       }
-      
-      // Apply afterTransform hook to final string
-      if (hooks.afterTransform) {
-        try {
-          const afterResult = hooks.afterTransform(result);
-          if (afterResult !== undefined && afterResult !== null) {
-            result = afterResult;
-          }
-        } catch (err) {
-          logger.warn(`Error in JSON string output afterTransform: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    
+    // Get JSON value using the converter directly (no hooks for intermediate step)
+    const useHighFidelity = this.pipeline.config.get().strategies.highFidelity;
+    const converter = useHighFidelity ? xnodeToJsonHiFiConverter : xnodeToJsonConverter;
+    const jsonValue = this.executeOutput(converter); // No hooks passed here
+    
+    // Stringify the result
+    let result = JSON.stringify(jsonValue, null, this.pipeline.config.get().formatting.indent);
+    
+    // Apply afterTransform hook to final string result
+    if (hooks?.afterTransform) {
+      try {
+        const afterResult = hooks.afterTransform(result);
+        if (afterResult !== undefined && afterResult !== null) {
+          result = afterResult;
         }
+      } catch (err) {
+        logger.warn(`Error in JSON string afterTransform: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
     
     logger.debug('Successfully converted to JSON string', {
-      resultLength: result.length,
-      indent
+      jsonLength: result.length
     });
     
     return result;

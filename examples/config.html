@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XJX Ultra-Simple Extension Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            border-left: 4px solid #3498db;
+            padding-left: 15px;
+        }
+        
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #fafafa;
+        }
+        
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        
+        .error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        
+        .code {
+            background-color: #f1f1f1;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+        
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px 10px 0;
+            font-size: 14px;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        button:disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+        
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        
+        .json-output {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 XJX Ultra-Simple Extension Configuration Test</h1>
+        
+        <div class="test-section">
+            <h2>Test Overview</h2>
+            <p>This test demonstrates the ultra-simplified extension registration system:</p>
+            <ul>
+                <li>✅ Register extension with direct config object</li>
+                <li>✅ Verify default configuration is available</li>
+                <li>✅ Override configuration with withConfig()</li>
+                <li>✅ Override configuration at construction</li>
+                <li>✅ Verify type safety and module augmentation</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2>Extension Registration</h2>
+            <button id="registerBtn" onclick="registerTestExtension()">Register Test Extension</button>
+            <div id="registrationStatus" class="status" style="display: none;"></div>
+            <div class="code" id="registrationCode"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Default Configuration Test</h2>
+            <button id="defaultBtn" onclick="testDefaults()" disabled>Test Default Config</button>
+            <div id="defaultStatus" class="status" style="display: none;"></div>
+            <div class="json-output" id="defaultOutput"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Configuration Override Test (withConfig)</h2>
+            <button id="overrideBtn" onclick="testOverride()" disabled>Test Config Override</button>
+            <div id="overrideStatus" class="status" style="display: none;"></div>
+            <div class="json-output" id="overrideOutput"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Construction Override Test</h2>
+            <button id="constructorBtn" onclick="testConstructorOverride()" disabled>Test Constructor Config</button>
+            <div id="constructorStatus" class="status" style="display: none;"></div>
+            <div class="json-output" id="constructorOutput"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Multiple Extensions Test</h2>
+            <button id="multipleBtn" onclick="testMultipleExtensions()" disabled>Test Multiple Extensions</button>
+            <div id="multipleStatus" class="status" style="display: none;"></div>
+            <div class="json-output" id="multipleOutput"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Global Defaults Inspection</h2>
+            <button id="inspectBtn" onclick="inspectGlobalDefaults()" disabled>Inspect Global Defaults</button>
+            <div id="inspectStatus" class="status" style="display: none;"></div>
+            <div class="json-output" id="inspectOutput"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { XJX } from '../dist/esm/index.js';
+        
+        // Make XJX available globally for testing
+        window.XJX = XJX;
+        window.testResults = {};
+
+        // Test extension configuration interfaces (TypeScript would validate these)
+        const TEST_EXTENSION_DEFAULTS = {
+            format: 'pretty',
+            includeMetadata: true,
+            maxDepth: 10,
+            options: {
+                colorOutput: false,
+                verboseMode: true,
+                cacheResults: false
+            },
+            fieldMappings: {
+                'id': 'identifier',
+                'name': 'title'
+            }
+        };
+
+        const ADVANCED_EXTENSION_DEFAULTS = {
+            compression: 'gzip',
+            encryption: false,
+            batchSize: 100,
+            timeout: 5000
+        };
+
+        window.registerTestExtension = function() {
+            try {
+                document.getElementById('registrationCode').textContent = `
+// Register test extension with direct config object
+XJX.registerTerminalExtension("toTestFormat", toTestFormat, {
+    testExtension: {
+        format: 'pretty',
+        includeMetadata: true,
+        maxDepth: 10,
+        options: {
+            colorOutput: false,
+            verboseMode: true,
+            cacheResults: false
+        },
+        fieldMappings: {
+            'id': 'identifier',
+            'name': 'title'
+        }
+    }
+});
+
+// That's it! No registry, no metadata, no complexity.`;
+
+                // Define the test extension method
+                function toTestFormat() {
+                    const config = this.pipeline.config.get().testExtension;
+                    return JSON.stringify({
+                        message: "Test extension executed successfully!",
+                        config: config,
+                        timestamp: new Date().toISOString()
+                    }, null, 2);
+                }
+
+                // Register the extension with ultra-simple API
+                XJX.registerTerminalExtension("toTestFormat", toTestFormat, {
+                    testExtension: TEST_EXTENSION_DEFAULTS
+                });
+
+                showStatus('registrationStatus', 'Extension registered successfully! ✅', 'success');
+                
+                // Enable next test buttons
+                document.getElementById('defaultBtn').disabled = false;
+                document.getElementById('overrideBtn').disabled = false;
+                document.getElementById('constructorBtn').disabled = false;
+                document.getElementById('multipleBtn').disabled = false;
+                document.getElementById('inspectBtn').disabled = false;
+                
+            } catch (error) {
+                showStatus('registrationStatus', `Registration failed: ${error.message}`, 'error');
+            }
+        };
+
+        window.testDefaults = function() {
+            try {
+                // Create XJX instance and check if our defaults are there
+                const xjx = new XJX();
+                const config = xjx.pipeline.config.get();
+                
+                window.testResults.defaults = {
+                    hasTestExtension: !!config.testExtension,
+                    testExtensionConfig: config.testExtension,
+                    configKeys: Object.keys(config),
+                    testExtensionKeys: config.testExtension ? Object.keys(config.testExtension) : []
+                };
+
+                document.getElementById('defaultOutput').textContent = JSON.stringify(window.testResults.defaults, null, 2);
+                
+                const success = config.testExtension && 
+                              config.testExtension.format === 'pretty' &&
+                              config.testExtension.maxDepth === 10;
+                              
+                if (success) {
+                    showStatus('defaultStatus', 'Default configuration test passed! ✅', 'success');
+                } else {
+                    showStatus('defaultStatus', 'Default configuration test failed! ❌', 'error');
+                }
+                
+            } catch (error) {
+                showStatus('defaultStatus', `Default test failed: ${error.message}`, 'error');
+            }
+        };
+
+        window.testOverride = function() {
+            try {
+                // Test configuration override with withConfig
+                const xjx = new XJX()
+                    .withConfig({
+                        testExtension: {
+                            format: 'compact',
+                            maxDepth: 5,
+                            options: {
+                                colorOutput: true,
+                                verboseMode: false
+                            }
+                        }
+                    });
+                
+                const config = xjx.pipeline.config.get();
+                
+                window.testResults.override = {
+                    testExtensionConfig: config.testExtension,
+                    overrideApplied: {
+                        format: config.testExtension.format === 'compact',
+                        maxDepth: config.testExtension.maxDepth === 5,
+                        colorOutput: config.testExtension.options.colorOutput === true,
+                        verboseMode: config.testExtension.options.verboseMode === false
+                    },
+                    defaultsPreserved: {
+                        includeMetadata: config.testExtension.includeMetadata === true,
+                        cacheResults: config.testExtension.options.cacheResults === false
+                    }
+                };
+
+                document.getElementById('overrideOutput').textContent = JSON.stringify(window.testResults.override, null, 2);
+                
+                const success = config.testExtension.format === 'compact' && 
+                              config.testExtension.maxDepth === 5 &&
+                              config.testExtension.includeMetadata === true; // Default preserved
+                              
+                if (success) {
+                    showStatus('overrideStatus', 'Configuration override test passed! ✅', 'success');
+                } else {
+                    showStatus('overrideStatus', 'Configuration override test failed! ❌', 'error');
+                }
+                
+            } catch (error) {
+                showStatus('overrideStatus', `Override test failed: ${error.message}`, 'error');
+            }
+        };
+
+        window.testConstructorOverride = function() {
+            try {
+                // Test configuration override at construction
+                const xjx = new XJX({
+                    preserveNamespaces: false, // Core config
+                    testExtension: {
+                        format: 'minified',
+                        includeMetadata: false,
+                        maxDepth: 3
+                    }
+                });
+                
+                const config = xjx.pipeline.config.get();
+                
+                window.testResults.constructor = {
+                    coreConfigOverride: config.preserveNamespaces === false,
+                    extensionConfigOverride: {
+                        format: config.testExtension.format === 'minified',
+                        includeMetadata: config.testExtension.includeMetadata === false,
+                        maxDepth: config.testExtension.maxDepth === 3
+                    },
+                    defaultsPreserved: {
+                        verboseMode: config.testExtension.options.verboseMode === true,
+                        fieldMappings: !!config.testExtension.fieldMappings
+                    }
+                };
+
+                document.getElementById('constructorOutput').textContent = JSON.stringify(window.testResults.constructor, null, 2);
+                
+                const success = config.preserveNamespaces === false &&
+                              config.testExtension.format === 'minified' &&
+                              config.testExtension.options.verboseMode === true; // Default preserved
+                              
+                if (success) {
+                    showStatus('constructorStatus', 'Constructor override test passed! ✅', 'success');
+                } else {
+                    showStatus('constructorStatus', 'Constructor override test failed! ❌', 'error');
+                }
+                
+            } catch (error) {
+                showStatus('constructorStatus', `Constructor test failed: ${error.message}`, 'error');
+            }
+        };
+
+        window.testMultipleExtensions = function() {
+            try {
+                // Register a second extension
+                function toAdvancedFormat() {
+                    const config = this.pipeline.config.get().advancedExtension;
+                    return JSON.stringify({
+                        message: "Advanced extension executed!",
+                        config: config
+                    }, null, 2);
+                }
+
+                XJX.registerTerminalExtension("toAdvancedFormat", toAdvancedFormat, {
+                    advancedExtension: ADVANCED_EXTENSION_DEFAULTS
+                });
+
+                // Test that both extensions work
+                const xjx = new XJX({
+                    testExtension: {
+                        format: 'custom'
+                    },
+                    advancedExtension: {
+                        compression: 'brotli',
+                        batchSize: 50
+                    }
+                });
+                
+                const config = xjx.pipeline.config.get();
+                
+                window.testResults.multiple = {
+                    hasTestExtension: !!config.testExtension,
+                    hasAdvancedExtension: !!config.advancedExtension,
+                    testExtensionOverrides: {
+                        format: config.testExtension.format === 'custom',
+                        defaultsPreserved: config.testExtension.maxDepth === 10
+                    },
+                    advancedExtensionOverrides: {
+                        compression: config.advancedExtension.compression === 'brotli',
+                        batchSize: config.advancedExtension.batchSize === 50,
+                        defaultsPreserved: config.advancedExtension.timeout === 5000
+                    }
+                };
+
+                document.getElementById('multipleOutput').textContent = JSON.stringify(window.testResults.multiple, null, 2);
+                
+                const success = config.testExtension && config.advancedExtension &&
+                              config.testExtension.format === 'custom' &&
+                              config.advancedExtension.compression === 'brotli';
+                              
+                if (success) {
+                    showStatus('multipleStatus', 'Multiple extensions test passed! ✅', 'success');
+                } else {
+                    showStatus('multipleStatus', 'Multiple extensions test failed! ❌', 'error');
+                }
+                
+            } catch (error) {
+                showStatus('multipleStatus', `Multiple extensions test failed: ${error.message}`, 'error');
+            }
+        };
+
+        window.inspectGlobalDefaults = function() {
+            try {
+                const globalDefaults = XJX.getGlobalDefaults();
+                
+                window.testResults.inspection = {
+                    hasExtensionDefaults: !!globalDefaults.testExtension,
+                    extensionDefaultsCorrect: globalDefaults.testExtension?.format === 'pretty',
+                    allKeys: Object.keys(globalDefaults),
+                    extensionKeys: globalDefaults.testExtension ? Object.keys(globalDefaults.testExtension) : [],
+                    coreProperties: {
+                        preserveNamespaces: globalDefaults.preserveNamespaces,
+                        strategies: !!globalDefaults.strategies
+                    },
+                    globalDefaultsCount: Object.keys(globalDefaults).length
+                };
+
+                document.getElementById('inspectOutput').textContent = JSON.stringify(window.testResults.inspection, null, 2);
+                
+                const success = globalDefaults.testExtension && 
+                              globalDefaults.testExtension.format === 'pretty' &&
+                              globalDefaults.preserveNamespaces === true;
+                              
+                if (success) {
+                    showStatus('inspectStatus', 'Global defaults inspection passed! ✅', 'success');
+                } else {
+                    showStatus('inspectStatus', 'Global defaults inspection failed! ❌', 'error');
+                }
+                
+            } catch (error) {
+                showStatus('inspectStatus', `Inspection failed: ${error.message}`, 'error');
+            }
+        };
+
+        function showStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+            element.style.display = 'block';
+        }
+
+        // Initial setup
+        document.getElementById('registrationCode').textContent = 'Click "Register Test Extension" to see the code and register the extension.';
+    </script>
+</body>
+</html>

@@ -1,5 +1,6 @@
 /**
- * Configuration system for the XJX library
+ * Unified configuration system - no core/extension split needed
+ * Extensions simply augment the main Configuration interface
  */
 import { LoggerFactory } from "./logger";
 const logger = LoggerFactory.create();
@@ -7,8 +8,12 @@ const logger = LoggerFactory.create();
 import { deepClone, deepMerge } from "./common";
 import { XNode } from "./xnode";
 
+/**
+ * Main configuration interface - extensions augment this directly via module augmentation
+ * No need for core/extension separation - it's all just configuration
+ */
 export interface Configuration {
-  // Features to preserve during transformation
+  // Core XJX properties
   preserveNamespaces: boolean;
   preserveComments: boolean;
   preserveProcessingInstr: boolean;
@@ -16,23 +21,23 @@ export interface Configuration {
   preserveTextNodes: boolean;
   preserveWhitespace: boolean;
   preserveAttributes: boolean;
-  preservePrefixedNames: boolean;  // Preserve prefixed names in JSON properties
+  preservePrefixedNames: boolean;
 
   // High-level transformation strategies
   strategies: {
-    highFidelity: boolean;  // Master toggle for high-fidelity mode
+    highFidelity: boolean;
     attributeStrategy: 'merge' | 'prefix' | 'property';
     textStrategy: 'direct' | 'property';
     namespaceStrategy: 'prefix' | 'property';
     arrayStrategy: 'multiple' | 'always' | 'never';
-    emptyElementStrategy: 'object' | 'null' | 'string' | 'remove';  // Added 'remove' option
+    emptyElementStrategy: 'object' | 'null' | 'string' | 'remove';
     mixedContentStrategy: 'preserve' | 'merge';
   };
 
   // Property names and special markers
   properties: {
     attribute: string;
-    value: string; 
+    value: string;
     namespace: string;
     prefix: string;
     cdata: string;
@@ -67,10 +72,12 @@ export interface Configuration {
 
   // Fragment root name or XNode for functional operations
   fragmentRoot: string | XNode;
+
 }
 
 /**
- * Default configuration for the XJX library
+ * Default configuration - includes all built-in XJX defaults
+ * Extension defaults are merged by XJX during registration
  */
 export const DEFAULT_CONFIG: Configuration = {
   // Preservation settings
@@ -81,7 +88,7 @@ export const DEFAULT_CONFIG: Configuration = {
   preserveTextNodes: true,
   preserveWhitespace: false,
   preserveAttributes: true,
-  preservePrefixedNames: false,  // Default to false for backward compatibility
+  preservePrefixedNames: false,
 
   // High-level strategies
   strategies: {
@@ -90,14 +97,14 @@ export const DEFAULT_CONFIG: Configuration = {
     textStrategy: 'direct',
     namespaceStrategy: 'prefix',
     arrayStrategy: 'multiple',
-    emptyElementStrategy: 'object',  // Default remains 'object'
+    emptyElementStrategy: 'object',
     mixedContentStrategy: 'preserve',
   },
 
-  // Property names - now with single 'value' property
+  // Property names
   properties: {
     attribute: "$attr",
-    value: "$val",  // MERGED: single property for all values/text
+    value: "$val",
     namespace: "$ns",
     prefix: "$pre",
     cdata: "$cdata",
@@ -143,7 +150,7 @@ export function getDefaultConfig(): Configuration {
 }
 
 /**
- * Merge configurations to create a new configuration
+ * Merge configurations with deep merge for consistency
  * @param baseConfig Base configuration
  * @param overrideConfig Configuration to merge on top of base
  * @returns New merged configuration
@@ -182,7 +189,8 @@ export function createConfig(
     highFidelity: result.strategies.highFidelity,
     attributeStrategy: result.strategies.attributeStrategy,
     emptyElementStrategy: result.strategies.emptyElementStrategy,
-    fragmentRoot: typeof result.fragmentRoot === 'string' ? result.fragmentRoot : 'custom-xnode'
+    fragmentRoot: typeof result.fragmentRoot === 'string' ? result.fragmentRoot : 'custom-xnode',
+    totalProperties: Object.keys(result).length
   });
 
   return result;

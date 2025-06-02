@@ -1,9 +1,10 @@
 /**
- * Extension system for the XJX library - Updated with Branch Context
+ * Extension system for the XJX library - Updated with Unified Context
  */
-import { Configuration } from './config';
-import { Transform } from "./functional";
 import { XNode } from './xnode';
+import { PipelineContext } from './context';
+import { UnifiedConverter, PipelineStage } from './pipeline';
+import { SourceHooks, OutputHooks, NodeHooks } from './hooks';
 
 /**
  * Branch context interface for tracking branch state
@@ -16,44 +17,35 @@ export interface BranchContext {
 }
 
 /**
- * Base context interface for extension functions
+ * Unified extension context - replaces separate Terminal/NonTerminal contexts
+ * All extensions now use the same context with standardized operations
  */
-export interface XJXContext {
-  // Configuration is available in all contexts
-  config: Configuration;
+export interface UnifiedExtensionContext {
+  // Core state
+  xnode: XNode | null;
+  branchContext: BranchContext | null;
+  
+  // Unified pipeline context
+  pipeline: PipelineContext;
+  
+  // Standard operations available to all extensions
+  validateSource(): void;
+  executeSource<T>(converter: UnifiedConverter<T, XNode>, input: T, hooks?: SourceHooks<T>): void;
+  executeOutput<T>(converter: UnifiedConverter<XNode, T>, hooks?: OutputHooks<T>): T;
+  executeTransform(operation: PipelineStage<XNode, XNode>, hooks?: NodeHooks): void;
 }
 
 /**
- * Context for terminal extensions
+ * Terminal extension context - same as unified context
+ * Extensions that return values (toXml, toJson, etc.)
  */
-export interface TerminalExtensionContext extends XJXContext {
-  // These properties are available in the builder context
-  xnode: XNode | null;
-  transforms: Transform[];
-  branchContext: BranchContext | null;
-  
-  // Common utility methods required by terminal extensions
-  validateSource: () => void;
-  deepClone: <T>(obj: T) => T;
-  deepMerge: <T extends Record<string, any>>(target: T, source: Partial<T>) => T;
-  cloneNode: (node: XNode, deep?: boolean) => XNode;
-}
+export interface TerminalExtensionContext extends UnifiedExtensionContext {}
 
 /**
- * Context for non-terminal extensions
+ * Non-terminal extension context - same as unified context  
+ * Extensions that return this for chaining (fromXml, map, filter, etc.)
  */
-export interface NonTerminalExtensionContext extends XJXContext {
-  // Properties that can be modified by extensions
-  xnode: XNode | null;
-  transforms: Transform[];
-  branchContext: BranchContext | null;
-  
-  // Utility methods
-  validateSource: () => void;
-  deepClone: <T>(obj: T) => T;
-  deepMerge: <T extends Record<string, any>>(target: T, source: Partial<T>) => T;
-  cloneNode: (node: XNode, deep?: boolean) => XNode;
-}
+export interface NonTerminalExtensionContext extends UnifiedExtensionContext {}
 
 /**
  * Extension registration utilities

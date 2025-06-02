@@ -1,4 +1,4 @@
-// stores/operationsConfig.js - Available operations definitions and defaults
+// stores/operationsConfig.js - Updated with transformAttr/transformVal defaults
 
 export const availableOperations = {
   // Source operations
@@ -65,6 +65,14 @@ export const availableOperations = {
     name: 'Merge', 
     category: 'functional', 
     description: 'Merge branch back to parent scope',
+    terminal: false,
+    hookTypes: []
+  },
+  withConfig: { 
+    type: 'withConfig', 
+    name: 'With Config', 
+    category: 'functional', 
+    description: 'Update configuration mid-pipeline',
     terminal: false,
     hookTypes: []
   },
@@ -158,13 +166,36 @@ export function getDefaultOptions(type) {
     case 'merge':
       // Merge has no configuration options
       break;
+      
+    case 'withConfig':
+      // Default config with commonly changed mid-pipeline settings
+      defaultOptions.config = JSON.stringify({
+        strategies: {
+          highFidelity: false,
+          attributeStrategy: "merge",
+          textStrategy: "direct",
+          arrayStrategy: "multiple",
+          emptyElementStrategy: "object"
+        },
+        properties: {
+          attribute: "$attr",
+          value: "$val",
+          children: "$children"
+        },
+        formatting: {
+          indent: 2,
+          pretty: true
+        },
+        fragmentRoot: "results"
+      }, null, 2);
+      break;
   }
   
   return defaultOptions;
 }
 
 /**
- * Get default transform configuration structure
+ * Get default transform configuration structure - UPDATED with transformAttr/transformVal
  */
 export function getDefaultTransformConfig() {
   return {
@@ -174,7 +205,9 @@ export function getDefaultTransformConfig() {
       toBoolean: {
         trueValues: ['true', 'yes', '1', 'on'],
         falseValues: ['false', 'no', '0', 'off'],
-        ignoreCase: true
+        ignoreCase: true,
+        transformAttr: false,  // NEW: Don't transform attributes by default
+        transformVal: true     // NEW: Do transform values by default (backward compatibility)
       },
       toNumber: {
         precision: undefined,
@@ -182,11 +215,15 @@ export function getDefaultTransformConfig() {
         thousandsSeparator: ',',
         integers: true,
         decimals: true,
-        scientific: true
+        scientific: true,
+        transformAttr: false,  // NEW: Don't transform attributes by default
+        transformVal: true     // NEW: Do transform values by default (backward compatibility)
       },
       regex: {
         pattern: '',
-        replacement: ''
+        replacement: '',
+        transformAttr: false,  // NEW: Don't transform attributes by default
+        transformVal: true     // NEW: Do transform values by default (backward compatibility)
       },
       custom: {
         customTransformer: ''

@@ -1,106 +1,99 @@
 /**
- * XJX - Main class with fluent API, Pipeline Hooks, and Branch Context
+ * XJX - Main class with ultra-simplified extension registration
+ * Eliminates complex registry system in favor of direct config merging
  */
 import { LoggerFactory } from "./core/logger";
 const logger = LoggerFactory.create();
 
-import { Configuration, createConfig } from "./core/config";
-import { Transform } from "./core/functional";
-import { XNode, cloneNode } from "./core/xnode";
+import { Configuration, createConfig, mergeConfig, getDefaultConfig } from "./core/config";
+import { XNode } from "./core/xnode";
 import { validate, ValidationError } from "./core/error";
-import { Extension, TerminalExtensionContext, NonTerminalExtensionContext, BranchContext } from "./core/extension";
-import { PipelineHooks } from "./core/hooks";
+import { 
+  UnifiedExtensionContext, 
+  TerminalExtensionContext, 
+  NonTerminalExtensionContext, 
+  BranchContext 
+} from "./core/extension";
+import { PipelineHooks, SourceHooks, OutputHooks, NodeHooks } from "./core/hooks";
+import { PipelineContext, PipelineContextImpl } from "./core/context";
+import { UnifiedConverter, PipelineStage, Pipeline } from "./core/pipeline";
 
 /**
- * Main XJX class - provides the fluent API for XML/JSON transformation with pipeline hooks and branch context
+ * Extension configuration defaults - keys become config property names
  */
-export class XJX implements TerminalExtensionContext, NonTerminalExtensionContext {
+export type ExtensionConfigDefaults = Record<string, any>;
+
+/**
+ * Global configuration defaults including all registered extension defaults
+ */
+let globalDefaults: Configuration | null = null;
+
+/**
+ * Ultra-Simplified XJX class with minimal extension registration
+ * No complex registry - just direct config merging
+ */
+export class XJX implements UnifiedExtensionContext {
   // Instance properties
   public xnode: XNode | null = null;
-  public transforms: Transform[] = [];
-  public config: Configuration;
-  public pipelineHooks?: PipelineHooks;
   public branchContext: BranchContext | null = null;
+  public pipeline: PipelineContext;
   
   /**
    * Create a new XJX instance
-   * @param config Optional configuration
-   * @param pipelineHooks Optional pipeline-level hooks for cross-cutting concerns
    */
   constructor(config?: Partial<Configuration>, pipelineHooks?: PipelineHooks) {
-    this.config = createConfig(config);
-    this.pipelineHooks = pipelineHooks;
+    // Use global defaults that include all extension defaults
+    const baseConfig = globalDefaults || getDefaultConfig();
+    const finalConfig = config ? mergeConfig(baseConfig, config) : baseConfig;
     
-    logger.debug('Created new XJX instance with configuration', {
-      preserveNamespaces: this.config.preserveNamespaces,
-      preserveComments: this.config.preserveComments,
-      preserveTextNodes: this.config.preserveTextNodes,
-      highFidelity: this.config.strategies.highFidelity,
-      hasPipelineHooks: !!pipelineHooks
-    });
+    this.pipeline = new PipelineContextImpl(finalConfig, pipelineHooks);
+    
+    logger.debug('Created XJX instance with merged extension defaults');
   }
   
   /**
-   * Execute pipeline hook before a step
-   * @param stepName Name of the step being executed
-   * @param input Input to the step
-   * @returns Potentially modified input
-   */
-  public executeBeforeStepHook(stepName: string, input: any): any {
-    if (this.pipelineHooks?.beforeStep) {
-      try {
-        this.pipelineHooks.beforeStep(stepName, input);
-      } catch (err) {
-        logger.warn(`Error in pipeline beforeStep hook for ${stepName}:`, err);
-      }
-    }
-    return input;
-  }
-  
-  /**
-   * Execute pipeline hook after a step
-   * @param stepName Name of the step that was executed
-   * @param output Output from the step
-   * @returns Potentially modified output
-   */
-  public executeAfterStepHook(stepName: string, output: any): any {
-    if (this.pipelineHooks?.afterStep) {
-      try {
-        this.pipelineHooks.afterStep(stepName, output);
-      } catch (err) {
-        logger.warn(`Error in pipeline afterStep hook for ${stepName}:`, err);
-      }
-    }
-    return output;
-  }
-  
-  /**
-   * Register a terminal extension method (returns a value)
-   * @param name Extension name (e.g., 'toXml')
+   * Register a terminal extension method with direct configuration defaults
+   * @param name Extension name (e.g., 'toCsv')
    * @param method Implementation function
+   * @param configDefaults Configuration defaults where keys become config property names
+   * 
+   * @example
+   * XJX.registerTerminalExtension("toCsv", toCsv, {
+   *   csv: {
+   *     delimiter: ",",
+   *     escapeChar: "\"",
+   *     includeHeaders: true
+   *   }
+   * });
    */
-  public static registerTerminalExtension(name: string, method: (this: TerminalExtensionContext, ...args: any[]) => any): void {
+  public static registerTerminalExtension(
+    name: string, 
+    method: (this: TerminalExtensionContext, ...args: any[]) => any,
+    configDefaults?: ExtensionConfigDefaults
+  ): void {
     try {
-      // Validate inputs
       validate(typeof name === "string" && name.length > 0, "Extension name must be a non-empty string");
       validate(typeof method === "function", "Extension method must be a function");
       
-      logger.debug('Registering terminal extension', { name });
+      logger.debug('Registering terminal extension', { 
+        name,
+        hasConfig: !!configDefaults,
+        configKeys: configDefaults ? Object.keys(configDefaults) : []
+      });
+      
+      // Merge config defaults into global defaults
+      if (configDefaults) {
+        this.mergeExtensionDefaults(configDefaults);
+      }
       
       // Add method to XJX prototype
       (XJX.prototype as any)[name] = function(...args: any[]): any {
-        // Execute pipeline beforeStep hook
-        this.executeBeforeStepHook(name, this.xnode || args[0]);
+        // Execute pipeline hooks
+        this.pipeline.executeHooks(this.pipeline.hooks, name, this.xnode || args[0]);
         
-        // Validate source first for terminal extensions
-        this.validateSource();
-        
-        // Call the implementation method with this context
         const result = method.apply(this, args);
         
-        // Execute pipeline afterStep hook
-        this.executeAfterStepHook(name, result);
-        
+        this.pipeline.executeHooks(this.pipeline.hooks, name, result);
         return result;
       };
       
@@ -112,30 +105,47 @@ export class XJX implements TerminalExtensionContext, NonTerminalExtensionContex
   }
 
   /**
-   * Register a non-terminal extension method (returns this for chaining)
-   * @param name Extension name (e.g., 'fromXml')
-   * @param method Implementation function
+   * Register a non-terminal extension method with direct configuration defaults
+   * @param name Extension name (e.g., 'fromCsv')
+   * @param method Implementation function  
+   * @param configDefaults Configuration defaults where keys become config property names
+   * 
+   * @example
+   * XJX.registerNonTerminalExtension("fromCsv", fromCsv, {
+   *   csv: {
+   *     delimiter: ",", 
+   *     hasHeaders: true
+   *   }
+   * });
    */
-  public static registerNonTerminalExtension(name: string, method: (this: NonTerminalExtensionContext, ...args: any[]) => void): void {
+  public static registerNonTerminalExtension(
+    name: string, 
+    method: (this: NonTerminalExtensionContext, ...args: any[]) => void,
+    configDefaults?: ExtensionConfigDefaults
+  ): void {
     try {
-      // Validate inputs
       validate(typeof name === "string" && name.length > 0, "Extension name must be a non-empty string");
       validate(typeof method === "function", "Extension method must be a function");
       
-      logger.debug('Registering non-terminal extension', { name });
+      logger.debug('Registering non-terminal extension', { 
+        name,
+        hasConfig: !!configDefaults,
+        configKeys: configDefaults ? Object.keys(configDefaults) : []
+      });
+      
+      // Merge config defaults into global defaults
+      if (configDefaults) {
+        this.mergeExtensionDefaults(configDefaults);
+      }
       
       // Add method to XJX prototype that returns this
       (XJX.prototype as any)[name] = function(...args: any[]): XJX {
-        // Execute pipeline beforeStep hook
-        this.executeBeforeStepHook(name, args[0] || this.xnode);
+        // Execute pipeline hooks
+        this.pipeline.executeHooks(this.pipeline.hooks, name, args[0] || this.xnode);
         
-        // Call the implementation method with this context
         method.apply(this, args);
         
-        // Execute pipeline afterStep hook
-        this.executeAfterStepHook(name, this.xnode);
-        
-        // Return this for chaining
+        this.pipeline.executeHooks(this.pipeline.hooks, name, this.xnode);
         return this;
       };
       
@@ -144,6 +154,84 @@ export class XJX implements TerminalExtensionContext, NonTerminalExtensionContex
       logger.error(`Failed to register non-terminal extension ${name}`, { error: err });
       throw err;
     }
+  }
+  
+  /**
+   * Merge extension defaults into global configuration defaults
+   * @param configDefaults Extension configuration defaults
+   */
+  private static mergeExtensionDefaults(configDefaults: ExtensionConfigDefaults): void {
+    // Initialize global defaults if not already done
+    if (!globalDefaults) {
+      globalDefaults = getDefaultConfig();
+    }
+    
+    // Merge the new extension defaults
+    globalDefaults = mergeConfig(globalDefaults, configDefaults);
+    
+    logger.debug('Merged extension defaults into global config', {
+      newConfigKeys: Object.keys(configDefaults)
+    });
+  }
+  
+  // --- Utility Methods for Testing/Debugging ---
+  
+  /**
+   * Get current global defaults (primarily for testing/debugging)
+   */
+  public static getGlobalDefaults(): Configuration {
+    return globalDefaults || getDefaultConfig();
+  }
+  
+  /**
+   * Reset global defaults (primarily for testing)
+   */
+  public static resetDefaults(): void {
+    globalDefaults = null;
+    logger.debug('Reset global defaults');
+  }
+  
+  // --- Standardized Pipeline Operations ---
+  
+  /**
+   * Execute a source operation (input -> XNode) using simplified pipeline
+   * @param converter Unified converter to execute
+   * @param input Input data
+   * @param hooks Optional source hooks
+   */
+  public executeSource<T>(
+    converter: UnifiedConverter<T, XNode>, 
+    input: T, 
+    hooks?: SourceHooks<T>
+  ): void {
+    this.xnode = Pipeline.executeSource(converter, input, this.pipeline, hooks);
+  }
+  
+  /**
+   * Execute an output operation (XNode -> output) using simplified pipeline
+   * @param converter Unified converter to execute
+   * @param hooks Optional output hooks
+   * @returns Converted output
+   */
+  public executeOutput<T>(
+    converter: UnifiedConverter<XNode, T>, 
+    hooks?: OutputHooks<T>
+  ): T {
+    this.validateSource();
+    return Pipeline.executeOutput(converter, this.xnode as XNode, this.pipeline, hooks);
+  }
+  
+  /**
+   * Execute a transform operation (XNode -> XNode) using simplified pipeline
+   * @param operation Pipeline stage to execute
+   * @param hooks Optional node hooks
+   */
+  public executeTransform(
+    operation: PipelineStage<XNode, XNode>, 
+    hooks?: NodeHooks
+  ): void {
+    this.validateSource();
+    this.xnode = Pipeline.executeTransform(operation, this.xnode as XNode, this.pipeline, hooks);
   }
   
   // --- Utility Methods ---
@@ -159,17 +247,20 @@ export class XJX implements TerminalExtensionContext, NonTerminalExtensionContex
   }
   
   /**
-   * Clone an XNode
+   * Clone an XNode using standardized pipeline cloning
    * @param node Node to clone
    * @param deep Whether to clone deeply
    * @returns Cloned node
    */
   public cloneNode(node: XNode, deep: boolean = false): XNode {
-    return cloneNode(node, deep);
+    return this.pipeline.cloneNode(node, { 
+      strategy: deep ? 'deep' : 'shallow', 
+      preserveParent: false 
+    });
   }
   
   /**
-   * Deep clone a value
+   * Deep clone a value (legacy utility - kept for compatibility)
    */
   public deepClone<T>(obj: T): T {
     if (obj === undefined || obj === null) {
@@ -179,7 +270,7 @@ export class XJX implements TerminalExtensionContext, NonTerminalExtensionContex
   }
   
   /**
-   * Deep merge two objects
+   * Deep merge two objects (legacy utility - kept for compatibility)
    */
   public deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
     if (!source || typeof source !== 'object' || source === null) {

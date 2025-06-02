@@ -1,4 +1,4 @@
-// stores/codeGeneration.js - Updated with custom pipeline hooks support
+// stores/codeGeneration.js - Updated with transformAttr/transformVal support
 
 import { hasValidTransform } from './transformHelpers.js';
 
@@ -195,7 +195,7 @@ function generateTransformerDeclarations(state) {
 }
 
 /**
- * Generate single transformer declaration
+ * Generate single transformer declaration - UPDATED with transformAttr/transformVal support
  */
 function generateSingleTransformerDeclaration(varName, transformType, config) {
   const transformConfig = config.transforms?.[transformType];
@@ -205,26 +205,68 @@ function generateSingleTransformerDeclaration(varName, transformType, config) {
   
   switch (transformType) {
     case 'toBoolean':
-    case 'toNumber':
+    case 'toNumber': {
       cleanOptions = { ...transformConfig };
-      break;
       
-    case 'regex':
+      // Handle the new transformAttr and transformVal options
+      if (cleanOptions.transformAttr !== undefined) {
+        // Only include if it's not the default value
+        if (transformType === 'toBoolean' || transformType === 'toNumber') {
+          if (cleanOptions.transformAttr !== false) { // false is default
+            // Keep it
+          } else {
+            delete cleanOptions.transformAttr; // Remove default
+          }
+        }
+      }
+      
+      if (cleanOptions.transformVal !== undefined) {
+        // Only include if it's not the default value
+        if (transformType === 'toBoolean' || transformType === 'toNumber') {
+          if (cleanOptions.transformVal !== true) { // true is default
+            // Keep it
+          } else {
+            delete cleanOptions.transformVal; // Remove default
+          }
+        }
+      }
+      
+      break;
+    }
+      
+    case 'regex': {
       if (transformConfig.pattern && transformConfig.replacement !== undefined) {
-        return `const ${varName} = regex(${JSON.stringify(transformConfig.pattern)}, ${JSON.stringify(transformConfig.replacement)});`;
+        // For regex, the third parameter is an options object with transformAttr/transformVal
+        const regexOptions = {};
+        
+        if (transformConfig.transformAttr !== undefined && transformConfig.transformAttr !== false) {
+          regexOptions.transformAttr = transformConfig.transformAttr;
+        }
+        
+        if (transformConfig.transformVal !== undefined && transformConfig.transformVal !== true) {
+          regexOptions.transformVal = transformConfig.transformVal;
+        }
+        
+        const optionsStr = Object.keys(regexOptions).length > 0 ? 
+          `, ${JSON.stringify(regexOptions)}` : '';
+        
+        return `const ${varName} = regex(${JSON.stringify(transformConfig.pattern)}, ${JSON.stringify(transformConfig.replacement)}${optionsStr});`;
       }
       return '';
+    }
       
-    case 'custom':
+    case 'custom': {
       if (transformConfig.customTransformer?.trim()) {
         return `const ${varName} = ${transformConfig.customTransformer};`;
       }
       return '';
+    }
       
     default:
       return '';
   }
   
+  // Remove undefined, empty, and default values
   Object.keys(cleanOptions).forEach(key => {
     if (cleanOptions[key] === undefined || cleanOptions[key] === '' || 
         (Array.isArray(cleanOptions[key]) && cleanOptions[key].length === 0)) {
@@ -261,6 +303,17 @@ function generateStepCode(step) {
       
     case 'merge':
       return `\n  .merge()`;
+      
+    case 'withConfig': {
+      try {
+        // Parse and re-stringify to ensure proper formatting
+        const configObj = JSON.parse(options.config || '{}');
+        const configString = JSON.stringify(configObj);
+        return `\n  .withConfig(${configString})`;
+      } catch (err) {
+        return `\n  .withConfig(/* Invalid JSON: ${err.message} */)`;
+      }
+    }
       
     case 'map': {
       const mainTransform = generateTransformCode(options.transform);

@@ -1,45 +1,38 @@
 /**
- * Converters module - Updated for minimal transform system
+ * Converters module - Simplified unified pipeline-based converters
+ * Phase 2: All legacy hook wrappers and transform references REMOVED
  *
- * This module provides converter functions for transforming between XML, JSON, and XNode.
+ * This module provides simplified converter functions for transforming between XML, JSON, and XNode.
+ * All converters now use the pipeline execution framework with integrated hook support.
  */
 
-// Base converter interface
+// Base converter and pipeline interfaces
 export * from "../core/converter";
+export * from "../core/pipeline";
 
-// XML converters
+// Unified XML converters
 export {
   xmlToXNodeConverter,
-  convertXmlWithHooks,
 } from "./xml-to-xnode-converter";
 
 export {
   xnodeToXmlConverter,
   xnodeToXmlStringConverter,
-  convertXNodeToXmlWithHooks,
-  convertXNodeToXmlStringWithHooks,
 } from "./xnode-to-xml-converter";
 
-// JSON converters - unified implementation with hooks
+// Unified JSON converters
 export {
   jsonToXNodeConverter,
-  convertJsonWithHooks,
-} from "./json-std-to-xnode-converter";
+} from "./json-to-xnode-converter";
+
 export {
   xnodeToJsonConverter,
-  convertXNodeToJsonWithHooks,
-} from "./xnode-to-json-std-converter";
+} from "./xnode-to-json-converter";
+
 export {
   jsonHiFiToXNodeConverter,
-  convertJsonHiFiWithHooks,
-} from "./json-hifi-to-xnode-converter";
+} from "./json-to-xnode-converter";
+
 export {
   xnodeToJsonHiFiConverter,
-  convertXNodeToJsonHiFiWithHooks,
-} from "./xnode-to-json-hifi-converter";
-
-// Node transformer - updated for minimal transform system
-export {
-  transformXNodeWithHooks,
-  transformXNode, // Legacy wrapper
-} from "./xnode-transformer";
+} from "./xnode-to-json-converter";

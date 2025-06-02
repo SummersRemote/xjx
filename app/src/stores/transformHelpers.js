@@ -1,4 +1,4 @@
-// stores/transformHelpers.js - Transform creation, composition, and function utilities
+// stores/transformHelpers.js - Updated with transformAttr/transformVal support
 
 /**
  * Create a JavaScript function from a string
@@ -103,20 +103,29 @@ export function createComposedTransformer(config, transforms) {
     switch (transformType) {
       case 'toBoolean': {
         const options = config.transforms?.toBoolean || {};
-        transformFn = transforms.toBoolean(options);
+        // Include the new transformAttr/transformVal options
+        const cleanOptions = cleanTransformOptions(options);
+        transformFn = transforms.toBoolean(cleanOptions);
         break;
       }
       
       case 'toNumber': {
         const options = config.transforms?.toNumber || {};
-        transformFn = transforms.toNumber(options);
+        // Include the new transformAttr/transformVal options
+        const cleanOptions = cleanTransformOptions(options);
+        transformFn = transforms.toNumber(cleanOptions);
         break;
       }
       
       case 'regex': {
         const regexConfig = config.transforms?.regex;
         if (regexConfig?.pattern && regexConfig?.replacement !== undefined) {
-          transformFn = transforms.regex(regexConfig.pattern, regexConfig.replacement);
+          // Handle the new options parameter for regex
+          const regexOptions = {
+            transformAttr: regexConfig.transformAttr ?? false,
+            transformVal: regexConfig.transformVal ?? true
+          };
+          transformFn = transforms.regex(regexConfig.pattern, regexConfig.replacement, regexOptions);
         }
         break;
       }
@@ -151,6 +160,31 @@ export function createComposedTransformer(config, transforms) {
       }, node);
     };
   }
+}
+
+/**
+ * Clean transform options by removing undefined values and providing defaults
+ */
+function cleanTransformOptions(options) {
+  const cleaned = { ...options };
+  
+  // Remove undefined values
+  Object.keys(cleaned).forEach(key => {
+    if (cleaned[key] === undefined) {
+      delete cleaned[key];
+    }
+  });
+  
+  // Ensure transformAttr and transformVal have defaults if not specified
+  if (cleaned.transformAttr === undefined) {
+    cleaned.transformAttr = false; // Default: don't transform attributes
+  }
+  
+  if (cleaned.transformVal === undefined) {
+    cleaned.transformVal = true; // Default: do transform values (backward compatibility)
+  }
+  
+  return cleaned;
 }
 
 /**

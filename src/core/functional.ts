@@ -1,23 +1,195 @@
 /**
- * Common utilities for functional operations
- * 
- * This file contains shared functions for tree traversal and result handling
- * used by the functional API methods.
+ * Unified tree traversal system - Single algorithm for all tree operations
+ * Phase 2: Performance tracking removed (context.performance calls eliminated)
  */
 import { LoggerFactory } from "./logger";
 const logger = LoggerFactory.create();
 
-import { XNode, createElement, cloneNode  } from './xnode';
+import { XNode, createElement, cloneNode } from './xnode';
+import { PipelineContext } from './context';
+import { NodeHooks } from './hooks';
 
 /**
- * Create a container node for results
- * @param rootName Name for the container element
- * @returns A new container node
+ * Context information available during tree traversal
  */
-export function createResultsContainer(rootName: string = 'results'): XNode {
-  return createElement(rootName);
+export interface TraversalContext {
+  path: number[];
+  depth: number;
+  parent?: XNode;
+  index?: number;
+  pipelineContext: PipelineContext;
 }
 
+/**
+ * Visitor interface for tree traversal operations
+ */
+export interface TreeVisitor<T> {
+  /**
+   * Visit a single node and return a result
+   */
+  visit(node: XNode, context: TraversalContext): T;
+  
+  /**
+   * Combine results from parent and children (optional)
+   * If not provided, only the visit result is used
+   */
+  combineResults?(parent: T, children: T[]): T;
+}
+
+/**
+ * Traversal order options
+ */
+export type TraversalOrder = 'pre' | 'post' | 'both';
+
+/**
+ * Options for tree traversal
+ */
+export interface TraversalOptions {
+  order: TraversalOrder;
+  hooks?: NodeHooks;
+  context: PipelineContext;
+}
+
+/**
+ * Unified tree traversal function - THE ONLY tree walking algorithm
+ * 
+ * This single function handles all tree walking needs:
+ * - Pre-order, post-order, or both
+ * - Automatic hook execution
+ * - Error handling and logging
+ * - Path tracking for branch operations
+ * 
+ * REPLACES: walkTree(), filterNodeHierarchy(), reduceNodeTree(), collectNodes()
+ * REMOVED: Performance tracking (context.performance calls)
+ */
+export function traverseTree<T>(
+  node: XNode,
+  visitor: TreeVisitor<T>,
+  options: TraversalOptions
+): T {
+  const { order, hooks, context } = options;
+  
+  try {
+    logger.debug('Starting unified tree traversal', {
+      rootNode: node.name,
+      order,
+      hasHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
+    });
+    
+    const result = traverseNodeRecursive(node, visitor, options, {
+      path: [],
+      depth: 0,
+      pipelineContext: context
+    });
+    
+    logger.debug('Unified tree traversal completed successfully');
+    return result;
+    
+  } catch (err) {
+    logger.error('Error during unified tree traversal:', err);
+    throw err;
+  }
+}
+
+/**
+ * Recursive traversal implementation
+ */
+function traverseNodeRecursive<T>(
+  node: XNode,
+  visitor: TreeVisitor<T>,
+  options: TraversalOptions,
+  traversalContext: TraversalContext
+): T {
+  const { order, hooks } = options;
+  
+  let currentNode = node;
+  let preResult: T | undefined;
+  let postResult: T | undefined;
+  
+  try {
+    // Apply beforeTransform hook if present
+    if (hooks?.beforeTransform) {
+      try {
+        const beforeResult = hooks.beforeTransform(currentNode);
+        if (beforeResult && typeof beforeResult === 'object' && typeof beforeResult.name === 'string') {
+          currentNode = beforeResult;
+        }
+      } catch (err) {
+        logger.warn(`Error in beforeTransform hook at path [${traversalContext.path.join(',')}]:`, err);
+      }
+    }
+    
+    // Pre-order visit
+    if (order === 'pre' || order === 'both') {
+      preResult = visitor.visit(currentNode, traversalContext);
+    }
+    
+    // Traverse children
+    const childResults: T[] = [];
+    if (currentNode.children && currentNode.children.length > 0) {
+      for (let i = 0; i < currentNode.children.length; i++) {
+        const child = currentNode.children[i];
+        const childContext: TraversalContext = {
+          path: [...traversalContext.path, i],
+          depth: traversalContext.depth + 1,
+          parent: currentNode,
+          index: i,
+          pipelineContext: traversalContext.pipelineContext
+        };
+        
+        const childResult = traverseNodeRecursive(child, visitor, options, childContext);
+        childResults.push(childResult);
+      }
+    }
+    
+    // Post-order visit
+    if (order === 'post' || order === 'both') {
+      postResult = visitor.visit(currentNode, traversalContext);
+    }
+    
+    // Combine results if visitor provides combineResults
+    let finalResult: T;
+    if (visitor.combineResults) {
+      const mainResult = postResult !== undefined ? postResult : preResult!;
+      finalResult = visitor.combineResults(mainResult, childResults);
+    } else {
+      finalResult = postResult !== undefined ? postResult : preResult!;
+    }
+    
+    // Apply afterTransform hook if present
+    if (hooks?.afterTransform) {
+      try {
+        // Note: hooks work on XNode, but visitor might return different type
+        // Only apply if the result is an XNode
+        if (finalResult && typeof finalResult === 'object' && typeof (finalResult as any).name === 'string') {
+          const afterResult = hooks.afterTransform(finalResult as any);
+          if (afterResult && typeof afterResult === 'object' && typeof afterResult.name === 'string') {
+            finalResult = afterResult as T;
+          }
+        }
+      } catch (err) {
+        logger.warn(`Error in afterTransform hook at path [${traversalContext.path.join(',')}]:`, err);
+      }
+    }
+    
+    return finalResult;
+    
+  } catch (err) {
+    logger.warn(`Error processing node '${currentNode.name}' at path [${traversalContext.path.join(',')}]:`, err);
+    // Return the original result as fallback
+    return preResult || postResult || visitor.visit(node, traversalContext);
+  }
+}
+
+/**
+ * A transform function that processes an XNode
+ */
+export type Transform = (node: XNode) => XNode;
+
+/**
+ * Compose multiple transforms into a single transform
+ * Transforms are applied in order (left to right)
+ */
 export function compose(...transforms: Transform[]): Transform {
   return (node: XNode): XNode => {
     return transforms.reduce((result, transform) => {
@@ -33,201 +205,44 @@ export function compose(...transforms: Transform[]): Transform {
 }
 
 /**
- * Walk the tree and apply a visitor function to each node
- * @param node Root node to start traversal
- * @param visitor Function to apply to each node
- * @param context Optional context passed to the visitor
- * @returns The result from the root node visitor
+ * Create a container node for results
  */
-export function walkTree<T>(
-  node: XNode, 
-  visitor: (node: XNode, context?: any) => T,
-  context?: any
-): T {
-  try {
-    // Apply visitor to current node
-    const result = visitor(node, context);
-    
-    // Recursively visit children
-    if (node.children && node.children.length > 0) {
-      for (const child of node.children) {
-        walkTree(child, visitor, context);
-      }
-    }
-    
-    return result;
-  } catch (err) {
-    logger.warn(`Error in tree walker for node: ${node.name}`, { 
-      error: err instanceof Error ? err.message : String(err)
-    });
-    return undefined as unknown as T;
-  }
-}
-/**
- * A transform function that processes an XNode
- */
-
-export type Transform = (node: XNode) => XNode;
-/**
- * Compose multiple transforms into a single transform
- * Transforms are applied in order (left to right)
- *
- * @example
- * ```typescript
- * const processPrice = compose(
- *   regex(/[^\d.]/g, ''),  // Remove non-digits and dots
- *   toNumber({ precision: 2 }),
- *   (node) => ({ ...node, value: node.value * 1.1 })  // Add 10% markup
- * );
- *
- * xjx.fromXml(xml)
- *    .filter(node => node.name === 'price')
- *    .map(processPrice)
- *    .toJson();
- * ```
- *
- * @param transforms Array of transforms to compose
- * @returns A composed transform function
- */
-
-/**
- * Walk the tree and collect nodes that match a predicate
- */
-export function collectNodes(
-  node: XNode, 
-  predicate: (node: XNode) => boolean
-): XNode[] {
-  const results: XNode[] = [];
-  
-  walkTree(node, (current) => {
-    try {
-      if (predicate(current)) {
-        results.push(cloneNode(current, true));
-      }
-    } catch (err) {
-      logger.warn(`Error evaluating predicate on node: ${current.name}`, {
-        error: err instanceof Error ? err.message : String(err)
-      });
-    }
-    
-    return undefined;
-  });
-  
-  return results;
-}
-
-/**
- * Filter implementation that properly handles negations
- */
-export function filterNodeHierarchy(
-  node: XNode,
-  predicate: (node: XNode) => boolean
-): XNode | null {
-  try {
-    const filterNode = (currentNode: XNode): XNode | null => {
-      let keepThisNode: boolean;
-      
-      try {
-        keepThisNode = predicate(currentNode);
-      } catch (err) {
-        logger.warn(`Error in filter predicate for node ${currentNode.name}:`, err);
-        keepThisNode = false;
-      }
-      
-      const keptChildren: XNode[] = [];
-      
-      if (currentNode.children && currentNode.children.length > 0) {
-        for (const child of currentNode.children) {
-          const filteredChild = filterNode(child);
-          if (filteredChild) {
-            keptChildren.push(filteredChild);
-          }
-        }
-      }
-      
-      if (!keepThisNode && keptChildren.length === 0) {
-        return null;
-      }
-      
-      const resultNode = cloneNode(currentNode, false);
-      
-      if (keptChildren.length > 0) {
-        resultNode.children = keptChildren;
-        keptChildren.forEach(child => child.parent = resultNode);
-      }
-      
-      return resultNode;
-    };
-    
-    return filterNode(node);
-  } catch (err) {
-    logger.error('Error in filter operation:', err);
-    return cloneNode(node, true);
-  }
-}
-
-/**
- * Reduce all nodes in the tree to a single value
- */
-export function reduceNodeTree<T>(
-  node: XNode,
-  reducer: (accumulator: T, node: XNode) => T,
-  initialValue: T
-): T {
-  let accumulator = initialValue;
-  
-  const traverse = (current: XNode) => {
-    try {
-      accumulator = reducer(accumulator, cloneNode(current, false));
-    } catch (err) {
-      logger.warn(`Error in reducer for node: ${current.name}`, {
-        error: err instanceof Error ? err.message : String(err)
-      });
-    }
-    
-    if (current.children && current.children.length > 0) {
-      for (const child of current.children) {
-        traverse(child);
-      }
-    }
-  };
-  
-  traverse(node);
-  return accumulator;
+export function createResultsContainer(rootName: string | undefined = 'results'): XNode {
+  const finalName = rootName || 'results';
+  return createElement(finalName);
 }
 
 /**
  * Collect nodes matching predicate along with their paths in the tree
+ * Uses unified traversal system
  */
 export function collectNodesWithPaths(
   root: XNode,
-  predicate: (node: XNode) => boolean
+  predicate: (node: XNode) => boolean,
+  context: PipelineContext
 ): { nodes: XNode[], indices: number[], paths: number[][] } {
   const results: XNode[] = [];
   const indices: number[] = [];
   const paths: number[][] = [];
   
-  function traverse(node: XNode, path: number[] = []): void {
-    try {
-      if (predicate(node)) {
-        results.push(node);
-        indices.push(results.length - 1);
-        paths.push([...path]);
+  const visitor: TreeVisitor<void> = {
+    visit: (node, traversalContext) => {
+      try {
+        if (predicate(node)) {
+          results.push(node);
+          indices.push(results.length - 1);
+          paths.push([...traversalContext.path]);
+        }
+      } catch (err) {
+        logger.warn(`Error evaluating predicate on node: ${node.name}`, err);
       }
-    } catch (err) {
-      logger.warn(`Error evaluating predicate on node: ${node.name}`, {
-        error: err instanceof Error ? err.message : String(err)
-      });
     }
-    
-    if (node.children) {
-      node.children.forEach((child, index) => {
-        traverse(child, [...path, index]);
-      });
-    }
-  }
+  };
   
-  traverse(root);
+  traverseTree(root, visitor, {
+    order: 'pre',
+    context
+  });
   
   return { nodes: results, indices, paths };
 }
@@ -280,3 +295,22 @@ export function getNodeAtPath(root: XNode, path: number[]): XNode | null {
   
   return current;
 }
+
+// ================================
+// REMOVED LEGACY FUNCTIONS (Phase 2 Complete)
+// ================================
+// 
+// The following functions have been REMOVED and replaced by traverseTree():
+//
+// ❌ walkTree() - Use traverseTree() with appropriate visitor
+// ❌ filterNodeHierarchy() - Use traverseTree() with filter visitor
+// ❌ reduceNodeTree() - Use traverseTree() with accumulator visitor  
+// ❌ collectNodes() - Use traverseTree() with collector visitor
+//
+// All functionality is now available through the unified traverseTree() function
+// with appropriate TreeVisitor implementations.
+//
+// PHASE 2 REMOVED: Performance tracking
+// ❌ context.performance.startStage('traverse')
+// ❌ context.performance.endStage(stageId)
+// ================================

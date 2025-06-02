@@ -7,6 +7,7 @@ import MapConfig from './MapConfig.vue';
 import ReduceConfig from './ReduceConfig.vue';
 import BranchConfig from './BranchConfig.vue';
 import MergeConfig from './MergeConfig.vue';
+import WithConfigConfig from './WithConfigConfig.vue';
 import TransformConfig from './TransformConfig.vue';
 import TransformerConfig from './TransformerConfig.vue';
 import SourceConfig from './SourceConfig.vue';
@@ -18,6 +19,7 @@ export {
   ReduceConfig,
   BranchConfig,
   MergeConfig,
+  WithConfigConfig,
   TransformConfig,
   TransformerConfig, 
   SourceConfig

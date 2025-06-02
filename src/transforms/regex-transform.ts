@@ -1,5 +1,5 @@
 /**
- * Regex node transform - Apply regular expression replacements to string node values
+ * Regex node transform - Apply regular expression replacements to string node values and/or attributes
  */
 import { XNode } from '../core/xnode';
 import { Transform } from "../core/functional";
@@ -24,34 +24,44 @@ function parseRegexPattern(pattern: string): { source: string, flags: string } |
 }
 
 /**
- * Create a node transformer that applies regex replacement to string values
+ * Create a node transformer that applies regex replacement to string values and/or attributes
  * 
  * @example
  * ```typescript
- * // Simple text replacement (global, case-sensitive)
+ * // Transform only node values (current behavior)
  * xjx.fromXml(xml).map(regex('hello', 'hi')).toJson();
  * 
- * // Full regex with flags
- * xjx.fromXml(xml).map(regex('/hello/gi', 'hi')).toJson();
+ * // Transform only attributes
+ * xjx.fromXml(xml).map(regex(/\d+/, 'NUMBER', { transformAttr: true, transformVal: false })).toJson();
  * 
- * // Using RegExp object
- * xjx.fromXml(xml).map(regex(/hello/gi, 'hi')).toJson();
+ * // Transform both values and attributes
+ * xjx.fromXml(xml).map(regex('/hello/gi', 'hi', { transformAttr: true, transformVal: true })).toJson();
  * 
- * // Use with filtering for specific nodes
+ * // Clean currency symbols from price attributes
  * xjx.fromXml(xml)
- *    .filter(node => ['description', 'content'].includes(node.name))
- *    .map(regex(/\d+/, 'NUMBER'))
+ *    .filter(node => ['price', 'total'].includes(node.name))
+ *    .map(regex(/[$,]/g, '', { transformAttr: true }))
  *    .toJson();
  * ```
  * 
  * @param pattern Regular expression pattern (string or RegExp)
  * @param replacement Replacement string (can use capture groups)
+ * @param options Transform options for targeting attributes and/or values
  * @returns A node transformer function for use with map()
  */
 export function regex(
   pattern: RegExp | string, 
-  replacement: string
+  replacement: string,
+  options: {
+    transformAttr?: boolean;
+    transformVal?: boolean;
+  } = {}
 ): Transform {
+  
+  const {
+    transformAttr = false,
+    transformVal = true
+  } = options;
   
   // Create RegExp object based on input type
   let re: RegExp;
@@ -76,15 +86,28 @@ export function regex(
   }
   
   return (node: XNode): XNode => {
-    // Skip if node has no value or value is not a string
-    if (node.value === undefined || typeof node.value !== 'string') {
-      return node;
+    let result = { ...node };
+
+    // Transform node value if enabled
+    if (transformVal && node.value !== undefined && typeof node.value === 'string') {
+      result.value = node.value.replace(re, replacement);
     }
-    
-    // Apply replacement
-    const transformedValue = node.value.replace(re, replacement);
-    
-    // Return transformed node
-    return { ...node, value: transformedValue };
+
+    // Transform attributes if enabled
+    if (transformAttr && node.attributes) {
+      const transformedAttributes: Record<string, any> = {};
+      
+      for (const [key, value] of Object.entries(node.attributes)) {
+        if (typeof value === 'string') {
+          transformedAttributes[key] = value.replace(re, replacement);
+        } else {
+          transformedAttributes[key] = value;
+        }
+      }
+      
+      result.attributes = transformedAttributes;
+    }
+
+    return result;
   };
 }

@@ -1,21 +1,36 @@
 /**
- * XJX - Main class with simplified pipeline context
- * Phases 1 & 2: Enterprise features removed, core functionality preserved
+ * XJX - Main class with ultra-simplified extension registration
+ * Eliminates complex registry system in favor of direct config merging
  */
 import { LoggerFactory } from "./core/logger";
 const logger = LoggerFactory.create();
 
-import { Configuration, createConfig } from "./core/config";
+import { Configuration, createConfig, mergeConfig, getDefaultConfig } from "./core/config";
 import { XNode } from "./core/xnode";
 import { validate, ValidationError } from "./core/error";
-import { UnifiedExtensionContext, TerminalExtensionContext, NonTerminalExtensionContext, BranchContext } from "./core/extension";
+import { 
+  UnifiedExtensionContext, 
+  TerminalExtensionContext, 
+  NonTerminalExtensionContext, 
+  BranchContext 
+} from "./core/extension";
 import { PipelineHooks, SourceHooks, OutputHooks, NodeHooks } from "./core/hooks";
 import { PipelineContext, PipelineContextImpl } from "./core/context";
 import { UnifiedConverter, PipelineStage, Pipeline } from "./core/pipeline";
 
 /**
- * Main XJX class - provides the fluent API for XML/JSON transformation with simplified pipeline architecture
- * REMOVED: Performance monitoring, resource reporting, health checks, optimization features
+ * Extension configuration defaults - keys become config property names
+ */
+export type ExtensionConfigDefaults = Record<string, any>;
+
+/**
+ * Global configuration defaults including all registered extension defaults
+ */
+let globalDefaults: Configuration | null = null;
+
+/**
+ * Ultra-Simplified XJX class with minimal extension registration
+ * No complex registry - just direct config merging
  */
 export class XJX implements UnifiedExtensionContext {
   // Instance properties
@@ -24,17 +39,156 @@ export class XJX implements UnifiedExtensionContext {
   public pipeline: PipelineContext;
   
   /**
-   * Create a new XJX instance with simplified pipeline context
-   * @param config Optional configuration
-   * @param pipelineHooks Optional pipeline-level hooks for cross-cutting concerns
+   * Create a new XJX instance
    */
   constructor(config?: Partial<Configuration>, pipelineHooks?: PipelineHooks) {
-    this.pipeline = new PipelineContextImpl(
-      createConfig(config),
-      pipelineHooks
-    );
+    // Use global defaults that include all extension defaults
+    const baseConfig = globalDefaults || getDefaultConfig();
+    const finalConfig = config ? mergeConfig(baseConfig, config) : baseConfig;
     
-    logger.debug('Created XJX instance with simplified pipeline');
+    this.pipeline = new PipelineContextImpl(finalConfig, pipelineHooks);
+    
+    logger.debug('Created XJX instance with merged extension defaults');
+  }
+  
+  /**
+   * Register a terminal extension method with direct configuration defaults
+   * @param name Extension name (e.g., 'toCsv')
+   * @param method Implementation function
+   * @param configDefaults Configuration defaults where keys become config property names
+   * 
+   * @example
+   * XJX.registerTerminalExtension("toCsv", toCsv, {
+   *   csv: {
+   *     delimiter: ",",
+   *     escapeChar: "\"",
+   *     includeHeaders: true
+   *   }
+   * });
+   */
+  public static registerTerminalExtension(
+    name: string, 
+    method: (this: TerminalExtensionContext, ...args: any[]) => any,
+    configDefaults?: ExtensionConfigDefaults
+  ): void {
+    try {
+      validate(typeof name === "string" && name.length > 0, "Extension name must be a non-empty string");
+      validate(typeof method === "function", "Extension method must be a function");
+      
+      logger.debug('Registering terminal extension', { 
+        name,
+        hasConfig: !!configDefaults,
+        configKeys: configDefaults ? Object.keys(configDefaults) : []
+      });
+      
+      // Merge config defaults into global defaults
+      if (configDefaults) {
+        this.mergeExtensionDefaults(configDefaults);
+      }
+      
+      // Add method to XJX prototype
+      (XJX.prototype as any)[name] = function(...args: any[]): any {
+        // Execute pipeline hooks
+        this.pipeline.executeHooks(this.pipeline.hooks, name, this.xnode || args[0]);
+        
+        const result = method.apply(this, args);
+        
+        this.pipeline.executeHooks(this.pipeline.hooks, name, result);
+        return result;
+      };
+      
+      logger.debug('Terminal extension registered', { name });
+    } catch (err) {
+      logger.error(`Failed to register terminal extension ${name}`, { error: err });
+      throw err;
+    }
+  }
+
+  /**
+   * Register a non-terminal extension method with direct configuration defaults
+   * @param name Extension name (e.g., 'fromCsv')
+   * @param method Implementation function  
+   * @param configDefaults Configuration defaults where keys become config property names
+   * 
+   * @example
+   * XJX.registerNonTerminalExtension("fromCsv", fromCsv, {
+   *   csv: {
+   *     delimiter: ",", 
+   *     hasHeaders: true
+   *   }
+   * });
+   */
+  public static registerNonTerminalExtension(
+    name: string, 
+    method: (this: NonTerminalExtensionContext, ...args: any[]) => void,
+    configDefaults?: ExtensionConfigDefaults
+  ): void {
+    try {
+      validate(typeof name === "string" && name.length > 0, "Extension name must be a non-empty string");
+      validate(typeof method === "function", "Extension method must be a function");
+      
+      logger.debug('Registering non-terminal extension', { 
+        name,
+        hasConfig: !!configDefaults,
+        configKeys: configDefaults ? Object.keys(configDefaults) : []
+      });
+      
+      // Merge config defaults into global defaults
+      if (configDefaults) {
+        this.mergeExtensionDefaults(configDefaults);
+      }
+      
+      // Add method to XJX prototype that returns this
+      (XJX.prototype as any)[name] = function(...args: any[]): XJX {
+        // Execute pipeline hooks
+        this.pipeline.executeHooks(this.pipeline.hooks, name, args[0] || this.xnode);
+        
+        method.apply(this, args);
+        
+        this.pipeline.executeHooks(this.pipeline.hooks, name, this.xnode);
+        return this;
+      };
+      
+      logger.debug('Non-terminal extension registered', { name });
+    } catch (err) {
+      logger.error(`Failed to register non-terminal extension ${name}`, { error: err });
+      throw err;
+    }
+  }
+  
+  /**
+   * Merge extension defaults into global configuration defaults
+   * @param configDefaults Extension configuration defaults
+   */
+  private static mergeExtensionDefaults(configDefaults: ExtensionConfigDefaults): void {
+    // Initialize global defaults if not already done
+    if (!globalDefaults) {
+      globalDefaults = getDefaultConfig();
+    }
+    
+    // Merge the new extension defaults
+    globalDefaults = mergeConfig(globalDefaults, configDefaults);
+    
+    logger.debug('Merged extension defaults into global config', {
+      newConfigKeys: Object.keys(configDefaults)
+    });
+  }
+  
+  // --- Utility Methods for Testing/Debugging ---
+  
+  /**
+   * Get current global defaults (primarily for testing/debugging)
+   */
+  public static getGlobalDefaults(): Configuration {
+    return globalDefaults || getDefaultConfig();
+  }
+  
+  /**
+   * Reset global defaults (primarily for testing)
+   */
+  public static resetDefaults(): void {
+    globalDefaults = null;
+    logger.debug('Reset global defaults');
   }
   
   // --- Standardized Pipeline Operations ---
@@ -78,75 +232,6 @@ export class XJX implements UnifiedExtensionContext {
   ): void {
     this.validateSource();
     this.xnode = Pipeline.executeTransform(operation, this.xnode as XNode, this.pipeline, hooks);
-  }
-  
-  /**
-   * Register a terminal extension method (returns a value)
-   * @param name Extension name (e.g., 'toXml')
-   * @param method Implementation function
-   */
-  public static registerTerminalExtension(name: string, method: (this: TerminalExtensionContext, ...args: any[]) => any): void {
-    try {
-      // Validate inputs
-      validate(typeof name === "string" && name.length > 0, "Extension name must be a non-empty string");
-      validate(typeof method === "function", "Extension method must be a function");
-      
-      logger.debug('Registering terminal extension', { name });
-      
-      // Add method to XJX prototype
-      (XJX.prototype as any)[name] = function(...args: any[]): any {
-        // Execute pipeline beforeStep hook
-        this.pipeline.executeHooks(this.pipeline.hooks, name, this.xnode || args[0]);
-        
-        // Call the implementation method with this context
-        const result = method.apply(this, args);
-        
-        // Execute pipeline afterStep hook
-        this.pipeline.executeHooks(this.pipeline.hooks, name, result);
-        
-        return result;
-      };
-      
-      logger.debug('Terminal extension registered', { name });
-    } catch (err) {
-      logger.error(`Failed to register terminal extension ${name}`, { error: err });
-      throw err;
-    }
-  }
-
-  /**
-   * Register a non-terminal extension method (returns this for chaining)
-   * @param name Extension name (e.g., 'fromXml')
-   * @param method Implementation function
-   */
-  public static registerNonTerminalExtension(name: string, method: (this: NonTerminalExtensionContext, ...args: any[]) => void): void {
-    try {
-      // Validate inputs
-      validate(typeof name === "string" && name.length > 0, "Extension name must be a non-empty string");
-      validate(typeof method === "function", "Extension method must be a function");
-      
-      logger.debug('Registering non-terminal extension', { name });
-      
-      // Add method to XJX prototype that returns this
-      (XJX.prototype as any)[name] = function(...args: any[]): XJX {
-        // Execute pipeline beforeStep hook
-        this.pipeline.executeHooks(this.pipeline.hooks, name, args[0] || this.xnode);
-        
-        // Call the implementation method with this context
-        method.apply(this, args);
-        
-        // Execute pipeline afterStep hook
-        this.pipeline.executeHooks(this.pipeline.hooks, name, this.xnode);
-        
-        // Return this for chaining
-        return this;
-      };
-      
-      logger.debug('Non-terminal extension registered', { name });
-    } catch (err) {
-      logger.error(`Failed to register non-terminal extension ${name}`, { error: err });
-      throw err;
-    }
   }
   
   // --- Utility Methods ---

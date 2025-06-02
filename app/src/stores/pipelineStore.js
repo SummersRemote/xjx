@@ -331,7 +331,7 @@ export const usePipelineStore = defineStore('pipeline', {
       return hooks;
     },
     
-    applyStep(builder, step, transforms) {
+applyStep(builder, step, transforms) {
       const { type, options } = step;
             
       switch (type) {
@@ -383,6 +383,15 @@ export const usePipelineStore = defineStore('pipeline', {
           
         case 'merge': {
           return builder.merge();
+        }
+          
+        case 'withConfig': {
+          try {
+            const configUpdate = JSON.parse(options.config || '{}');
+            return builder.withConfig(configUpdate);
+          } catch (err) {
+            throw new Error('Invalid JSON in withConfig: ' + err.message);
+          }
         }
           
         case 'reduce': {

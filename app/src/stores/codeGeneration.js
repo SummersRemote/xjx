@@ -262,6 +262,17 @@ function generateStepCode(step) {
     case 'merge':
       return `\n  .merge()`;
       
+    case 'withConfig': {
+      try {
+        // Parse and re-stringify to ensure proper formatting
+        const configObj = JSON.parse(options.config || '{}');
+        const configString = JSON.stringify(configObj);
+        return `\n  .withConfig(${configString})`;
+      } catch (err) {
+        return `\n  .withConfig(/* Invalid JSON: ${err.message} */)`;
+      }
+    }
+      
     case 'map': {
       const mainTransform = generateTransformCode(options.transform);
       const hooks = generateHooksCode(options, ['beforeTransform', 'afterTransform']);

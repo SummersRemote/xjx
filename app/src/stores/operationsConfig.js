@@ -1,4 +1,4 @@
-// stores/operationsConfig.js - Available operations definitions and defaults
+// stores/operationsConfig.js - Updated with withConfig operation
 
 export const availableOperations = {
   // Source operations
@@ -65,6 +65,14 @@ export const availableOperations = {
     name: 'Merge', 
     category: 'functional', 
     description: 'Merge branch back to parent scope',
+    terminal: false,
+    hookTypes: []
+  },
+  withConfig: { 
+    type: 'withConfig', 
+    name: 'With Config', 
+    category: 'functional', 
+    description: 'Update configuration mid-pipeline',
     terminal: false,
     hookTypes: []
   },
@@ -157,6 +165,29 @@ export function getDefaultOptions(type) {
     
     case 'merge':
       // Merge has no configuration options
+      break;
+      
+    case 'withConfig':
+      // Default config with commonly changed mid-pipeline settings
+      defaultOptions.config = JSON.stringify({
+        strategies: {
+          highFidelity: false,
+          attributeStrategy: "merge",
+          textStrategy: "direct",
+          arrayStrategy: "multiple",
+          emptyElementStrategy: "object"
+        },
+        properties: {
+          attribute: "$attr",
+          value: "$val",
+          children: "$children"
+        },
+        formatting: {
+          indent: 2,
+          pretty: true
+        },
+        fragmentRoot: "results"
+      }, null, 2);
       break;
   }
   

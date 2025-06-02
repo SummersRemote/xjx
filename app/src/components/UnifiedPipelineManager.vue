@@ -1,4 +1,3 @@
-<!-- components/UnifiedPipelineManager.vue - Updated with custom pipeline hooks UI -->
 <template>
   <v-card>
     <!-- Pipeline Title and Actions -->
@@ -419,9 +418,13 @@
               <!-- Operation Configuration -->
               <component 
                 :is="getConfigComponent(step.type)"
+                v-if="getConfigComponent(step.type)"
                 :value="step.options"
                 @update="updateFunctionalStepOptions(step.id, $event)"
               />
+              <div v-else class="text-caption text-medium-emphasis">
+                No configuration available for this operation.
+              </div>
             </div>
           </v-expansion-panel-text>
         </v-expansion-panel>
@@ -515,6 +518,7 @@ import SelectConfig from './configs/SelectConfig.vue';
 import ReduceConfig from './configs/ReduceConfig.vue';
 import BranchConfig from './configs/BranchConfig.vue';
 import MergeConfig from './configs/MergeConfig.vue';
+import WithConfigConfig from './configs/WithConfigConfig.vue';
 import SourceConfig from './configs/SourceConfig.vue';
 
 const pipelineStore = usePipelineStore();
@@ -551,6 +555,7 @@ const getOperationDisplayName = (type) => {
 };
 
 const getConfigComponent = (type) => {
+  console.log('Getting config component for type:', type); // Debug log
   switch (type) {
     case 'filter': return FilterConfig;
     case 'map': return MapConfig;
@@ -558,7 +563,12 @@ const getConfigComponent = (type) => {
     case 'reduce': return ReduceConfig;
     case 'branch': return BranchConfig;
     case 'merge': return MergeConfig;
-    default: return null;
+    case 'withConfig': 
+      console.log('Returning WithConfigConfig component'); // Debug log
+      return WithConfigConfig;
+    default: 
+      console.log('No component found for type:', type); // Debug log
+      return null;
   }
 };
 
@@ -600,6 +610,7 @@ const removeFunctionalStep = (id) => {
 };
 
 const updateFunctionalStepOptions = (id, options) => {
+  console.log('Updating functional step options:', id, options); // Debug log
   pipelineStore.updateFunctionalStep(id, options);
 };
 

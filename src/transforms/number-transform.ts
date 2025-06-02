@@ -1,5 +1,5 @@
 /**
- * Number node transform - Converts string node values to numbers
+ * Number node transform - Converts string node values and/or attributes to numbers
  */
 import { XNode } from '../core/xnode';
 import { Transform } from "../core/functional";
@@ -37,29 +37,36 @@ export interface NumberTransformOptions {
    * Whether to parse scientific notation (default: true)
    */
   scientific?: boolean;
+
+  /**
+   * Whether to transform node attributes (default: false)
+   */
+  transformAttr?: boolean;
+
+  /**
+   * Whether to transform node value (default: true)
+   */
+  transformVal?: boolean;
 }
 
 /**
- * Create a node transformer that converts string values to numbers
+ * Create a node transformer that converts string values and/or attributes to numbers
  *
  * @example
  * ```typescript
- * // Transform all numeric nodes
+ * // Transform only node values (current behavior)
  * xjx.fromXml(xml).map(toNumber()).toJson();
  * 
- * // Transform with precision
- * xjx.fromXml(xml).map(toNumber({ precision: 2 })).toJson();
+ * // Transform only attributes
+ * xjx.fromXml(xml).map(toNumber({ transformAttr: true, transformVal: false })).toJson();
  * 
- * // Custom separators (European format)
- * xjx.fromXml(xml).map(toNumber({
- *   decimalSeparator: ',',
- *   thousandsSeparator: '.'
- * })).toJson();
+ * // Transform both values and attributes
+ * xjx.fromXml(xml).map(toNumber({ transformAttr: true, transformVal: true })).toJson();
  * 
- * // Use with filtering for specific nodes
+ * // Transform attributes with precision
  * xjx.fromXml(xml)
- *    .filter(node => ['price', 'total', 'amount'].includes(node.name))
- *    .map(toNumber({ precision: 2 }))
+ *    .filter(node => ['price', 'total'].includes(node.name))
+ *    .map(toNumber({ transformAttr: true, precision: 2 }))
  *    .toJson();
  * ```
  *
@@ -73,47 +80,78 @@ export function toNumber(options: NumberTransformOptions = {}): Transform {
     thousandsSeparator = ",",
     integers = true,
     decimals = true,
-    scientific = true
+    scientific = true,
+    transformAttr = false,
+    transformVal = true
   } = options;
 
-  return (node: XNode): XNode => {
-    // Skip if node has no value
-    if (node.value === undefined) {
-      return node;
-    }
-    
-    // If already a number, just apply precision if specified
-    if (typeof node.value === "number") {
-      const finalValue = precision !== undefined 
-        ? Number(node.value.toFixed(precision)) 
-        : node.value;
-      return { ...node, value: finalValue };
-    }
-
-    // Convert to string for parsing
-    const strValue = String(node.value).trim();
-    if (!strValue) {
-      return node;
-    }
-
-    // Try parsing the number
-    const parsedNumber = parseNumberString(strValue, {
-      precision,
-      decimalSeparator,
-      thousandsSeparator,
-      integers,
-      decimals,
-      scientific,
-    });
-    
-    // If parsing succeeded, return transformed node
-    if (parsedNumber !== null) {
-      return { ...node, value: parsedNumber };
-    }
-    
-    // No match, return original node unchanged
-    return node;
+  const parseOptions = {
+    precision,
+    decimalSeparator,
+    thousandsSeparator,
+    integers,
+    decimals,
+    scientific,
   };
+
+  return (node: XNode): XNode => {
+    let result = { ...node };
+
+    // Transform node value if enabled
+    if (transformVal && node.value !== undefined) {
+      const transformedValue = transformNumberValue(node.value, parseOptions);
+      if (transformedValue !== null) {
+        result.value = transformedValue;
+      }
+    }
+
+    // Transform attributes if enabled
+    if (transformAttr && node.attributes) {
+      const transformedAttributes: Record<string, any> = {};
+      
+      for (const [key, value] of Object.entries(node.attributes)) {
+        const transformedValue = transformNumberValue(value, parseOptions);
+        transformedAttributes[key] = transformedValue !== null ? transformedValue : value;
+      }
+      
+      result.attributes = transformedAttributes;
+    }
+
+    return result;
+  };
+}
+
+/**
+ * Transform a single value to number
+ */
+function transformNumberValue(
+  value: any,
+  options: {
+    precision?: number;
+    decimalSeparator: string;
+    thousandsSeparator: string;
+    integers: boolean;
+    decimals: boolean;
+    scientific: boolean;
+  }
+): number | null {
+  // If already a number, just apply precision if specified
+  if (typeof value === "number") {
+    const finalValue = options.precision !== undefined 
+      ? Number(value.toFixed(options.precision)) 
+      : value;
+    return finalValue;
+  }
+
+  // Convert to string for parsing
+  const strValue = String(value).trim();
+  if (!strValue) {
+    return null;
+  }
+
+  // Try parsing the number
+  const parsedNumber = parseNumberString(strValue, options);
+  return parsedNumber;
 }
 
 /**

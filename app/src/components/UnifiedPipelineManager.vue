@@ -262,8 +262,8 @@
                 <!-- Desktop Action Buttons -->
                 <div class="d-none d-md-flex align-center gap-1">
                   <v-btn
-                    icon="mdi-plus"
-                    size="x-small"
+                    icon="mdi-table-row-plus-after"
+                    size="small"
                     variant="text"
                     color="primary"
                     @click.stop="addFunctionalStep('filter', 0)"
@@ -277,7 +277,7 @@
                       <v-btn
                         v-bind="props"
                         icon="mdi-dots-vertical"
-                        size="x-small"
+                        size="small"
                         variant="text"
                         @click.stop
                       ></v-btn>
@@ -346,16 +346,16 @@
                 <!-- Desktop Action Buttons -->
                 <div class="d-none d-md-flex align-center gap-1">
                   <v-btn
-                    icon="mdi-plus-circle-outline"
-                    size="x-small"
+                    icon="mdi-table-row-plus-before"
+                    size="small"
                     variant="text"
                     color="primary"
                     @click.stop="addFunctionalStep('filter', index)"
                   ></v-btn>
 
                   <v-btn
-                    icon="mdi-plus-circle"
-                    size="x-small"
+                    icon="mdi-table-row-plus-after"
+                    size="small"
                     variant="text"
                     color="primary"
                     @click.stop="addFunctionalStep('filter', index + 1)"
@@ -363,7 +363,7 @@
 
                   <v-btn
                     icon="mdi-arrow-up"
-                    size="x-small"
+                    size="small"
                     variant="text"
                     :disabled="index === 0"
                     @click.stop="moveFunctionalStep(step.id, 'up')"
@@ -371,7 +371,7 @@
 
                   <v-btn
                     icon="mdi-arrow-down"
-                    size="x-small"
+                    size="small"
                     variant="text"
                     :disabled="index === functionalSteps.length - 1"
                     @click.stop="moveFunctionalStep(step.id, 'down')"
@@ -379,7 +379,7 @@
 
                   <v-btn
                     icon="mdi-delete"
-                    size="x-small"
+                    size="small"
                     variant="text"
                     color="error"
                     @click.stop="removeFunctionalStep(step.id)"
@@ -393,7 +393,7 @@
                       <v-btn
                         v-bind="props"
                         icon="mdi-dots-vertical"
-                        size="x-small"
+                        size="small"
                         variant="text"
                         @click.stop
                       ></v-btn>
@@ -484,8 +484,8 @@
                 <!-- Desktop Action Buttons -->
                 <div class="d-none d-md-flex align-center gap-1">
                   <v-btn
-                    icon="mdi-plus"
-                    size="x-small"
+                    icon="mdi-table-row-plus-before"
+                    size="small"
                     variant="text"
                     color="primary"
                     @click.stop="
@@ -501,7 +501,7 @@
                       <v-btn
                         v-bind="props"
                         icon="mdi-dots-vertical"
-                        size="x-small"
+                        size="small"
                         variant="text"
                         @click.stop
                       ></v-btn>

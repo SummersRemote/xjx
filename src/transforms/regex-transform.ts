@@ -2,7 +2,7 @@
  * Regex node transform - Apply regular expression replacements to string node values and/or attributes
  */
 import { XNode, XNodeType, createAttributes } from '../core/xnode';
-import { Transform } from "../core/functional";
+import { Transform } from "../core/tree-utils";
 
 /**
  * Detect if a string is a regular expression pattern

@@ -78,7 +78,7 @@ export {
   TreeVisitor,
   TraversalContext,
   TraversalOptions
-} from "./core/functional";
+} from "./core/tree-utils";
 
 // Export logging
 export { 

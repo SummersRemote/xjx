@@ -2,7 +2,7 @@
  * Number node transform - Converts string node values and/or attributes to numbers
  */
 import { XNode, XNodeType, createAttributes } from '../core/xnode';
-import { Transform } from "../core/functional";
+import { Transform } from "../core/tree-utils";
 
 /**
  * Options for number node transform

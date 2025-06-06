@@ -30,7 +30,7 @@ import {
   traverseTree,
   TreeVisitor,
   TraversalContext
-} from "../core/functional";
+} from "../core/tree-utils";
 import { ClonePolicies } from "../core/context";
 import { PipelineStage } from "../core/pipeline";
 import { getFragmentRootName } from "../core/config-utils";

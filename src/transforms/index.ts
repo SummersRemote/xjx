@@ -9,7 +9,7 @@
 export {
   Transform,
   compose
-} from '../core/functional';
+} from '../core/tree-utils';
 
 // Number node transform
 export {

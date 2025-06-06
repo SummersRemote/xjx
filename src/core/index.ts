@@ -36,7 +36,7 @@ export * from './context';
 export * from './extension';
 
 // Unified tree traversal and transforms
-export * from './functional';
+export * from './tree-utils';
 
 // XNode model
 export * from './xnode';

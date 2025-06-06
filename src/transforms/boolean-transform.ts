@@ -2,7 +2,7 @@
  * Boolean node transform - Converts string node values and/or attributes to booleans
  */
 import { XNode, XNodeType, createAttributes } from '../core/xnode';
-import { Transform } from "../core/functional";
+import { Transform } from "../core/tree-utils";
 
 /**
  * Options for boolean node transform

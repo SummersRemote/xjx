@@ -10,14 +10,15 @@ import { UnifiedConverter } from "../../core/pipeline";
 import { PipelineContext } from "../../core/context";
 import { TerminalExtensionContext } from "../../core/extension";
 import { OutputHooks } from "../../core/hooks";
-import { JsonConfiguration, DEFAULT_JSON_CONFIG } from "./config";
+import { JsonSourceConfiguration, JsonOutputConfiguration, DEFAULT_JSON_SOURCE_CONFIG, DEFAULT_JSON_OUTPUT_CONFIG } from "./config";
 import { JsonValue, JsonObject, JsonArray } from "./utils";
 
 /**
  * Context for semantic XNode to JSON conversion
  */
 interface JsonOutputContext {
-  config: JsonConfiguration;
+  sourceConfig: JsonSourceConfiguration;
+  outputConfig: JsonOutputConfiguration;
   preserveSemanticInfo: boolean;
   depth: number;
 }
@@ -42,16 +43,21 @@ export const xnodeToJsonConverter: UnifiedConverter<XNode, JsonValue> = {
     });
     
     try {
-      // Get JSON config from pipeline context or use defaults
+      // Get JSON configs from pipeline context or use defaults
       const baseConfig = context.config.get();
-      const jsonConfig: JsonConfiguration = {
-        ...DEFAULT_JSON_CONFIG,
-        ...(baseConfig as any).json
+      const jsonSourceConfig: JsonSourceConfiguration = {
+        ...DEFAULT_JSON_SOURCE_CONFIG,
+        ...(baseConfig as any).json?.source
+      };
+      const jsonOutputConfig: JsonOutputConfiguration = {
+        ...DEFAULT_JSON_OUTPUT_CONFIG,
+        ...(baseConfig as any).json?.output
       };
       
       // Create conversion context
       const outputContext: JsonOutputContext = {
-        config: jsonConfig,
+        sourceConfig: jsonSourceConfig,
+        outputConfig: jsonOutputConfig,
         preserveSemanticInfo: false, // Standard JSON output
         depth: 0
       };
@@ -97,16 +103,21 @@ export const xnodeToJsonHiFiConverter: UnifiedConverter<XNode, JsonValue> = {
     });
     
     try {
-      // Get JSON config from pipeline context or use defaults
+      // Get JSON configs from pipeline context or use defaults
       const baseConfig = context.config.get();
-      const jsonConfig: JsonConfiguration = {
-        ...DEFAULT_JSON_CONFIG,
-        ...(baseConfig as any).json
+      const jsonSourceConfig: JsonSourceConfiguration = {
+        ...DEFAULT_JSON_SOURCE_CONFIG,
+        ...(baseConfig as any).json?.source
+      };
+      const jsonOutputConfig: JsonOutputConfiguration = {
+        ...DEFAULT_JSON_OUTPUT_CONFIG,
+        ...(baseConfig as any).json?.output
       };
       
       // Create high-fidelity conversion context
       const outputContext: JsonOutputContext = {
-        config: jsonConfig,
+        sourceConfig: jsonSourceConfig,
+        outputConfig: jsonOutputConfig,
         preserveSemanticInfo: true, // High-fidelity mode
         depth: 0
       };
@@ -200,14 +211,14 @@ export function toJsonString(this: TerminalExtensionContext, hooks?: OutputHooks
     const converter = useHighFidelity ? xnodeToJsonHiFiConverter : xnodeToJsonConverter;
     const jsonValue = this.executeOutput(converter); // No hooks passed here
     
-    // Get JSON config for formatting
-    const jsonConfig: JsonConfiguration = {
-      ...DEFAULT_JSON_CONFIG,
-      ...(baseConfig as any).json
+    // Get JSON output config for formatting
+    const jsonOutputConfig: JsonOutputConfiguration = {
+      ...DEFAULT_JSON_OUTPUT_CONFIG,
+      ...(baseConfig as any).json?.output
     };
     
     // Format JSON string
-    let result = jsonConfig.prettyPrint 
+    let result = jsonOutputConfig.prettyPrint 
       ? JSON.stringify(jsonValue, null, (baseConfig as any).formatting?.indent || 2)
       : JSON.stringify(jsonValue);
     
@@ -287,14 +298,14 @@ function convertSemanticNodeToJson(node: XNode, context: JsonOutputContext): Jso
       
     case XNodeType.COMMENT:
       // Comments can be preserved as special objects or ignored
-      if ((context.config as any).preserveComments) {
+      if ((context as any).preserveComments) {
         return { "#comment": node.value !== undefined ? node.value : null };
       }
       return null;
       
     case XNodeType.INSTRUCTION:
       // Instructions as special objects
-      if ((context.config as any).preserveInstructions) {
+      if ((context as any).preserveInstructions) {
         return { [`#${node.name}`]: node.value !== undefined ? node.value : null };
       }
       return null;
@@ -330,7 +341,7 @@ function convertCollectionToJsonArray(node: XNode, context: JsonOutputContext): 
     const childValue = convertSemanticNodeToJson(child, context);
     
     // Skip null values if configured
-    if (childValue !== null || context.config.emptyValueHandling !== 'remove') {
+    if (childValue !== null || context.sourceConfig.emptyValueHandling !== 'remove') {
       array.push(childValue);
     }
   }
@@ -440,7 +451,7 @@ function addChildrenToJsonObject(
       // Single child - add directly
       const childValue = convertSemanticNodeToJson(nodes[0], context);
       
-      if (childValue !== null || context.config.emptyValueHandling !== 'remove') {
+      if (childValue !== null || context.sourceConfig.emptyValueHandling !== 'remove') {
         obj[name] = childValue;
       }
     } else {
@@ -450,7 +461,7 @@ function addChildrenToJsonObject(
       for (const node of nodes) {
         const childValue = convertSemanticNodeToJson(node, context);
         
-        if (childValue !== null || context.config.emptyValueHandling !== 'remove') {
+        if (childValue !== null || context.sourceConfig.emptyValueHandling !== 'remove') {
           arrayValues.push(childValue);
         }
       }

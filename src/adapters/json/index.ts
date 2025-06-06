@@ -5,10 +5,12 @@
 // IMPORTANT: Register extensions by importing the extensions file
 import "./extensions";
 
-// Export configuration
+// Export separated configurations
 export {
-  JsonConfiguration,
-  DEFAULT_JSON_CONFIG
+  JsonSourceConfiguration,
+  JsonOutputConfiguration,
+  DEFAULT_JSON_SOURCE_CONFIG,
+  DEFAULT_JSON_OUTPUT_CONFIG
 } from "./config";
 
 // Export utilities

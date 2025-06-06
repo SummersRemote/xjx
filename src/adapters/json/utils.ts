@@ -1,7 +1,7 @@
 /**
  * JSON adapter utilities - Pure semantic metadata approach
  */
-import { JsonConfiguration } from './config';
+import { JsonSourceConfiguration } from './config';
 
 /**
  * JSON value types for adapter operations
@@ -13,7 +13,7 @@ export type JsonArray = JsonValue[];
 /**
  * Check if a JSON value represents an empty element
  */
-export function isEmptyElement(value: JsonValue, config: JsonConfiguration): boolean {
+export function isEmptyElement(value: JsonValue, config: JsonSourceConfiguration): boolean {
   // Null, undefined, or empty string are empty
   if (value === null || value === undefined || value === '') {
     return true;
@@ -58,7 +58,7 @@ export function isEmptyElement(value: JsonValue, config: JsonConfiguration): boo
 /**
  * Remove empty elements from JSON structure
  */
-export function removeEmptyElements(value: JsonValue, config: JsonConfiguration): JsonValue | undefined {
+export function removeEmptyElements(value: JsonValue, config: JsonSourceConfiguration): JsonValue | undefined {
   if (value === null || value === undefined) {
     return undefined;
   }
@@ -237,6 +237,6 @@ export function normalizeSemanticObject(obj: JsonObject): JsonObject {
 /**
  * Get array item name for JSON conversion with fallback
  */
-export function getJsonArrayItemName(config: JsonConfiguration, parentPropertyName: string): string {
+export function getJsonArrayItemName(config: JsonSourceConfiguration, parentPropertyName: string): string {
   return config.arrayItemNames[parentPropertyName] || config.defaultItemName;
 }

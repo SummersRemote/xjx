@@ -11,7 +11,7 @@ import { UnifiedConverter } from '../../core/pipeline';
 import { PipelineContext } from '../../core/context';
 import { TerminalExtensionContext } from "../../core/extension";
 import { OutputHooks } from "../../core/hooks";
-import { XmlConfiguration, DEFAULT_XML_CONFIG } from "./config";
+import { XmlOutputConfiguration, DEFAULT_XML_OUTPUT_CONFIG } from "./config";
 import * as xmlUtils from './utils';
 
 /**
@@ -19,7 +19,7 @@ import * as xmlUtils from './utils';
  */
 interface XmlOutputContext {
   namespaceMap: Record<string, string>;
-  config: XmlConfiguration;
+  config: XmlOutputConfiguration;
   doc: Document;
 }
 
@@ -49,17 +49,17 @@ export const xnodeToXmlConverter: UnifiedConverter<XNode, Document> = {
       // Register DOM document for cleanup
       context.resources.registerDOMDocument(doc);
       
-      // Get XML config from pipeline context or use defaults
+      // Get XML output config from pipeline context or use defaults
       const baseConfig = context.config.get();
-      const xmlConfig: XmlConfiguration = {
-        ...DEFAULT_XML_CONFIG,
-        ...(baseConfig as any).xml
+      const xmlOutputConfig: XmlOutputConfiguration = {
+        ...DEFAULT_XML_OUTPUT_CONFIG,
+        ...(baseConfig as any).xml?.output
       };
       
       // Create conversion context
       const outputContext: XmlOutputContext = {
         namespaceMap: {},
-        config: xmlConfig,
+        config: xmlOutputConfig,
         doc
       };
       
@@ -105,9 +105,9 @@ export const xnodeToXmlStringConverter: UnifiedConverter<XNode, string> = {
   
   execute(node: XNode, context: PipelineContext): string {
     const baseConfig = context.config.get();
-    const xmlConfig: XmlConfiguration = {
-      ...DEFAULT_XML_CONFIG,
-      ...(baseConfig as any).xml
+    const xmlOutputConfig: XmlOutputConfiguration = {
+      ...DEFAULT_XML_OUTPUT_CONFIG,
+      ...(baseConfig as any).xml?.output
     };
     
     try {
@@ -115,9 +115,9 @@ export const xnodeToXmlStringConverter: UnifiedConverter<XNode, string> = {
       const doc = xnodeToXmlConverter.execute(node, context);
       
       // Get formatting options
-      const prettyPrint = xmlConfig.prettyPrint;
+      const prettyPrint = xmlOutputConfig.prettyPrint;
       const indent = (baseConfig as any).formatting?.indent || 2;
-      const declaration = xmlConfig.declaration;
+      const declaration = xmlOutputConfig.declaration;
       
       // Serialize to string
       let xmlString = xmlUtils.serializeXml(doc);
@@ -343,7 +343,7 @@ function convertPrimitiveToElement(node: XNode, context: XmlOutputContext): Elem
 /**
  * Create qualified name from semantic node
  */
-function createQualifiedName(node: XNode, xmlConfig: XmlConfiguration): string {
+function createQualifiedName(node: XNode, xmlConfig: XmlOutputConfiguration): string {
   if (!xmlConfig.preserveNamespaces) {
     return node.name;
   }

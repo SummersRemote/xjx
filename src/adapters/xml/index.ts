@@ -5,10 +5,14 @@
 // IMPORTANT: Register extensions by importing the extensions file
 import "./extensions";
 
-// Export configuration
+// Export separated configurations
 export {
-  XmlConfiguration,
-  DEFAULT_XML_CONFIG
+  XmlSourceConfiguration,
+  XmlOutputConfiguration,
+  DEFAULT_XML_SOURCE_CONFIG,
+  DEFAULT_XML_OUTPUT_CONFIG,
+  validateXmlSourceConfig,
+  validateXmlOutputConfig
 } from "./config";
 
 // Export utilities

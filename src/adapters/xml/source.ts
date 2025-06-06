@@ -23,7 +23,7 @@ import { UnifiedConverter } from '../../core/pipeline';
 import { PipelineContext } from '../../core/context';
 import { NonTerminalExtensionContext } from "../../core/extension";
 import { SourceHooks } from "../../core/hooks";
-import { XmlConfiguration, DEFAULT_XML_CONFIG } from "./config";
+import { XmlSourceConfiguration, DEFAULT_XML_SOURCE_CONFIG } from "./config";
 import * as xmlUtils from './utils';
 
 /**
@@ -31,7 +31,7 @@ import * as xmlUtils from './utils';
  */
 interface XmlConversionContext {
   namespaceMap: Record<string, string>;
-  config: XmlConfiguration;
+  config: XmlSourceConfiguration;
   parentNode?: XNode;
 }
 
@@ -64,17 +64,17 @@ export const xmlToXNodeConverter: UnifiedConverter<string, XNode> = {
       // Register DOM document for cleanup
       context.resources.registerDOMDocument(doc);
       
-      // Get XML config from pipeline context or use defaults
+      // Get XML source config from pipeline context or use defaults
       const baseConfig = context.config.get();
-      const xmlConfig: XmlConfiguration = {
-        ...DEFAULT_XML_CONFIG,
-        ...(baseConfig as any).xml
+      const xmlSourceConfig: XmlSourceConfiguration = {
+        ...DEFAULT_XML_SOURCE_CONFIG,
+        ...(baseConfig as any).xml?.source
       };
       
       // Create conversion context
       const conversionContext: XmlConversionContext = { 
         namespaceMap: {},
-        config: xmlConfig
+        config: xmlSourceConfig
       };
       
       // Convert DOM element to semantic XNode
@@ -178,7 +178,7 @@ function convertElementToSemanticXNode(
 /**
  * Get element name based on configuration
  */
-function getElementName(element: Element, config: XmlConfiguration): string {
+function getElementName(element: Element, config: XmlSourceConfiguration): string {
   switch (config.namespacePrefixHandling) {
     case 'strip':
       return element.localName || element.nodeName.split(':').pop() || element.nodeName;
@@ -296,7 +296,7 @@ function processElementAttributes(
 /**
  * Get attribute name based on configuration
  */
-function getAttributeName(attr: Attr, config: XmlConfiguration): string {
+function getAttributeName(attr: Attr, config: XmlSourceConfiguration): string {
   switch (config.namespacePrefixHandling) {
     case 'strip':
       return attr.localName || attr.name.split(':').pop() || attr.name;
@@ -349,7 +349,7 @@ function processElementChildren(
 /**
  * Analyze mixed content to determine processing strategy
  */
-function analyzeMixedContent(element: Element, config: XmlConfiguration): {
+function analyzeMixedContent(element: Element, config: XmlSourceConfiguration): {
   isTextOnly: boolean;
   hasElements: boolean;
   hasSignificantWhitespace: boolean;

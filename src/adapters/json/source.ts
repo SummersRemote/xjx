@@ -19,14 +19,14 @@ import { PipelineContext } from "../../core/context";
 import { NonTerminalExtensionContext } from "../../core/extension";
 import { SourceHooks } from "../../core/hooks";
 import { ClonePolicies } from "../../core/context";
-import { JsonConfiguration, DEFAULT_JSON_CONFIG } from "./config";
+import { JsonSourceConfiguration, DEFAULT_JSON_SOURCE_CONFIG } from "./config";
 import { JsonValue, JsonObject, JsonArray, getJsonArrayItemName } from "./utils";
 
 /**
  * Context for JSON to Semantic XNode conversion
  */
 interface JsonConversionContext {
-  config: JsonConfiguration;
+  config: JsonSourceConfiguration;
   parentPropertyName?: string;
   depth: number;
   preserveSemanticInfo?: boolean;
@@ -51,16 +51,16 @@ export const jsonToXNodeConverter: UnifiedConverter<JsonValue, XNode> = {
     });
     
     try {
-      // Get JSON config from pipeline context or use defaults
+      // Get JSON source config from pipeline context or use defaults
       const baseConfig = context.config.get();
-      const jsonConfig: JsonConfiguration = {
-        ...DEFAULT_JSON_CONFIG,
-        ...(baseConfig as any).json // Type assertion for compatibility
+      const jsonSourceConfig: JsonSourceConfiguration = {
+        ...DEFAULT_JSON_SOURCE_CONFIG,
+        ...(baseConfig as any).json?.source
       };
       
       // Create conversion context
       const conversionContext: JsonConversionContext = {
-        config: jsonConfig,
+        config: jsonSourceConfig,
         depth: 0,
         preserveSemanticInfo: false
       };
@@ -135,13 +135,13 @@ export const jsonHiFiToXNodeConverter: UnifiedConverter<JsonValue, XNode> = {
       } else {
         // Fallback to standard conversion with semantic info preservation
         const baseConfig = context.config.get();
-        const jsonConfig: JsonConfiguration = {
-          ...DEFAULT_JSON_CONFIG,
-          ...(baseConfig as any).json
+        const jsonSourceConfig: JsonSourceConfiguration = {
+          ...DEFAULT_JSON_SOURCE_CONFIG,
+          ...(baseConfig as any).json?.source
         };
         
         const conversionContext: JsonConversionContext = {
-          config: jsonConfig,
+          config: jsonSourceConfig,
           depth: 0,
           preserveSemanticInfo: true
         };
@@ -451,7 +451,7 @@ function applyFieldValueStrategy(
 /**
  * Filter out empty values based on configuration
  */
-function filterEmptyValues(node: XNode, config: JsonConfiguration): XNode | null {
+function filterEmptyValues(node: XNode, config: JsonSourceConfiguration): XNode | null {
   if (config.emptyValueHandling === 'remove') {
     // Remove nodes with null values
     if (node.value === null || node.value === undefined) {

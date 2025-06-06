@@ -1,11 +1,11 @@
 /**
- * Unified tree traversal system - Single algorithm for all tree operations
- * Phase 2: Performance tracking removed (context.performance calls eliminated)
+ * Unified tree traversal system - Pure semantic XNode implementation
+ * All legacy DOM references removed, createElement replaced with semantic equivalents
  */
 import { LoggerFactory } from "./logger";
 const logger = LoggerFactory.create();
 
-import { XNode, createElement, cloneNode } from './xnode';
+import { XNode, XNodeType, createCollection, cloneNode } from './xnode';
 import { PipelineContext } from './context';
 import { NodeHooks } from './hooks';
 
@@ -59,8 +59,7 @@ export interface TraversalOptions {
  * - Error handling and logging
  * - Path tracking for branch operations
  * 
- * REPLACES: walkTree(), filterNodeHierarchy(), reduceNodeTree(), collectNodes()
- * REMOVED: Performance tracking (context.performance calls)
+ * Pure semantic XNode implementation
  */
 export function traverseTree<T>(
   node: XNode,
@@ -70,8 +69,9 @@ export function traverseTree<T>(
   const { order, hooks, context } = options;
   
   try {
-    logger.debug('Starting unified tree traversal', {
+    logger.debug('Starting unified semantic tree traversal', {
       rootNode: node.name,
+      rootType: node.type,
       order,
       hasHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
     });
@@ -82,11 +82,11 @@ export function traverseTree<T>(
       pipelineContext: context
     });
     
-    logger.debug('Unified tree traversal completed successfully');
+    logger.debug('Unified semantic tree traversal completed successfully');
     return result;
     
   } catch (err) {
-    logger.error('Error during unified tree traversal:', err);
+    logger.error('Error during unified semantic tree traversal:', err);
     throw err;
   }
 }
@@ -175,7 +175,7 @@ function traverseNodeRecursive<T>(
     return finalResult;
     
   } catch (err) {
-    logger.warn(`Error processing node '${currentNode.name}' at path [${traversalContext.path.join(',')}]:`, err);
+    logger.warn(`Error processing semantic node '${currentNode.name}' (${currentNode.type}) at path [${traversalContext.path.join(',')}]:`, err);
     // Return the original result as fallback
     return preResult || postResult || visitor.visit(node, traversalContext);
   }
@@ -197,7 +197,7 @@ export function compose(...transforms: Transform[]): Transform {
         return transform(result);
       } catch (err) {
         // If transform fails, return original node
-        logger.warn(`Transform error on node '${result.name}':`, err);
+        logger.warn(`Transform error on semantic node '${result.name}' (${result.type}):`, err);
         return result;
       }
     }, node);
@@ -205,11 +205,11 @@ export function compose(...transforms: Transform[]): Transform {
 }
 
 /**
- * Create a container node for results
+ * Create a container node for results (semantic collection)
  */
 export function createResultsContainer(rootName: string | undefined = 'results'): XNode {
   const finalName = rootName || 'results';
-  return createElement(finalName);
+  return createCollection(finalName);
 }
 
 /**
@@ -234,7 +234,7 @@ export function collectNodesWithPaths(
           paths.push([...traversalContext.path]);
         }
       } catch (err) {
-        logger.warn(`Error evaluating predicate on node: ${node.name}`, err);
+        logger.warn(`Error evaluating predicate on semantic node: ${node.name} (${node.type})`, err);
       }
     }
   };
@@ -295,22 +295,3 @@ export function getNodeAtPath(root: XNode, path: number[]): XNode | null {
   
   return current;
 }
-
-// ================================
-// REMOVED LEGACY FUNCTIONS (Phase 2 Complete)
-// ================================
-// 
-// The following functions have been REMOVED and replaced by traverseTree():
-//
-// ❌ walkTree() - Use traverseTree() with appropriate visitor
-// ❌ filterNodeHierarchy() - Use traverseTree() with filter visitor
-// ❌ reduceNodeTree() - Use traverseTree() with accumulator visitor  
-// ❌ collectNodes() - Use traverseTree() with collector visitor
-//
-// All functionality is now available through the unified traverseTree() function
-// with appropriate TreeVisitor implementations.
-//
-// PHASE 2 REMOVED: Performance tracking
-// ❌ context.performance.startStage('traverse')
-// ❌ context.performance.endStage(stageId)
-// ================================

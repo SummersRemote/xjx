@@ -26,6 +26,7 @@ interface JsonConversionContext {
   config: ConfigurationHelper;
   parentPropertyName?: string;
   depth: number;
+  preserveSemanticInfo?: boolean;
 }
 
 /**
@@ -36,7 +37,7 @@ interface JsonObject { [key: string]: JsonValue }
 type JsonArray = JsonValue[];
 
 /**
- * JSON to Semantic XNode converter using natural type mapping
+ * Standard JSON to Semantic XNode converter using natural type mapping
  */
 export const jsonToXNodeConverter: UnifiedConverter<JsonValue, XNode> = {
   name: 'jsonToSemanticXNode',
@@ -45,6 +46,7 @@ export const jsonToXNodeConverter: UnifiedConverter<JsonValue, XNode> = {
   
   validate(json: JsonValue, context: PipelineContext): void {
     context.validateInput(json !== undefined, "JSON source cannot be undefined");
+    validateJsonForSemantic(json);
   },
   
   execute(json: JsonValue, context: PipelineContext): XNode {
@@ -56,21 +58,25 @@ export const jsonToXNodeConverter: UnifiedConverter<JsonValue, XNode> = {
       // Create conversion context with configuration helper
       const conversionContext: JsonConversionContext = {
         config: new ConfigurationHelper(context.config.get()),
-        depth: 0
+        depth: 0,
+        preserveSemanticInfo: false
       };
       
       // Convert JSON value to semantic XNode using natural mapping
       const result = convertJsonValueToSemantic("root", json, conversionContext);
       
+      // Apply empty value filtering if configured
+      const filteredResult = filterEmptyValues(result, conversionContext.config);
+      
       // Register result for tracking
-      context.resources.registerXNode(result);
+      context.resources.registerXNode(filteredResult || result);
       
       logger.debug('Successfully converted JSON to semantic XNode', {
-        rootNodeName: result.name,
-        rootNodeType: result.type
+        rootNodeName: (filteredResult || result).name,
+        rootNodeType: (filteredResult || result).type
       });
       
-      return result;
+      return filteredResult || result;
       
     } catch (err) {
       throw new ProcessingError(`Failed to convert JSON to semantic XNode: ${err instanceof Error ? err.message : String(err)}`);
@@ -79,6 +85,78 @@ export const jsonToXNodeConverter: UnifiedConverter<JsonValue, XNode> = {
   
   onError(error: Error, json: JsonValue, context: PipelineContext): XNode | null {
     logger.error('JSON to semantic XNode conversion failed', { error });
+    return null;
+  }
+};
+
+/**
+ * High-fidelity JSON to Semantic XNode converter (preserves semantic metadata)
+ */
+export const jsonHiFiToXNodeConverter: UnifiedConverter<JsonValue, XNode> = {
+  name: 'jsonHiFiToSemanticXNode',
+  inputType: 'JsonValue',
+  outputType: 'XNode',
+  
+  validate(json: JsonValue, context: PipelineContext): void {
+    context.validateInput(json !== undefined, "JSON source cannot be undefined");
+    
+    // Additional validation for high-fidelity format
+    if (typeof json === 'object' && json !== null && !Array.isArray(json)) {
+      const obj = json as JsonObject;
+      if (obj['#type'] && !Object.values(XNodeType).includes(obj['#type'] as XNodeType)) {
+        throw new ValidationError(`Invalid semantic type in high-fidelity JSON: ${obj['#type']}`);
+      }
+    }
+  },
+  
+  execute(json: JsonValue, context: PipelineContext): XNode {
+    logger.debug('Converting high-fidelity JSON to semantic XNode', {
+      sourceType: Array.isArray(json) ? 'array' : typeof json
+    });
+    
+    try {
+      // Check if input is high-fidelity format
+      if (isHighFidelityJson(json)) {
+        // Convert from high-fidelity format
+        const result = convertHiFiJsonToSemantic(json as JsonObject);
+        
+        // Register result for tracking
+        context.resources.registerXNode(result);
+        
+        logger.debug('Successfully converted high-fidelity JSON to semantic XNode', {
+          rootNodeName: result.name,
+          rootNodeType: result.type
+        });
+        
+        return result;
+      } else {
+        // Fallback to standard conversion with semantic info preservation
+        const conversionContext: JsonConversionContext = {
+          config: new ConfigurationHelper(context.config.get()),
+          depth: 0,
+          preserveSemanticInfo: true
+        };
+        
+        const result = convertJsonValueToSemantic("root", json, conversionContext);
+        
+        // Register result for tracking
+        context.resources.registerXNode(result);
+        
+        logger.debug('Successfully converted standard JSON to semantic XNode with semantic info preserved', {
+          rootNodeName: result.name,
+          rootNodeType: result.type
+        });
+        
+        return result;
+      }
+      
+    } catch (err) {
+      throw new ProcessingError(`Failed to convert high-fidelity JSON to semantic XNode: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  },
+  
+  onError(error: Error, json: JsonValue, context: PipelineContext): XNode | null {
+    logger.error('High-fidelity JSON to semantic XNode conversion failed', { error });
     return null;
   }
 };
@@ -206,6 +284,62 @@ function convertJsonObjectToRecord(
   });
   
   return record;
+}
+
+/**
+ * Check if JSON is in high-fidelity format
+ */
+function isHighFidelityJson(json: JsonValue): boolean {
+  return typeof json === 'object' && 
+         json !== null && 
+         !Array.isArray(json) && 
+         typeof (json as JsonObject)['#type'] === 'string' &&
+         typeof (json as JsonObject)['#name'] === 'string';
+}
+
+/**
+ * Convert high-fidelity JSON to semantic XNode
+ */
+function convertHiFiJsonToSemantic(hifiJson: JsonObject): XNode {
+  const node: XNode = {
+    type: hifiJson['#type'] as XNodeType,
+    name: hifiJson['#name'] as string
+  };
+  
+  // Add optional semantic properties
+  if (hifiJson['#id'] !== undefined) {
+    node.id = hifiJson['#id'] as string;
+  }
+  
+  if (hifiJson['#ns'] !== undefined) {
+    node.ns = hifiJson['#ns'] as string;
+  }
+  
+  if (hifiJson['#label'] !== undefined) {
+    node.label = hifiJson['#label'] as string;
+  }
+  
+  if (hifiJson['#value'] !== undefined) {
+    node.value = hifiJson['#value'] as string | number | boolean | null;
+  }
+  
+  // Convert attributes if present
+  if (hifiJson['#attributes'] && Array.isArray(hifiJson['#attributes'])) {
+    node.attributes = (hifiJson['#attributes'] as JsonObject[]).map(attr => 
+      convertHiFiJsonToSemantic(attr)
+    );
+  }
+  
+  // Convert children if present
+  if (hifiJson['#children'] && Array.isArray(hifiJson['#children'])) {
+    node.children = (hifiJson['#children'] as JsonObject[]).map(child => {
+      const childNode = convertHiFiJsonToSemantic(child);
+      childNode.parent = node;
+      return childNode;
+    });
+  }
+  
+  return node;
 }
 
 /**

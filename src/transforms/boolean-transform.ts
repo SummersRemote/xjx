@@ -1,7 +1,7 @@
 /**
  * Boolean node transform - Converts string node values and/or attributes to booleans
  */
-import { XNode } from '../core/xnode';
+import { XNode, XNodeType, createAttributes } from '../core/xnode';
 import { Transform } from "../core/functional";
 
 /**
@@ -77,7 +77,6 @@ export function toBoolean(options: BooleanTransformOptions = {}): Transform {
     transformVal = true
   } = options;
   
-  // Pre-process values for case insensitive comparison
   const normalizedTrueValues = ignoreCase 
     ? trueValues.map(v => v.toLowerCase()) 
     : trueValues;
@@ -102,13 +101,24 @@ export function toBoolean(options: BooleanTransformOptions = {}): Transform {
       }
     }
 
-    // Transform attributes if enabled
+    // Transform attributes if enabled (semantic approach)
     if (transformAttr && node.attributes) {
-      const transformedAttributes: Record<string, any> = {};
+      const transformedAttributes: XNode[] = [];
       
-      for (const [key, value] of Object.entries(node.attributes)) {
-        const transformedValue = transformBooleanValue(value, transformOptions);
-        transformedAttributes[key] = transformedValue !== null ? transformedValue : value;
+      for (const attr of node.attributes) {
+        if (attr.type === XNodeType.ATTRIBUTES) {
+          const transformedValue = transformBooleanValue(attr.value, transformOptions);
+          if (transformedValue !== null) {
+            transformedAttributes.push({
+              ...attr,
+              value: transformedValue
+            });
+          } else {
+            transformedAttributes.push(attr);
+          }
+        } else {
+          transformedAttributes.push(attr);
+        }
       }
       
       result.attributes = transformedAttributes;
@@ -118,39 +128,25 @@ export function toBoolean(options: BooleanTransformOptions = {}): Transform {
   };
 }
 
-/**
- * Transform a single value to boolean
- */
-function transformBooleanValue(
-  value: any,
-  options: {
-    normalizedTrueValues: string[];
-    normalizedFalseValues: string[];
-    ignoreCase: boolean;
-  }
-): boolean | null {
-  // Skip if value is not a string
-  if (typeof value !== 'string') {
-    return null;
-  }
+
+
+
+function transformBooleanValue(value: any, options: any): boolean | null {
+  if (typeof value !== 'string') return null;
   
   const strValue = value.trim();
-  if (!strValue) {
-    return null;
-  }
+  if (!strValue) return null;
   
   const compareValue = options.ignoreCase ? strValue.toLowerCase() : strValue;
   
-  // Check for true values
   if (options.normalizedTrueValues.includes(compareValue)) {
     return true;
   }
   
-  // Check for false values
   if (options.normalizedFalseValues.includes(compareValue)) {
     return false;
   }
   
-  // No match, return null (no transformation)
   return null;
 }
+

@@ -1,6 +1,6 @@
 /**
- * Semantic XNode to XML converter - Maps semantic types to XML DOM
- * Replaces DOM-specific conversion with semantic type awareness
+ * Semantic XNode to XML converter - Updated for new configuration architecture
+ * Uses semantic types with format-specific XML configuration
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
@@ -102,10 +102,11 @@ export const xnodeToXmlStringConverter: UnifiedConverter<XNode, string> = {
       // First convert semantic XNode to DOM document
       const doc = xnodeToXmlConverter.execute(node, context);
       
-      // Get formatting options from config
-      const prettyPrint = config.getJsonConfig().prettyPrint ?? config.config.formatting.pretty;
-      const indent = config.config.formatting.indent;
-      const declaration = config.config.formatting.declaration ?? true;
+      // Get XML-specific formatting options
+      const xmlConfig = config.getXmlConfig();
+      const prettyPrint = xmlConfig.prettyPrint;
+      const indent = config.getBaseConfig().formatting.indent;
+      const declaration = xmlConfig.declaration;
       
       // Serialize to string
       let xmlString = xml.serializeXml(doc);
@@ -123,7 +124,8 @@ export const xnodeToXmlStringConverter: UnifiedConverter<XNode, string> = {
       logger.debug('Successfully converted semantic XNode to XML string', {
         xmlLength: xmlString.length,
         prettyPrint,
-        indent
+        indent,
+        declaration
       });
       
       return xmlString;
@@ -223,13 +225,15 @@ function convertRecordToElement(node: XNode, context: XmlOutputContext): Element
  * Convert COLLECTION node to XML element
  */
 function convertCollectionToElement(node: XNode, context: XmlOutputContext): Element {
-  // Collections become wrapper elements in XML
-  const element = DOM.createElement(context.doc, node.name);
+  const xmlConfig = context.config.getXmlConfig();
+  let element: Element;
   
-  // Add namespace info if present
-  if (node.ns && context.config.getXmlConfig().preserveNamespaces) {
-    const qualifiedName = createQualifiedName(node, context.config.getXmlConfig());
-    return DOM.createElementNS(context.doc, node.ns, qualifiedName);
+  // Collections become wrapper elements in XML
+  if (node.ns && xmlConfig.preserveNamespaces) {
+    const qualifiedName = createQualifiedName(node, xmlConfig);
+    element = DOM.createElementNS(context.doc, node.ns, qualifiedName);
+  } else {
+    element = DOM.createElement(context.doc, node.name);
   }
   
   // Add all collection items as child elements
@@ -249,12 +253,15 @@ function convertCollectionToElement(node: XNode, context: XmlOutputContext): Ele
  * Convert primitive node (FIELD/VALUE) to XML element
  */
 function convertPrimitiveToElement(node: XNode, context: XmlOutputContext): Element {
-  const element = DOM.createElement(context.doc, node.name);
+  const xmlConfig = context.config.getXmlConfig();
+  let element: Element;
   
-  // Add namespace info if present
-  if (node.ns && context.config.getXmlConfig().preserveNamespaces) {
-    const qualifiedName = createQualifiedName(node, context.config.getXmlConfig());
-    return DOM.createElementNS(context.doc, node.ns, qualifiedName);
+  // Create element with namespace if provided
+  if (node.ns && xmlConfig.preserveNamespaces) {
+    const qualifiedName = createQualifiedName(node, xmlConfig);
+    element = DOM.createElementNS(context.doc, node.ns, qualifiedName);
+  } else {
+    element = DOM.createElement(context.doc, node.name);
   }
   
   // Set text content
@@ -343,38 +350,5 @@ function addSemanticChildrenToElement(
     // Convert child node to DOM node
     const childNode = convertSemanticNodeToDom(child, context);
     element.appendChild(childNode);
-  }
-}
-
-/**
- * Handle mixed content in semantic to XML conversion
- */
-function handleMixedContent(node: XNode, element: Element, context: XmlOutputContext): void {
-  if (!node.children) return;
-  
-  // Check if this is mixed content (text values among elements)
-  const hasTextValues = node.children.some(child => 
-    child.type === XNodeType.VALUE && child.name === '#text'
-  );
-  const hasElements = node.children.some(child => 
-    child.type === XNodeType.RECORD || child.type === XNodeType.COLLECTION
-  );
-  
-  if (hasTextValues && hasElements) {
-    // Handle mixed content by preserving order
-    for (const child of node.children) {
-      if (child.type === XNodeType.VALUE && child.name === '#text') {
-        // Add text node
-        const textNode = DOM.createTextNode(context.doc, String(child.value || ''));
-        element.appendChild(textNode);
-      } else {
-        // Add element node
-        const childElement = convertSemanticNodeToDom(child, context);
-        element.appendChild(childElement);
-      }
-    }
-  } else {
-    // Regular content - add all children
-    addSemanticChildrenToElement(element, node.children, context);
   }
 }

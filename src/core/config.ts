@@ -1,6 +1,6 @@
 /**
- * Updated configuration system for semantic XNode with format-specific sections
- * Replaces mixed-format configuration with clean separation
+ * Complete configuration system for semantic XNode with format-specific sections
+ * All legacy DOM concepts moved to format-specific preservation settings
  */
 import { LoggerFactory } from "./logger";
 const logger = LoggerFactory.create();
@@ -17,6 +17,9 @@ export interface BaseConfiguration {
   preserveInstructions: boolean;
   preserveWhitespace: boolean;
 
+  // High-fidelity mode (verbose data structure mode)
+  highFidelity: boolean;
+
   // Output formatting (cross-format)
   formatting: {
     indent: number;
@@ -28,24 +31,45 @@ export interface BaseConfiguration {
 }
 
 /**
- * XML-specific configuration options
+ * XML-specific configuration options - Complete preservation control
  */
 export interface XmlConfiguration {
+  // Namespace handling
   preserveNamespaces: boolean;
+  namespacePrefixHandling: 'preserve' | 'strip' | 'label';
+  
+  // Content preservation for data filtering
   preserveCDATA: boolean;
   preserveMixedContent: boolean;
+  preserveTextNodes: boolean;
+  preserveAttributes: boolean;
+  preservePrefixedNames: boolean;
+  
+  // Semantic representation strategy
   attributeHandling: 'attributes' | 'fields'; // How to represent XML attributes in semantic model
-  namespacePrefixHandling: 'preserve' | 'strip' | 'label'; // How to handle namespace prefixes
+  
+  // XML-specific formatting
+  prettyPrint: boolean;
+  declaration: boolean; // Include <?xml declaration
+  encoding: string;
 }
 
 /**
  * JSON-specific configuration options
  */
 export interface JsonConfiguration {
+  // Array handling
   arrayItemNames: Record<string, string>; // Custom names for array items by parent property
   defaultItemName: string; // Default name for array items
+  
+  // Object property representation
   fieldVsValue: 'auto' | 'field' | 'value'; // How to represent object properties
+  
+  // Value handling
   emptyValueHandling: 'null' | 'undefined' | 'remove'; // How to handle empty values
+  
+  // JSON-specific formatting
+  prettyPrint: boolean;
 }
 
 /**
@@ -57,13 +81,16 @@ export interface Configuration extends BaseConfiguration {
 }
 
 /**
- * Default configuration - clean separation by format
+ * Default configuration - Complete semantic architecture
  */
 export const DEFAULT_CONFIG: Configuration = {
   // Core settings
   preserveComments: true,
   preserveInstructions: true,
   preserveWhitespace: false,
+  
+  // High-fidelity verbose mode
+  highFidelity: false,
 
   // Output formatting
   formatting: {
@@ -74,21 +101,42 @@ export const DEFAULT_CONFIG: Configuration = {
   // Fragment root name for functional operations
   fragmentRoot: "results",
 
-  // XML-specific defaults
+  // XML-specific defaults - Complete preservation control
   xml: {
+    // Namespace handling
     preserveNamespaces: true,
+    namespacePrefixHandling: 'preserve',
+    
+    // Content preservation for data filtering
     preserveCDATA: true,
     preserveMixedContent: true,
+    preserveTextNodes: true,
+    preserveAttributes: true,
+    preservePrefixedNames: true,
+    
+    // Semantic representation
     attributeHandling: 'attributes',
-    namespacePrefixHandling: 'preserve'
+    
+    // XML formatting
+    prettyPrint: true,
+    declaration: true,
+    encoding: 'UTF-8'
   },
 
   // JSON-specific defaults
   json: {
+    // Array handling
     arrayItemNames: {},
     defaultItemName: "item",
+    
+    // Object representation
     fieldVsValue: 'auto',
-    emptyValueHandling: 'null'
+    
+    // Value handling
+    emptyValueHandling: 'null',
+    
+    // JSON formatting
+    prettyPrint: true
   }
 };
 
@@ -130,9 +178,12 @@ export function createConfig(
 
   logger.debug("Successfully created/updated configuration", {
     preserveComments: result.preserveComments,
+    highFidelity: result.highFidelity,
     xmlNamespaces: result.xml.preserveNamespaces,
     xmlAttributeHandling: result.xml.attributeHandling,
+    xmlPrettyPrint: result.xml.prettyPrint,
     jsonFieldVsValue: result.json.fieldVsValue,
+    jsonPrettyPrint: result.json.prettyPrint,
     fragmentRoot: typeof result.fragmentRoot === 'string' ? result.fragmentRoot : 'custom-xnode',
     totalProperties: Object.keys(result).length
   });
@@ -157,6 +208,10 @@ export function validateConfig(config: Configuration): void {
     throw new Error('preserveWhitespace must be a boolean');
   }
 
+  if (typeof config.highFidelity !== 'boolean') {
+    throw new Error('highFidelity must be a boolean');
+  }
+
   // Validate formatting
   if (typeof config.formatting.indent !== 'number' || config.formatting.indent < 0) {
     throw new Error('formatting.indent must be a non-negative number');
@@ -175,6 +230,14 @@ export function validateConfig(config: Configuration): void {
     throw new Error('xml.namespacePrefixHandling must be "preserve", "strip", or "label"');
   }
 
+  if (typeof config.xml.prettyPrint !== 'boolean') {
+    throw new Error('xml.prettyPrint must be a boolean');
+  }
+
+  if (typeof config.xml.declaration !== 'boolean') {
+    throw new Error('xml.declaration must be a boolean');
+  }
+
   // Validate JSON configuration
   if (!['auto', 'field', 'value'].includes(config.json.fieldVsValue)) {
     throw new Error('json.fieldVsValue must be "auto", "field", or "value"');
@@ -188,6 +251,10 @@ export function validateConfig(config: Configuration): void {
     throw new Error('json.defaultItemName must be a non-empty string');
   }
 
+  if (typeof config.json.prettyPrint !== 'boolean') {
+    throw new Error('json.prettyPrint must be a boolean');
+  }
+
   // Validate fragmentRoot
   if (typeof config.fragmentRoot !== 'string' && 
       (typeof config.fragmentRoot !== 'object' || !config.fragmentRoot.name)) {
@@ -196,7 +263,7 @@ export function validateConfig(config: Configuration): void {
 }
 
 /**
- * Get format-specific configuration helpers
+ * Enhanced configuration helper with complete format-specific support
  */
 export class ConfigurationHelper {
   constructor(private config: Configuration) {}
@@ -213,6 +280,20 @@ export class ConfigurationHelper {
    */
   getJsonConfig(): JsonConfiguration {
     return this.config.json;
+  }
+
+  /**
+   * Get base configuration
+   */
+  getBaseConfig(): BaseConfiguration {
+    return {
+      preserveComments: this.config.preserveComments,
+      preserveInstructions: this.config.preserveInstructions,
+      preserveWhitespace: this.config.preserveWhitespace,
+      highFidelity: this.config.highFidelity,
+      formatting: this.config.formatting,
+      fragmentRoot: this.config.fragmentRoot
+    };
   }
 
   /**
@@ -234,6 +315,13 @@ export class ConfigurationHelper {
    */
   shouldPreserveWhitespace(): boolean {
     return this.config.preserveWhitespace;
+  }
+
+  /**
+   * Check if high-fidelity verbose mode is enabled
+   */
+  isHighFidelity(): boolean {
+    return this.config.highFidelity;
   }
 
   /**
@@ -266,5 +354,54 @@ export class ConfigurationHelper {
    */
   shouldRemoveJsonEmptyValues(): boolean {
     return this.config.json.emptyValueHandling === 'remove';
+  }
+
+  /**
+   * Get format-specific pretty print setting
+   */
+  shouldPrettyPrint(format: 'xml' | 'json'): boolean {
+    switch (format) {
+      case 'xml':
+        return this.config.xml.prettyPrint;
+      case 'json':
+        return this.config.json.prettyPrint;
+      default:
+        return this.config.formatting.pretty;
+    }
+  }
+
+  /**
+   * Check if XML attributes should be preserved during parsing
+   */
+  shouldPreserveXmlAttributes(): boolean {
+    return this.config.xml.preserveAttributes;
+  }
+
+  /**
+   * Check if XML prefixed names should be preserved
+   */
+  shouldPreservePrefixedNames(): boolean {
+    return this.config.xml.preservePrefixedNames;
+  }
+
+  /**
+   * Check if XML text nodes should be preserved
+   */
+  shouldPreserveTextNodes(): boolean {
+    return this.config.xml.preserveTextNodes;
+  }
+
+  /**
+   * Get XML encoding setting
+   */
+  getXmlEncoding(): string {
+    return this.config.xml.encoding;
+  }
+
+  /**
+   * Check if XML declaration should be included
+   */
+  shouldIncludeXmlDeclaration(): boolean {
+    return this.config.xml.declaration;
   }
 }

@@ -23,16 +23,15 @@ import { TerminalExtensionContext } from '../core/extension';
  */
 export function toJson(this: TerminalExtensionContext, hooks?: OutputHooks<JsonValue>): JsonValue {
   try {
-    // Use high-fidelity setting from config only
-    const useHighFidelity = this.pipeline.config.get().strategies.highFidelity;
+    // FIXED: Use base configuration highFidelity instead of strategies.highFidelity
+    const useHighFidelity = this.pipeline.config.get().highFidelity;
   
     logger.debug('Starting JSON conversion', {
       highFidelity: useHighFidelity,
       hasOutputHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
     });
     
-    // NEW: Simple pipeline execution with converter selection
-    // NO LEGACY TRANSFORM APPLICATION - pipeline handles everything
+    // Use unified pipeline with appropriate semantic JSON converter
     const converter = useHighFidelity ? xnodeToJsonHiFiConverter : xnodeToJsonConverter;
     const result = this.executeOutput(converter, hooks);
     
@@ -53,7 +52,6 @@ export function toJson(this: TerminalExtensionContext, hooks?: OutputHooks<JsonV
 
 /**
  * Implementation for converting to JSON string with unified pipeline execution  
- * NO LEGACY TRANSFORMS - All complexity moved to pipeline
  */
 export function toJsonString(this: TerminalExtensionContext, hooks?: OutputHooks<string>): string {
   try {
@@ -61,13 +59,10 @@ export function toJsonString(this: TerminalExtensionContext, hooks?: OutputHooks
       hasOutputHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
     });
     
-    // Source validation handled by validateSource()
     this.validateSource();
     
-    // Start with current XNode
     let nodeToConvert = this.xnode as XNode;
     
-    // Apply beforeTransform hook to XNode (if hooks are provided)
     if (hooks?.beforeTransform) {
       try {
         const beforeResult = hooks.beforeTransform(nodeToConvert);
@@ -79,15 +74,13 @@ export function toJsonString(this: TerminalExtensionContext, hooks?: OutputHooks
       }
     }
     
-    // Get JSON value using the converter directly (no hooks for intermediate step)
-    const useHighFidelity = this.pipeline.config.get().strategies.highFidelity;
+    // FIXED: Use base configuration highFidelity instead of strategies.highFidelity
+    const useHighFidelity = this.pipeline.config.get().highFidelity;
     const converter = useHighFidelity ? xnodeToJsonHiFiConverter : xnodeToJsonConverter;
-    const jsonValue = this.executeOutput(converter); // No hooks passed here
+    const jsonValue = this.executeOutput(converter);
     
-    // Stringify the result
     let result = JSON.stringify(jsonValue, null, this.pipeline.config.get().formatting.indent);
     
-    // Apply afterTransform hook to final string result
     if (hooks?.afterTransform) {
       try {
         const afterResult = hooks.afterTransform(result);

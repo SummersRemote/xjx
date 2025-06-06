@@ -20,8 +20,8 @@ export function fromJson(
   hooks?: SourceHooks<JsonValue>
 ): void {
   try {
-    // Determine format based on configuration
-    const useHighFidelity = this.pipeline.config.get().strategies.highFidelity;
+    // FIXED: Use base configuration highFidelity instead of strategies.highFidelity
+    const useHighFidelity = this.pipeline.config.get().highFidelity;
     
     logger.debug('Setting JSON source for transformation', {
       sourceType: Array.isArray(json) ? 'array' : 'object',
@@ -29,9 +29,7 @@ export function fromJson(
       hasSourceHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
     });
     
-    // NEW: Simple pipeline execution - choose converter based on config
-    // All validation, hook execution, performance tracking, resource management, 
-    // and logging handled by pipeline
+    // Use unified pipeline with semantic JSON converter
     const converter = useHighFidelity ? jsonHiFiToXNodeConverter : jsonToXNodeConverter;
     this.executeSource(converter, json, hooks);
     

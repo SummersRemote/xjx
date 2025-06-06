@@ -24,22 +24,33 @@ export function withConfig(this: NonTerminalExtensionContext, config: Partial<Co
     
     // Check if any preservation settings are being changed after initialization
     const PRESERVATION_SETTINGS = [
-      "preserveNamespaces",
       "preserveComments", 
-      "preserveProcessingInstr", 
-      "preserveCDATA", 
-      "preserveTextNodes",
-      "preserveWhitespace", 
-      "preserveAttributes"
+      "preserveInstructions", 
+      "preserveWhitespace",
+      "xml.preserveNamespaces",
+      "xml.preserveCDATA", 
+      "xml.preserveMixedContent", 
+      "xml.preserveTextNodes",
+      "xml.preserveAttributes"
     ];
     
     if (this.xnode !== null) {
       // Source has already been set, check for preservation setting changes
       const currentConfig = this.pipeline.config.get();
-      const changedSettings = PRESERVATION_SETTINGS.filter(
-        setting => config[setting as keyof Configuration] !== undefined && 
-                   config[setting as keyof Configuration] !== currentConfig[setting as keyof Configuration]
-      );
+      
+      // Check base preservation settings
+      const changedSettings = PRESERVATION_SETTINGS.filter(setting => {
+        if (setting.includes('.')) {
+          const [section, property] = setting.split('.');
+          return config[section as keyof Configuration] && 
+                 (config[section as keyof Configuration] as any)[property] !== undefined && 
+                 (config[section as keyof Configuration] as any)[property] !== 
+                 (currentConfig[section as keyof Configuration] as any)[property];
+        } else {
+          return config[setting as keyof Configuration] !== undefined && 
+                 config[setting as keyof Configuration] !== currentConfig[setting as keyof Configuration];
+        }
+      });
       
       if (changedSettings.length > 0) {
         throw new Error(
@@ -53,8 +64,11 @@ export function withConfig(this: NonTerminalExtensionContext, config: Partial<Co
     this.pipeline.config = this.pipeline.config.merge(config);
     
     logger.debug('Successfully applied configuration using pipeline context', {
-      preserveNamespaces: this.pipeline.config.get().preserveNamespaces,
-      prettyPrint: this.pipeline.config.get().formatting.pretty
+      preserveComments: this.pipeline.config.get().preserveComments,
+      xmlPreserveNamespaces: this.pipeline.config.get().xml.preserveNamespaces,
+      xmlPrettyPrint: this.pipeline.config.get().xml.prettyPrint,
+      jsonPrettyPrint: this.pipeline.config.get().json.prettyPrint,
+      highFidelity: this.pipeline.config.get().highFidelity
     });
   } catch (err) {
     if (err instanceof Error) {

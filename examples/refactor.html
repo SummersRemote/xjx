@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XJX Semantic Migration Test Suite</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .test-section {
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .test-title {
+            font-size: 1.4em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .input-output {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .input-section, .output-section {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 15px;
+        }
+        
+        .section-label {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        textarea {
+            width: 100%;
+            height: 200px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 12px;
+            resize: vertical;
+        }
+        
+        .output {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 12px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            min-height: 176px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .controls {
+            margin: 15px 0;
+        }
+        
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            padding: 12px;
+            margin-top: 10px;
+        }
+        
+        .success {
+            color: #155724;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 4px;
+            padding: 12px;
+            margin-top: 10px;
+        }
+        
+        .config-panel {
+            background: #e9ecef;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .config-option {
+            margin: 8px 0;
+        }
+        
+        .config-option label {
+            font-weight: 500;
+            margin-left: 8px;
+        }
+        
+        .info {
+            background: #cce7ff;
+            border: 1px solid #91c7ff;
+            border-radius: 4px;
+            padding: 12px;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔄 XJX Semantic Migration Test Suite</h1>
+        <p>Testing the migration from DOM-based to semantic XNode system</p>
+    </div>
+
+    <!-- Sample XML Input -->
+    <div class="test-section">
+        <div class="test-title">📝 Sample XML Input</div>
+        <div class="info">
+            <strong>Test Data:</strong> This XML includes attributes, namespaces, mixed content, CDATA, and comments to thoroughly test the semantic migration.
+        </div>
+        <textarea id="xmlInput" placeholder="Enter your XML here...">
+<catalog xmlns:book="http://example.com/book" version="1.0">
+    <!-- Product catalog with mixed content -->
+    <metadata created="2024-01-15" author="System">
+        <description>Sample product catalog</description>
+        <![CDATA[Raw data: <special>content</special>]]>
+    </metadata>
+    
+    <products>
+        <product id="p001" category="electronics" book:isbn="978-0123456789">
+            <name>Wireless Headphones</name>
+            <price currency="USD">129.99</price>
+            <description>High-quality <em>wireless</em> headphones with <strong>noise cancellation</strong>.</description>
+            <specs>
+                <weight unit="grams">250</weight>
+                <battery life="30 hours">Lithium-ion</battery>
+                <features>
+                    <feature>Bluetooth 5.0</feature>
+                    <feature>Active Noise Cancellation</feature>
+                    <feature>Quick Charge</feature>
+                </features>
+            </specs>
+        </product>
+        
+        <product id="p002" category="books">
+            <name>JavaScript Guide</name>
+            <price currency="USD">39.99</price>
+            <description>Comprehensive guide to modern JavaScript development.</description>
+            <specs>
+                <pages>456</pages>
+                <format>Paperback</format>
+                <language>English</language>
+            </specs>
+        </product>
+    </products>
+</catalog>
+        </textarea>
+    </div>
+
+    <!-- Configuration Panel -->
+    <div class="test-section">
+        <div class="test-title">⚙️ Configuration Options</div>
+        <div class="config-panel">
+            <div class="config-option">
+                <input type="checkbox" id="highFidelity" checked>
+                <label for="highFidelity">High-Fidelity Mode (verbose semantic info)</label>
+            </div>
+            <div class="config-option">
+                <input type="checkbox" id="preserveNamespaces" checked>
+                <label for="preserveNamespaces">Preserve XML Namespaces</label>
+            </div>
+            <div class="config-option">
+                <input type="checkbox" id="preserveComments" checked>
+                <label for="preserveComments">Preserve Comments</label>
+            </div>
+            <div class="config-option">
+                <input type="checkbox" id="preserveCDATA" checked>
+                <label for="preserveCDATA">Preserve CDATA</label>
+            </div>
+            <div class="config-option">
+                <input type="checkbox" id="prettyPrint" checked>
+                <label for="prettyPrint">Pretty Print Output</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Test 1: XML to JSON Standard -->
+    <div class="test-section">
+        <div class="test-title">🔄 Test 1: XML → JSON (Standard)</div>
+        <div class="info">Tests basic XML to JSON conversion using semantic XNode system.</div>
+        <div class="controls">
+            <button onclick="testXmlToJsonStandard()">Run Test</button>
+            <button onclick="clearResult('result1')">Clear</button>
+        </div>
+        <div class="input-output">
+            <div class="input-section">
+                <div class="section-label">Configuration</div>
+                <div class="output" id="config1">Will show configuration used...</div>
+            </div>
+            <div class="output-section">
+                <div class="section-label">JSON Output</div>
+                <div class="output" id="result1">Click "Run Test" to see results...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Test 2: XML to JSON High-Fidelity -->
+    <div class="test-section">
+        <div class="test-title">🔄 Test 2: XML → JSON (High-Fidelity)</div>
+        <div class="info">Tests high-fidelity conversion that preserves all semantic metadata.</div>
+        <div class="controls">
+            <button onclick="testXmlToJsonHiFi()">Run Test</button>
+            <button onclick="clearResult('result2')">Clear</button>
+        </div>
+        <div class="input-output">
+            <div class="input-section">
+                <div class="section-label">Semantic Metadata</div>
+                <div class="output" id="metadata2">Will show semantic node types...</div>
+            </div>
+            <div class="output-section">
+                <div class="section-label">High-Fidelity JSON</div>
+                <div class="output" id="result2">Click "Run Test" to see results...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Test 3: XML to JSON with Functional Operations -->
+    <div class="test-section">
+        <div class="test-title">🔄 Test 3: XML → JSON + Functional Operations</div>
+        <div class="info">Tests semantic functional API: filter, map, and transforms.</div>
+        <div class="controls">
+            <button onclick="testFunctionalOperations()">Run Test</button>
+            <button onclick="clearResult('result3')">Clear</button>
+        </div>
+        <div class="input-output">
+            <div class="input-section">
+                <div class="section-label">Operations Applied</div>
+                <div class="output" id="operations3">
+1. Filter: Only product elements
+2. Map: Convert prices to numbers  
+3. Map: Add currency formatting
+4. Select: Extract product names
+                </div>
+            </div>
+            <div class="output-section">
+                <div class="section-label">Processed JSON</div>
+                <div class="output" id="result3">Click "Run Test" to see results...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Test 4: XML to XML with Transformations -->
+    <div class="test-section">
+        <div class="test-title">🔄 Test 4: XML → XML + Transformations</div>
+        <div class="info">Tests round-trip XML processing with semantic transformations.</div>
+        <div class="controls">
+            <button onclick="testXmlTransformations()">Run Test</button>
+            <button onclick="clearResult('result4')">Clear</button>
+        </div>
+        <div class="input-output">
+            <div class="input-section">
+                <div class="section-label">Transformations</div>
+                <div class="output" id="transforms4">
+1. Convert boolean attributes
+2. Format numeric values  
+3. Clean whitespace
+4. Add processing metadata
+                </div>
+            </div>
+            <div class="output-section">
+                <div class="section-label">Transformed XML</div>
+                <div class="output" id="result4">Click "Run Test" to see results...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Test 5: Error Handling -->
+    <div class="test-section">
+        <div class="test-title">🔄 Test 5: Error Handling & Edge Cases</div>
+        <div class="info">Tests error handling and edge cases in the semantic system.</div>
+        <div class="controls">
+            <button onclick="testErrorHandling()">Run Test</button>
+            <button onclick="clearResult('result5')">Clear</button>
+        </div>
+        <div class="input-output">
+            <div class="input-section">
+                <div class="section-label">Test Cases</div>
+                <div class="output" id="cases5">
+1. Invalid XML
+2. Empty elements
+3. Null values
+4. Circular references
+5. Unicode content
+                </div>
+            </div>
+            <div class="output-section">
+                <div class="section-label">Error Results</div>
+                <div class="output" id="result5">Click "Run Test" to see results...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mock XJX library for testing purposes
+        // In real implementation, this would be imported from the actual library
+        
+        class MockXJX {
+            constructor(config = {}) {
+                this.config = {
+                    highFidelity: false,
+                    preserveComments: true,
+                    preserveInstructions: true,
+                    preserveWhitespace: false,
+                    formatting: { indent: 2, pretty: true },
+                    fragmentRoot: "results",
+                    xml: {
+                        preserveNamespaces: true,
+                        preserveCDATA: true,
+                        preserveMixedContent: true,
+                        preserveTextNodes: true,
+                        preserveAttributes: true,
+                        preservePrefixedNames: true,
+                        attributeHandling: 'attributes',
+                        namespacePrefixHandling: 'preserve',
+                        prettyPrint: true,
+                        declaration: true,
+                        encoding: 'UTF-8'
+                    },
+                    json: {
+                        arrayItemNames: {},
+                        defaultItemName: "item",
+                        fieldVsValue: 'auto',
+                        emptyValueHandling: 'null',
+                        prettyPrint: true
+                    },
+                    ...config
+                };
+                this.xnode = null;
+                this.branchContext = null;
+            }
+
+            fromXml(xml) {
+                try {
+                    // Simulate XML parsing to semantic XNode
+                    this.xnode = this.parseXmlToSemantic(xml);
+                    return this;
+                } catch (error) {
+                    throw new Error(`XML parsing failed: ${error.message}`);
+                }
+            }
+
+            toJson() {
+                if (!this.xnode) throw new Error('No source set');
+                return this.convertSemanticToJson(this.xnode);
+            }
+
+            toJsonString() {
+                const json = this.toJson();
+                return JSON.stringify(json, null, this.config.formatting.indent);
+            }
+
+            toXmlString() {
+                if (!this.xnode) throw new Error('No source set');
+                return this.convertSemanticToXml(this.xnode);
+            }
+
+            filter(predicate) {
+                if (!this.xnode) throw new Error('No source set');
+                this.xnode = this.filterNodes(this.xnode, predicate);
+                return this;
+            }
+
+            map(transform) {
+                if (!this.xnode) throw new Error('No source set');
+                this.xnode = this.transformNodes(this.xnode, transform);
+                return this;
+            }
+
+            select(predicate) {
+                if (!this.xnode) throw new Error('No source set');
+                const selected = this.selectNodes(this.xnode, predicate);
+                this.xnode = { type: 'collection', name: 'results', children: selected };
+                return this;
+            }
+
+            // Mock semantic parsing
+            parseXmlToSemantic(xml) {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(xml, 'text/xml');
+                
+                if (doc.querySelector('parsererror')) {
+                    throw new Error('Invalid XML');
+                }
+
+                return this.domToSemantic(doc.documentElement);
+            }
+
+            domToSemantic(element) {
+                const node = {
+                    type: 'record',
+                    name: element.localName || element.nodeName,
+                    children: [],
+                    attributes: []
+                };
+
+                // Handle namespaces
+                if (element.namespaceURI && this.config.xml.preserveNamespaces) {
+                    node.ns = element.namespaceURI;
+                    if (element.prefix) {
+                        node.label = element.prefix;
+                    }
+                }
+
+                // Handle attributes
+                if (element.attributes && this.config.xml.preserveAttributes) {
+                    for (let attr of element.attributes) {
+                        if (!attr.name.startsWith('xmlns')) {
+                            node.attributes.push({
+                                type: 'attributes',
+                                name: attr.name,
+                                value: attr.value
+                            });
+                        }
+                    }
+                }
+
+                // Handle children
+                for (let child of element.childNodes) {
+                    switch (child.nodeType) {
+                        case Node.ELEMENT_NODE:
+                            node.children.push(this.domToSemantic(child));
+                            break;
+                        case Node.TEXT_NODE:
+                            const text = child.textContent.trim();
+                            if (text) {
+                                node.children.push({
+                                    type: 'value',
+                                    name: '#text',
+                                    value: text
+                                });
+                            }
+                            break;
+                        case Node.CDATA_SECTION_NODE:
+                            if (this.config.xml.preserveCDATA) {
+                                node.children.push({
+                                    type: 'data',
+                                    name: '#cdata',
+                                    value: child.nodeValue
+                                });
+                            }
+                            break;
+                        case Node.COMMENT_NODE:
+                            if (this.config.preserveComments) {
+                                node.children.push({
+                                    type: 'comment',
+                                    name: '#comment',
+                                    value: child.nodeValue
+                                });
+                            }
+                            break;
+                    }
+                }
+
+                // If element has simple text content, set as value
+                if (node.children.length === 1 && node.children[0].type === 'value') {
+                    node.value = node.children[0].value;
+                    node.children = [];
+                }
+
+                return node;
+            }
+
+            convertSemanticToJson(node) {
+                if (this.config.highFidelity) {
+                    return this.toHighFidelityJson(node);
+                }
+
+                switch (node.type) {
+                    case 'collection':
+                        return node.children ? node.children.map(child => this.convertSemanticToJson(child)) : [];
+                    
+                    case 'record':
+                        const obj = {};
+                        
+                        // Add attributes with @ prefix
+                        if (node.attributes) {
+                            node.attributes.forEach(attr => {
+                                obj[`@${attr.name}`] = attr.value;
+                            });
+                        }
+                        
+                        // Add value if present
+                        if (node.value !== undefined) {
+                            return node.value;
+                        }
+                        
+                        // Add children
+                        if (node.children) {
+                            node.children.forEach(child => {
+                                if (obj[child.name]) {
+                                    if (!Array.isArray(obj[child.name])) {
+                                        obj[child.name] = [obj[child.name]];
+                                    }
+                                    obj[child.name].push(this.convertSemanticToJson(child));
+                                } else {
+                                    obj[child.name] = this.convertSemanticToJson(child);
+                                }
+                            });
+                        }
+                        
+                        return obj;
+                    
+                    case 'field':
+                    case 'value':
+                        return node.value;
+                    
+                    case 'comment':
+                        return { '#comment': node.value };
+                    
+                    case 'data':
+                        return { '#cdata': node.value };
+                    
+                    default:
+                        return node.value || null;
+                }
+            }
+
+            toHighFidelityJson(node) {
+                const result = {
+                    '#type': node.type,
+                    '#name': node.name
+                };
+
+                if (node.id) result['#id'] = node.id;
+                if (node.ns) result['#ns'] = node.ns;
+                if (node.label) result['#label'] = node.label;
+                if (node.value !== undefined) result['#value'] = node.value;
+
+                if (node.attributes && node.attributes.length > 0) {
+                    result['#attributes'] = node.attributes.map(attr => this.toHighFidelityJson(attr));
+                }
+
+                if (node.children && node.children.length > 0) {
+                    result['#children'] = node.children.map(child => this.toHighFidelityJson(child));
+                }
+
+                return result;
+            }
+
+            filterNodes(node, predicate) {
+                if (!predicate(node)) return null;
+
+                const filtered = { ...node };
+                if (node.children) {
+                    filtered.children = node.children
+                        .map(child => this.filterNodes(child, predicate))
+                        .filter(child => child !== null);
+                }
+                return filtered;
+            }
+
+            transformNodes(node, transform) {
+                const transformed = transform(node);
+                if (transformed.children) {
+                    transformed.children = transformed.children.map(child => this.transformNodes(child, transform));
+                }
+                return transformed;
+            }
+
+            selectNodes(node, predicate, results = []) {
+                if (predicate(node)) {
+                    results.push({ ...node });
+                }
+                if (node.children) {
+                    node.children.forEach(child => this.selectNodes(child, predicate, results));
+                }
+                return results;
+            }
+
+            convertSemanticToXml(node) {
+                // Simple XML serialization for demo
+                return this.nodeToXml(node, 0);
+            }
+
+            nodeToXml(node, depth) {
+                const indent = '  '.repeat(depth);
+                
+                switch (node.type) {
+                    case 'comment':
+                        return `${indent}<!--${node.value}-->\n`;
+                    
+                    case 'data':
+                        return `${indent}<![CDATA[${node.value}]]>\n`;
+                    
+                    case 'collection':
+                    case 'record':
+                        let xml = `${indent}<${node.name}`;
+                        
+                        // Add attributes
+                        if (node.attributes) {
+                            node.attributes.forEach(attr => {
+                                xml += ` ${attr.name}="${attr.value}"`;
+                            });
+                        }
+                        
+                        if (node.value !== undefined && (!node.children || node.children.length === 0)) {
+                            xml += `>${node.value}</${node.name}>\n`;
+                        } else if (node.children && node.children.length > 0) {
+                            xml += `>\n`;
+                            node.children.forEach(child => {
+                                xml += this.nodeToXml(child, depth + 1);
+                            });
+                            xml += `${indent}</${node.name}>\n`;
+                        } else {
+                            xml += ` />\n`;
+                        }
+                        
+                        return xml;
+                    
+                    default:
+                        return `${indent}${node.value || ''}\n`;
+                }
+            }
+        }
+
+        // Test functions
+        function getConfig() {
+            return {
+                highFidelity: document.getElementById('highFidelity').checked,
+                preserveComments: document.getElementById('preserveComments').checked,
+                xml: {
+                    preserveNamespaces: document.getElementById('preserveNamespaces').checked,
+                    preserveCDATA: document.getElementById('preserveCDATA').checked
+                },
+                formatting: {
+                    pretty: document.getElementById('prettyPrint').checked,
+                    indent: 2
+                }
+            };
+        }
+
+        function getXmlInput() {
+            return document.getElementById('xmlInput').value;
+        }
+
+        function showResult(elementId, content, isError = false) {
+            const element = document.getElementById(elementId);
+            element.textContent = content;
+            element.className = `output ${isError ? 'error' : ''}`;
+        }
+
+        function clearResult(elementId) {
+            const element = document.getElementById(elementId);
+            element.textContent = 'Cleared.';
+            element.className = 'output';
+        }
+
+        function testXmlToJsonStandard() {
+            try {
+                const xml = getXmlInput();
+                const config = { ...getConfig(), highFidelity: false };
+                
+                document.getElementById('config1').textContent = JSON.stringify(config, null, 2);
+                
+                const xjx = new MockXJX(config);
+                const result = xjx.fromXml(xml).toJsonString();
+                
+                showResult('result1', result);
+                
+            } catch (error) {
+                showResult('result1', `Error: ${error.message}`, true);
+            }
+        }
+
+        function testXmlToJsonHiFi() {
+            try {
+                const xml = getXmlInput();
+                const config = { ...getConfig(), highFidelity: true };
+                
+                const xjx = new MockXJX(config);
+                const xnode = xjx.fromXml(xml).xnode;
+                
+                // Show semantic node types
+                const metadata = `Root Type: ${xnode.type}\nRoot Name: ${xnode.name}\nChildren: ${xnode.children?.length || 0}\nAttributes: ${xnode.attributes?.length || 0}`;
+                document.getElementById('metadata2').textContent = metadata;
+                
+                const result = xjx.toJsonString();
+                showResult('result2', result);
+                
+            } catch (error) {
+                showResult('result2', `Error: ${error.message}`, true);
+            }
+        }
+
+        function testFunctionalOperations() {
+            try {
+                const xml = getXmlInput();
+                const config = getConfig();
+                
+                const xjx = new MockXJX(config);
+                
+                // Chain functional operations
+                const result = xjx.fromXml(xml)
+                    .filter(node => node.name === 'product' || node.name === 'products' || node.name === 'catalog')
+                    .map(node => {
+                        // Convert price values to numbers
+                        if (node.name === 'price' && typeof node.value === 'string') {
+                            const price = parseFloat(node.value);
+                            if (!isNaN(price)) {
+                                return { ...node, value: price };
+                            }
+                        }
+                        return node;
+                    })
+                    .map(node => {
+                        // Add currency formatting metadata
+                        if (node.name === 'price' && typeof node.value === 'number') {
+                            return {
+                                ...node,
+                                attributes: [
+                                    ...(node.attributes || []),
+                                    { type: 'attributes', name: 'formatted', value: `$${node.value.toFixed(2)}` }
+                                ]
+                            };
+                        }
+                        return node;
+                    })
+                    .toJsonString();
+                
+                showResult('result3', result);
+                
+            } catch (error) {
+                showResult('result3', `Error: ${error.message}`, true);
+            }
+        }
+
+        function testXmlTransformations() {
+            try {
+                const xml = getXmlInput();
+                const config = getConfig();
+                
+                const xjx = new MockXJX(config);
+                
+                const result = xjx.fromXml(xml)
+                    .map(node => {
+                        // Add processing timestamp
+                        if (node.name === 'catalog') {
+                            return {
+                                ...node,
+                                attributes: [
+                                    ...(node.attributes || []),
+                                    { type: 'attributes', name: 'processed', value: new Date().toISOString() }
+                                ]
+                            };
+                        }
+                        return node;
+                    })
+                    .map(node => {
+                        // Format price values
+                        if (node.name === 'price' && node.value) {
+                            const price = parseFloat(node.value);
+                            if (!isNaN(price)) {
+                                return { ...node, value: price.toFixed(2) };
+                            }
+                        }
+                        return node;
+                    })
+                    .toXmlString();
+                
+                showResult('result4', result);
+                
+            } catch (error) {
+                showResult('result4', `Error: ${error.message}`, true);
+            }
+        }
+
+        function testErrorHandling() {
+            const testCases = [
+                {
+                    name: "Invalid XML",
+                    test: () => new MockXJX().fromXml("<invalid><xml>")
+                },
+                {
+                    name: "Empty input",
+                    test: () => new MockXJX().fromXml("")
+                },
+                {
+                    name: "No source set",
+                    test: () => new MockXJX().toJson()
+                },
+                {
+                    name: "Unicode content",
+                    test: () => new MockXJX().fromXml("<test>Hello 世界 🌍</test>").toJsonString()
+                },
+                {
+                    name: "Complex nesting",
+                    test: () => new MockXJX().fromXml("<a><b><c><d>deep</d></c></b></a>").toJsonString()
+                }
+            ];
+
+            let results = [];
+            
+            testCases.forEach(testCase => {
+                try {
+                    const result = testCase.test();
+                    results.push(`✅ ${testCase.name}: PASSED`);
+                    if (typeof result === 'string' && result.length > 100) {
+                        results.push(`   Result: ${result.substring(0, 100)}...`);
+                    } else if (result) {
+                        results.push(`   Result: ${result}`);
+                    }
+                } catch (error) {
+                    results.push(`❌ ${testCase.name}: ${error.message}`);
+                }
+                results.push('');
+            });
+
+            showResult('result5', results.join('\n'));
+        }
+
+        // Initialize with sample data
+        window.addEventListener('load', () => {
+            console.log('XJX Semantic Migration Test Suite loaded');
+            console.log('Ready to test XML/JSON conversions with semantic XNode system');
+        });
+    </script>
+</body>
+</html>

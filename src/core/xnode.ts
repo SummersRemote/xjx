@@ -218,9 +218,9 @@ export function getTextContent(node: XNode): string {
     return node.value?.toString() || '';
   }
   
-  // If node has a direct value, return it
+  // If node has a direct value, return it (handle null safely)
   if (node.value !== undefined && !node.children) {
-    return node.value.toString();
+    return node.value !== null ? node.value.toString() : '';
   }
   
   // If node has children, combine their text content

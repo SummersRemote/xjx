@@ -1,5 +1,6 @@
 /**
- * JSON utilities for XJX library - Simplified and consolidated
+ * JSON utilities for XJX library - Semantic configuration approach
+ * Legacy 'properties' references removed, uses format-specific configuration
  */
 import { LoggerFactory } from "./logger";
 const logger = LoggerFactory.create();
@@ -9,7 +10,7 @@ import { JsonValue, JsonObject, JsonArray } from './converter';
 
 /**
  * Check if a JSON value represents an empty element
- * Simplified logic with clearer conditions
+ * Updated for semantic configuration without legacy properties
  */
 export function isEmptyElement(value: JsonValue, config: Configuration): boolean {
   // Null, undefined, or empty string are empty
@@ -31,27 +32,23 @@ export function isEmptyElement(value: JsonValue, config: Configuration): boolean
       return true;
     }
 
-    const { properties } = config;
-
-    // Check high-fidelity format properties
-    if (obj[properties.value] !== undefined) {
-      return isEmptyElement(obj[properties.value], config);
+    // Check high-fidelity format properties (semantic approach)
+    if (obj['#value'] !== undefined) {
+      return isEmptyElement(obj['#value'], config);
     }
 
-    if (obj[properties.children] !== undefined) {
-      const children = obj[properties.children];
+    if (obj['#children'] !== undefined) {
+      const children = obj['#children'];
       return Array.isArray(children) 
         ? children.length === 0 || children.every(child => isEmptyElement(child, config))
         : isEmptyElement(children, config);
     }
 
-    // Check standard format - filter out metadata properties
+    // Check standard format - filter out metadata properties (semantic metadata)
     const contentKeys = keys.filter(key => 
-      !key.startsWith('$') && 
-      !key.startsWith('_') && 
-      key !== properties.attribute &&
-      key !== properties.namespace &&
-      key !== properties.prefix &&
+      !key.startsWith('#') &&      // Semantic metadata
+      !key.startsWith('@') &&      // XML attributes
+      !key.startsWith('_') &&      // Internal properties
       key !== 'namespaceDeclarations' &&
       key !== 'isDefaultNamespace' &&
       key !== 'metadata'
@@ -66,7 +63,7 @@ export function isEmptyElement(value: JsonValue, config: Configuration): boolean
 }
 
 /**
- * Remove empty elements from JSON structure - Simplified recursive approach
+ * Remove empty elements from JSON structure - Semantic metadata aware
  */
 export function removeEmptyElements(value: JsonValue, config: Configuration): JsonValue | undefined {
   if (value === null || value === undefined) {
@@ -98,12 +95,10 @@ export function removeEmptyElements(value: JsonValue, config: Configuration): Js
       return undefined;
     }
 
-    // Check if object only has metadata but no content
-    const { properties } = config;
+    // Check if object only has semantic metadata but no content
     const contentKeys = Object.keys(processedObj).filter(key => 
-      key !== properties.attribute &&
-      key !== properties.namespace &&
-      key !== properties.prefix &&
+      !key.startsWith('#') &&      // Semantic metadata
+      !key.startsWith('@') &&      // XML attributes  
       key !== 'namespaceDeclarations' &&
       key !== 'isDefaultNamespace' &&
       key !== 'metadata'
@@ -112,11 +107,12 @@ export function removeEmptyElements(value: JsonValue, config: Configuration): Js
     // If no content keys but has metadata, keep it (represents empty element with attributes)
     if (contentKeys.length === 0) {
       const hasMetadata = 
-        processedObj[properties.attribute] !== undefined ||
-        processedObj[properties.namespace] !== undefined ||
-        processedObj[properties.prefix] !== undefined ||
-        processedObj.namespaceDeclarations !== undefined ||
-        processedObj.metadata !== undefined;
+        Object.keys(processedObj).some(key => 
+          key.startsWith('#') ||    // Semantic metadata
+          key.startsWith('@') ||    // XML attributes
+          key === 'namespaceDeclarations' ||
+          key === 'metadata'
+        );
       
       return hasMetadata ? processedObj : undefined;
     }
@@ -130,4 +126,49 @@ export function removeEmptyElements(value: JsonValue, config: Configuration): Js
   }
 
   return value;
+}
+
+/**
+ * Semantic metadata detection utilities
+ */
+
+/**
+ * Check if object is in high-fidelity semantic format
+ */
+export function isHighFidelityJson(obj: JsonObject): boolean {
+  return typeof obj['#type'] === 'string' && 
+         typeof obj['#name'] === 'string';
+}
+
+/**
+ * Check if property represents semantic metadata
+ */
+export function isSemanticMetadata(key: string): boolean {
+  return key.startsWith('#') ||           // Semantic properties
+         key.startsWith('@') ||           // XML attributes
+         key === 'namespaceDeclarations' ||
+         key === 'isDefaultNamespace' ||
+         key === 'metadata';
+}
+
+/**
+ * Get content properties from object (excluding semantic metadata)
+ */
+export function getContentProperties(obj: JsonObject): string[] {
+  return Object.keys(obj).filter(key => !isSemanticMetadata(key));
+}
+
+/**
+ * Get semantic metadata properties from object
+ */
+export function getSemanticMetadata(obj: JsonObject): JsonObject {
+  const metadata: JsonObject = {};
+  
+  Object.keys(obj).forEach(key => {
+    if (isSemanticMetadata(key)) {
+      metadata[key] = obj[key];
+    }
+  });
+  
+  return metadata;
 }

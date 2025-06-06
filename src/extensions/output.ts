@@ -10,11 +10,11 @@ import { XNode } from "../core/xnode";
 import { 
   xnodeToXmlConverter,
   xnodeToXmlStringConverter 
-} from "../converters/semantic-to-xml-converter";
+} from "../converters/xnode-to-xml-converter";
 import { 
   xnodeToJsonConverter,
   xnodeToJsonHiFiConverter 
-} from "../converters/semantic-to-json-converter";
+} from "../converters/xnode-to-json-converter";
 import { OutputHooks } from "../core/hooks";
 import { TerminalExtensionContext } from "../core/extension";
 import { ClonePolicies } from "../core/context";

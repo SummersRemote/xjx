@@ -1,12 +1,19 @@
 /**
- * Core functional API implementation - Updated for unified pipeline execution
- * CRITICAL: All legacy transform handling REMOVED
+ * Core functional API implementation - Updated for semantic XNode system
+ * CRITICAL: All DOM-based logic replaced with semantic type handling
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
 
 import { XJX } from "../XJX";
-import { XNode, addChild } from "../core/xnode";
+import { 
+  XNode, 
+  XNodeType, 
+  createCollection, 
+  addChild, 
+  isContainer,
+  getChildrenByType 
+} from "../core/xnode";
 import {
   NonTerminalExtensionContext,
   TerminalExtensionContext,
@@ -29,7 +36,7 @@ import { PipelineStage } from "../core/pipeline";
 
 /**
  * Return a new document with only nodes that match the predicate
- * NEW: Uses unified pipeline execution
+ * Updated for semantic XNode types
  */
 export function filter(
   this: NonTerminalExtensionContext,
@@ -43,11 +50,11 @@ export function filter(
     );
     this.validateSource();
 
-    logger.debug("Filtering document nodes using unified pipeline");
+    logger.debug("Filtering semantic XNode document using unified pipeline");
 
-    // Create pipeline stage for filter operation
+    // Create pipeline stage for semantic filter operation
     const filterStage: PipelineStage<XNode, XNode> = {
-      name: 'filter',
+      name: 'semantic-filter',
       
       execute: (node, context) => {
         const visitor: TreeVisitor<XNode | null> = {
@@ -55,7 +62,7 @@ export function filter(
             try {
               return predicate(node) ? context.cloneNode(node, ClonePolicies.TRANSFORM) : null;
             } catch (err) {
-              logger.warn(`Error in predicate for node '${node.name}':`, err);
+              logger.warn(`Error in predicate for semantic node '${node.name}' (${node.type}):`, err);
               return null;
             }
           },
@@ -93,8 +100,9 @@ export function filter(
     // Execute using unified pipeline
     this.executeTransform(filterStage, hooks);
 
-    logger.debug("Successfully filtered document using pipeline", {
+    logger.debug("Successfully filtered semantic document using pipeline", {
       rootName: this.xnode?.name,
+      rootType: this.xnode?.type
     });
   } catch (err) {
     if (err instanceof Error) {
@@ -106,7 +114,7 @@ export function filter(
 
 /**
  * Apply a transformation to every node in the document
- * NEW: Uses unified pipeline execution, transform is primary parameter
+ * Updated for semantic XNode types with type preservation
  */
 export function map(
   this: NonTerminalExtensionContext,
@@ -120,24 +128,33 @@ export function map(
     );
     this.validateSource();
 
-    logger.debug("Mapping document nodes using unified pipeline", {
+    logger.debug("Mapping semantic XNode document using unified pipeline", {
       hasNodeHooks: !!(
         hooks &&
         (hooks.beforeTransform || hooks.afterTransform)
       ),
     });
 
-    // Create pipeline stage for map operation
+    // Create pipeline stage for semantic map operation
     const mapStage: PipelineStage<XNode, XNode> = {
-      name: 'map',
+      name: 'semantic-map',
       
       execute: (node, context) => {
         const visitor: TreeVisitor<XNode> = {
           visit: (node, ctx) => {
             try {
-              return transform(node);
+              const transformed = transform(node);
+              
+              // Validate that transform returns a semantic XNode
+              if (!transformed || typeof transformed.name !== 'string' || 
+                  !Object.values(XNodeType).includes(transformed.type)) {
+                logger.warn(`Transform returned invalid semantic node for '${node.name}', using original`);
+                return node;
+              }
+              
+              return transformed;
             } catch (err) {
-              logger.warn(`Error in transform for node '${node.name}':`, err);
+              logger.warn(`Error in transform for semantic node '${node.name}' (${node.type}):`, err);
               return node; // Return original on error
             }
           },
@@ -163,8 +180,9 @@ export function map(
     // Execute using unified pipeline
     this.executeTransform(mapStage, hooks);
 
-    logger.debug("Successfully transformed document using pipeline", {
+    logger.debug("Successfully transformed semantic document using pipeline", {
       rootName: this.xnode?.name,
+      rootType: this.xnode?.type
     });
   } catch (err) {
     if (err instanceof Error) {
@@ -176,7 +194,7 @@ export function map(
 
 /**
  * Accumulate a value by processing every node in the document
- * NEW: Uses unified traversal system
+ * Updated for semantic XNode traversal
  */
 export function reduce<T>(
   this: TerminalExtensionContext,
@@ -187,7 +205,7 @@ export function reduce<T>(
     this.pipeline.validateInput(typeof reducer === "function", "Reducer must be a function");
     this.validateSource();
 
-    logger.debug("Reducing document nodes using unified traversal");
+    logger.debug("Reducing semantic XNode document using unified traversal");
 
     const rootNode = this.xnode as XNode;
     let accumulator = initialValue;
@@ -197,7 +215,7 @@ export function reduce<T>(
         try {
           accumulator = reducer(accumulator, node);
         } catch (err) {
-          logger.warn(`Error in reducer for node '${node.name}':`, err);
+          logger.warn(`Error in reducer for semantic node '${node.name}' (${node.type}):`, err);
         }
       }
     };
@@ -207,7 +225,7 @@ export function reduce<T>(
       context: this.pipeline
     });
 
-    logger.debug("Successfully reduced document");
+    logger.debug("Successfully reduced semantic document");
     return accumulator;
   } catch (err) {
     if (err instanceof Error) {
@@ -219,7 +237,7 @@ export function reduce<T>(
 
 /**
  * Collect nodes that match a predicate without maintaining hierarchy
- * NEW: Uses unified traversal system
+ * Updated for semantic XNode types
  */
 export function select(
   this: NonTerminalExtensionContext,
@@ -232,7 +250,7 @@ export function select(
     );
     this.validateSource();
 
-    logger.debug("Selecting document nodes using unified traversal");
+    logger.debug("Selecting semantic XNode document nodes using unified traversal");
 
     const rootNode = this.xnode as XNode;
     const selectedNodes: XNode[] = [];
@@ -245,7 +263,7 @@ export function select(
             selectedNodes.push(clonedNode);
           }
         } catch (err) {
-          logger.warn(`Error in predicate for node '${node.name}':`, err);
+          logger.warn(`Error in predicate for semantic node '${node.name}' (${node.type}):`, err);
         }
       }
     };
@@ -265,7 +283,7 @@ export function select(
 
     this.xnode = resultsContainer;
 
-    logger.debug("Successfully selected nodes using unified traversal", {
+    logger.debug("Successfully selected semantic nodes using unified traversal", {
       count: selectedNodes.length,
     });
   } catch (err) {
@@ -278,7 +296,7 @@ export function select(
 
 /**
  * Create an isolated scope containing nodes matching the predicate
- * NEW: Uses unified traversal and standardized cloning
+ * Updated for semantic XNode types and standardized cloning
  */
 export function branch(
   this: NonTerminalExtensionContext,
@@ -291,7 +309,7 @@ export function branch(
     );
     this.validateSource();
 
-    logger.debug("Creating branch scope using unified traversal");
+    logger.debug("Creating branch scope using semantic XNode unified traversal");
 
     const rootNode = this.xnode as XNode;
 
@@ -334,7 +352,7 @@ export function branch(
       this.xnode = resultsContainer;
     }
 
-    logger.debug("Successfully created branch using unified traversal", {
+    logger.debug("Successfully created semantic branch using unified traversal", {
       branchedNodeCount: branchInfo.nodes?.length || 0,
     });
   } catch (err) {
@@ -347,7 +365,7 @@ export function branch(
 
 /**
  * Merge the current branch back into the parent scope
- * NEW: Uses standardized cloning
+ * Updated for semantic XNode types
  */
 export function merge(this: NonTerminalExtensionContext): void {
   try {
@@ -357,7 +375,7 @@ export function merge(this: NonTerminalExtensionContext): void {
       return;
     }
 
-    logger.debug("Merging branch back to parent scope using standardized cloning");
+    logger.debug("Merging semantic branch back to parent scope using standardized cloning");
 
     const { parentNodes, nodePaths } = this.branchContext;
     const parentNode = parentNodes[0];
@@ -394,7 +412,7 @@ export function merge(this: NonTerminalExtensionContext): void {
     this.branchContext = null;
     this.xnode = mergedParent;
 
-    logger.debug("Successfully merged branch using standardized operations", {
+    logger.debug("Successfully merged semantic branch using standardized operations", {
       replacementNodeCount: currentBranchNodes.length,
       originalNodeCount: nodePaths.length,
     });

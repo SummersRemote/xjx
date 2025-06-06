@@ -1,7 +1,7 @@
 /**
  * Regex node transform - Apply regular expression replacements to string node values and/or attributes
  */
-import { XNode } from '../core/xnode';
+import { XNode, XNodeType, createAttributes } from '../core/xnode';
 import { Transform } from "../core/functional";
 
 /**
@@ -12,7 +12,6 @@ import { Transform } from "../core/functional";
  * @returns Object with the parsed regex and flags if it's a regex pattern, null otherwise
  */
 function parseRegexPattern(pattern: string): { source: string, flags: string } | null {
-  // Match /pattern/flags format
   const match = pattern.match(/^\/(.+)\/([gimuy]*)$/);
   if (match) {
     return {
@@ -67,17 +66,12 @@ export function regex(
   let re: RegExp;
   
   if (pattern instanceof RegExp) {
-    // Use the RegExp object as is
     re = pattern;
   } else if (typeof pattern === 'string') {
-    // Check if the string is in /pattern/flags format
     const parsed = parseRegexPattern(pattern);
     if (parsed) {
-      // Create RegExp from parsed pattern and flags
       re = new RegExp(parsed.source, parsed.flags);
     } else {
-      // Simple text pattern - make it global and case-sensitive
-      // Escape special regex characters
       const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       re = new RegExp(escaped, 'g');
     }
@@ -93,15 +87,18 @@ export function regex(
       result.value = node.value.replace(re, replacement);
     }
 
-    // Transform attributes if enabled
+    // Transform attributes if enabled (semantic approach)
     if (transformAttr && node.attributes) {
-      const transformedAttributes: Record<string, any> = {};
+      const transformedAttributes: XNode[] = [];
       
-      for (const [key, value] of Object.entries(node.attributes)) {
-        if (typeof value === 'string') {
-          transformedAttributes[key] = value.replace(re, replacement);
+      for (const attr of node.attributes) {
+        if (attr.type === XNodeType.ATTRIBUTES && typeof attr.value === 'string') {
+          transformedAttributes.push({
+            ...attr,
+            value: attr.value.replace(re, replacement)
+          });
         } else {
-          transformedAttributes[key] = value;
+          transformedAttributes.push(attr);
         }
       }
       
@@ -111,3 +108,5 @@ export function regex(
     return result;
   };
 }
+
+

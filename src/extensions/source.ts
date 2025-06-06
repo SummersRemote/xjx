@@ -7,8 +7,8 @@ const logger = LoggerFactory.create();
 
 import { XJX } from "../XJX";
 import { XNode, XNodeType, createCollection, addChild } from "../core/xnode";
-import { xmlToXNodeConverter } from "../converters/xml-semantic-converter";
-import { jsonToXNodeConverter } from "../converters/json-semantic-converter";
+import { xmlToXNodeConverter } from "../converters/xml-to-xnode-converter";
+import { jsonToXNodeConverter } from "../converters/json-to-xnode-converter";
 import { NonTerminalExtensionContext } from "../core/extension";
 import { SourceHooks } from "../core/hooks";
 import { ClonePolicies } from "../core/context";

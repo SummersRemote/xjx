@@ -1,20 +1,13 @@
 /**
- * XJX Library - XML/JSON transformation with fluent API and minimal transform system
+ * XJX Library - XML/JSON transformation with fluent API and semantic XNode system
  */
 
 // IMPORTANT: Register all extensions by importing their files
 // These imports MUST be kept as they register methods on the XJX prototype
-// import "./extensions/from-xml";
-// import "./extensions/from-json";
-// import "./extensions/to-xml";
-// import "./extensions/to-json";
-import "./extensions/config-extensions";
-// import "./extensions/to-xnode";
-// import "./extensions/from-xnode";
-import "./extensions/functional-api";
-
 import "./extensions/source";
 import "./extensions/output";
+import "./extensions/config-extensions";
+import "./extensions/functional-api";
 
 // Export the main class (for instantiation)
 export { XJX } from "./XJX";
@@ -24,18 +17,74 @@ export { default } from "./XJX";
 export {
   // Configuration
   Configuration,
+  BaseConfiguration,
+  XmlConfiguration,
+  JsonConfiguration,
+  ConfigurationHelper,
+  getDefaultConfig,
+  mergeConfig,
+  createConfig,
+  validateConfig
 } from "./core/config";
+
+export {
+  // Semantic XNode model
+  XNode,
+  XNodeType,
+  Primitive,
+  createCollection,
+  createRecord,
+  createField,
+  createValue,
+  createAttributes,
+  createComment,
+  createInstruction,
+  createData,
+  addChild,
+  addAttribute,
+  cloneNode,
+  getTextContent,
+  setTextContent,
+  getAttribute,
+  getAttributeValue,
+  hasAttributes,
+  hasChildren,
+  getNodeTypeName,
+  isCollection,
+  isRecord,
+  isField,
+  isValue,
+  isAttribute,
+  isComment,
+  isInstruction,
+  isData,
+  isPrimitive,
+  isContainer,
+  getChildrenByType,
+  getChildrenByName,
+  getChild
+} from "./core/xnode";
 
 export {
   // Minimal transform system
   Transform,
   compose,
+  createResultsContainer,
+  collectNodesWithPaths,
+  replaceNodeAtPath,
+  removeNodeAtPath,
+  getNodeAtPath,
+  traverseTree,
+  TreeVisitor,
+  TraversalContext,
+  TraversalOptions
 } from "./core/functional";
 
 // Export logging
 export { 
   LoggerFactory, 
-  LogLevel 
+  LogLevel,
+  Logger
 } from "./core/logger";
 
 // Export error handling
@@ -44,10 +93,8 @@ export {
   ProcessingError,
   XJXError,
   validate,
+  handleError
 } from "./core/error";
-
-// Export model interfaces
-export { XNode } from "./core/xnode";
 
 // Export extension context interfaces
 export {
@@ -92,6 +139,19 @@ export {
   PipelineHooks
 } from './core/hooks';
 
+// Export semantic converters
+export {
+  xmlToXNodeConverter,
+  xnodeToXmlConverter,
+  xnodeToXmlStringConverter,
+  jsonToXNodeConverter,
+  xnodeToJsonConverter,
+  xnodeToJsonHiFiConverter,
+  validateJsonForSemantic,
+  filterEmptyValues,
+  getSemanticTypeForJsonValue
+} from "./converters";
+
 // Export transform functions and creators
 export {
   // Transform Factories
@@ -124,20 +184,29 @@ export {
   addNamespaceDeclarations
 } from "./core/xml-utils";
 
+// Export DOM utilities
+export {
+  DOM,
+  NodeType
+} from "./core/dom";
+
+// Export common utilities
+export {
+  deepClone,
+  deepMerge,
+  isEmpty,
+  getPath,
+  setPath
+} from "./core/common";
+
 // Manual registration verification - this function does nothing at runtime
 // but ensures that tree-shaking doesn't remove our extension imports
 function ensureExtensionsRegistered() {
   return [
-    // "./extensions/from-xml",
-    // "./extensions/from-json",
-    // "./extensions/to-xml",
-    // "./extensions/to-json",
-    "./extensions/config-extensions",
-    // "./extensions/to-xnode",
-    // "./extensions/from-xnode",
-    "./extensions/functional-api",
     "./extensions/source",
-    "./extensions/output"
+    "./extensions/output",
+    "./extensions/config-extensions",
+    "./extensions/functional-api"
   ];
 }
 

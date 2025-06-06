@@ -1,10 +1,11 @@
 /**
- * Core converter interfaces and shared utilities - TransformHooks Removed
+ * Core converter interfaces and shared utilities - Pure semantic approach
+ * All legacy DOM references removed
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
 
-import { Configuration } from './config';
+import { Configuration, ConfigurationHelper } from './config';
 import { XNode } from './xnode';
 import { SourceHooks, OutputHooks, NodeHooks } from "./hooks";
 
@@ -141,7 +142,7 @@ export function applyNodeHooks(
 }
 
 /**
- * Parse element name with optional prefix
+ * Parse element name with optional prefix (semantic approach)
  */
 export function parseElementName(
   name: string, 
@@ -191,13 +192,15 @@ export function getAttributeName(
 }
 
 /**
- * Process attributes consistently across converters
+ * Process attributes for semantic XNode using XML configuration
  */
 export function processAttributes(
   element: Element,
-  config: Configuration
+  config: ConfigurationHelper
 ): Record<string, any> | undefined {
-  if (!element.attributes || element.attributes.length === 0 || !config.preserveAttributes) {
+  const xmlConfig = config.getXmlConfig();
+  
+  if (!element.attributes || element.attributes.length === 0 || !xmlConfig.preserveAttributes) {
     return undefined;
   }
 
@@ -208,7 +211,7 @@ export function processAttributes(
 
     if (attr.name === "xmlns" || attr.name.startsWith("xmlns:")) continue;
 
-    const attrName = getAttributeName(attr.name, config.preservePrefixedNames);
+    const attrName = getAttributeName(attr.name, xmlConfig.preservePrefixedNames);
     attributes[attrName] = attr.value;
   }
 
@@ -249,16 +252,17 @@ export function processNamespaceDeclarations(
 }
 
 /**
- * Process attribute object from JSON
+ * Process attribute object from JSON using semantic configuration
  */
 export function processAttributeObject(
   attrs: JsonObject,
-  config: Configuration
+  config: ConfigurationHelper
 ): Record<string, any> {
   const result: Record<string, any> = {};
+  const xmlConfig = config.getXmlConfig();
 
   Object.entries(attrs).forEach(([key, value]) => {
-    const finalAttrName = getAttributeName(key, config.preservePrefixedNames);
+    const finalAttrName = getAttributeName(key, xmlConfig.preservePrefixedNames);
     result[finalAttrName] = value;
   });
 

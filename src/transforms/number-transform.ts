@@ -1,7 +1,7 @@
 /**
  * Number node transform - Converts string node values and/or attributes to numbers
  */
-import { XNode } from '../core/xnode';
+import { XNode, XNodeType, createAttributes } from '../core/xnode';
 import { Transform } from "../core/functional";
 
 /**
@@ -105,13 +105,24 @@ export function toNumber(options: NumberTransformOptions = {}): Transform {
       }
     }
 
-    // Transform attributes if enabled
+    // Transform attributes if enabled (semantic approach)
     if (transformAttr && node.attributes) {
-      const transformedAttributes: Record<string, any> = {};
+      const transformedAttributes: XNode[] = [];
       
-      for (const [key, value] of Object.entries(node.attributes)) {
-        const transformedValue = transformNumberValue(value, parseOptions);
-        transformedAttributes[key] = transformedValue !== null ? transformedValue : value;
+      for (const attr of node.attributes) {
+        if (attr.type === XNodeType.ATTRIBUTES) {
+          const transformedValue = transformNumberValue(attr.value, parseOptions);
+          if (transformedValue !== null) {
+            transformedAttributes.push({
+              ...attr,
+              value: transformedValue
+            });
+          } else {
+            transformedAttributes.push(attr);
+          }
+        } else {
+          transformedAttributes.push(attr);
+        }
       }
       
       result.attributes = transformedAttributes;

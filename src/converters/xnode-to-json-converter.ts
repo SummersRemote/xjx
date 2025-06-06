@@ -93,36 +93,36 @@ function convertSemanticNodeToJson(node: XNode, context: JsonOutputContext): Jso
       return convertPrimitiveToJsonValue(node, childContext);
       
     case XNodeType.ATTRIBUTES:
-      // Attributes return their value (handled by parent record)
-      return node.value;
+      // Attributes return their value (handled by parent record), convert undefined to null
+      return node.value !== undefined ? node.value : null;
       
     case XNodeType.COMMENT:
       // Comments can be preserved as special objects or ignored
       if (context.config.shouldPreserveComments()) {
-        return { "#comment": node.value };
+        return { "#comment": node.value !== undefined ? node.value : null };
       }
       return null;
       
     case XNodeType.INSTRUCTION:
       // Instructions as special objects
       if (context.config.shouldPreserveInstructions()) {
-        return { [`#${node.name}`]: node.value };
+        return { [`#${node.name}`]: node.value !== undefined ? node.value : null };
       }
       return null;
       
     case XNodeType.DATA:
       // Raw data (like CDATA) as special objects or direct values
       if (context.preserveSemanticInfo) {
-        return { [`#${node.name}`]: node.value };
+        return { [`#${node.name}`]: node.value !== undefined ? node.value : null };
       }
-      return node.value;
+      return node.value !== undefined ? node.value : null;
       
     default:
       logger.warn('Unknown semantic node type in JSON conversion', {
         nodeType: node.type,
         nodeName: node.name
       });
-      return node.value || null;
+      return node.value !== undefined ? node.value : null;
   }
 }
 
@@ -155,9 +155,22 @@ function convertCollectionToJsonArray(node: XNode, context: JsonOutputContext): 
 }
 
 /**
+ * Convert primitive node (FIELD/VALUE) to JSON value
+ */
+function convertPrimitiveToJsonValue(node: XNode, context: JsonOutputContext): JsonValue {
+  // If node has children, it's a complex field - convert to object
+  if (node.children && node.children.length > 0) {
+    return convertRecordToJsonObject(node, context);
+  }
+  
+  // Return primitive value, converting undefined to null
+  return node.value !== undefined ? node.value : null;
+}
+
+/**
  * Convert RECORD node to JSON object
  */
-function convertRecordToJsonObject(node: XNode, context: JsonOutputContext): JsonObject {
+function convertRecordToJsonObject(node: XNode, context: JsonOutputContext): JsonValue {
   const obj: JsonObject = {};
   
   // Add attributes as properties if present
@@ -172,7 +185,7 @@ function convertRecordToJsonObject(node: XNode, context: JsonOutputContext): Jso
   
   // If record has a direct value and no children, return the value
   if (node.value !== undefined && Object.keys(obj).length === 0) {
-    return node.value as JsonValue;
+    return node.value;
   }
   
   // If record has both value and children, add value as special property
@@ -189,19 +202,6 @@ function convertRecordToJsonObject(node: XNode, context: JsonOutputContext): Jso
 }
 
 /**
- * Convert primitive node (FIELD/VALUE) to JSON value
- */
-function convertPrimitiveToJsonValue(node: XNode, context: JsonOutputContext): JsonValue {
-  // If node has children, it's a complex field - convert to object
-  if (node.children && node.children.length > 0) {
-    return convertRecordToJsonObject(node, context);
-  }
-  
-  // Return primitive value
-  return node.value as JsonValue;
-}
-
-/**
  * Add semantic attributes to JSON object
  */
 function addAttributesToJsonObject(
@@ -213,7 +213,7 @@ function addAttributesToJsonObject(
     if (attr.type === XNodeType.ATTRIBUTES) {
       // Add with @ prefix to distinguish from children
       const attrKey = `@${attr.name}`;
-      obj[attrKey] = attr.value;
+      obj[attrKey] = attr.value !== undefined ? attr.value : null;
       
       // Add namespace info if present and configured
       if (attr.ns && context.preserveSemanticInfo) {
@@ -343,7 +343,7 @@ function convertSemanticNodeToHiFiJson(node: XNode, context: JsonOutputContext):
     result['#label'] = node.label;
   }
   
-  // Add value if present
+  // Add value if present (convert undefined to null for JSON compatibility)
   if (node.value !== undefined) {
     result['#value'] = node.value;
   }
@@ -353,7 +353,7 @@ function convertSemanticNodeToHiFiJson(node: XNode, context: JsonOutputContext):
     result['#attributes'] = node.attributes.map(attr => ({
       '#type': attr.type,
       '#name': attr.name,
-      '#value': attr.value,
+      '#value': attr.value !== undefined ? attr.value : null,
       ...(attr.ns && { '#ns': attr.ns }),
       ...(attr.label && { '#label': attr.label })
     }));

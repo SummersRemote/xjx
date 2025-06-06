@@ -5,7 +5,7 @@ import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
 
 import { XJX } from "../XJX";
-import { XNode, createElement, addChild } from "../core/xnode";
+import { XNode, XNodeType, createCollection, addChild } from "../core/xnode";
 import { NonTerminalExtensionContext } from "../core/extension";
 import { SourceHooks } from "../core/hooks";
 import { ClonePolicies } from "../core/context";
@@ -20,12 +20,10 @@ export function fromXnode(
   hooks?: SourceHooks<XNode | XNode[]>
 ): void {
   try {
-    // API boundary validation using pipeline context
     this.pipeline.validateInput(input !== null && input !== undefined, "XNode input cannot be null or undefined");
     
     let processedInput = input;
     
-    // Apply beforeTransform hook to raw input
     if (hooks?.beforeTransform) {
       try {
         const beforeResult = hooks.beforeTransform(processedInput);
@@ -37,7 +35,6 @@ export function fromXnode(
       }
     }
     
-    // Handle both single XNode and XNode array cases
     let resultXNode: XNode;
     
     if (Array.isArray(processedInput)) {
@@ -48,30 +45,31 @@ export function fromXnode(
         hasSourceHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
       });
       
-      // Create a wrapper element to contain all nodes
-      resultXNode = createElement('xnodes');
+      // FIXED: Use createCollection instead of createElement
+      resultXNode = createCollection('xnodes');
       
-      // Add each input node as a child (clone to avoid mutation)
       processedInput.forEach((node, index) => {
         this.pipeline.validateInput(
-          node && typeof node === 'object' && typeof node.name === 'string', 
-          `XNode at index ${index} must be a valid XNode object`
+          node && typeof node === 'object' && typeof node.name === 'string' && 
+          Object.values(XNodeType).includes(node.type),
+          `XNode at index ${index} must be a valid semantic XNode object`
         );
         
-        // Clone the node using standardized pipeline cloning
         const clonedNode = this.pipeline.cloneNode(node, ClonePolicies.BRANCH);
         addChild(resultXNode, clonedNode);
       });
       
       logger.debug('Successfully processed XNode array source', {
         nodeCount: processedInput.length,
-        wrapperName: resultXNode.name
+        wrapperName: resultXNode.name,
+        wrapperType: resultXNode.type
       });
     } else {
-      // Single XNode case
       this.pipeline.validateInput(
-        processedInput && typeof processedInput === 'object' && typeof processedInput.name === 'string',
-        "XNode input must be a valid XNode object"
+        processedInput && typeof processedInput === 'object' && 
+        typeof processedInput.name === 'string' &&
+        Object.values(XNodeType).includes(processedInput.type),
+        "XNode input must be a valid semantic XNode object"
       );
       
       logger.debug('Setting single XNode source for transformation', {
@@ -80,7 +78,6 @@ export function fromXnode(
         hasSourceHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
       });
       
-      // Clone the node using standardized pipeline cloning
       resultXNode = this.pipeline.cloneNode(processedInput, ClonePolicies.BRANCH);
       
       logger.debug('Successfully processed single XNode source', {
@@ -89,11 +86,12 @@ export function fromXnode(
       });
     }
     
-    // Apply afterTransform hook to fully populated XNode
     if (hooks?.afterTransform) {
       try {
         const afterResult = hooks.afterTransform(resultXNode);
-        if (afterResult && typeof afterResult === 'object' && typeof afterResult.name === 'string') {
+        if (afterResult && typeof afterResult === 'object' && 
+            typeof afterResult.name === 'string' && 
+            Object.values(XNodeType).includes(afterResult.type)) {
           resultXNode = afterResult;
         }
       } catch (err) {

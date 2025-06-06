@@ -1,6 +1,6 @@
 /**
- * XML to Semantic XNode converter - Pure semantic configuration approach
- * PHASE 2: All legacy configuration patterns eliminated
+ * XML to Semantic XNode converter - Direct configuration property access
+ * ConfigurationHelper removed for simplicity and consistency
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
@@ -21,23 +21,22 @@ import {
   addChild,
   addAttribute
 } from '../core/xnode';
-import { ConfigurationHelper } from '../core/config';
+import { Configuration } from '../core/config';
 import { UnifiedConverter } from '../core/pipeline';
 import { PipelineContext } from '../core/context';
 
 /**
  * Context for XML to Semantic XNode conversion
- * STANDARDIZED: Uses ConfigurationHelper exclusively
+ * Direct configuration access instead of ConfigurationHelper
  */
 interface XmlConversionContext {
   namespaceMap: Record<string, string>;
-  configHelper: ConfigurationHelper;
+  config: Configuration;
   parentNode?: XNode;
 }
 
 /**
- * XML to Semantic XNode converter using pure semantic configuration
- * STANDARDIZED: All configuration access through ConfigurationHelper
+ * XML to Semantic XNode converter using direct configuration property access
  */
 export const xmlToXNodeConverter: UnifiedConverter<string, XNode> = {
   name: 'xmlToSemanticXNode',
@@ -65,10 +64,10 @@ export const xmlToXNodeConverter: UnifiedConverter<string, XNode> = {
       // Register DOM document for cleanup
       context.resources.registerDOMDocument(doc);
       
-      // STANDARDIZED: Create conversion context with ConfigurationHelper
+      // Create conversion context with direct configuration access
       const conversionContext: XmlConversionContext = { 
         namespaceMap: {},
-        configHelper: new ConfigurationHelper(context.config.get())
+        config: context.config.get()
       };
       
       // Convert DOM element to semantic XNode
@@ -97,17 +96,17 @@ export const xmlToXNodeConverter: UnifiedConverter<string, XNode> = {
 
 /**
  * Convert DOM element to semantic XNode (RECORD type)
- * STANDARDIZED: All configuration access through ConfigurationHelper
+ * Direct configuration property access
  */
 function convertElementToSemanticXNode(
   element: Element, 
   context: PipelineContext, 
   conversionContext: XmlConversionContext
 ): XNode {
-  const xmlConfig = conversionContext.configHelper.getXmlConfig();
+  const xmlConfig = conversionContext.config.xml;
   
   // XML elements become RECORD nodes in semantic model
-  const elementName = getElementName(element, conversionContext.configHelper);
+  const elementName = getElementName(element, conversionContext.config);
   const xnode = createRecord(elementName);
   
   // Set parent reference
@@ -141,10 +140,10 @@ function convertElementToSemanticXNode(
 
 /**
  * Get element name based on configuration
- * STANDARDIZED: Uses ConfigurationHelper
+ * Direct configuration property access
  */
-function getElementName(element: Element, configHelper: ConfigurationHelper): string {
-  const xmlConfig = configHelper.getXmlConfig();
+function getElementName(element: Element, config: Configuration): string {
+  const xmlConfig = config.xml;
   
   switch (xmlConfig.namespacePrefixHandling) {
     case 'strip':
@@ -161,14 +160,14 @@ function getElementName(element: Element, configHelper: ConfigurationHelper): st
 
 /**
  * Process namespace information for semantic XNode
- * STANDARDIZED: Uses ConfigurationHelper
+ * Direct configuration property access
  */
 function processNamespaceInfo(
   element: Element, 
   xnode: XNode, 
   conversionContext: XmlConversionContext
 ): void {
-  const xmlConfig = conversionContext.configHelper.getXmlConfig();
+  const xmlConfig = conversionContext.config.xml;
   
   // Set namespace URI
   if (element.namespaceURI) {
@@ -231,14 +230,14 @@ function processNamespaceDeclarations(
 
 /**
  * Process XML attributes based on configuration
- * STANDARDIZED: Uses ConfigurationHelper exclusively
+ * Direct configuration property access
  */
 function processElementAttributes(
   element: Element,
   xnode: XNode,
   conversionContext: XmlConversionContext
 ): void {
-  const xmlConfig = conversionContext.configHelper.getXmlConfig();
+  const xmlConfig = conversionContext.config.xml;
   
   for (let i = 0; i < element.attributes.length; i++) {
     const attr = element.attributes[i];
@@ -246,7 +245,7 @@ function processElementAttributes(
     // Skip namespace declarations (handled separately)
     if (attr.name === "xmlns" || attr.name.startsWith("xmlns:")) continue;
     
-    const attrName = getAttributeName(attr, conversionContext.configHelper);
+    const attrName = getAttributeName(attr, conversionContext.config);
     const attrValue = attr.value;
     
     if (xmlConfig.attributeHandling === 'attributes') {
@@ -264,10 +263,10 @@ function processElementAttributes(
 
 /**
  * Get attribute name based on configuration
- * STANDARDIZED: Uses ConfigurationHelper
+ * Direct configuration property access
  */
-function getAttributeName(attr: Attr, configHelper: ConfigurationHelper): string {
-  const xmlConfig = configHelper.getXmlConfig();
+function getAttributeName(attr: Attr, config: Configuration): string {
+  const xmlConfig = config.xml;
   
   switch (xmlConfig.namespacePrefixHandling) {
     case 'strip':
@@ -283,7 +282,7 @@ function getAttributeName(attr: Attr, configHelper: ConfigurationHelper): string
 
 /**
  * Process child nodes using semantic type mapping
- * STANDARDIZED: Uses ConfigurationHelper
+ * Direct configuration property access
  */
 function processElementChildren(
   element: Element,
@@ -291,16 +290,16 @@ function processElementChildren(
   context: PipelineContext,
   conversionContext: XmlConversionContext
 ): void {
-  const configHelper = conversionContext.configHelper;
+  const config = conversionContext.config;
   
   // Detect mixed content for proper semantic handling
-  const mixedContentInfo = analyzeMixedContent(element, configHelper);
+  const mixedContentInfo = analyzeMixedContent(element, config);
   
   // Handle simple text-only content optimization
   if (mixedContentInfo.isTextOnly && !mixedContentInfo.hasSignificantWhitespace) {
     const textContent = getTextContent(element);
     if (textContent.trim()) {
-      parentNode.value = configHelper.shouldPreserveWhitespace() ? textContent : textContent.trim();
+      parentNode.value = config.preserveWhitespace ? textContent : textContent.trim();
     }
     return;
   }
@@ -318,9 +317,9 @@ function processElementChildren(
 
 /**
  * Analyze mixed content to determine processing strategy
- * STANDARDIZED: Uses ConfigurationHelper
+ * Direct configuration property access
  */
-function analyzeMixedContent(element: Element, configHelper: ConfigurationHelper): {
+function analyzeMixedContent(element: Element, config: Configuration): {
   isTextOnly: boolean;
   hasElements: boolean;
   hasSignificantWhitespace: boolean;
@@ -339,7 +338,7 @@ function analyzeMixedContent(element: Element, configHelper: ConfigurationHelper
         if (text.trim()) {
           hasText = true;
         }
-        if (configHelper.shouldPreserveWhitespace() && /\s/.test(text)) {
+        if (config.preserveWhitespace && /\s/.test(text)) {
           hasSignificantWhitespace = true;
         }
         break;
@@ -381,15 +380,15 @@ function getTextContent(element: Element): string {
 
 /**
  * Convert individual child node to semantic XNode
- * STANDARDIZED: Uses ConfigurationHelper
+ * Direct configuration property access
  */
 function convertChildNodeToSemantic(
   node: Node,
   context: PipelineContext,
   conversionContext: XmlConversionContext
 ): XNode | null {
-  const configHelper = conversionContext.configHelper;
-  const xmlConfig = configHelper.getXmlConfig();
+  const config = conversionContext.config;
+  const xmlConfig = config.xml;
   
   switch (node.nodeType) {
     case NodeType.ELEMENT_NODE:
@@ -399,7 +398,7 @@ function convertChildNodeToSemantic(
       
     case NodeType.TEXT_NODE:
       const text = node.nodeValue || "";
-      const normalizedText = configHelper.shouldPreserveWhitespace() ? text : text.trim();
+      const normalizedText = config.preserveWhitespace ? text : text.trim();
       
       if (normalizedText) {
         return createValue("#text", normalizedText);
@@ -413,13 +412,13 @@ function convertChildNodeToSemantic(
       return null;
       
     case NodeType.COMMENT_NODE:
-      if (configHelper.shouldPreserveComments()) {
+      if (config.preserveComments) {
         return createComment(node.nodeValue || "");
       }
       return null;
       
     case NodeType.PROCESSING_INSTRUCTION_NODE:
-      if (configHelper.shouldPreserveInstructions()) {
+      if (config.preserveInstructions) {
         const pi = node as ProcessingInstruction;
         return createInstruction(pi.target, pi.data || "");
       }

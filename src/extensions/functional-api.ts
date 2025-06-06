@@ -1,6 +1,6 @@
 /**
- * Core functional API implementation - Updated for semantic XNode system
- * CRITICAL: All DOM-based logic replaced with semantic type handling
+ * Core functional API implementation - Direct configuration property access
+ * ConfigurationHelper removed for simplicity and consistency
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
@@ -33,6 +33,7 @@ import {
 } from "../core/functional";
 import { ClonePolicies } from "../core/context";
 import { PipelineStage } from "../core/pipeline";
+import { getFragmentRootName } from "../core/config-utils";
 
 /**
  * Return a new document with only nodes that match the predicate
@@ -91,6 +92,7 @@ export function filter(
           context
         });
         
+        // Use utility function for fragment root name
         return result || createResultsContainer(
           getFragmentRootName(context.config.get())
         );
@@ -273,6 +275,7 @@ export function select(
       context: this.pipeline
     });
 
+    // Use utility function for fragment root name
     const resultsContainer = createResultsContainer(
       getFragmentRootName(this.pipeline.config.get())
     );
@@ -325,6 +328,7 @@ export function branch(
         nodePaths: [],
       };
 
+      // Use utility function for fragment root name
       this.xnode = createResultsContainer(
         getFragmentRootName(this.pipeline.config.get())
       );
@@ -421,21 +425,6 @@ export function merge(this: NonTerminalExtensionContext): void {
       throw err;
     }
     throw new Error(`Failed to merge branch: ${String(err)}`);
-  }
-}
-
-/**
- * Helper function to safely get fragment root name from config
- */
-function getFragmentRootName(config: any): string {
-  const fragmentRoot = config.fragmentRoot;
-  
-  if (typeof fragmentRoot === "string") {
-    return fragmentRoot;
-  } else if (fragmentRoot && typeof fragmentRoot === 'object' && typeof fragmentRoot.name === 'string') {
-    return fragmentRoot.name;
-  } else {
-    return "results";
   }
 }
 

@@ -1,11 +1,11 @@
 /**
- * Core converter interfaces and shared utilities - Pure semantic approach
- * PHASE 2: All legacy configuration patterns eliminated
+ * Core converter interfaces and shared utilities - Direct configuration property access
+ * ConfigurationHelper removed for simplicity and consistency
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
 
-import { ConfigurationHelper } from './config';
+import { Configuration } from './config';
 import { XNode } from './xnode';
 import { SourceHooks, OutputHooks, NodeHooks } from "./hooks";
 
@@ -20,7 +20,7 @@ export type JsonArray = JsonValue[];
  * Converter interface (legacy - kept for compatibility)
  */
 export interface Converter<TInput, TOutput> {
-  convert(input: TInput, config: ConfigurationHelper): TOutput;
+  convert(input: TInput, config: Configuration): TOutput;
 }
 
 /**
@@ -142,14 +142,13 @@ export function applyNodeHooks(
 }
 
 /**
- * Parse element name with optional prefix (semantic approach)
- * STANDARDIZED: Uses ConfigurationHelper
+ * Parse element name with optional prefix using direct configuration property access
  */
 export function parseElementName(
   name: string, 
-  configHelper: ConfigurationHelper
+  config: Configuration
 ): { prefix?: string; localName: string } {
-  const xmlConfig = configHelper.getXmlConfig();
+  const xmlConfig = config.xml;
   
   if (xmlConfig.preservePrefixedNames && name.includes(':')) {
     const parts = name.split(':');
@@ -163,14 +162,14 @@ export function parseElementName(
 
 /**
  * Get the appropriate element name based on configuration
- * STANDARDIZED: Uses ConfigurationHelper
+ * Direct configuration property access instead of ConfigurationHelper
  */
 export function getElementName(
   name: string, 
   prefix: string | undefined, 
-  configHelper: ConfigurationHelper
+  config: Configuration
 ): string {
-  const xmlConfig = configHelper.getXmlConfig();
+  const xmlConfig = config.xml;
   
   if (xmlConfig.preservePrefixedNames && prefix) {
     return `${prefix}:${name}`;
@@ -180,13 +179,13 @@ export function getElementName(
 
 /**
  * Get the appropriate attribute name based on configuration
- * STANDARDIZED: Uses ConfigurationHelper
+ * Direct configuration property access instead of ConfigurationHelper
  */
 export function getAttributeName(
   originalName: string, 
-  configHelper: ConfigurationHelper
+  config: Configuration
 ): string {
-  const xmlConfig = configHelper.getXmlConfig();
+  const xmlConfig = config.xml;
   
   if (xmlConfig.preservePrefixedNames) {
     return originalName;
@@ -201,14 +200,13 @@ export function getAttributeName(
 }
 
 /**
- * Process attributes for semantic XNode using XML configuration
- * STANDARDIZED: Uses ConfigurationHelper exclusively
+ * Process attributes for semantic XNode using direct configuration property access
  */
 export function processAttributes(
   element: Element,
-  configHelper: ConfigurationHelper
+  config: Configuration
 ): Record<string, any> | undefined {
-  const xmlConfig = configHelper.getXmlConfig();
+  const xmlConfig = config.xml;
   
   if (!element.attributes || element.attributes.length === 0 || !xmlConfig.preserveAttributes) {
     return undefined;
@@ -221,7 +219,7 @@ export function processAttributes(
 
     if (attr.name === "xmlns" || attr.name.startsWith("xmlns:")) continue;
 
-    const attrName = getAttributeName(attr.name, configHelper);
+    const attrName = getAttributeName(attr.name, config);
     attributes[attrName] = attr.value;
   }
 
@@ -262,17 +260,16 @@ export function processNamespaceDeclarations(
 }
 
 /**
- * Process attribute object from JSON using semantic configuration
- * STANDARDIZED: Uses ConfigurationHelper
+ * Process attribute object from JSON using direct configuration property access
  */
 export function processAttributeObject(
   attrs: JsonObject,
-  configHelper: ConfigurationHelper
+  config: Configuration
 ): Record<string, any> {
   const result: Record<string, any> = {};
 
   Object.entries(attrs).forEach(([key, value]) => {
-    const finalAttrName = getAttributeName(key, configHelper);
+    const finalAttrName = getAttributeName(key, config);
     result[finalAttrName] = value;
   });
 

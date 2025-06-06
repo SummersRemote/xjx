@@ -1,6 +1,6 @@
 /**
  * Output extensions for semantic XNode system
- * PHASE 2: Pure semantic configuration approach
+ * Direct configuration property access - ConfigurationHelper removed
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
@@ -21,7 +21,7 @@ import { ClonePolicies } from "../core/context";
 
 /**
  * toXml extension using semantic XNode to XML converter
- * STANDARDIZED: Pure semantic configuration
+ * Direct configuration property access
  */
 export function toXml(this: TerminalExtensionContext, hooks?: OutputHooks<Document>): Document {
   try {
@@ -29,7 +29,7 @@ export function toXml(this: TerminalExtensionContext, hooks?: OutputHooks<Docume
       hasOutputHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
     });
     
-    // STANDARDIZED: Use unified pipeline with semantic XML converter
+    // Use unified pipeline with semantic XML converter
     const result = this.executeOutput(xnodeToXmlConverter, hooks);
     
     logger.debug('Successfully converted semantic XNode to DOM', {
@@ -47,7 +47,7 @@ export function toXml(this: TerminalExtensionContext, hooks?: OutputHooks<Docume
 
 /**
  * toXmlString extension using semantic XNode to XML string converter
- * STANDARDIZED: Pure semantic configuration
+ * Direct configuration property access
  */
 export function toXmlString(this: TerminalExtensionContext, hooks?: OutputHooks<string>): string {
   try {
@@ -55,7 +55,7 @@ export function toXmlString(this: TerminalExtensionContext, hooks?: OutputHooks<
       hasOutputHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
     });
     
-    // STANDARDIZED: Use unified pipeline with semantic XML string converter
+    // Use unified pipeline with semantic XML string converter
     const result = this.executeOutput(xnodeToXmlStringConverter, hooks);
     
     logger.debug('Successfully converted to XML string', {
@@ -73,19 +73,20 @@ export function toXmlString(this: TerminalExtensionContext, hooks?: OutputHooks<
 
 /**
  * toJson extension using semantic XNode to JSON converter
- * STANDARDIZED: Uses base config highFidelity instead of strategies.highFidelity
+ * Direct configuration property access instead of ConfigurationHelper
  */
 export function toJson(this: TerminalExtensionContext, hooks?: OutputHooks<any>): any {
   try {
-    // STANDARDIZED: Use base configuration highFidelity instead of strategies.highFidelity
-    const useHighFidelity = this.pipeline.config.get().highFidelity;
+    // Direct configuration property access instead of helper
+    const config = this.pipeline.config.get();
+    const useHighFidelity = config.highFidelity;
     
     logger.debug('Converting semantic XNode to JSON', {
       highFidelity: useHighFidelity,
       hasOutputHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
     });
     
-    // STANDARDIZED: Choose converter based on semantic configuration
+    // Choose converter based on direct configuration access
     const converter = useHighFidelity ? xnodeToJsonHiFiConverter : xnodeToJsonConverter;
     const result = this.executeOutput(converter, hooks);
     
@@ -106,12 +107,13 @@ export function toJson(this: TerminalExtensionContext, hooks?: OutputHooks<any>)
 
 /**
  * toJsonString extension using semantic XNode to JSON converter
- * STANDARDIZED: Uses base config highFidelity instead of strategies.highFidelity
+ * Direct configuration property access instead of ConfigurationHelper
  */
 export function toJsonString(this: TerminalExtensionContext, hooks?: OutputHooks<string>): string {
   try {
-    // STANDARDIZED: Use base configuration highFidelity instead of strategies.highFidelity
-    const useHighFidelity = this.pipeline.config.get().highFidelity;
+    // Direct configuration property access instead of helper
+    const config = this.pipeline.config.get();
+    const useHighFidelity = config.highFidelity;
     
     logger.debug('Converting semantic XNode to JSON string', {
       highFidelity: useHighFidelity,
@@ -140,8 +142,8 @@ export function toJsonString(this: TerminalExtensionContext, hooks?: OutputHooks
     const converter = useHighFidelity ? xnodeToJsonHiFiConverter : xnodeToJsonConverter;
     const jsonValue = this.executeOutput(converter); // No hooks passed here
     
-    // STANDARDIZED: Use semantic configuration for formatting
-    let result = JSON.stringify(jsonValue, null, this.pipeline.config.get().formatting.indent);
+    // Use direct configuration property access for formatting
+    let result = JSON.stringify(jsonValue, null, config.formatting.indent);
     
     // Apply afterTransform hook to final string result
     if (hooks?.afterTransform) {
@@ -171,7 +173,7 @@ export function toJsonString(this: TerminalExtensionContext, hooks?: OutputHooks
 
 /**
  * toJsonHiFi extension using semantic high-fidelity converter
- * STANDARDIZED: Direct high-fidelity converter usage
+ * Direct high-fidelity converter usage
  */
 export function toJsonHiFi(this: TerminalExtensionContext, hooks?: OutputHooks<any>): any {
   try {
@@ -179,7 +181,7 @@ export function toJsonHiFi(this: TerminalExtensionContext, hooks?: OutputHooks<a
       hasOutputHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
     });
     
-    // STANDARDIZED: Always use high-fidelity converter regardless of base config
+    // Always use high-fidelity converter regardless of base config
     const result = this.executeOutput(xnodeToJsonHiFiConverter, hooks);
     
     logger.debug('Successfully converted semantic XNode to high-fidelity JSON', {
@@ -197,7 +199,7 @@ export function toJsonHiFi(this: TerminalExtensionContext, hooks?: OutputHooks<a
 
 /**
  * toXnode extension for semantic XNode arrays
- * STANDARDIZED: Pure semantic configuration
+ * Direct configuration property access
  */
 export function toXnode(this: TerminalExtensionContext, hooks?: OutputHooks<XNode[]>): XNode[] {
   try {
@@ -226,7 +228,7 @@ export function toXnode(this: TerminalExtensionContext, hooks?: OutputHooks<XNod
       }
     }
     
-    // STANDARDIZED: Clone the node using standardized pipeline cloning for output
+    // Clone the node using standardized pipeline cloning for output
     const clonedNode = this.pipeline.cloneNode(processedXNode, ClonePolicies.OUTPUT);
     
     // Always return an array - this enables consistent query processing
@@ -259,7 +261,7 @@ export function toXnode(this: TerminalExtensionContext, hooks?: OutputHooks<XNod
   }
 }
 
-// STANDARDIZED: Register the extensions with XJX
+// Register the extensions with XJX
 XJX.registerTerminalExtension("toXml", toXml);
 XJX.registerTerminalExtension("toXmlString", toXmlString);
 XJX.registerTerminalExtension("toJson", toJson);

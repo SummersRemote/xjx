@@ -1,13 +1,13 @@
 /**
- * Semantic XNode to JSON converter - Natural mapping from semantic types
- * Replaces complex DOM-based JSON conversion with semantic type awareness
+ * Semantic XNode to JSON converter - Direct configuration property access
+ * ConfigurationHelper removed for simplicity and consistency
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
 
 import { ProcessingError } from "../core/error";
 import { XNode, XNodeType, getTextContent } from "../core/xnode";
-import { ConfigurationHelper } from "../core/config";
+import { Configuration } from "../core/config";
 import { UnifiedConverter } from "../core/pipeline";
 import { PipelineContext } from "../core/context";
 
@@ -20,15 +20,16 @@ type JsonArray = JsonValue[];
 
 /**
  * Context for semantic XNode to JSON conversion
+ * Direct configuration access instead of ConfigurationHelper
  */
 interface JsonOutputContext {
-  config: ConfigurationHelper;
+  config: Configuration;
   preserveSemanticInfo: boolean;
   depth: number;
 }
 
 /**
- * Semantic XNode to JSON converter using type-aware mapping
+ * Semantic XNode to JSON converter using direct configuration property access
  */
 export const xnodeToJsonConverter: UnifiedConverter<XNode, JsonValue> = {
   name: 'semanticXNodeToJson',
@@ -47,9 +48,9 @@ export const xnodeToJsonConverter: UnifiedConverter<XNode, JsonValue> = {
     });
     
     try {
-      // Create conversion context
+      // Create conversion context with direct configuration access
       const outputContext: JsonOutputContext = {
-        config: new ConfigurationHelper(context.config.get()),
+        config: context.config.get(),
         preserveSemanticInfo: false, // Standard JSON output
         depth: 0
       };
@@ -98,14 +99,14 @@ function convertSemanticNodeToJson(node: XNode, context: JsonOutputContext): Jso
       
     case XNodeType.COMMENT:
       // Comments can be preserved as special objects or ignored
-      if (context.config.shouldPreserveComments()) {
+      if (context.config.preserveComments) {
         return { "#comment": node.value !== undefined ? node.value : null };
       }
       return null;
       
     case XNodeType.INSTRUCTION:
       // Instructions as special objects
-      if (context.config.shouldPreserveInstructions()) {
+      if (context.config.preserveInstructions) {
         return { [`#${node.name}`]: node.value !== undefined ? node.value : null };
       }
       return null;
@@ -141,7 +142,7 @@ function convertCollectionToJsonArray(node: XNode, context: JsonOutputContext): 
     const childValue = convertSemanticNodeToJson(child, context);
     
     // Skip null values if configured
-    if (childValue !== null || !context.config.shouldRemoveJsonEmptyValues()) {
+    if (childValue !== null || context.config.json.emptyValueHandling !== 'remove') {
       array.push(childValue);
     }
   }
@@ -251,7 +252,7 @@ function addChildrenToJsonObject(
       // Single child - add directly
       const childValue = convertSemanticNodeToJson(nodes[0], context);
       
-      if (childValue !== null || !context.config.shouldRemoveJsonEmptyValues()) {
+      if (childValue !== null || context.config.json.emptyValueHandling !== 'remove') {
         obj[name] = childValue;
       }
     } else {
@@ -261,7 +262,7 @@ function addChildrenToJsonObject(
       for (const node of nodes) {
         const childValue = convertSemanticNodeToJson(node, context);
         
-        if (childValue !== null || !context.config.shouldRemoveJsonEmptyValues()) {
+        if (childValue !== null || context.config.json.emptyValueHandling !== 'remove') {
           arrayValues.push(childValue);
         }
       }
@@ -293,9 +294,9 @@ export const xnodeToJsonHiFiConverter: UnifiedConverter<XNode, JsonValue> = {
     });
     
     try {
-      // Create high-fidelity conversion context
+      // Create high-fidelity conversion context with direct configuration access
       const outputContext: JsonOutputContext = {
-        config: new ConfigurationHelper(context.config.get()),
+        config: context.config.get(),
         preserveSemanticInfo: true, // High-fidelity mode
         depth: 0
       };

@@ -1,6 +1,6 @@
 /**
- * Configuration extensions - Pure semantic configuration approach
- * PHASE 2: All legacy configuration patterns eliminated
+ * Configuration extensions - Direct configuration property access
+ * ConfigurationHelper removed for simplicity and consistency
  */
 import { LoggerFactory, LogLevel } from "../core/logger";
 const logger = LoggerFactory.create();
@@ -11,7 +11,7 @@ import { NonTerminalExtensionContext } from "../core/extension";
 
 /**
  * Implementation for setting configuration options
- * STANDARDIZED: Pure semantic configuration validation
+ * Direct configuration property access instead of ConfigurationHelper
  */
 export function withConfig(this: NonTerminalExtensionContext, config: Partial<Configuration>): void {
   try {
@@ -24,7 +24,7 @@ export function withConfig(this: NonTerminalExtensionContext, config: Partial<Co
       return;
     }
     
-    // STANDARDIZED: Check preservation settings using semantic configuration paths
+    // Direct configuration property access instead of helper methods
     const PRESERVATION_SETTINGS = [
       "preserveComments", 
       "preserveInstructions", 
@@ -41,7 +41,7 @@ export function withConfig(this: NonTerminalExtensionContext, config: Partial<Co
       // Source has already been set, check for preservation setting changes
       const currentConfig = this.pipeline.config.get();
       
-      // STANDARDIZED: Check preservation settings using semantic paths
+      // Check preservation settings using direct property access
       const changedSettings = PRESERVATION_SETTINGS.filter(setting => {
         if (setting.includes('.')) {
           const [section, property] = setting.split('.');
@@ -68,17 +68,18 @@ export function withConfig(this: NonTerminalExtensionContext, config: Partial<Co
     // Apply configuration using pipeline configuration manager
     this.pipeline.config = this.pipeline.config.merge(config);
     
-    // STANDARDIZED: Log using semantic configuration structure
+    // Log using direct configuration property access
+    const finalConfig = this.pipeline.config.get();
     logger.debug('Successfully applied configuration using pipeline context', {
-      preserveComments: this.pipeline.config.get().preserveComments,
-      preserveInstructions: this.pipeline.config.get().preserveInstructions,
-      preserveWhitespace: this.pipeline.config.get().preserveWhitespace,
-      highFidelity: this.pipeline.config.get().highFidelity,
-      xmlPreserveNamespaces: this.pipeline.config.get().xml.preserveNamespaces,
-      xmlAttributeHandling: this.pipeline.config.get().xml.attributeHandling,
-      xmlPrettyPrint: this.pipeline.config.get().xml.prettyPrint,
-      jsonFieldVsValue: this.pipeline.config.get().json.fieldVsValue,
-      jsonPrettyPrint: this.pipeline.config.get().json.prettyPrint
+      preserveComments: finalConfig.preserveComments,
+      preserveInstructions: finalConfig.preserveInstructions,
+      preserveWhitespace: finalConfig.preserveWhitespace,
+      highFidelity: finalConfig.highFidelity,
+      xmlPreserveNamespaces: finalConfig.xml.preserveNamespaces,
+      xmlAttributeHandling: finalConfig.xml.attributeHandling,
+      xmlPrettyPrint: finalConfig.xml.prettyPrint,
+      jsonFieldVsValue: finalConfig.json.fieldVsValue,
+      jsonPrettyPrint: finalConfig.json.prettyPrint
     });
   } catch (err) {
     if (err instanceof Error) {
@@ -90,7 +91,7 @@ export function withConfig(this: NonTerminalExtensionContext, config: Partial<Co
 
 /**
  * Implementation for setting the log level using unified pipeline context
- * STANDARDIZED: Unchanged - already using semantic approach
+ * Unchanged - already using direct approach
  */
 export function withLogLevel(this: NonTerminalExtensionContext, level: LogLevel | string): void {
   try {

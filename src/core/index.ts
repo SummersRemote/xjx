@@ -1,5 +1,5 @@
 /**
- * XJX Core Module - Updated for simplified utilities
+ * XJX Core Module - ConfigurationHelper removed for direct property access
  * 
  * This module exports all core functionality for the XJX library.
  */
@@ -16,8 +16,11 @@ export * from './logger';
 // DOM operations
 export * from './dom';
 
-// Configuration
+// Configuration - ConfigurationHelper removed
 export * from './config';
+
+// Configuration utilities (replaces ConfigurationHelper methods)
+export * from './config-utils';
 
 // Converter system
 export * from './converter';

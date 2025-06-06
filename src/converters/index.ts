@@ -1,13 +1,13 @@
 /**
- * Converters module - Standardized exports for semantic XNode
- * PHASE 2: All legacy references removed, consistent naming
+ * Converters module - Direct configuration property access approach
+ * ConfigurationHelper removed for simplicity and consistency
  */
 
 // Base converter and pipeline interfaces
 export * from "../core/converter";
 export * from "../core/pipeline";
 
-// STANDARDIZED: Semantic XML converters with consistent naming
+// Semantic XML converters with consistent naming
 export {
   xmlToXNodeConverter,
 } from "./xml-to-xnode-converter";
@@ -17,7 +17,7 @@ export {
   xnodeToXmlStringConverter,
 } from "./xnode-to-xml-converter";
 
-// STANDARDIZED: Semantic JSON converters with consistent naming
+// Semantic JSON converters with consistent naming
 export {
   jsonToXNodeConverter,
   jsonHiFiToXNodeConverter,

@@ -1,6 +1,6 @@
 /**
- * Semantic XNode to XML converter - Updated for new configuration architecture
- * Uses semantic types with format-specific XML configuration
+ * Semantic XNode to XML converter - Direct configuration property access
+ * ConfigurationHelper removed for simplicity and consistency
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
@@ -9,16 +9,17 @@ import * as xml from '../core/xml-utils';
 import { DOM, NodeType } from '../core/dom';
 import { ProcessingError } from '../core/error';
 import { XNode, XNodeType, getTextContent } from '../core/xnode';
-import { ConfigurationHelper } from '../core/config';
+import { Configuration } from '../core/config';
 import { UnifiedConverter } from '../core/pipeline';
 import { PipelineContext } from '../core/context';
 
 /**
  * Context for semantic XNode to XML conversion
+ * Direct configuration access instead of ConfigurationHelper
  */
 interface XmlOutputContext {
   namespaceMap: Record<string, string>;
-  config: ConfigurationHelper;
+  config: Configuration;
   doc: Document;
 }
 
@@ -48,10 +49,10 @@ export const xnodeToXmlConverter: UnifiedConverter<XNode, Document> = {
       // Register DOM document for cleanup
       context.resources.registerDOMDocument(doc);
       
-      // Create conversion context
+      // Create conversion context with direct configuration access
       const outputContext: XmlOutputContext = {
         namespaceMap: {},
-        config: new ConfigurationHelper(context.config.get()),
+        config: context.config.get(),
         doc
       };
       
@@ -96,16 +97,16 @@ export const xnodeToXmlStringConverter: UnifiedConverter<XNode, string> = {
   },
   
   execute(node: XNode, context: PipelineContext): string {
-    const config = new ConfigurationHelper(context.config.get());
+    const config = context.config.get();
     
     try {
       // First convert semantic XNode to DOM document
       const doc = xnodeToXmlConverter.execute(node, context);
       
-      // Get XML-specific formatting options
-      const xmlConfig = config.getXmlConfig();
+      // Get XML-specific formatting options using direct property access
+      const xmlConfig = config.xml;
       const prettyPrint = xmlConfig.prettyPrint;
-      const indent = config.getBaseConfig().formatting.indent;
+      const indent = config.formatting.indent;
       const declaration = xmlConfig.declaration;
       
       // Serialize to string
@@ -182,7 +183,7 @@ function convertSemanticNodeToDom(node: XNode, context: XmlOutputContext): Eleme
  * Convert RECORD node to XML element
  */
 function convertRecordToElement(node: XNode, context: XmlOutputContext): Element {
-  const xmlConfig = context.config.getXmlConfig();
+  const xmlConfig = context.config.xml;
   let element: Element;
   
   // Create element with namespace if provided
@@ -225,7 +226,7 @@ function convertRecordToElement(node: XNode, context: XmlOutputContext): Element
  * Convert COLLECTION node to XML element
  */
 function convertCollectionToElement(node: XNode, context: XmlOutputContext): Element {
-  const xmlConfig = context.config.getXmlConfig();
+  const xmlConfig = context.config.xml;
   let element: Element;
   
   // Collections become wrapper elements in XML
@@ -253,7 +254,7 @@ function convertCollectionToElement(node: XNode, context: XmlOutputContext): Ele
  * Convert primitive node (FIELD/VALUE) to XML element
  */
 function convertPrimitiveToElement(node: XNode, context: XmlOutputContext): Element {
-  const xmlConfig = context.config.getXmlConfig();
+  const xmlConfig = context.config.xml;
   let element: Element;
   
   // Create element with namespace if provided
@@ -311,7 +312,7 @@ function addSemanticAttributesToElement(
   attributes: XNode[], 
   context: XmlOutputContext
 ): void {
-  const xmlConfig = context.config.getXmlConfig();
+  const xmlConfig = context.config.xml;
   
   for (const attr of attributes) {
     if (attr.type === XNodeType.ATTRIBUTES) {

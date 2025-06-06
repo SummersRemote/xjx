@@ -15,17 +15,23 @@ export { default } from "./XJX";
 
 // Export core interfaces and types
 export {
-  // Configuration
+  // Configuration - ConfigurationHelper removed
   Configuration,
   BaseConfiguration,
   XmlConfiguration,
   JsonConfiguration,
-  ConfigurationHelper,
   getDefaultConfig,
   mergeConfig,
   createConfig,
   validateConfig
 } from "./core/config";
+
+// Export configuration utilities (replaces ConfigurationHelper methods)
+export {
+  getFragmentRootName,
+  getJsonArrayItemName,
+  shouldPrettyPrint
+} from "./core/config-utils";
 
 export {
   // Semantic XNode model

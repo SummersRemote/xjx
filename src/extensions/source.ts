@@ -1,6 +1,6 @@
 /**
  * Source extensions for semantic XNode system
- * PHASE 2: Pure semantic configuration approach
+ * Direct configuration property access - ConfigurationHelper removed
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
@@ -18,7 +18,7 @@ import { ClonePolicies } from "../core/context";
 
 /**
  * fromXml extension using semantic XNode converter
- * STANDARDIZED: Pure semantic configuration
+ * Direct configuration property access
  */
 export function fromXml(
   this: NonTerminalExtensionContext, 
@@ -31,7 +31,7 @@ export function fromXml(
       hasSourceHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
     });
     
-    // STANDARDIZED: Use unified pipeline with semantic XML converter
+    // Use unified pipeline with semantic XML converter
     this.executeSource(xmlToXNodeConverter, xml, hooks);
     
     logger.debug('Successfully set XML source', {
@@ -48,7 +48,7 @@ export function fromXml(
 
 /**
  * fromJson extension using semantic XNode converter
- * STANDARDIZED: Uses base config highFidelity instead of strategies.highFidelity
+ * Direct configuration property access instead of ConfigurationHelper
  */
 export function fromJson(
   this: NonTerminalExtensionContext, 
@@ -56,8 +56,9 @@ export function fromJson(
   hooks?: SourceHooks<any>
 ): void {
   try {
-    // STANDARDIZED: Use base configuration highFidelity instead of strategies.highFidelity
-    const useHighFidelity = this.pipeline.config.get().highFidelity;
+    // Direct configuration property access instead of helper
+    const config = this.pipeline.config.get();
+    const useHighFidelity = config.highFidelity;
     
     logger.debug('Setting JSON source with semantic XNode converter', {
       sourceType: Array.isArray(json) ? 'array' : typeof json,
@@ -65,7 +66,7 @@ export function fromJson(
       hasSourceHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
     });
     
-    // STANDARDIZED: Choose converter based on semantic configuration
+    // Choose converter based on direct configuration access
     const converter = useHighFidelity ? jsonHiFiToXNodeConverter : jsonToXNodeConverter;
     this.executeSource(converter, json, hooks);
     
@@ -84,7 +85,7 @@ export function fromJson(
 
 /**
  * fromXnode extension for semantic XNode arrays
- * STANDARDIZED: Uses semantic createCollection instead of createElement
+ * Uses semantic createCollection instead of createElement
  */
 export function fromXnode(
   this: NonTerminalExtensionContext, 
@@ -120,7 +121,7 @@ export function fromXnode(
         hasSourceHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
       });
       
-      // STANDARDIZED: Create a collection to contain all nodes (semantic approach)
+      // Create a collection to contain all nodes (semantic approach)
       resultXNode = createCollection('xnodes');
       
       // Add each input node as a child (clone to avoid mutation)
@@ -189,7 +190,7 @@ export function fromXnode(
   }
 }
 
-// STANDARDIZED: Register extensions with XJX using semantic configuration defaults
+// Register extensions with XJX using semantic configuration defaults
 XJX.registerNonTerminalExtension("fromXml", fromXml, {
   xml: {
     preserveNamespaces: true,

@@ -1,6 +1,6 @@
 /**
- * JSON to Semantic XNode converter - Natural mapping to semantic types
- * Replaces artificial DOM mapping with direct semantic type mapping
+ * JSON to Semantic XNode converter - Direct configuration property access
+ * ConfigurationHelper removed for simplicity and consistency
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
@@ -15,15 +15,17 @@ import {
   createValue,
   addChild
 } from "../core/xnode";
-import { ConfigurationHelper } from "../core/config";
+import { Configuration } from "../core/config";
+import { getJsonArrayItemName } from "../core/config-utils";
 import { UnifiedConverter } from "../core/pipeline";
 import { PipelineContext } from "../core/context";
 
 /**
  * Context for JSON to Semantic XNode conversion
+ * Direct configuration access instead of ConfigurationHelper
  */
 interface JsonConversionContext {
-  config: ConfigurationHelper;
+  config: Configuration;
   parentPropertyName?: string;
   depth: number;
   preserveSemanticInfo?: boolean;
@@ -37,7 +39,7 @@ interface JsonObject { [key: string]: JsonValue }
 type JsonArray = JsonValue[];
 
 /**
- * Standard JSON to Semantic XNode converter using natural type mapping
+ * Standard JSON to Semantic XNode converter using direct configuration property access
  */
 export const jsonToXNodeConverter: UnifiedConverter<JsonValue, XNode> = {
   name: 'jsonToSemanticXNode',
@@ -55,9 +57,9 @@ export const jsonToXNodeConverter: UnifiedConverter<JsonValue, XNode> = {
     });
     
     try {
-      // Create conversion context with configuration helper
+      // Create conversion context with direct configuration access
       const conversionContext: JsonConversionContext = {
-        config: new ConfigurationHelper(context.config.get()),
+        config: context.config.get(),
         depth: 0,
         preserveSemanticInfo: false
       };
@@ -132,7 +134,7 @@ export const jsonHiFiToXNodeConverter: UnifiedConverter<JsonValue, XNode> = {
       } else {
         // Fallback to standard conversion with semantic info preservation
         const conversionContext: JsonConversionContext = {
-          config: new ConfigurationHelper(context.config.get()),
+          config: context.config.get(),
           depth: 0,
           preserveSemanticInfo: true
         };
@@ -192,7 +194,7 @@ function convertJsonValueToSemantic(
  * Handle null values based on configuration
  */
 function handleNullValue(name: string, context: JsonConversionContext): XNode {
-  const jsonConfig = context.config.getJsonConfig();
+  const jsonConfig = context.config.json;
   
   switch (jsonConfig.emptyValueHandling) {
     case 'null':
@@ -217,8 +219,8 @@ function convertJsonArrayToCollection(
 ): XNode {
   const collection = createCollection(name);
   
-  // Get item name for array elements
-  const itemName = context.config.getJsonArrayItemName(context.parentPropertyName || name);
+  // Get item name for array elements using utility function
+  const itemName = getJsonArrayItemName(context.config, context.parentPropertyName || name);
   
   // Create child context
   const childContext: JsonConversionContext = {
@@ -360,7 +362,7 @@ function shouldIndexArrayItems(array: JsonArray): boolean {
  * Determine if VALUE should be promoted to FIELD for array items
  */
 function shouldPromoteToField(context: JsonConversionContext): boolean {
-  const jsonConfig = context.config.getJsonConfig();
+  const jsonConfig = context.config.json;
   return jsonConfig.fieldVsValue === 'field' || 
          (jsonConfig.fieldVsValue === 'auto' && context.depth > 1);
 }
@@ -373,7 +375,7 @@ function applyFieldValueStrategy(
   originalValue: JsonValue, 
   context: JsonConversionContext
 ): XNode {
-  const jsonConfig = context.config.getJsonConfig();
+  const jsonConfig = context.config.json;
   
   // Only applies to VALUE nodes that are object properties
   if (node.type !== XNodeType.VALUE) {
@@ -404,8 +406,8 @@ function applyFieldValueStrategy(
 /**
  * Filter out empty values based on configuration
  */
-export function filterEmptyValues(node: XNode, config: ConfigurationHelper): XNode | null {
-  const jsonConfig = config.getJsonConfig();
+export function filterEmptyValues(node: XNode, config: Configuration): XNode | null {
+  const jsonConfig = config.json;
   
   if (jsonConfig.emptyValueHandling === 'remove') {
     // Remove nodes with null values

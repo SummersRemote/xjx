@@ -1,11 +1,11 @@
 /**
- * XML utilities for parsing, serializing, and manipulating XML - Simplified and consolidated
+ * XML adapter utilities - XML parsing, serializing, and manipulating utilities
  */
-import { LoggerFactory } from "./logger";
+import { LoggerFactory } from "../../core/logger";
 const logger = LoggerFactory.create();
 
-import { DOM, NodeType } from './dom';
-import { ProcessingError } from './error';
+import { DOM, NodeType } from '../../core/dom';
+import { ProcessingError } from '../../core/error';
 
 /**
  * Parse XML string to DOM document with preprocessing
@@ -60,7 +60,7 @@ export function serializeXml(node: Node): string {
 }
 
 /**
- * Format XML string with indentation - Refactored for clarity while preserving functionality
+ * Format XML string with indentation
  */
 export function formatXml(xmlString: string, indent: number = 2): string {
   const INDENT_STRING = " ".repeat(indent);
@@ -70,7 +70,7 @@ export function formatXml(xmlString: string, indent: number = 2): string {
 }
 
 /**
- * Format a single node recursively - Extracted for clarity
+ * Format a single node recursively
  */
 function formatNode(node: Node, level: number, indentString: string): string {
   const pad = indentString.repeat(level);
@@ -267,7 +267,7 @@ export function escapeXml(text: string): string {
 }
 
 /**
- * Safely handle text content for XML - Simplified approach
+ * Safely handle text content for XML
  */
 export function safeXmlText(text: string): string {
   if (!text) return "";
@@ -314,4 +314,96 @@ export function addNamespaceDeclarations(
       );
     }
   }
+}
+
+/**
+ * Parse element name with optional prefix
+ */
+export function parseElementName(
+  name: string, 
+  config: { preservePrefixedNames: boolean }
+): { prefix?: string; localName: string } {
+  if (config.preservePrefixedNames && name.includes(':')) {
+    const parts = name.split(':');
+    return {
+      prefix: parts[0],
+      localName: parts[1]
+    };
+  }
+  return { localName: name };
+}
+
+/**
+ * Get the appropriate element name based on configuration
+ */
+export function getElementName(
+  name: string, 
+  prefix: string | undefined, 
+  config: { preservePrefixedNames: boolean }
+): string {
+  if (config.preservePrefixedNames && prefix) {
+    return `${prefix}:${name}`;
+  }
+  return name;
+}
+
+/**
+ * Get the appropriate attribute name based on configuration
+ */
+export function getAttributeName(
+  originalName: string, 
+  config: { preservePrefixedNames: boolean }
+): string {
+  if (config.preservePrefixedNames) {
+    return originalName;
+  }
+  
+  if (originalName.includes(':')) {
+    const parts = originalName.split(':');
+    return parts[parts.length - 1];
+  }
+  
+  return originalName;
+}
+
+/**
+ * Process attributes for semantic XNode
+ */
+export function processAttributes(
+  element: Element,
+  config: { preserveAttributes: boolean; preservePrefixedNames: boolean }
+): Record<string, any> | undefined {
+  if (!element.attributes || element.attributes.length === 0 || !config.preserveAttributes) {
+    return undefined;
+  }
+
+  const attributes: Record<string, any> = {};
+  
+  for (let i = 0; i < element.attributes.length; i++) {
+    const attr = element.attributes[i];
+
+    if (attr.name === "xmlns" || attr.name.startsWith("xmlns:")) continue;
+
+    const attrName = getAttributeName(attr.name, config);
+    attributes[attrName] = attr.value;
+  }
+
+  return Object.keys(attributes).length > 0 ? attributes : undefined;
+}
+
+/**
+ * Process attribute object from JSON
+ */
+export function processAttributeObject(
+  attrs: Record<string, any>,
+  config: { preservePrefixedNames: boolean }
+): Record<string, any> {
+  const result: Record<string, any> = {};
+
+  Object.entries(attrs).forEach(([key, value]) => {
+    const finalAttrName = getAttributeName(key, config);
+    result[finalAttrName] = value;
+  });
+
+  return result;
 }

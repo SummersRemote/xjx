@@ -1,6 +1,6 @@
 /**
- * Core converter interfaces and shared utilities - Direct configuration property access
- * ConfigurationHelper removed for simplicity and consistency
+ * Core converter interfaces and shared utilities - Format-neutral only
+ * Adapter-specific functions moved to their respective adapters
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
@@ -142,91 +142,6 @@ export function applyNodeHooks(
 }
 
 /**
- * Parse element name with optional prefix using direct configuration property access
- */
-export function parseElementName(
-  name: string, 
-  config: Configuration
-): { prefix?: string; localName: string } {
-  const xmlConfig = config.xml;
-  
-  if (xmlConfig.preservePrefixedNames && name.includes(':')) {
-    const parts = name.split(':');
-    return {
-      prefix: parts[0],
-      localName: parts[1]
-    };
-  }
-  return { localName: name };
-}
-
-/**
- * Get the appropriate element name based on configuration
- * Direct configuration property access instead of ConfigurationHelper
- */
-export function getElementName(
-  name: string, 
-  prefix: string | undefined, 
-  config: Configuration
-): string {
-  const xmlConfig = config.xml;
-  
-  if (xmlConfig.preservePrefixedNames && prefix) {
-    return `${prefix}:${name}`;
-  }
-  return name;
-}
-
-/**
- * Get the appropriate attribute name based on configuration
- * Direct configuration property access instead of ConfigurationHelper
- */
-export function getAttributeName(
-  originalName: string, 
-  config: Configuration
-): string {
-  const xmlConfig = config.xml;
-  
-  if (xmlConfig.preservePrefixedNames) {
-    return originalName;
-  }
-  
-  if (originalName.includes(':')) {
-    const parts = originalName.split(':');
-    return parts[parts.length - 1];
-  }
-  
-  return originalName;
-}
-
-/**
- * Process attributes for semantic XNode using direct configuration property access
- */
-export function processAttributes(
-  element: Element,
-  config: Configuration
-): Record<string, any> | undefined {
-  const xmlConfig = config.xml;
-  
-  if (!element.attributes || element.attributes.length === 0 || !xmlConfig.preserveAttributes) {
-    return undefined;
-  }
-
-  const attributes: Record<string, any> = {};
-  
-  for (let i = 0; i < element.attributes.length; i++) {
-    const attr = element.attributes[i];
-
-    if (attr.name === "xmlns" || attr.name.startsWith("xmlns:")) continue;
-
-    const attrName = getAttributeName(attr.name, config);
-    attributes[attrName] = attr.value;
-  }
-
-  return Object.keys(attributes).length > 0 ? attributes : undefined;
-}
-
-/**
  * Check if text has non-whitespace content
  */
 export function hasTextContent(text: string): boolean {
@@ -234,7 +149,7 @@ export function hasTextContent(text: string): boolean {
 }
 
 /**
- * Process namespace declarations consistently
+ * Process namespace declarations consistently (format-neutral utility)
  */
 export function processNamespaceDeclarations(
   element: Element,
@@ -257,21 +172,4 @@ export function processNamespaceDeclarations(
   }
   
   return { declarations, namespaceMap };
-}
-
-/**
- * Process attribute object from JSON using direct configuration property access
- */
-export function processAttributeObject(
-  attrs: JsonObject,
-  config: Configuration
-): Record<string, any> {
-  const result: Record<string, any> = {};
-
-  Object.entries(attrs).forEach(([key, value]) => {
-    const finalAttrName = getAttributeName(key, config);
-    result[finalAttrName] = value;
-  });
-
-  return result;
 }

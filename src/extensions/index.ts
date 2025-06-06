@@ -1,23 +1,13 @@
 /**
- * Extensions module
+ * Extensions module - Non-adapter extensions only
  * 
- * This module exports all extension implementations for the XJX library.
+ * This module exports core extension implementations for the XJX library.
+ * Adapter-specific extensions are now in their respective adapter modules.
  */
 
-// Source extensions
-export * from './source'
-// export * from './from-xml';
-// export * from './from-json';
-// export * from './from-xnode';
-
-// Output extensions
-export * from './output'
-// export * from './to-xml';
-// export * from './to-json';
-// export * from './to-xnode';
+// Configuration extensions
+export * from './config';
 
 // Functional extensions (core operations)
 export * from './functional-api';
 
-// Configuration extensions
-export * from './config';

@@ -1,6 +1,6 @@
 /**
- * Configuration utility functions - Replaces ConfigurationHelper methods with logic
- * Direct property access approach for simplicity and consistency
+ * Core configuration utility functions - Format-neutral utilities only
+ * Adapter-specific utilities moved to their respective adapter modules
  */
 import { Configuration } from './config';
 
@@ -13,19 +13,8 @@ export function getFragmentRootName(config: Configuration): string {
 }
 
 /**
- * Get array item name for JSON conversion with fallback
+ * Get general pretty print setting (format-neutral)
  */
-export function getJsonArrayItemName(config: Configuration, parentPropertyName: string): string {
-  return config.json.arrayItemNames[parentPropertyName] || config.json.defaultItemName;
-}
-
-/**
- * Get format-specific pretty print setting
- */
-export function shouldPrettyPrint(config: Configuration, format: 'xml' | 'json'): boolean {
-  switch (format) {
-    case 'xml': return config.xml.prettyPrint;
-    case 'json': return config.json.prettyPrint;
-    default: return config.formatting.pretty;
-  }
+export function shouldPrettyPrint(config: Configuration): boolean {
+  return config.formatting.pretty;
 }

@@ -1,91 +1,21 @@
 /**
- * Source extensions for semantic XNode system
- * Direct configuration property access - ConfigurationHelper removed
+ * XNode source adapter - XNode array input support
  */
-import { LoggerFactory } from "../core/logger";
+import { LoggerFactory } from "../../core/logger";
 const logger = LoggerFactory.create();
 
-import { XJX } from "../XJX";
-import { XNode, XNodeType, createCollection, addChild } from "../core/xnode";
-import { xmlToXNodeConverter } from "../converters/xml-to-xnode-converter";
 import { 
-  jsonToXNodeConverter,
-  jsonHiFiToXNodeConverter 
-} from "../converters/json-to-xnode-converter";
-import { NonTerminalExtensionContext } from "../core/extension";
-import { SourceHooks } from "../core/hooks";
-import { ClonePolicies } from "../core/context";
-
-/**
- * fromXml extension using semantic XNode converter
- * Direct configuration property access
- */
-export function fromXml(
-  this: NonTerminalExtensionContext, 
-  xml: string,
-  hooks?: SourceHooks<string>
-): void {
-  try {
-    logger.debug('Setting XML source with semantic XNode converter', {
-      sourceLength: xml.length,
-      hasSourceHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
-    });
-    
-    // Use unified pipeline with semantic XML converter
-    this.executeSource(xmlToXNodeConverter, xml, hooks);
-    
-    logger.debug('Successfully set XML source', {
-      rootNodeName: this.xnode?.name,
-      rootNodeType: this.xnode?.type
-    });
-  } catch (err) {
-    if (err instanceof Error) {
-      throw err;
-    }
-    throw new Error(`Failed to parse XML source: ${String(err)}`);
-  }
-}
-
-/**
- * fromJson extension using semantic XNode converter
- * Direct configuration property access instead of ConfigurationHelper
- */
-export function fromJson(
-  this: NonTerminalExtensionContext, 
-  json: any,
-  hooks?: SourceHooks<any>
-): void {
-  try {
-    // Direct configuration property access instead of helper
-    const config = this.pipeline.config.get();
-    const useHighFidelity = config.highFidelity;
-    
-    logger.debug('Setting JSON source with semantic XNode converter', {
-      sourceType: Array.isArray(json) ? 'array' : typeof json,
-      highFidelity: useHighFidelity,
-      hasSourceHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
-    });
-    
-    // Choose converter based on direct configuration access
-    const converter = useHighFidelity ? jsonHiFiToXNodeConverter : jsonToXNodeConverter;
-    this.executeSource(converter, json, hooks);
-    
-    logger.debug('Successfully set JSON source', {
-      rootNodeName: this.xnode?.name,
-      rootNodeType: this.xnode?.type,
-      usedHighFidelity: useHighFidelity
-    });
-  } catch (err) {
-    if (err instanceof Error) {
-      throw err;
-    }
-    throw new Error(`Failed to parse JSON source: ${String(err)}`);
-  }
-}
+  XNode, 
+  XNodeType,
+  createCollection,
+  addChild
+} from "../../core/xnode";
+import { NonTerminalExtensionContext } from "../../core/extension";
+import { SourceHooks } from "../../core/hooks";
+import { ClonePolicies } from "../../core/context";
 
 /**
  * fromXnode extension for semantic XNode arrays
- * Uses semantic createCollection instead of createElement
  */
 export function fromXnode(
   this: NonTerminalExtensionContext, 
@@ -189,32 +119,3 @@ export function fromXnode(
     throw new Error(`Failed to set XNode source: ${String(err)}`);
   }
 }
-
-// Register extensions with XJX using semantic configuration defaults
-XJX.registerNonTerminalExtension("fromXml", fromXml, {
-  xml: {
-    preserveNamespaces: true,
-    preserveCDATA: true,
-    preserveMixedContent: true,
-    preserveTextNodes: true,
-    preserveAttributes: true,
-    preservePrefixedNames: true,
-    attributeHandling: 'attributes',
-    namespacePrefixHandling: 'preserve',
-    prettyPrint: true,
-    declaration: true,
-    encoding: 'UTF-8'
-  }
-});
-
-XJX.registerNonTerminalExtension("fromJson", fromJson, {
-  json: {
-    arrayItemNames: {},
-    defaultItemName: "item",
-    fieldVsValue: 'auto',
-    emptyValueHandling: 'null',
-    prettyPrint: true
-  }
-});
-
-XJX.registerNonTerminalExtension("fromXnode", fromXnode);

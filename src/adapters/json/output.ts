@@ -1,35 +1,29 @@
 /**
- * Semantic XNode to JSON converter - Direct configuration property access
- * ConfigurationHelper removed for simplicity and consistency
+ * JSON output adapter - Semantic XNode to JSON conversion
  */
-import { LoggerFactory } from "../core/logger";
+import { LoggerFactory } from "../../core/logger";
 const logger = LoggerFactory.create();
 
-import { ProcessingError } from "../core/error";
-import { XNode, XNodeType, getTextContent } from "../core/xnode";
-import { Configuration } from "../core/config";
-import { UnifiedConverter } from "../core/pipeline";
-import { PipelineContext } from "../core/context";
-
-/**
- * JSON output types
- */
-type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
-interface JsonObject { [key: string]: JsonValue }
-type JsonArray = JsonValue[];
+import { ProcessingError } from "../../core/error";
+import { XNode, XNodeType, getTextContent } from "../../core/xnode";
+import { UnifiedConverter } from "../../core/pipeline";
+import { PipelineContext } from "../../core/context";
+import { TerminalExtensionContext } from "../../core/extension";
+import { OutputHooks } from "../../core/hooks";
+import { JsonConfiguration, DEFAULT_JSON_CONFIG } from "./config";
+import { JsonValue, JsonObject, JsonArray } from "./utils";
 
 /**
  * Context for semantic XNode to JSON conversion
- * Direct configuration access instead of ConfigurationHelper
  */
 interface JsonOutputContext {
-  config: Configuration;
+  config: JsonConfiguration;
   preserveSemanticInfo: boolean;
   depth: number;
 }
 
 /**
- * Semantic XNode to JSON converter using direct configuration property access
+ * Semantic XNode to JSON converter
  */
 export const xnodeToJsonConverter: UnifiedConverter<XNode, JsonValue> = {
   name: 'semanticXNodeToJson',
@@ -48,9 +42,16 @@ export const xnodeToJsonConverter: UnifiedConverter<XNode, JsonValue> = {
     });
     
     try {
-      // Create conversion context with direct configuration access
+      // Get JSON config from pipeline context or use defaults
+      const baseConfig = context.config.get();
+      const jsonConfig: JsonConfiguration = {
+        ...DEFAULT_JSON_CONFIG,
+        ...(baseConfig as any).json
+      };
+      
+      // Create conversion context
       const outputContext: JsonOutputContext = {
-        config: context.config.get(),
+        config: jsonConfig,
         preserveSemanticInfo: false, // Standard JSON output
         depth: 0
       };
@@ -77,6 +78,193 @@ export const xnodeToJsonConverter: UnifiedConverter<XNode, JsonValue> = {
 };
 
 /**
+ * High-fidelity semantic XNode to JSON converter
+ */
+export const xnodeToJsonHiFiConverter: UnifiedConverter<XNode, JsonValue> = {
+  name: 'semanticXNodeToJsonHiFi',
+  inputType: 'XNode',
+  outputType: 'JsonValue',
+  
+  validate(node: XNode, context: PipelineContext): void {
+    context.validateInput(!!node, "XNode cannot be null or undefined");
+    context.validateInput(typeof node.name === 'string', "XNode must have a valid name");
+  },
+  
+  execute(node: XNode, context: PipelineContext): JsonValue {
+    logger.debug('Converting semantic XNode to high-fidelity JSON', {
+      nodeName: node.name,
+      nodeType: node.type
+    });
+    
+    try {
+      // Get JSON config from pipeline context or use defaults
+      const baseConfig = context.config.get();
+      const jsonConfig: JsonConfiguration = {
+        ...DEFAULT_JSON_CONFIG,
+        ...(baseConfig as any).json
+      };
+      
+      // Create high-fidelity conversion context
+      const outputContext: JsonOutputContext = {
+        config: jsonConfig,
+        preserveSemanticInfo: true, // High-fidelity mode
+        depth: 0
+      };
+      
+      // Convert with semantic info preservation
+      const result = convertSemanticNodeToHiFiJson(node, outputContext);
+      
+      logger.debug('Successfully converted semantic XNode to high-fidelity JSON', {
+        resultType: typeof result
+      });
+      
+      return result;
+      
+    } catch (err) {
+      throw new ProcessingError(`Failed to convert semantic XNode to high-fidelity JSON: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  },
+  
+  onError(error: Error, node: XNode, context: PipelineContext): JsonValue | null {
+    logger.error('Semantic XNode to high-fidelity JSON conversion failed', { error, nodeName: node?.name });
+    return null;
+  }
+};
+
+/**
+ * toJson extension implementation
+ */
+export function toJson(this: TerminalExtensionContext, hooks?: OutputHooks<any>): any {
+  try {
+    // Check for high-fidelity mode in base config
+    const baseConfig = this.pipeline.config.get();
+    const useHighFidelity = (baseConfig as any).highFidelity || false;
+    
+    logger.debug('Converting semantic XNode to JSON', {
+      highFidelity: useHighFidelity,
+      hasOutputHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
+    });
+    
+    // Choose converter based on configuration
+    const converter = useHighFidelity ? xnodeToJsonHiFiConverter : xnodeToJsonConverter;
+    const result = this.executeOutput(converter, hooks);
+    
+    logger.debug('Successfully converted semantic XNode to JSON', {
+      resultType: typeof result,
+      isArray: Array.isArray(result),
+      usedHighFidelity: useHighFidelity
+    });
+    
+    return result;
+  } catch (err) {
+    if (err instanceof Error) {
+      throw err;
+    }
+    throw new Error(`Failed to convert to JSON: ${String(err)}`);
+  }
+}
+
+/**
+ * toJsonString extension implementation
+ */
+export function toJsonString(this: TerminalExtensionContext, hooks?: OutputHooks<string>): string {
+  try {
+    // Check for high-fidelity mode in base config
+    const baseConfig = this.pipeline.config.get();
+    const useHighFidelity = (baseConfig as any).highFidelity || false;
+    
+    logger.debug('Converting semantic XNode to JSON string', {
+      highFidelity: useHighFidelity,
+      hasOutputHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
+    });
+    
+    // Source validation handled by validateSource()
+    this.validateSource();
+    
+    // Start with current XNode
+    let nodeToConvert = this.xnode as XNode;
+    
+    // Apply beforeTransform hook to XNode (if hooks are provided)
+    if (hooks?.beforeTransform) {
+      try {
+        const beforeResult = hooks.beforeTransform(nodeToConvert);
+        if (beforeResult && typeof beforeResult === 'object' && typeof beforeResult.name === 'string') {
+          nodeToConvert = beforeResult;
+        }
+      } catch (err) {
+        logger.warn(`Error in JSON string beforeTransform: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+    
+    // Get JSON value using the converter directly (no hooks for intermediate step)
+    const converter = useHighFidelity ? xnodeToJsonHiFiConverter : xnodeToJsonConverter;
+    const jsonValue = this.executeOutput(converter); // No hooks passed here
+    
+    // Get JSON config for formatting
+    const jsonConfig: JsonConfiguration = {
+      ...DEFAULT_JSON_CONFIG,
+      ...(baseConfig as any).json
+    };
+    
+    // Format JSON string
+    let result = jsonConfig.prettyPrint 
+      ? JSON.stringify(jsonValue, null, (baseConfig as any).formatting?.indent || 2)
+      : JSON.stringify(jsonValue);
+    
+    // Apply afterTransform hook to final string result
+    if (hooks?.afterTransform) {
+      try {
+        const afterResult = hooks.afterTransform(result);
+        if (afterResult !== undefined && afterResult !== null) {
+          result = afterResult;
+        }
+      } catch (err) {
+        logger.warn(`Error in JSON string afterTransform: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+    
+    logger.debug('Successfully converted to JSON string', {
+      jsonLength: result.length,
+      usedHighFidelity: useHighFidelity
+    });
+    
+    return result;
+  } catch (err) {
+    if (err instanceof Error) {
+      throw err;
+    }
+    throw new Error(`Failed to convert to JSON string: ${String(err)}`);
+  }
+}
+
+/**
+ * toJsonHiFi extension implementation
+ */
+export function toJsonHiFi(this: TerminalExtensionContext, hooks?: OutputHooks<any>): any {
+  try {
+    logger.debug('Converting semantic XNode to high-fidelity JSON', {
+      hasOutputHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
+    });
+    
+    // Always use high-fidelity converter regardless of base config
+    const result = this.executeOutput(xnodeToJsonHiFiConverter, hooks);
+    
+    logger.debug('Successfully converted semantic XNode to high-fidelity JSON', {
+      resultType: typeof result
+    });
+    
+    return result;
+  } catch (err) {
+    if (err instanceof Error) {
+      throw err;
+    }
+    throw new Error(`Failed to convert to high-fidelity JSON: ${String(err)}`);
+  }
+}
+
+// --- Helper Functions ---
+
+/**
  * Convert semantic XNode to JSON using type-aware logic
  */
 function convertSemanticNodeToJson(node: XNode, context: JsonOutputContext): JsonValue {
@@ -99,14 +287,14 @@ function convertSemanticNodeToJson(node: XNode, context: JsonOutputContext): Jso
       
     case XNodeType.COMMENT:
       // Comments can be preserved as special objects or ignored
-      if (context.config.preserveComments) {
+      if ((context.config as any).preserveComments) {
         return { "#comment": node.value !== undefined ? node.value : null };
       }
       return null;
       
     case XNodeType.INSTRUCTION:
       // Instructions as special objects
-      if (context.config.preserveInstructions) {
+      if ((context.config as any).preserveInstructions) {
         return { [`#${node.name}`]: node.value !== undefined ? node.value : null };
       }
       return null;
@@ -142,7 +330,7 @@ function convertCollectionToJsonArray(node: XNode, context: JsonOutputContext): 
     const childValue = convertSemanticNodeToJson(child, context);
     
     // Skip null values if configured
-    if (childValue !== null || context.config.json.emptyValueHandling !== 'remove') {
+    if (childValue !== null || context.config.emptyValueHandling !== 'remove') {
       array.push(childValue);
     }
   }
@@ -252,7 +440,7 @@ function addChildrenToJsonObject(
       // Single child - add directly
       const childValue = convertSemanticNodeToJson(nodes[0], context);
       
-      if (childValue !== null || context.config.json.emptyValueHandling !== 'remove') {
+      if (childValue !== null || context.config.emptyValueHandling !== 'remove') {
         obj[name] = childValue;
       }
     } else {
@@ -262,7 +450,7 @@ function addChildrenToJsonObject(
       for (const node of nodes) {
         const childValue = convertSemanticNodeToJson(node, context);
         
-        if (childValue !== null || context.config.json.emptyValueHandling !== 'remove') {
+        if (childValue !== null || context.config.emptyValueHandling !== 'remove') {
           arrayValues.push(childValue);
         }
       }
@@ -273,53 +461,6 @@ function addChildrenToJsonObject(
     }
   }
 }
-
-/**
- * High-fidelity semantic XNode to JSON converter (preserves semantic info)
- */
-export const xnodeToJsonHiFiConverter: UnifiedConverter<XNode, JsonValue> = {
-  name: 'semanticXNodeToJsonHiFi',
-  inputType: 'XNode',
-  outputType: 'JsonValue',
-  
-  validate(node: XNode, context: PipelineContext): void {
-    context.validateInput(!!node, "XNode cannot be null or undefined");
-    context.validateInput(typeof node.name === 'string', "XNode must have a valid name");
-  },
-  
-  execute(node: XNode, context: PipelineContext): JsonValue {
-    logger.debug('Converting semantic XNode to high-fidelity JSON', {
-      nodeName: node.name,
-      nodeType: node.type
-    });
-    
-    try {
-      // Create high-fidelity conversion context with direct configuration access
-      const outputContext: JsonOutputContext = {
-        config: context.config.get(),
-        preserveSemanticInfo: true, // High-fidelity mode
-        depth: 0
-      };
-      
-      // Convert with semantic info preservation
-      const result = convertSemanticNodeToHiFiJson(node, outputContext);
-      
-      logger.debug('Successfully converted semantic XNode to high-fidelity JSON', {
-        resultType: typeof result
-      });
-      
-      return result;
-      
-    } catch (err) {
-      throw new ProcessingError(`Failed to convert semantic XNode to high-fidelity JSON: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  },
-  
-  onError(error: Error, node: XNode, context: PipelineContext): JsonValue | null {
-    logger.error('Semantic XNode to high-fidelity JSON conversion failed', { error, nodeName: node?.name });
-    return null;
-  }
-};
 
 /**
  * Convert semantic XNode to high-fidelity JSON with semantic info preserved

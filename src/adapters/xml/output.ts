@@ -1,25 +1,25 @@
 /**
- * Semantic XNode to XML converter - Direct configuration property access
- * ConfigurationHelper removed for simplicity and consistency
+ * XML output adapter - Semantic XNode to XML conversion
  */
-import { LoggerFactory } from "../core/logger";
+import { LoggerFactory } from "../../core/logger";
 const logger = LoggerFactory.create();
 
-import * as xml from '../core/xml-utils';
-import { DOM, NodeType } from '../core/dom';
-import { ProcessingError } from '../core/error';
-import { XNode, XNodeType, getTextContent } from '../core/xnode';
-import { Configuration } from '../core/config';
-import { UnifiedConverter } from '../core/pipeline';
-import { PipelineContext } from '../core/context';
+import { DOM, NodeType } from '../../core/dom';
+import { ProcessingError } from '../../core/error';
+import { XNode, XNodeType, getTextContent } from '../../core/xnode';
+import { UnifiedConverter } from '../../core/pipeline';
+import { PipelineContext } from '../../core/context';
+import { TerminalExtensionContext } from "../../core/extension";
+import { OutputHooks } from "../../core/hooks";
+import { XmlConfiguration, DEFAULT_XML_CONFIG } from "./config";
+import * as xmlUtils from './utils';
 
 /**
  * Context for semantic XNode to XML conversion
- * Direct configuration access instead of ConfigurationHelper
  */
 interface XmlOutputContext {
   namespaceMap: Record<string, string>;
-  config: Configuration;
+  config: XmlConfiguration;
   doc: Document;
 }
 
@@ -49,10 +49,17 @@ export const xnodeToXmlConverter: UnifiedConverter<XNode, Document> = {
       // Register DOM document for cleanup
       context.resources.registerDOMDocument(doc);
       
-      // Create conversion context with direct configuration access
+      // Get XML config from pipeline context or use defaults
+      const baseConfig = context.config.get();
+      const xmlConfig: XmlConfiguration = {
+        ...DEFAULT_XML_CONFIG,
+        ...(baseConfig as any).xml
+      };
+      
+      // Create conversion context
       const outputContext: XmlOutputContext = {
         namespaceMap: {},
-        config: context.config.get(),
+        config: xmlConfig,
         doc
       };
       
@@ -97,29 +104,32 @@ export const xnodeToXmlStringConverter: UnifiedConverter<XNode, string> = {
   },
   
   execute(node: XNode, context: PipelineContext): string {
-    const config = context.config.get();
+    const baseConfig = context.config.get();
+    const xmlConfig: XmlConfiguration = {
+      ...DEFAULT_XML_CONFIG,
+      ...(baseConfig as any).xml
+    };
     
     try {
       // First convert semantic XNode to DOM document
       const doc = xnodeToXmlConverter.execute(node, context);
       
-      // Get XML-specific formatting options using direct property access
-      const xmlConfig = config.xml;
+      // Get formatting options
       const prettyPrint = xmlConfig.prettyPrint;
-      const indent = config.formatting.indent;
+      const indent = (baseConfig as any).formatting?.indent || 2;
       const declaration = xmlConfig.declaration;
       
       // Serialize to string
-      let xmlString = xml.serializeXml(doc);
+      let xmlString = xmlUtils.serializeXml(doc);
       
       // Apply pretty printing if enabled
       if (prettyPrint) {
-        xmlString = xml.formatXml(xmlString, indent);
+        xmlString = xmlUtils.formatXml(xmlString, indent);
       }
       
       // Add XML declaration if configured
       if (declaration) {
-        xmlString = xml.ensureXmlDeclaration(xmlString);
+        xmlString = xmlUtils.ensureXmlDeclaration(xmlString);
       }
       
       logger.debug('Successfully converted semantic XNode to XML string', {
@@ -141,6 +151,58 @@ export const xnodeToXmlStringConverter: UnifiedConverter<XNode, string> = {
     return null;
   }
 };
+
+/**
+ * toXml extension implementation
+ */
+export function toXml(this: TerminalExtensionContext, hooks?: OutputHooks<Document>): Document {
+  try {
+    logger.debug('Converting semantic XNode to XML DOM', {
+      hasOutputHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
+    });
+    
+    // Use unified pipeline with semantic XML converter
+    const result = this.executeOutput(xnodeToXmlConverter, hooks);
+    
+    logger.debug('Successfully converted semantic XNode to DOM', {
+      documentElement: result.documentElement?.nodeName
+    });
+    
+    return result;
+  } catch (err) {
+    if (err instanceof Error) {
+      throw err;
+    }
+    throw new Error(`Failed to convert to XML: ${String(err)}`);
+  }
+}
+
+/**
+ * toXmlString extension implementation
+ */
+export function toXmlString(this: TerminalExtensionContext, hooks?: OutputHooks<string>): string {
+  try {
+    logger.debug('Converting semantic XNode to XML string', {
+      hasOutputHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
+    });
+    
+    // Use unified pipeline with semantic XML string converter
+    const result = this.executeOutput(xnodeToXmlStringConverter, hooks);
+    
+    logger.debug('Successfully converted to XML string', {
+      xmlLength: result.length
+    });
+    
+    return result;
+  } catch (err) {
+    if (err instanceof Error) {
+      throw err;
+    }
+    throw new Error(`Failed to convert to XML string: ${String(err)}`);
+  }
+}
+
+// --- Helper Functions ---
 
 /**
  * Convert semantic XNode to DOM element/node based on type
@@ -183,7 +245,7 @@ function convertSemanticNodeToDom(node: XNode, context: XmlOutputContext): Eleme
  * Convert RECORD node to XML element
  */
 function convertRecordToElement(node: XNode, context: XmlOutputContext): Element {
-  const xmlConfig = context.config.xml;
+  const xmlConfig = context.config;
   let element: Element;
   
   // Create element with namespace if provided
@@ -207,7 +269,7 @@ function convertRecordToElement(node: XNode, context: XmlOutputContext): Element
   // Handle content based on semantic structure
   if (node.value !== undefined && (!node.children || node.children.length === 0)) {
     // Simple value - set as text content
-    element.textContent = xml.safeXmlText(String(node.value));
+    element.textContent = xmlUtils.safeXmlText(String(node.value));
   } else if (node.children && node.children.length > 0) {
     // Has children - add as child nodes
     addSemanticChildrenToElement(element, node.children, context);
@@ -226,7 +288,7 @@ function convertRecordToElement(node: XNode, context: XmlOutputContext): Element
  * Convert COLLECTION node to XML element
  */
 function convertCollectionToElement(node: XNode, context: XmlOutputContext): Element {
-  const xmlConfig = context.config.xml;
+  const xmlConfig = context.config;
   let element: Element;
   
   // Collections become wrapper elements in XML
@@ -254,7 +316,7 @@ function convertCollectionToElement(node: XNode, context: XmlOutputContext): Ele
  * Convert primitive node (FIELD/VALUE) to XML element
  */
 function convertPrimitiveToElement(node: XNode, context: XmlOutputContext): Element {
-  const xmlConfig = context.config.xml;
+  const xmlConfig = context.config;
   let element: Element;
   
   // Create element with namespace if provided
@@ -267,7 +329,7 @@ function convertPrimitiveToElement(node: XNode, context: XmlOutputContext): Elem
   
   // Set text content
   if (node.value !== undefined) {
-    element.textContent = xml.safeXmlText(String(node.value));
+    element.textContent = xmlUtils.safeXmlText(String(node.value));
   }
   
   // If field has children (complex field), add them
@@ -281,7 +343,7 @@ function convertPrimitiveToElement(node: XNode, context: XmlOutputContext): Elem
 /**
  * Create qualified name from semantic node
  */
-function createQualifiedName(node: XNode, xmlConfig: any): string {
+function createQualifiedName(node: XNode, xmlConfig: XmlConfiguration): string {
   if (!xmlConfig.preserveNamespaces) {
     return node.name;
   }
@@ -312,12 +374,12 @@ function addSemanticAttributesToElement(
   attributes: XNode[], 
   context: XmlOutputContext
 ): void {
-  const xmlConfig = context.config.xml;
+  const xmlConfig = context.config;
   
   for (const attr of attributes) {
     if (attr.type === XNodeType.ATTRIBUTES) {
       const attrName = attr.name;
-      const attrValue = xml.safeXmlText(String(attr.value || ''));
+      const attrValue = xmlUtils.safeXmlText(String(attr.value || ''));
       
       // Handle namespaced attributes
       if (attr.ns && xmlConfig.preserveNamespaces) {
@@ -343,7 +405,7 @@ function addSemanticChildrenToElement(
     if (child.type === XNodeType.FIELD && child.name.startsWith('@')) {
       // Convert back to XML attribute
       const attrName = child.name.substring(1);
-      const attrValue = xml.safeXmlText(String(child.value || ''));
+      const attrValue = xmlUtils.safeXmlText(String(child.value || ''));
       element.setAttribute(attrName, attrValue);
       continue;
     }

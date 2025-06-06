@@ -1,6 +1,6 @@
 /**
- * Configuration extensions - Direct configuration property access
- * ConfigurationHelper removed for simplicity and consistency
+ * Configuration extensions - Core configuration only
+ * Adapter-specific configurations are handled in their respective adapters
  */
 import { LoggerFactory, LogLevel } from "../core/logger";
 const logger = LoggerFactory.create();
@@ -10,8 +10,7 @@ import { Configuration } from "../core/config";
 import { NonTerminalExtensionContext } from "../core/extension";
 
 /**
- * Implementation for setting configuration options
- * Direct configuration property access instead of ConfigurationHelper
+ * Implementation for setting core configuration options
  */
 export function withConfig(this: NonTerminalExtensionContext, config: Partial<Configuration>): void {
   try {
@@ -24,42 +23,26 @@ export function withConfig(this: NonTerminalExtensionContext, config: Partial<Co
       return;
     }
     
-    // Direct configuration property access instead of helper methods
-    const PRESERVATION_SETTINGS = [
+    // Core preservation settings that affect parsing
+    const CORE_PRESERVATION_SETTINGS = [
       "preserveComments", 
       "preserveInstructions", 
-      "preserveWhitespace",
-      "xml.preserveNamespaces",
-      "xml.preserveCDATA", 
-      "xml.preserveMixedContent", 
-      "xml.preserveTextNodes",
-      "xml.preserveAttributes",
-      "xml.preservePrefixedNames"
+      "preserveWhitespace"
     ];
     
     if (this.xnode !== null) {
-      // Source has already been set, check for preservation setting changes
+      // Source has already been set, check for core preservation setting changes
       const currentConfig = this.pipeline.config.get();
       
-      // Check preservation settings using direct property access
-      const changedSettings = PRESERVATION_SETTINGS.filter(setting => {
-        if (setting.includes('.')) {
-          const [section, property] = setting.split('.');
-          const configSection = config[section as keyof Configuration] as any;
-          const currentSection = currentConfig[section as keyof Configuration] as any;
-          
-          return configSection && 
-                 configSection[property] !== undefined && 
-                 configSection[property] !== currentSection[property];
-        } else {
-          return config[setting as keyof Configuration] !== undefined && 
-                 config[setting as keyof Configuration] !== currentConfig[setting as keyof Configuration];
-        }
+      // Check core preservation settings
+      const changedSettings = CORE_PRESERVATION_SETTINGS.filter(setting => {
+        return config[setting as keyof Configuration] !== undefined && 
+               config[setting as keyof Configuration] !== currentConfig[setting as keyof Configuration];
       });
       
       if (changedSettings.length > 0) {
         throw new Error(
-          `Cannot change preservation settings (${changedSettings.join(', ')}) after source is set. ` +
+          `Cannot change core preservation settings (${changedSettings.join(', ')}) after source is set. ` +
           `These settings must be configured in the XJX constructor or via withConfig() before setting a source.`
         );
       }
@@ -68,18 +51,16 @@ export function withConfig(this: NonTerminalExtensionContext, config: Partial<Co
     // Apply configuration using pipeline configuration manager
     this.pipeline.config = this.pipeline.config.merge(config);
     
-    // Log using direct configuration property access
+    // Log core configuration only
     const finalConfig = this.pipeline.config.get();
-    logger.debug('Successfully applied configuration using pipeline context', {
+    logger.debug('Successfully applied core configuration', {
       preserveComments: finalConfig.preserveComments,
       preserveInstructions: finalConfig.preserveInstructions,
       preserveWhitespace: finalConfig.preserveWhitespace,
       highFidelity: finalConfig.highFidelity,
-      xmlPreserveNamespaces: finalConfig.xml.preserveNamespaces,
-      xmlAttributeHandling: finalConfig.xml.attributeHandling,
-      xmlPrettyPrint: finalConfig.xml.prettyPrint,
-      jsonFieldVsValue: finalConfig.json.fieldVsValue,
-      jsonPrettyPrint: finalConfig.json.prettyPrint
+      formattingIndent: finalConfig.formatting.indent,
+      formattingPretty: finalConfig.formatting.pretty,
+      fragmentRoot: typeof finalConfig.fragmentRoot === 'string' ? finalConfig.fragmentRoot : 'custom-xnode'
     });
   } catch (err) {
     if (err instanceof Error) {
@@ -91,7 +72,6 @@ export function withConfig(this: NonTerminalExtensionContext, config: Partial<Co
 
 /**
  * Implementation for setting the log level using unified pipeline context
- * Unchanged - already using direct approach
  */
 export function withLogLevel(this: NonTerminalExtensionContext, level: LogLevel | string): void {
   try {

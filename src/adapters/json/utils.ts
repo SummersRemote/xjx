@@ -1,18 +1,19 @@
 /**
- * JSON utilities for XJX library - Pure semantic metadata approach
- * PHASE 2: All legacy 'properties' references eliminated
+ * JSON adapter utilities - Pure semantic metadata approach
  */
-import { LoggerFactory } from "./logger";
-const logger = LoggerFactory.create();
+import { JsonConfiguration } from './config';
 
-import { Configuration } from './config';
-import { JsonValue, JsonObject, JsonArray } from './converter';
+/**
+ * JSON value types for adapter operations
+ */
+export type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
+export interface JsonObject { [key: string]: JsonValue }
+export type JsonArray = JsonValue[];
 
 /**
  * Check if a JSON value represents an empty element
- * STANDARDIZED: Pure semantic metadata detection
  */
-export function isEmptyElement(value: JsonValue, config: Configuration): boolean {
+export function isEmptyElement(value: JsonValue, config: JsonConfiguration): boolean {
   // Null, undefined, or empty string are empty
   if (value === null || value === undefined || value === '') {
     return true;
@@ -44,7 +45,7 @@ export function isEmptyElement(value: JsonValue, config: Configuration): boolean
         : isEmptyElement(children, config);
     }
 
-    // STANDARDIZED: Use semantic metadata detection instead of properties
+    // Use semantic metadata detection instead of properties
     const contentKeys = getContentProperties(obj);
     return contentKeys.length === 0 || 
            contentKeys.every(key => isEmptyElement(obj[key], config));
@@ -56,9 +57,8 @@ export function isEmptyElement(value: JsonValue, config: Configuration): boolean
 
 /**
  * Remove empty elements from JSON structure
- * STANDARDIZED: Pure semantic metadata detection
  */
-export function removeEmptyElements(value: JsonValue, config: Configuration): JsonValue | undefined {
+export function removeEmptyElements(value: JsonValue, config: JsonConfiguration): JsonValue | undefined {
   if (value === null || value === undefined) {
     return undefined;
   }
@@ -88,7 +88,7 @@ export function removeEmptyElements(value: JsonValue, config: Configuration): Js
       return undefined;
     }
 
-    // STANDARDIZED: Use semantic metadata detection
+    // Use semantic metadata detection
     const contentKeys = getContentProperties(processedObj);
 
     // If no content keys but has metadata, keep it (represents empty element with attributes)
@@ -109,10 +109,6 @@ export function removeEmptyElements(value: JsonValue, config: Configuration): Js
 }
 
 /**
- * STANDARDIZED: Semantic metadata detection utilities
- */
-
-/**
  * Check if object is in high-fidelity semantic format
  */
 export function isHighFidelityJson(obj: JsonObject): boolean {
@@ -122,7 +118,6 @@ export function isHighFidelityJson(obj: JsonObject): boolean {
 
 /**
  * Check if property represents semantic metadata
- * STANDARDIZED: Complete semantic metadata detection
  */
 export function isSemanticMetadata(key: string): boolean {
   return key.startsWith('#') ||           // Semantic properties (#type, #name, #value, etc.)
@@ -137,7 +132,6 @@ export function isSemanticMetadata(key: string): boolean {
 
 /**
  * Get content properties from object (excluding semantic metadata)
- * STANDARDIZED: Replaces legacy properties-based approach
  */
 export function getContentProperties(obj: JsonObject): string[] {
   return Object.keys(obj).filter(key => !isSemanticMetadata(key));
@@ -145,7 +139,6 @@ export function getContentProperties(obj: JsonObject): string[] {
 
 /**
  * Get semantic metadata properties from object
- * STANDARDIZED: Pure semantic approach
  */
 export function getSemanticMetadata(obj: JsonObject): JsonObject {
   const metadata: JsonObject = {};
@@ -161,7 +154,6 @@ export function getSemanticMetadata(obj: JsonObject): JsonObject {
 
 /**
  * Check if object has semantic value property
- * STANDARDIZED: Replaces legacy properties.value checks
  */
 export function hasSemanticValue(obj: JsonObject): boolean {
   return obj['#value'] !== undefined;
@@ -169,7 +161,6 @@ export function hasSemanticValue(obj: JsonObject): boolean {
 
 /**
  * Get semantic value from object
- * STANDARDIZED: Replaces legacy properties.value access
  */
 export function getSemanticValue(obj: JsonObject): JsonValue | undefined {
   return obj['#value'];
@@ -177,7 +168,6 @@ export function getSemanticValue(obj: JsonObject): JsonValue | undefined {
 
 /**
  * Check if object has semantic children property
- * STANDARDIZED: Replaces legacy properties.children checks
  */
 export function hasSemanticChildren(obj: JsonObject): boolean {
   return obj['#children'] !== undefined;
@@ -185,7 +175,6 @@ export function hasSemanticChildren(obj: JsonObject): boolean {
 
 /**
  * Get semantic children from object
- * STANDARDIZED: Replaces legacy properties.children access
  */
 export function getSemanticChildren(obj: JsonObject): JsonValue | undefined {
   return obj['#children'];
@@ -193,7 +182,6 @@ export function getSemanticChildren(obj: JsonObject): JsonValue | undefined {
 
 /**
  * Detect semantic format type
- * STANDARDIZED: Format detection without legacy properties
  */
 export function detectSemanticFormat(obj: JsonObject): 'high-fidelity' | 'standard' | 'mixed' {
   if (isHighFidelityJson(obj)) {
@@ -212,7 +200,6 @@ export function detectSemanticFormat(obj: JsonObject): 'high-fidelity' | 'standa
 
 /**
  * Normalize object to standard format
- * STANDARDIZED: Convert various formats to consistent structure
  */
 export function normalizeSemanticObject(obj: JsonObject): JsonObject {
   const format = detectSemanticFormat(obj);
@@ -245,4 +232,11 @@ export function normalizeSemanticObject(obj: JsonObject): JsonObject {
       // Already in standard format or mixed - return as-is
       return obj;
   }
+}
+
+/**
+ * Get array item name for JSON conversion with fallback
+ */
+export function getJsonArrayItemName(config: JsonConfiguration, parentPropertyName: string): string {
+  return config.arrayItemNames[parentPropertyName] || config.defaultItemName;
 }

@@ -2,10 +2,9 @@
  * XJX Library - XML/JSON transformation with fluent API and semantic XNode system
  */
 
-// IMPORTANT: Register all extensions by importing their files
+// IMPORTANT: Register all extensions by importing adapter and extension files
 // These imports MUST be kept as they register methods on the XJX prototype
-import "./extensions/source";
-import "./extensions/output";
+import "./adapters"; // Registers all adapter extensions
 import "./extensions/config";
 import "./extensions/functional-api";
 
@@ -13,23 +12,18 @@ import "./extensions/functional-api";
 export { XJX } from "./XJX";
 export { default } from "./XJX";
 
-// Export core interfaces and types
+// Export core configuration (format-neutral)
 export {
-  // Configuration - ConfigurationHelper removed
   Configuration,
-  BaseConfiguration,
-  XmlConfiguration,
-  JsonConfiguration,
   getDefaultConfig,
   mergeConfig,
   createConfig,
   validateConfig
 } from "./core/config";
 
-// Export configuration utilities (replaces ConfigurationHelper methods)
+// Export configuration utilities
 export {
   getFragmentRootName,
-  getJsonArrayItemName,
   shouldPrettyPrint
 } from "./core/config-utils";
 
@@ -126,12 +120,9 @@ export {
   ClonePolicies
 } from "./core/context";
 
-// Export converter types and hook interfaces
+// Export converter base types and hook interfaces
 export {
   Converter,
-  JsonValue,
-  JsonObject,
-  JsonArray,
   applySourceHooks,
   applyOutputHooks,
   applyNodeHooks,
@@ -145,19 +136,6 @@ export {
   PipelineHooks
 } from './core/hooks';
 
-// Export semantic converters
-export {
-  xmlToXNodeConverter,
-  xnodeToXmlConverter,
-  xnodeToXmlStringConverter,
-  jsonToXNodeConverter,
-  xnodeToJsonConverter,
-  xnodeToJsonHiFiConverter,
-  validateJsonForSemantic,
-  filterEmptyValues,
-  getSemanticTypeForJsonValue
-} from "./converters";
-
 // Export transform functions and creators
 export {
   // Transform Factories
@@ -169,13 +147,6 @@ export {
   NumberTransformOptions,
   BooleanTransformOptions,
 } from "./transforms";
-
-// Export simplified utilities (removed unused functions)
-export {
-  // Only the used JSON utilities
-  isEmptyElement,
-  removeEmptyElements
-} from "./core/json-utils";
 
 // Export DOM utilities
 export {
@@ -192,13 +163,15 @@ export {
   setPath
 } from "./core/common";
 
+// Export adapters for direct access
+export * as adapters from "./adapters";
+
 // Manual registration verification - this function does nothing at runtime
 // but ensures that tree-shaking doesn't remove our extension imports
 function ensureExtensionsRegistered() {
   return [
-    "./extensions/source",
-    "./extensions/output",
-    "./extensions/config-extensions",
+    "./adapters",
+    "./extensions/config",
     "./extensions/functional-api"
   ];
 }

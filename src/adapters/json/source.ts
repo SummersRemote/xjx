@@ -1,11 +1,10 @@
 /**
- * JSON to Semantic XNode converter - Direct configuration property access
- * ConfigurationHelper removed for simplicity and consistency
+ * JSON source adapter - JSON to Semantic XNode conversion
  */
-import { LoggerFactory } from "../core/logger";
+import { LoggerFactory } from "../../core/logger";
 const logger = LoggerFactory.create();
 
-import { ProcessingError, ValidationError } from "../core/error";
+import { ProcessingError, ValidationError } from "../../core/error";
 import { 
   XNode, 
   XNodeType,
@@ -14,32 +13,27 @@ import {
   createField,
   createValue,
   addChild
-} from "../core/xnode";
-import { Configuration } from "../core/config";
-import { getJsonArrayItemName } from "../core/config-utils";
-import { UnifiedConverter } from "../core/pipeline";
-import { PipelineContext } from "../core/context";
+} from "../../core/xnode";
+import { UnifiedConverter } from "../../core/pipeline";
+import { PipelineContext } from "../../core/context";
+import { NonTerminalExtensionContext } from "../../core/extension";
+import { SourceHooks } from "../../core/hooks";
+import { ClonePolicies } from "../../core/context";
+import { JsonConfiguration, DEFAULT_JSON_CONFIG } from "./config";
+import { JsonValue, JsonObject, JsonArray, getJsonArrayItemName } from "./utils";
 
 /**
  * Context for JSON to Semantic XNode conversion
- * Direct configuration access instead of ConfigurationHelper
  */
 interface JsonConversionContext {
-  config: Configuration;
+  config: JsonConfiguration;
   parentPropertyName?: string;
   depth: number;
   preserveSemanticInfo?: boolean;
 }
 
 /**
- * JSON value types for conversion
- */
-type JsonValue = string | number | boolean | null | JsonObject | JsonArray;
-interface JsonObject { [key: string]: JsonValue }
-type JsonArray = JsonValue[];
-
-/**
- * Standard JSON to Semantic XNode converter using direct configuration property access
+ * Standard JSON to Semantic XNode converter
  */
 export const jsonToXNodeConverter: UnifiedConverter<JsonValue, XNode> = {
   name: 'jsonToSemanticXNode',
@@ -57,9 +51,16 @@ export const jsonToXNodeConverter: UnifiedConverter<JsonValue, XNode> = {
     });
     
     try {
-      // Create conversion context with direct configuration access
+      // Get JSON config from pipeline context or use defaults
+      const baseConfig = context.config.get();
+      const jsonConfig: JsonConfiguration = {
+        ...DEFAULT_JSON_CONFIG,
+        ...(baseConfig as any).json // Type assertion for compatibility
+      };
+      
+      // Create conversion context
       const conversionContext: JsonConversionContext = {
-        config: context.config.get(),
+        config: jsonConfig,
         depth: 0,
         preserveSemanticInfo: false
       };
@@ -92,7 +93,7 @@ export const jsonToXNodeConverter: UnifiedConverter<JsonValue, XNode> = {
 };
 
 /**
- * High-fidelity JSON to Semantic XNode converter (preserves semantic metadata)
+ * High-fidelity JSON to Semantic XNode converter
  */
 export const jsonHiFiToXNodeConverter: UnifiedConverter<JsonValue, XNode> = {
   name: 'jsonHiFiToSemanticXNode',
@@ -133,8 +134,14 @@ export const jsonHiFiToXNodeConverter: UnifiedConverter<JsonValue, XNode> = {
         return result;
       } else {
         // Fallback to standard conversion with semantic info preservation
+        const baseConfig = context.config.get();
+        const jsonConfig: JsonConfiguration = {
+          ...DEFAULT_JSON_CONFIG,
+          ...(baseConfig as any).json
+        };
+        
         const conversionContext: JsonConversionContext = {
-          config: context.config.get(),
+          config: jsonConfig,
           depth: 0,
           preserveSemanticInfo: true
         };
@@ -162,6 +169,44 @@ export const jsonHiFiToXNodeConverter: UnifiedConverter<JsonValue, XNode> = {
     return null;
   }
 };
+
+/**
+ * fromJson extension implementation
+ */
+export function fromJson(
+  this: NonTerminalExtensionContext, 
+  json: any,
+  hooks?: SourceHooks<any>
+): void {
+  try {
+    // Check for high-fidelity mode in base config
+    const baseConfig = this.pipeline.config.get();
+    const useHighFidelity = (baseConfig as any).highFidelity || false;
+    
+    logger.debug('Setting JSON source with semantic XNode converter', {
+      sourceType: Array.isArray(json) ? 'array' : typeof json,
+      highFidelity: useHighFidelity,
+      hasSourceHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
+    });
+    
+    // Choose converter based on configuration
+    const converter = useHighFidelity ? jsonHiFiToXNodeConverter : jsonToXNodeConverter;
+    this.executeSource(converter, json, hooks);
+    
+    logger.debug('Successfully set JSON source', {
+      rootNodeName: this.xnode?.name,
+      rootNodeType: this.xnode?.type,
+      usedHighFidelity: useHighFidelity
+    });
+  } catch (err) {
+    if (err instanceof Error) {
+      throw err;
+    }
+    throw new Error(`Failed to parse JSON source: ${String(err)}`);
+  }
+}
+
+// --- Helper Functions ---
 
 /**
  * Convert JSON value to semantic XNode using natural type mapping
@@ -194,7 +239,7 @@ function convertJsonValueToSemantic(
  * Handle null values based on configuration
  */
 function handleNullValue(name: string, context: JsonConversionContext): XNode {
-  const jsonConfig = context.config.json;
+  const jsonConfig = context.config;
   
   switch (jsonConfig.emptyValueHandling) {
     case 'null':
@@ -210,7 +255,7 @@ function handleNullValue(name: string, context: JsonConversionContext): XNode {
 }
 
 /**
- * Convert JSON array to COLLECTION node (natural mapping)
+ * Convert JSON array to COLLECTION node
  */
 function convertJsonArrayToCollection(
   name: string, 
@@ -219,7 +264,7 @@ function convertJsonArrayToCollection(
 ): XNode {
   const collection = createCollection(name);
   
-  // Get item name for array elements using utility function
+  // Get item name for array elements
   const itemName = getJsonArrayItemName(context.config, context.parentPropertyName || name);
   
   // Create child context
@@ -252,7 +297,7 @@ function convertJsonArrayToCollection(
 }
 
 /**
- * Convert JSON object to RECORD node (natural mapping)
+ * Convert JSON object to RECORD node
  */
 function convertJsonObjectToRecord(
   name: string, 
@@ -362,7 +407,7 @@ function shouldIndexArrayItems(array: JsonArray): boolean {
  * Determine if VALUE should be promoted to FIELD for array items
  */
 function shouldPromoteToField(context: JsonConversionContext): boolean {
-  const jsonConfig = context.config.json;
+  const jsonConfig = context.config;
   return jsonConfig.fieldVsValue === 'field' || 
          (jsonConfig.fieldVsValue === 'auto' && context.depth > 1);
 }
@@ -375,7 +420,7 @@ function applyFieldValueStrategy(
   originalValue: JsonValue, 
   context: JsonConversionContext
 ): XNode {
-  const jsonConfig = context.config.json;
+  const jsonConfig = context.config;
   
   // Only applies to VALUE nodes that are object properties
   if (node.type !== XNodeType.VALUE) {
@@ -406,10 +451,8 @@ function applyFieldValueStrategy(
 /**
  * Filter out empty values based on configuration
  */
-export function filterEmptyValues(node: XNode, config: Configuration): XNode | null {
-  const jsonConfig = config.json;
-  
-  if (jsonConfig.emptyValueHandling === 'remove') {
+function filterEmptyValues(node: XNode, config: JsonConfiguration): XNode | null {
+  if (config.emptyValueHandling === 'remove') {
     // Remove nodes with null values
     if (node.value === null || node.value === undefined) {
       return null;
@@ -437,7 +480,7 @@ export function filterEmptyValues(node: XNode, config: Configuration): XNode | n
 /**
  * Validate JSON structure for semantic conversion
  */
-export function validateJsonForSemantic(json: JsonValue): void {
+function validateJsonForSemantic(json: JsonValue): void {
   if (json === undefined) {
     throw new ValidationError("JSON value cannot be undefined");
   }

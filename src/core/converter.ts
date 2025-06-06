@@ -1,11 +1,11 @@
 /**
  * Core converter interfaces and shared utilities - Pure semantic approach
- * All legacy DOM references removed
+ * PHASE 2: All legacy configuration patterns eliminated
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
 
-import { Configuration, ConfigurationHelper } from './config';
+import { ConfigurationHelper } from './config';
 import { XNode } from './xnode';
 import { SourceHooks, OutputHooks, NodeHooks } from "./hooks";
 
@@ -17,10 +17,10 @@ export interface JsonObject { [key: string]: JsonValue }
 export type JsonArray = JsonValue[];
 
 /**
- * Converter interface
+ * Converter interface (legacy - kept for compatibility)
  */
 export interface Converter<TInput, TOutput> {
-  convert(input: TInput, config: Configuration): TOutput;
+  convert(input: TInput, config: ConfigurationHelper): TOutput;
 }
 
 /**
@@ -143,12 +143,15 @@ export function applyNodeHooks(
 
 /**
  * Parse element name with optional prefix (semantic approach)
+ * STANDARDIZED: Uses ConfigurationHelper
  */
 export function parseElementName(
   name: string, 
-  preservePrefixedNames: boolean
+  configHelper: ConfigurationHelper
 ): { prefix?: string; localName: string } {
-  if (preservePrefixedNames && name.includes(':')) {
+  const xmlConfig = configHelper.getXmlConfig();
+  
+  if (xmlConfig.preservePrefixedNames && name.includes(':')) {
     const parts = name.split(':');
     return {
       prefix: parts[0],
@@ -160,13 +163,16 @@ export function parseElementName(
 
 /**
  * Get the appropriate element name based on configuration
+ * STANDARDIZED: Uses ConfigurationHelper
  */
 export function getElementName(
   name: string, 
   prefix: string | undefined, 
-  preservePrefixedNames: boolean
+  configHelper: ConfigurationHelper
 ): string {
-  if (preservePrefixedNames && prefix) {
+  const xmlConfig = configHelper.getXmlConfig();
+  
+  if (xmlConfig.preservePrefixedNames && prefix) {
     return `${prefix}:${name}`;
   }
   return name;
@@ -174,12 +180,15 @@ export function getElementName(
 
 /**
  * Get the appropriate attribute name based on configuration
+ * STANDARDIZED: Uses ConfigurationHelper
  */
 export function getAttributeName(
   originalName: string, 
-  preservePrefixedNames: boolean
+  configHelper: ConfigurationHelper
 ): string {
-  if (preservePrefixedNames) {
+  const xmlConfig = configHelper.getXmlConfig();
+  
+  if (xmlConfig.preservePrefixedNames) {
     return originalName;
   }
   
@@ -193,12 +202,13 @@ export function getAttributeName(
 
 /**
  * Process attributes for semantic XNode using XML configuration
+ * STANDARDIZED: Uses ConfigurationHelper exclusively
  */
 export function processAttributes(
   element: Element,
-  config: ConfigurationHelper
+  configHelper: ConfigurationHelper
 ): Record<string, any> | undefined {
-  const xmlConfig = config.getXmlConfig();
+  const xmlConfig = configHelper.getXmlConfig();
   
   if (!element.attributes || element.attributes.length === 0 || !xmlConfig.preserveAttributes) {
     return undefined;
@@ -211,7 +221,7 @@ export function processAttributes(
 
     if (attr.name === "xmlns" || attr.name.startsWith("xmlns:")) continue;
 
-    const attrName = getAttributeName(attr.name, xmlConfig.preservePrefixedNames);
+    const attrName = getAttributeName(attr.name, configHelper);
     attributes[attrName] = attr.value;
   }
 
@@ -253,16 +263,16 @@ export function processNamespaceDeclarations(
 
 /**
  * Process attribute object from JSON using semantic configuration
+ * STANDARDIZED: Uses ConfigurationHelper
  */
 export function processAttributeObject(
   attrs: JsonObject,
-  config: ConfigurationHelper
+  configHelper: ConfigurationHelper
 ): Record<string, any> {
   const result: Record<string, any> = {};
-  const xmlConfig = config.getXmlConfig();
 
   Object.entries(attrs).forEach(([key, value]) => {
-    const finalAttrName = getAttributeName(key, xmlConfig.preservePrefixedNames);
+    const finalAttrName = getAttributeName(key, configHelper);
     result[finalAttrName] = value;
   });
 

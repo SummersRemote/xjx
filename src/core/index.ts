@@ -35,25 +35,5 @@ export * from './extension';
 // Unified tree traversal and transforms
 export * from './functional';
 
-// Simplified utilities (unused functions removed)
-export {
-  // JSON utilities - only used functions
-  isEmptyElement,
-  removeEmptyElements
-} from './json-utils';
-
-export {
-  // XML utilities - unused functions removed
-  parseXml,
-  serializeXml,
-  formatXml,
-  ensureXmlDeclaration,
-  escapeXml,
-  safeXmlText,
-  normalizeWhitespace,
-  createQualifiedName,
-  addNamespaceDeclarations
-} from './xml-utils';
-
 // XNode model
 export * from './xnode';

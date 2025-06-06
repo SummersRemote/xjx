@@ -1,6 +1,6 @@
 /**
- * Updated source extensions for semantic XNode system
- * Uses new semantic converters and XNode interface
+ * Source extensions for semantic XNode system
+ * PHASE 2: Pure semantic configuration approach
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
@@ -8,13 +8,17 @@ const logger = LoggerFactory.create();
 import { XJX } from "../XJX";
 import { XNode, XNodeType, createCollection, addChild } from "../core/xnode";
 import { xmlToXNodeConverter } from "../converters/xml-to-xnode-converter";
-import { jsonToXNodeConverter } from "../converters/json-to-xnode-converter";
+import { 
+  jsonToXNodeConverter,
+  jsonHiFiToXNodeConverter 
+} from "../converters/json-to-xnode-converter";
 import { NonTerminalExtensionContext } from "../core/extension";
 import { SourceHooks } from "../core/hooks";
 import { ClonePolicies } from "../core/context";
 
 /**
- * Updated fromXml extension using semantic XNode converter
+ * fromXml extension using semantic XNode converter
+ * STANDARDIZED: Pure semantic configuration
  */
 export function fromXml(
   this: NonTerminalExtensionContext, 
@@ -27,7 +31,7 @@ export function fromXml(
       hasSourceHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
     });
     
-    // Use unified pipeline with semantic XML converter
+    // STANDARDIZED: Use unified pipeline with semantic XML converter
     this.executeSource(xmlToXNodeConverter, xml, hooks);
     
     logger.debug('Successfully set XML source', {
@@ -43,7 +47,8 @@ export function fromXml(
 }
 
 /**
- * Updated fromJson extension using semantic XNode converter
+ * fromJson extension using semantic XNode converter
+ * STANDARDIZED: Uses base config highFidelity instead of strategies.highFidelity
  */
 export function fromJson(
   this: NonTerminalExtensionContext, 
@@ -51,17 +56,23 @@ export function fromJson(
   hooks?: SourceHooks<any>
 ): void {
   try {
+    // STANDARDIZED: Use base configuration highFidelity instead of strategies.highFidelity
+    const useHighFidelity = this.pipeline.config.get().highFidelity;
+    
     logger.debug('Setting JSON source with semantic XNode converter', {
       sourceType: Array.isArray(json) ? 'array' : typeof json,
+      highFidelity: useHighFidelity,
       hasSourceHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
     });
     
-    // Use unified pipeline with semantic JSON converter
-    this.executeSource(jsonToXNodeConverter, json, hooks);
+    // STANDARDIZED: Choose converter based on semantic configuration
+    const converter = useHighFidelity ? jsonHiFiToXNodeConverter : jsonToXNodeConverter;
+    this.executeSource(converter, json, hooks);
     
     logger.debug('Successfully set JSON source', {
       rootNodeName: this.xnode?.name,
-      rootNodeType: this.xnode?.type
+      rootNodeType: this.xnode?.type,
+      usedHighFidelity: useHighFidelity
     });
   } catch (err) {
     if (err instanceof Error) {
@@ -72,7 +83,8 @@ export function fromJson(
 }
 
 /**
- * Updated fromXnode extension for semantic XNode arrays
+ * fromXnode extension for semantic XNode arrays
+ * STANDARDIZED: Uses semantic createCollection instead of createElement
  */
 export function fromXnode(
   this: NonTerminalExtensionContext, 
@@ -108,7 +120,7 @@ export function fromXnode(
         hasSourceHooks: !!(hooks && (hooks.beforeTransform || hooks.afterTransform))
       });
       
-      // Create a collection to contain all nodes
+      // STANDARDIZED: Create a collection to contain all nodes (semantic approach)
       resultXNode = createCollection('xnodes');
       
       // Add each input node as a child (clone to avoid mutation)
@@ -177,14 +189,20 @@ export function fromXnode(
   }
 }
 
-// Register the extensions with XJX with configuration defaults
+// STANDARDIZED: Register extensions with XJX using semantic configuration defaults
 XJX.registerNonTerminalExtension("fromXml", fromXml, {
   xml: {
     preserveNamespaces: true,
     preserveCDATA: true,
     preserveMixedContent: true,
+    preserveTextNodes: true,
+    preserveAttributes: true,
+    preservePrefixedNames: true,
     attributeHandling: 'attributes',
-    namespacePrefixHandling: 'preserve'
+    namespacePrefixHandling: 'preserve',
+    prettyPrint: true,
+    declaration: true,
+    encoding: 'UTF-8'
   }
 });
 
@@ -193,7 +211,8 @@ XJX.registerNonTerminalExtension("fromJson", fromJson, {
     arrayItemNames: {},
     defaultItemName: "item",
     fieldVsValue: 'auto',
-    emptyValueHandling: 'null'
+    emptyValueHandling: 'null',
+    prettyPrint: true
   }
 });
 

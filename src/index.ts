@@ -6,7 +6,7 @@
 // These imports MUST be kept as they register methods on the XJX prototype
 import "./extensions/source";
 import "./extensions/output";
-import "./extensions/config-extensions";
+import "./extensions/config";
 import "./extensions/functional-api";
 
 // Export the main class (for instantiation)
@@ -170,19 +170,6 @@ export {
   isEmptyElement,
   removeEmptyElements
 } from "./core/json-utils";
-
-export {
-  // Only the used XML utilities  
-  parseXml,
-  serializeXml,
-  formatXml,
-  ensureXmlDeclaration,
-  escapeXml,
-  safeXmlText,
-  normalizeWhitespace,
-  createQualifiedName,
-  addNamespaceDeclarations
-} from "./core/xml-utils";
 
 // Export DOM utilities
 export {

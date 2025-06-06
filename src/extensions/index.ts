@@ -20,4 +20,4 @@ export * from './output'
 export * from './functional-api';
 
 // Configuration extensions
-export * from './config-extensions';
+export * from './config';

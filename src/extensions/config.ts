@@ -1,5 +1,6 @@
 /**
- * Extension implementation for configuration methods - Updated for unified pipeline context
+ * Configuration extensions - Pure semantic configuration approach
+ * PHASE 2: All legacy configuration patterns eliminated
  */
 import { LoggerFactory, LogLevel } from "../core/logger";
 const logger = LoggerFactory.create();
@@ -9,7 +10,8 @@ import { Configuration } from "../core/config";
 import { NonTerminalExtensionContext } from "../core/extension";
 
 /**
- * Implementation for setting configuration options using unified pipeline context
+ * Implementation for setting configuration options
+ * STANDARDIZED: Pure semantic configuration validation
  */
 export function withConfig(this: NonTerminalExtensionContext, config: Partial<Configuration>): void {
   try {
@@ -22,7 +24,7 @@ export function withConfig(this: NonTerminalExtensionContext, config: Partial<Co
       return;
     }
     
-    // Check if any preservation settings are being changed after initialization
+    // STANDARDIZED: Check preservation settings using semantic configuration paths
     const PRESERVATION_SETTINGS = [
       "preserveComments", 
       "preserveInstructions", 
@@ -31,21 +33,24 @@ export function withConfig(this: NonTerminalExtensionContext, config: Partial<Co
       "xml.preserveCDATA", 
       "xml.preserveMixedContent", 
       "xml.preserveTextNodes",
-      "xml.preserveAttributes"
+      "xml.preserveAttributes",
+      "xml.preservePrefixedNames"
     ];
     
     if (this.xnode !== null) {
       // Source has already been set, check for preservation setting changes
       const currentConfig = this.pipeline.config.get();
       
-      // Check base preservation settings
+      // STANDARDIZED: Check preservation settings using semantic paths
       const changedSettings = PRESERVATION_SETTINGS.filter(setting => {
         if (setting.includes('.')) {
           const [section, property] = setting.split('.');
-          return config[section as keyof Configuration] && 
-                 (config[section as keyof Configuration] as any)[property] !== undefined && 
-                 (config[section as keyof Configuration] as any)[property] !== 
-                 (currentConfig[section as keyof Configuration] as any)[property];
+          const configSection = config[section as keyof Configuration] as any;
+          const currentSection = currentConfig[section as keyof Configuration] as any;
+          
+          return configSection && 
+                 configSection[property] !== undefined && 
+                 configSection[property] !== currentSection[property];
         } else {
           return config[setting as keyof Configuration] !== undefined && 
                  config[setting as keyof Configuration] !== currentConfig[setting as keyof Configuration];
@@ -63,12 +68,17 @@ export function withConfig(this: NonTerminalExtensionContext, config: Partial<Co
     // Apply configuration using pipeline configuration manager
     this.pipeline.config = this.pipeline.config.merge(config);
     
+    // STANDARDIZED: Log using semantic configuration structure
     logger.debug('Successfully applied configuration using pipeline context', {
       preserveComments: this.pipeline.config.get().preserveComments,
+      preserveInstructions: this.pipeline.config.get().preserveInstructions,
+      preserveWhitespace: this.pipeline.config.get().preserveWhitespace,
+      highFidelity: this.pipeline.config.get().highFidelity,
       xmlPreserveNamespaces: this.pipeline.config.get().xml.preserveNamespaces,
+      xmlAttributeHandling: this.pipeline.config.get().xml.attributeHandling,
       xmlPrettyPrint: this.pipeline.config.get().xml.prettyPrint,
-      jsonPrettyPrint: this.pipeline.config.get().json.prettyPrint,
-      highFidelity: this.pipeline.config.get().highFidelity
+      jsonFieldVsValue: this.pipeline.config.get().json.fieldVsValue,
+      jsonPrettyPrint: this.pipeline.config.get().json.prettyPrint
     });
   } catch (err) {
     if (err instanceof Error) {
@@ -80,6 +90,7 @@ export function withConfig(this: NonTerminalExtensionContext, config: Partial<Co
 
 /**
  * Implementation for setting the log level using unified pipeline context
+ * STANDARDIZED: Unchanged - already using semantic approach
  */
 export function withLogLevel(this: NonTerminalExtensionContext, level: LogLevel | string): void {
   try {

@@ -1,16 +1,13 @@
 /**
- * Converters module - Unified pipeline-based converters for semantic XNode
- * Phase 2: All legacy hook wrappers and transform references REMOVED
- *
- * This module provides converter functions for transforming between XML, JSON, and semantic XNode.
- * All converters use the pipeline execution framework with integrated hook support.
+ * Converters module - Standardized exports for semantic XNode
+ * PHASE 2: All legacy references removed, consistent naming
  */
 
 // Base converter and pipeline interfaces
 export * from "../core/converter";
 export * from "../core/pipeline";
 
-// Semantic XML converters
+// STANDARDIZED: Semantic XML converters with consistent naming
 export {
   xmlToXNodeConverter,
 } from "./xml-to-xnode-converter";
@@ -20,9 +17,10 @@ export {
   xnodeToXmlStringConverter,
 } from "./xnode-to-xml-converter";
 
-// Semantic JSON converters
+// STANDARDIZED: Semantic JSON converters with consistent naming
 export {
   jsonToXNodeConverter,
+  jsonHiFiToXNodeConverter,
   validateJsonForSemantic,
   filterEmptyValues,
   getSemanticTypeForJsonValue

@@ -1,6 +1,6 @@
 /**
- * XML to XNode unified converter - Simplified, performance tracking removed
- * Phase 2: All performance.startStage/endStage calls removed
+ * XML to Semantic XNode converter - Maps DOM to semantic types
+ * Replaces DOM-based mapping with semantic type mapping
  */
 import { LoggerFactory } from "../core/logger";
 const logger = LoggerFactory.create();
@@ -10,35 +10,35 @@ import { ProcessingError } from '../core/error';
 import * as xmlUtils from '../core/xml-utils';
 import { 
   XNode, 
-  createElement, 
-  createTextNode, 
-  createCDATANode, 
-  createCommentNode, 
-  createProcessingInstructionNode, 
-  addChild 
+  XNodeType,
+  createCollection,
+  createRecord, 
+  createField,
+  createValue,
+  createComment, 
+  createInstruction, 
+  createData,
+  addChild,
+  addAttribute
 } from '../core/xnode';
-import { 
-  processAttributes,
-  processNamespaceDeclarations,
-  hasTextContent
-} from '../core/converter';
+import { Configuration, ConfigurationHelper } from '../core/config';
 import { UnifiedConverter } from '../core/pipeline';
 import { PipelineContext } from '../core/context';
 
 /**
- * Context for XML to XNode conversion
+ * Context for XML to Semantic XNode conversion
  */
-interface ConversionContext {
+interface XmlConversionContext {
   namespaceMap: Record<string, string>;
+  config: ConfigurationHelper;
   parentNode?: XNode;
 }
 
 /**
- * Simplified XML to XNode converter - performance tracking removed
- * REMOVED: All context.performance.startStage/endStage calls
+ * XML to Semantic XNode converter using semantic type mapping
  */
 export const xmlToXNodeConverter: UnifiedConverter<string, XNode> = {
-  name: 'xmlToXNode',
+  name: 'xmlToSemanticXNode',
   inputType: 'string',
   outputType: 'XNode',
   
@@ -48,7 +48,7 @@ export const xmlToXNodeConverter: UnifiedConverter<string, XNode> = {
   },
   
   execute(xml: string, context: PipelineContext): XNode {
-    logger.debug('Starting XML to XNode conversion', {
+    logger.debug('Converting XML to semantic XNode', {
       xmlLength: xml.length
     });
     
@@ -63,16 +63,19 @@ export const xmlToXNodeConverter: UnifiedConverter<string, XNode> = {
       // Register DOM document for cleanup
       context.resources.registerDOMDocument(doc);
       
-      // Create context with empty namespace map
-      const conversionContext: ConversionContext = { namespaceMap: {} };
+      // Create conversion context with configuration helper
+      const conversionContext: XmlConversionContext = { 
+        namespaceMap: {},
+        config: new ConfigurationHelper(context.config.get())
+      };
       
-      // Convert DOM element to XNode
-      const result = convertElementToXNode(doc.documentElement, context, conversionContext);
+      // Convert DOM element to semantic XNode
+      const result = convertElementToSemanticXNode(doc.documentElement, context, conversionContext);
       
       // Register result for tracking
       context.resources.registerXNode(result);
       
-      logger.debug('Successfully converted XML to XNode', {
+      logger.debug('Successfully converted XML to semantic XNode', {
         rootNodeName: result.name,
         rootNodeType: result.type
       });
@@ -80,71 +83,110 @@ export const xmlToXNodeConverter: UnifiedConverter<string, XNode> = {
       return result;
       
     } catch (err) {
-      throw new ProcessingError(`Failed to convert XML to XNode: ${err instanceof Error ? err.message : String(err)}`, xml);
+      throw new ProcessingError(`Failed to convert XML to semantic XNode: ${err instanceof Error ? err.message : String(err)}`, xml);
     }
   },
   
   onError(error: Error, xml: string, context: PipelineContext): XNode | null {
-    logger.error('XML to XNode conversion failed', { error, xmlLength: xml.length });
+    logger.error('XML to semantic XNode conversion failed', { error, xmlLength: xml.length });
     return null;
   }
 };
 
 /**
- * Convert DOM element to XNode
+ * Convert DOM element to semantic XNode (RECORD type)
  */
-function convertElementToXNode(
+function convertElementToSemanticXNode(
   element: Element, 
   context: PipelineContext, 
-  conversionContext: ConversionContext
+  conversionContext: XmlConversionContext
 ): XNode {
-  const config = context.config.get();
+  const xmlConfig = conversionContext.config.getXmlConfig();
   
-  // Create base node
-  let xnode = createElement(
-    element.localName ||
-    element.nodeName.split(":").pop() ||
-    element.nodeName
-  );
+  // XML elements become RECORD nodes in semantic model
+  const elementName = getElementName(element, xmlConfig);
+  const xnode = createRecord(elementName);
   
   // Set parent reference
   xnode.parent = conversionContext.parentNode;
 
   // Process namespace information if preserving namespaces
-  if (config.preserveNamespaces) {
-    xnode.namespace = element.namespaceURI || undefined;
-    xnode.prefix = element.prefix || undefined;
-
-    // Process namespace declarations
-    if (hasNamespaceDeclarations(element)) {
-      const namespaceResult = processNamespaceDeclarations(element, conversionContext.namespaceMap);
-      
-      if (Object.keys(namespaceResult.declarations).length > 0) {
-        xnode.namespaceDeclarations = namespaceResult.declarations;
-        xnode.isDefaultNamespace = element.hasAttribute("xmlns");
-        conversionContext.namespaceMap = namespaceResult.namespaceMap;
-      }
-    }
+  if (xmlConfig.preserveNamespaces) {
+    processNamespaceInfo(element, xnode, xmlConfig, conversionContext);
   }
 
-  // Process attributes
-  const attributes = processAttributes(element, config);
-  if (attributes) {
-    xnode.attributes = attributes;
+  // Process XML attributes based on configuration
+  if (element.attributes.length > 0) {
+    processElementAttributes(element, xnode, xmlConfig, conversionContext);
   }
 
-  // Process child nodes
+  // Process child nodes using semantic mapping
   if (element.childNodes.length > 0) {
-    processChildren(element, xnode, context, conversionContext);
+    processElementChildren(element, xnode, context, conversionContext);
   }
 
-  logger.debug('Converted DOM element to XNode', { 
+  logger.debug('Converted XML element to semantic record', { 
     elementName: element.nodeName, 
-    xnodeName: xnode.name,
-    childCount: xnode.children?.length || 0
+    semanticName: xnode.name,
+    semanticType: xnode.type,
+    childCount: xnode.children?.length || 0,
+    attributeCount: xnode.attributes?.length || 0
   });
   
   return xnode;
+}
+
+/**
+ * Get element name based on configuration
+ */
+function getElementName(element: Element, xmlConfig: any): string {
+  switch (xmlConfig.namespacePrefixHandling) {
+    case 'strip':
+      return element.localName || element.nodeName.split(':').pop() || element.nodeName;
+    case 'preserve':
+      return element.nodeName;
+    case 'label':
+      // Use localName but preserve prefix in label property
+      return element.localName || element.nodeName.split(':').pop() || element.nodeName;
+    default:
+      return element.localName || element.nodeName;
+  }
+}
+
+/**
+ * Process namespace information for semantic XNode
+ */
+function processNamespaceInfo(
+  element: Element, 
+  xnode: XNode, 
+  xmlConfig: any, 
+  conversionContext: XmlConversionContext
+): void {
+  // Set namespace URI
+  if (element.namespaceURI) {
+    xnode.ns = element.namespaceURI;
+  }
+  
+  // Handle prefix based on configuration
+  if (element.prefix) {
+    switch (xmlConfig.namespacePrefixHandling) {
+      case 'preserve':
+        // Keep prefix in name (already handled in getElementName)
+        break;
+      case 'label':
+        // Store prefix in label property
+        xnode.label = element.prefix;
+        break;
+      case 'strip':
+        // Don't preserve prefix
+        break;
+    }
+  }
+  
+  // Process namespace declarations if present
+  if (hasNamespaceDeclarations(element)) {
+    processNamespaceDeclarations(element, conversionContext);
+  }
 }
 
 /**
@@ -161,126 +203,216 @@ function hasNamespaceDeclarations(element: Element): boolean {
 }
 
 /**
- * Check if element has mixed content (text and elements)
+ * Process namespace declarations
  */
-function hasMixedContent(element: Element): boolean {
-  let hasText = false;
-  let hasElement = false;
-
-  for (let i = 0; i < element.childNodes.length; i++) {
-    const child = element.childNodes[i];
-
-    if (child.nodeType === NodeType.TEXT_NODE) {
-      if (hasTextContent(child.nodeValue || "")) {
-        hasText = true;
-      }
-    } else if (child.nodeType === NodeType.ELEMENT_NODE) {
-      hasElement = true;
+function processNamespaceDeclarations(
+  element: Element,
+  conversionContext: XmlConversionContext
+): void {
+  for (let i = 0; i < element.attributes.length; i++) {
+    const attr = element.attributes[i];
+    
+    if (attr.name === "xmlns") {
+      conversionContext.namespaceMap[""] = attr.value;
+    } else if (attr.name.startsWith("xmlns:")) {
+      const prefix = attr.name.substring(6);
+      conversionContext.namespaceMap[prefix] = attr.value;
     }
-
-    if (hasText && hasElement) return true;
   }
-
-  return false;
 }
 
 /**
- * Process child nodes
+ * Process XML attributes based on configuration
  */
-function processChildren(
+function processElementAttributes(
+  element: Element,
+  xnode: XNode,
+  xmlConfig: any,
+  conversionContext: XmlConversionContext
+): void {
+  for (let i = 0; i < element.attributes.length; i++) {
+    const attr = element.attributes[i];
+    
+    // Skip namespace declarations (handled separately)
+    if (attr.name === "xmlns" || attr.name.startsWith("xmlns:")) continue;
+    
+    const attrName = getAttributeName(attr, xmlConfig);
+    const attrValue = attr.value;
+    
+    if (xmlConfig.attributeHandling === 'attributes') {
+      // Use semantic attributes (XNode array)
+      addAttribute(xnode, attrName, attrValue, attr.namespaceURI || undefined, attr.prefix || undefined);
+    } else {
+      // Represent as field children with special naming
+      const attrField = createField(`@${attrName}`, attrValue);
+      if (attr.namespaceURI) attrField.ns = attr.namespaceURI;
+      if (attr.prefix) attrField.label = attr.prefix;
+      addChild(xnode, attrField);
+    }
+  }
+}
+
+/**
+ * Get attribute name based on configuration
+ */
+function getAttributeName(attr: Attr, xmlConfig: any): string {
+  switch (xmlConfig.namespacePrefixHandling) {
+    case 'strip':
+      return attr.localName || attr.name.split(':').pop() || attr.name;
+    case 'preserve':
+      return attr.name;
+    case 'label':
+      return attr.localName || attr.name.split(':').pop() || attr.name;
+    default:
+      return attr.name;
+  }
+}
+
+/**
+ * Process child nodes using semantic type mapping
+ */
+function processElementChildren(
   element: Element,
   parentNode: XNode,
   context: PipelineContext,
-  conversionContext: ConversionContext
+  conversionContext: XmlConversionContext
 ): void {
-  const config = context.config.get();
+  const helper = conversionContext.config;
   
-  // Detect mixed content
-  const hasMixed = hasMixedContent(element);
-
-  // Optimize single text node case
-  if (
-    element.childNodes.length === 1 &&
-    element.childNodes[0].nodeType === NodeType.TEXT_NODE &&
-    !hasMixed
-  ) {
-    const text = element.childNodes[0].nodeValue || "";
-    
-    if (hasTextContent(text)) {
-      const normalizedText = xmlUtils.normalizeWhitespace(text, config.preserveWhitespace);
-
-      if (normalizedText && config.preserveTextNodes) {
-        parentNode.value = normalizedText;
-      }
+  // Detect mixed content for proper semantic handling
+  const mixedContentInfo = analyzeMixedContent(element, helper);
+  
+  // Handle simple text-only content optimization
+  if (mixedContentInfo.isTextOnly && !mixedContentInfo.hasSignificantWhitespace) {
+    const textContent = getTextContent(element);
+    if (textContent.trim()) {
+      parentNode.value = helper.shouldPreserveWhitespace() ? textContent : textContent.trim();
     }
     return;
   }
-
-  // Process multiple children
+  
+  // Process all child nodes with semantic mapping
   for (let i = 0; i < element.childNodes.length; i++) {
     const child = element.childNodes[i];
-
-    switch (child.nodeType) {
-      case NodeType.TEXT_NODE:
-        if (config.preserveTextNodes) {
-          processTextNode(child, parentNode, config, hasMixed);
-        }
-        break;
-
-      case NodeType.CDATA_SECTION_NODE:
-        if (config.preserveCDATA) {
-          const cdataNode = createCDATANode(child.nodeValue || "");
-          addChild(parentNode, cdataNode);
-        }
-        break;
-
-      case NodeType.COMMENT_NODE:
-        if (config.preserveComments) {
-          const commentNode = createCommentNode(child.nodeValue || "");
-          addChild(parentNode, commentNode);
-        }
-        break;
-
-      case NodeType.PROCESSING_INSTRUCTION_NODE:
-        if (config.preserveProcessingInstr) {
-          const pi = child as ProcessingInstruction;
-          const piNode = createProcessingInstructionNode(pi.target, pi.data || "");
-          addChild(parentNode, piNode);
-        }
-        break;
-
-      case NodeType.ELEMENT_NODE:
-        // Recursively process child element
-        const childXNode = convertElementToXNode(
-          child as Element, 
-          context, 
-          { ...conversionContext, parentNode }
-        );
-        addChild(parentNode, childXNode);
-        break;
+    const semanticChild = convertChildNodeToSemantic(child, context, conversionContext);
+    
+    if (semanticChild) {
+      addChild(parentNode, semanticChild);
     }
   }
 }
 
 /**
- * Process a text node with improved whitespace handling
+ * Analyze mixed content to determine processing strategy
  */
-function processTextNode(
-  node: Node,
-  parentNode: XNode,
-  config: any,
-  hasMixed: boolean
-): void {
-  const text = node.nodeValue || "";
-  const hasContent = hasTextContent(text);
+function analyzeMixedContent(element: Element, helper: ConfigurationHelper): {
+  isTextOnly: boolean;
+  hasElements: boolean;
+  hasSignificantWhitespace: boolean;
+  hasMixedContent: boolean;
+} {
+  let hasText = false;
+  let hasElements = false;
+  let hasSignificantWhitespace = false;
   
-  if (hasContent || hasMixed) {
-    const normalizedText = xmlUtils.normalizeWhitespace(text, config.preserveWhitespace);
-
-    if ((normalizedText && config.preserveTextNodes) || 
-        (config.preserveWhitespace && hasMixed && config.preserveTextNodes)) {
-      const textNode = createTextNode(normalizedText || text);
-      addChild(parentNode, textNode);
+  for (let i = 0; i < element.childNodes.length; i++) {
+    const child = element.childNodes[i];
+    
+    switch (child.nodeType) {
+      case NodeType.TEXT_NODE:
+        const text = child.nodeValue || "";
+        if (text.trim()) {
+          hasText = true;
+        }
+        if (helper.shouldPreserveWhitespace() && /\s/.test(text)) {
+          hasSignificantWhitespace = true;
+        }
+        break;
+        
+      case NodeType.ELEMENT_NODE:
+        hasElements = true;
+        break;
+        
+      case NodeType.CDATA_SECTION_NODE:
+        hasText = true;
+        break;
     }
+  }
+  
+  return {
+    isTextOnly: hasText && !hasElements,
+    hasElements,
+    hasSignificantWhitespace,
+    hasMixedContent: hasText && hasElements
+  };
+}
+
+/**
+ * Get text content from element
+ */
+function getTextContent(element: Element): string {
+  let text = "";
+  
+  for (let i = 0; i < element.childNodes.length; i++) {
+    const child = element.childNodes[i];
+    
+    if (child.nodeType === NodeType.TEXT_NODE || child.nodeType === NodeType.CDATA_SECTION_NODE) {
+      text += child.nodeValue || "";
+    }
+  }
+  
+  return text;
+}
+
+/**
+ * Convert individual child node to semantic XNode
+ */
+function convertChildNodeToSemantic(
+  node: Node,
+  context: PipelineContext,
+  conversionContext: XmlConversionContext
+): XNode | null {
+  const helper = conversionContext.config;
+  
+  switch (node.nodeType) {
+    case NodeType.ELEMENT_NODE:
+      // Recursively convert child elements to semantic records
+      const childContext = { ...conversionContext };
+      return convertElementToSemanticXNode(node as Element, context, childContext);
+      
+    case NodeType.TEXT_NODE:
+      const text = node.nodeValue || "";
+      const normalizedText = helper.shouldPreserveWhitespace() ? text : text.trim();
+      
+      if (normalizedText) {
+        return createValue("#text", normalizedText);
+      }
+      return null;
+      
+    case NodeType.CDATA_SECTION_NODE:
+      if (conversionContext.config.getXmlConfig().preserveCDATA) {
+        return createData("#cdata", node.nodeValue || "");
+      }
+      return null;
+      
+    case NodeType.COMMENT_NODE:
+      if (helper.shouldPreserveComments()) {
+        return createComment(node.nodeValue || "");
+      }
+      return null;
+      
+    case NodeType.PROCESSING_INSTRUCTION_NODE:
+      if (helper.shouldPreserveInstructions()) {
+        const pi = node as ProcessingInstruction;
+        return createInstruction(pi.target, pi.data || "");
+      }
+      return null;
+      
+    default:
+      logger.debug('Skipping unsupported node type in semantic conversion', {
+        nodeType: node.nodeType,
+        nodeName: node.nodeName
+      });
+      return null;
   }
 }

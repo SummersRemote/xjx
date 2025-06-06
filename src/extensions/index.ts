@@ -5,14 +5,16 @@
  */
 
 // Source extensions
-export * from './from-xml';
-export * from './from-json';
-export * from './from-xnode';
+export * from './source'
+// export * from './from-xml';
+// export * from './from-json';
+// export * from './from-xnode';
 
 // Output extensions
-export * from './to-xml';
-export * from './to-json';
-export * from './to-xnode';
+export * from './output'
+// export * from './to-xml';
+// export * from './to-json';
+// export * from './to-xnode';
 
 // Functional extensions (core operations)
 export * from './functional-api';

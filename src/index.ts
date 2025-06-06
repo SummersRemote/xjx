@@ -4,14 +4,17 @@
 
 // IMPORTANT: Register all extensions by importing their files
 // These imports MUST be kept as they register methods on the XJX prototype
-import "./extensions/from-xml";
-import "./extensions/from-json";
-import "./extensions/to-xml";
-import "./extensions/to-json";
+// import "./extensions/from-xml";
+// import "./extensions/from-json";
+// import "./extensions/to-xml";
+// import "./extensions/to-json";
 import "./extensions/config-extensions";
-import "./extensions/to-xnode";
-import "./extensions/from-xnode";
+// import "./extensions/to-xnode";
+// import "./extensions/from-xnode";
 import "./extensions/functional-api";
+
+import "./extensions/source";
+import "./extensions/output";
 
 // Export the main class (for instantiation)
 export { XJX } from "./XJX";
@@ -125,14 +128,16 @@ export {
 // but ensures that tree-shaking doesn't remove our extension imports
 function ensureExtensionsRegistered() {
   return [
-    "./extensions/from-xml",
-    "./extensions/from-json",
-    "./extensions/to-xml",
-    "./extensions/to-json",
+    // "./extensions/from-xml",
+    // "./extensions/from-json",
+    // "./extensions/to-xml",
+    // "./extensions/to-json",
     "./extensions/config-extensions",
-    "./extensions/to-xnode",
-    "./extensions/from-xnode",
+    // "./extensions/to-xnode",
+    // "./extensions/from-xnode",
     "./extensions/functional-api",
+    "./extensions/source",
+    "./extensions/output"
   ];
 }
 

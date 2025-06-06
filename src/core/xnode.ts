@@ -1,101 +1,174 @@
 /**
- * XNode - Interface for XML node representation
- * 
- * Defines the structure for nodes in the XJX object model
+ * Semantic XNode implementation - Format-neutral universal data representation
+ * Replaces DOM-based XNode system with semantic types
  */
-import { NodeType } from './dom';
+import { LoggerFactory } from "./logger";
+const logger = LoggerFactory.create();
 
 /**
- * XNode interface representing an XML node in the object model
+ * Semantic node types for universal data representation
+ */
+export enum XNodeType {
+  COLLECTION = "collection",    // Containers (arrays, documents, result sets)
+  RECORD = "record",           // Structured items (objects, rows, elements)
+  FIELD = "field",             // Data points (properties, columns, fields)
+  VALUE = "value",             // Primitive values (strings, numbers, booleans)
+  ATTRIBUTES = "attributes",   // Metadata (always this type regardless of content)
+  COMMENT = "comment",         // Documentation (comments, descriptions)
+  INSTRUCTION = "instruction", // Processing directives (<?xml?>, pragmas)
+  DATA = "data"                // Embedded and raw data types (cdata, encoded, etc)
+}
+
+/**
+ * Primitive value types supported in XNode values
+ */
+export type Primitive = string | number | boolean | null;
+
+/**
+ * Format-neutral XNode interface for universal data representation
  */
 export interface XNode {
-  // Core node properties
+  type: XNodeType;
   name: string;
-  type: number;
-  value?: any;
-  attributes?: Record<string, any>;
-  children?: XNode[];
-  namespace?: string;
-  prefix?: string;
-  parent?: XNode;
-  namespaceDeclarations?: Record<string, string>;
-  isDefaultNamespace?: boolean;
-  
-  // Metadata container for processing instructions and hints
-  metadata?: Record<string, any>;
+  value?: Primitive;        // Primitive data - as received from source format
+  id?: string;              // Unique identifier (for references, keys, etc.)
+  ns?: string;              // Namespace URI or scope identifier
+  label?: string;           // Display label, namespace prefix, or format hint
+  children?: XNode[];       // Child nodes for hierarchical structure
+  attributes?: XNode[];     // Metadata nodes (always XNodeType.ATTRIBUTES)
+  parent?: XNode;          // Parent reference (excluded from serialization)
 }
 
 /**
- * Create an element node
- * @param name Element name
- * @returns New element node
+ * Create a collection node (arrays, documents, result sets)
  */
-export function createElement(name: string): XNode {
+export function createCollection(name: string): XNode {
   return {
+    type: XNodeType.COLLECTION,
     name,
-    type: NodeType.ELEMENT_NODE
+    children: []
   };
 }
 
 /**
- * Create a text node
- * @param value Text content
- * @returns New text node
+ * Create a record node (objects, rows, elements)
  */
-export function createTextNode(value: string): XNode {
+export function createRecord(name: string): XNode {
   return {
-    name: "#text",
-    type: NodeType.TEXT_NODE,
+    type: XNodeType.RECORD,
+    name,
+    children: []
+  };
+}
+
+/**
+ * Create a field node (properties, columns, fields)
+ */
+export function createField(name: string, value?: Primitive): XNode {
+  const node: XNode = {
+    type: XNodeType.FIELD,
+    name
+  };
+  if (value !== undefined) {
+    node.value = value;
+  }
+  return node;
+}
+
+/**
+ * Create a value node (standalone primitive values)
+ */
+export function createValue(name: string, value: Primitive): XNode {
+  return {
+    type: XNodeType.VALUE,
+    name,
     value
   };
 }
 
 /**
- * Create a CDATA node
- * @param value CDATA content
- * @returns New CDATA node
+ * Create an attributes node (metadata)
  */
-export function createCDATANode(value: string): XNode {
-  return {
-    name: "#cdata",
-    type: NodeType.CDATA_SECTION_NODE,
-    value
+export function createAttributes(name: string, value?: Primitive): XNode {
+  const node: XNode = {
+    type: XNodeType.ATTRIBUTES,
+    name
   };
+  if (value !== undefined) {
+    node.value = value;
+  }
+  return node;
 }
 
 /**
- * Create a comment node
- * @param value Comment content
- * @returns New comment node
+ * Create a comment node (documentation)
  */
-export function createCommentNode(value: string): XNode {
+export function createComment(content: string): XNode {
   return {
+    type: XNodeType.COMMENT,
     name: "#comment",
-    type: NodeType.COMMENT_NODE,
-    value
+    value: content
   };
 }
 
 /**
- * Create a processing instruction node
- * @param target Processing instruction target
- * @param data Processing instruction data
- * @returns New processing instruction node
+ * Create an instruction node (processing directives)
  */
-export function createProcessingInstructionNode(target: string, data: string): XNode {
-  return {
-    name: "#pi",
-    type: NodeType.PROCESSING_INSTRUCTION_NODE,
-    value: data,
-    attributes: { target }
+export function createInstruction(target: string, data?: string): XNode {
+  const node: XNode = {
+    type: XNodeType.INSTRUCTION,
+    name: target
   };
+  if (data !== undefined) {
+    node.value = data;
+  }
+  return node;
+}
+
+/**
+ * Create a data node (raw/embedded data)
+ */
+export function createData(name: string, content: string): XNode {
+  return {
+    type: XNodeType.DATA,
+    name,
+    value: content
+  };
+}
+
+/**
+ * Add a child node to a parent node
+ */
+export function addChild(parent: XNode, child: XNode): XNode {
+  if (!parent.children) {
+    parent.children = [];
+  }
+  
+  // Set parent reference
+  child.parent = parent;
+  parent.children.push(child);
+  
+  return parent;
+}
+
+/**
+ * Add an attribute to a node
+ */
+export function addAttribute(node: XNode, name: string, value: Primitive, ns?: string, label?: string): XNode {
+  if (!node.attributes) {
+    node.attributes = [];
+  }
+  
+  const attr = createAttributes(name, value);
+  if (ns) attr.ns = ns;
+  if (label) attr.label = label;
+  
+  node.attributes.push(attr);
+  return node;
 }
 
 /**
  * Clone an XNode with optional deep flag
- * @param node Node to clone
- * @param deep Whether to clone children recursively
- * @returns Cloned node
  */
 export function cloneNode(node: XNode, deep: boolean = false): XNode {
   if (!deep) {
@@ -103,7 +176,8 @@ export function cloneNode(node: XNode, deep: boolean = false): XNode {
     return {
       ...node,
       parent: undefined,
-      children: undefined
+      children: undefined,
+      attributes: undefined
     };
   }
   
@@ -115,17 +189,7 @@ export function cloneNode(node: XNode, deep: boolean = false): XNode {
   
   // Clone attributes if present
   if (node.attributes) {
-    clone.attributes = { ...node.attributes };
-  }
-  
-  // Clone namespace declarations if present
-  if (node.namespaceDeclarations) {
-    clone.namespaceDeclarations = { ...node.namespaceDeclarations };
-  }
-  
-  // Clone metadata if present
-  if (node.metadata) {
-    clone.metadata = { ...node.metadata };
+    clone.attributes = node.attributes.map(attr => cloneNode(attr, true));
   }
   
   // Clone children if present
@@ -141,47 +205,16 @@ export function cloneNode(node: XNode, deep: boolean = false): XNode {
 }
 
 /**
- * Add a child node to a parent node
- * @param parent Parent node
- * @param child Child node to add
- * @returns Updated parent node
- */
-export function addChild(parent: XNode, child: XNode): XNode {
-  if (!parent.children) {
-    parent.children = [];
-  }
-  
-  // Set parent reference
-  child.parent = parent;
-  parent.children.push(child);
-  
-  return parent;
-}
-
-/**
- * Set an attribute on a node
- * @param node Node to modify
- * @param name Attribute name
- * @param value Attribute value
- * @returns Updated node
- */
-export function setAttribute(node: XNode, name: string, value: any): XNode {
-  if (!node.attributes) {
-    node.attributes = {};
-  }
-  
-  node.attributes[name] = value;
-  return node;
-}
-
-/**
- * Get the text content of a node
- * @param node Node to get text from
- * @returns Text content or empty string
+ * Get the text content of a node and its children
  */
 export function getTextContent(node: XNode): string {
-  // For text and CDATA nodes, return value directly
-  if (node.type === NodeType.TEXT_NODE || node.type === NodeType.CDATA_SECTION_NODE) {
+  // For value and field nodes, return value directly
+  if (node.type === XNodeType.VALUE || node.type === XNodeType.FIELD) {
+    return node.value?.toString() || '';
+  }
+  
+  // For data nodes, return the data content
+  if (node.type === XNodeType.DATA) {
     return node.value?.toString() || '';
   }
   
@@ -194,9 +227,11 @@ export function getTextContent(node: XNode): string {
   if (node.children) {
     return node.children
       .filter(child => 
-        child.type === NodeType.TEXT_NODE || 
-        child.type === NodeType.CDATA_SECTION_NODE ||
-        child.type === NodeType.ELEMENT_NODE
+        child.type === XNodeType.VALUE || 
+        child.type === XNodeType.DATA ||
+        child.type === XNodeType.FIELD ||
+        child.type === XNodeType.RECORD ||
+        child.type === XNodeType.COLLECTION
       )
       .map(child => getTextContent(child))
       .join('');
@@ -207,20 +242,17 @@ export function getTextContent(node: XNode): string {
 
 /**
  * Set the text content of a node
- * @param node Node to modify
- * @param text New text content
- * @returns Updated node
  */
 export function setTextContent(node: XNode, text: string): XNode {
-  // For text and CDATA nodes, set the value directly
-  if (node.type === NodeType.TEXT_NODE || node.type === NodeType.CDATA_SECTION_NODE) {
+  // For value, field, and data nodes, set the value directly
+  if (node.type === XNodeType.VALUE || node.type === XNodeType.FIELD || node.type === XNodeType.DATA) {
     node.value = text;
     return node;
   }
   
-  // For element nodes, replace all children with a single text node
-  if (node.type === NodeType.ELEMENT_NODE) {
-    const textNode = createTextNode(text);
+  // For record and collection nodes, replace children with a single value node
+  if (node.type === XNodeType.RECORD || node.type === XNodeType.COLLECTION) {
+    const textNode = createValue("#text", text);
     textNode.parent = node;
     node.children = [textNode];
     
@@ -231,4 +263,113 @@ export function setTextContent(node: XNode, text: string): XNode {
   }
   
   return node;
+}
+
+/**
+ * Find attribute by name
+ */
+export function getAttribute(node: XNode, name: string): XNode | undefined {
+  return node.attributes?.find(attr => attr.name === name);
+}
+
+/**
+ * Get attribute value by name
+ */
+export function getAttributeValue(node: XNode, name: string): Primitive | undefined {
+  return getAttribute(node, name)?.value;
+}
+
+/**
+ * Check if node has attributes
+ */
+export function hasAttributes(node: XNode): boolean {
+  return node.attributes !== undefined && node.attributes.length > 0;
+}
+
+/**
+ * Check if node has children
+ */
+export function hasChildren(node: XNode): boolean {
+  return node.children !== undefined && node.children.length > 0;
+}
+
+/**
+ * Get node type name for debugging
+ */
+export function getNodeTypeName(type: XNodeType): string {
+  return type.toUpperCase();
+}
+
+/**
+ * Type guard functions for semantic types
+ */
+export function isCollection(node: XNode): boolean {
+  return node.type === XNodeType.COLLECTION;
+}
+
+export function isRecord(node: XNode): boolean {
+  return node.type === XNodeType.RECORD;
+}
+
+export function isField(node: XNode): boolean {
+  return node.type === XNodeType.FIELD;
+}
+
+export function isValue(node: XNode): boolean {
+  return node.type === XNodeType.VALUE;
+}
+
+export function isAttribute(node: XNode): boolean {
+  return node.type === XNodeType.ATTRIBUTES;
+}
+
+export function isComment(node: XNode): boolean {
+  return node.type === XNodeType.COMMENT;
+}
+
+export function isInstruction(node: XNode): boolean {
+  return node.type === XNodeType.INSTRUCTION;
+}
+
+export function isData(node: XNode): boolean {
+  return node.type === XNodeType.DATA;
+}
+
+/**
+ * Check if node contains primitive data
+ */
+export function isPrimitive(node: XNode): boolean {
+  return node.type === XNodeType.VALUE || 
+         node.type === XNodeType.FIELD || 
+         node.type === XNodeType.ATTRIBUTES;
+}
+
+/**
+ * Check if node is a container type
+ */
+export function isContainer(node: XNode): boolean {
+  return node.type === XNodeType.COLLECTION || node.type === XNodeType.RECORD;
+}
+
+/**
+ * Get all child nodes of a specific type
+ */
+export function getChildrenByType(node: XNode, type: XNodeType): XNode[] {
+  return node.children?.filter(child => child.type === type) || [];
+}
+
+/**
+ * Get all child nodes with a specific name
+ */
+export function getChildrenByName(node: XNode, name: string): XNode[] {
+  return node.children?.filter(child => child.name === name) || [];
+}
+
+/**
+ * Get first child node with specific name and type
+ */
+export function getChild(node: XNode, name: string, type?: XNodeType): XNode | undefined {
+  return node.children?.find(child => 
+    child.name === name && (type === undefined || child.type === type)
+  );
 }

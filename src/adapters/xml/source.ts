@@ -19,7 +19,7 @@ import {
   addChild,
   addAttribute
 } from '../../core/xnode';
-import { UnifiedConverter } from '../../core/pipeline';
+import { Adapter } from '../../core/pipeline';
 import { PipelineContext } from '../../core/context';
 import { NonTerminalExtensionContext } from "../../core/extension";
 import { SourceHooks } from "../../core/hooks";
@@ -38,7 +38,7 @@ interface XmlConversionContext {
 /**
  * XML to Semantic XNode converter
  */
-export const xmlToXNodeConverter: UnifiedConverter<string, XNode> = {
+export const xmlToXNodeConverter: Adapter<string, XNode> = {
   name: 'xmlToSemanticXNode',
   inputType: 'string',
   outputType: 'XNode',

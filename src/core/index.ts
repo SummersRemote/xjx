@@ -22,9 +22,6 @@ export * from './config';
 // Configuration utilities (replaces ConfigurationHelper methods)
 export * from './config-utils';
 
-// Converter system
-export * from './converter';
-
 // Hooks system
 export * from './hooks';
 

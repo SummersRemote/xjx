@@ -16,7 +16,7 @@ import {
 } from "./core/extension";
 import { PipelineHooks, SourceHooks, OutputHooks, NodeHooks } from "./core/hooks";
 import { PipelineContext, PipelineContextImpl } from "./core/context";
-import { UnifiedConverter, PipelineStage, Pipeline } from "./core/pipeline";
+import { Adapter, PipelineStage, Pipeline } from "./core/pipeline";
 
 /**
  * Extension configuration defaults - keys become config property names
@@ -200,7 +200,7 @@ export class XJX implements UnifiedExtensionContext {
    * @param hooks Optional source hooks
    */
   public executeSource<T>(
-    converter: UnifiedConverter<T, XNode>, 
+    converter: Adapter<T, XNode>, 
     input: T, 
     hooks?: SourceHooks<T>
   ): void {
@@ -214,7 +214,7 @@ export class XJX implements UnifiedExtensionContext {
    * @returns Converted output
    */
   public executeOutput<T>(
-    converter: UnifiedConverter<XNode, T>, 
+    converter: Adapter<XNode, T>, 
     hooks?: OutputHooks<T>
   ): T {
     this.validateSource();

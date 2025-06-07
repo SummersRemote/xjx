@@ -7,7 +7,7 @@ const logger = LoggerFactory.create();
 import { DOM, NodeType } from '../../core/dom';
 import { ProcessingError } from '../../core/error';
 import { XNode, XNodeType, getTextContent } from '../../core/xnode';
-import { UnifiedConverter } from '../../core/pipeline';
+import { Adapter } from '../../core/pipeline';
 import { PipelineContext } from '../../core/context';
 import { TerminalExtensionContext } from "../../core/extension";
 import { OutputHooks } from "../../core/hooks";
@@ -26,7 +26,7 @@ interface XmlOutputContext {
 /**
  * Semantic XNode to XML Document converter
  */
-export const xnodeToXmlConverter: UnifiedConverter<XNode, Document> = {
+export const xnodeToXmlConverter: Adapter<XNode, Document> = {
   name: 'semanticXNodeToXml',
   inputType: 'XNode',
   outputType: 'Document',
@@ -93,7 +93,7 @@ export const xnodeToXmlConverter: UnifiedConverter<XNode, Document> = {
 /**
  * Semantic XNode to XML string converter
  */
-export const xnodeToXmlStringConverter: UnifiedConverter<XNode, string> = {
+export const xnodeToXmlStringConverter: Adapter<XNode, string> = {
   name: 'semanticXNodeToXmlString',
   inputType: 'XNode',
   outputType: 'string',

@@ -107,7 +107,7 @@ export {
 // Export pipeline system
 export {
   PipelineStage,
-  UnifiedConverter,
+  Adapter as UnifiedConverter,
   Pipeline
 } from "./core/pipeline";
 
@@ -119,14 +119,6 @@ export {
   ClonePolicy,
   ClonePolicies
 } from "./core/context";
-
-// Export converter base types and hook interfaces
-export {
-  Converter,
-  applySourceHooks,
-  applyOutputHooks,
-  applyNodeHooks,
-} from "./core/converter";
 
 // Hooks system
 export {

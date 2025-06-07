@@ -6,7 +6,7 @@ const logger = LoggerFactory.create();
 
 import { ProcessingError } from "../../core/error";
 import { XNode, XNodeType, getTextContent } from "../../core/xnode";
-import { UnifiedConverter } from "../../core/pipeline";
+import { Adapter } from "../../core/pipeline";
 import { PipelineContext } from "../../core/context";
 import { TerminalExtensionContext } from "../../core/extension";
 import { OutputHooks } from "../../core/hooks";
@@ -26,7 +26,7 @@ interface JsonOutputContext {
 /**
  * Semantic XNode to JSON converter
  */
-export const xnodeToJsonConverter: UnifiedConverter<XNode, JsonValue> = {
+export const xnodeToJsonConverter: Adapter<XNode, JsonValue> = {
   name: 'semanticXNodeToJson',
   inputType: 'XNode',
   outputType: 'JsonValue',
@@ -86,7 +86,7 @@ export const xnodeToJsonConverter: UnifiedConverter<XNode, JsonValue> = {
 /**
  * High-fidelity semantic XNode to JSON converter
  */
-export const xnodeToJsonHiFiConverter: UnifiedConverter<XNode, JsonValue> = {
+export const xnodeToJsonHiFiConverter: Adapter<XNode, JsonValue> = {
   name: 'semanticXNodeToJsonHiFi',
   inputType: 'XNode',
   outputType: 'JsonValue',

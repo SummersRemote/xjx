@@ -14,7 +14,7 @@ import {
   createValue,
   addChild
 } from "../../core/xnode";
-import { UnifiedConverter } from "../../core/pipeline";
+import { Adapter } from "../../core/pipeline";
 import { PipelineContext } from "../../core/context";
 import { NonTerminalExtensionContext } from "../../core/extension";
 import { SourceHooks } from "../../core/hooks";
@@ -35,7 +35,7 @@ interface JsonConversionContext {
 /**
  * Standard JSON to Semantic XNode converter
  */
-export const jsonToXNodeConverter: UnifiedConverter<JsonValue, XNode> = {
+export const jsonToXNodeConverter: Adapter<JsonValue, XNode> = {
   name: 'jsonToSemanticXNode',
   inputType: 'JsonValue',
   outputType: 'XNode',
@@ -95,7 +95,7 @@ export const jsonToXNodeConverter: UnifiedConverter<JsonValue, XNode> = {
 /**
  * High-fidelity JSON to Semantic XNode converter
  */
-export const jsonHiFiToXNodeConverter: UnifiedConverter<JsonValue, XNode> = {
+export const jsonHiFiToXNodeConverter: Adapter<JsonValue, XNode> = {
   name: 'jsonHiFiToSemanticXNode',
   inputType: 'JsonValue',
   outputType: 'XNode',

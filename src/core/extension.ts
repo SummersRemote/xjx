@@ -3,7 +3,7 @@
  */
 import { XNode } from './xnode';
 import { PipelineContext } from './context';
-import { UnifiedConverter, PipelineStage } from './pipeline';
+import { Adapter, PipelineStage } from './pipeline';
 import { SourceHooks, OutputHooks, NodeHooks } from './hooks';
 
 /**
@@ -30,8 +30,8 @@ export interface UnifiedExtensionContext {
   
   // Standard operations available to all extensions
   validateSource(): void;
-  executeSource<T>(converter: UnifiedConverter<T, XNode>, input: T, hooks?: SourceHooks<T>): void;
-  executeOutput<T>(converter: UnifiedConverter<XNode, T>, hooks?: OutputHooks<T>): T;
+  executeSource<T>(converter: Adapter<T, XNode>, input: T, hooks?: SourceHooks<T>): void;
+  executeOutput<T>(converter: Adapter<XNode, T>, hooks?: OutputHooks<T>): T;
   executeTransform(operation: PipelineStage<XNode, XNode>, hooks?: NodeHooks): void;
 }
 

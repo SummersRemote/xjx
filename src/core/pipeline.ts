@@ -31,7 +31,7 @@ export interface PipelineStage<TInput, TOutput> {
 /**
  * Unified converter interface extending PipelineStage
  */
-export interface UnifiedConverter<TInput, TOutput> extends PipelineStage<TInput, TOutput> {
+export interface Adapter<TInput, TOutput> extends PipelineStage<TInput, TOutput> {
   readonly name: string;
   readonly inputType: string;
   readonly outputType: string;
@@ -39,7 +39,6 @@ export interface UnifiedConverter<TInput, TOutput> extends PipelineStage<TInput,
 
 /**
  * Simplified pipeline execution engine
- * REMOVED: Advanced error recovery, retry logic, performance monitoring, health reporting
  */
 export class Pipeline {
   
@@ -47,7 +46,7 @@ export class Pipeline {
    * Execute a source operation (input -> XNode) with basic error handling
    */
   static executeSource<T>(
-    stage: UnifiedConverter<T, XNode>,
+    stage: Adapter<T, XNode>,
     input: T,
     context: PipelineContext,
     hooks?: SourceHooks<T>
@@ -106,7 +105,7 @@ export class Pipeline {
    * Execute an output operation (XNode -> output) with basic error handling
    */
   static executeOutput<T>(
-    stage: UnifiedConverter<XNode, T>,
+    stage: Adapter<XNode, T>,
     input: XNode,
     context: PipelineContext,
     hooks?: OutputHooks<T>
@@ -222,7 +221,6 @@ export class Pipeline {
   
   /**
    * Simplified stage execution with basic error handling only
-   * REMOVED: Retry logic, advanced error recovery, performance tracking
    */
   private static executeStageSimple<TInput, TOutput>(
     stage: PipelineStage<TInput, TOutput>,
